@@ -87,7 +87,6 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
     description: "Αυτόνομες επιλογές του BackOffice, όπως εμφανίζονται εκτός κατηγορίας στο sidebar.",
     packages: ["BackOffice"],
     items: [
-      { path: "/carrier-bridges-hub", label: "Γέφυρες εταιρειών" },
       { path: "/documents", label: "Έγγραφα" },
       { path: "/over-commission-bridges", label: "Γέφυρες υπερπρομηθειών" }
     ]
@@ -227,21 +226,8 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
     packages: ["Integrations"],
     groupKey: "integrationsGrp",
     items: [
-      { path: "/usae", label: "ΥΣΑΕ" },
-      { path: "/dias", label: "ΔΙΑΣ" },
-      { path: "/bank-connections", label: "Τραπεζικές συνδέσεις" },
-      { path: "/info-center", label: "Info Center" },
       { path: "/partner-portals", label: "Πύλες συνεργατών" },
       { path: "/api-keys", label: "Κλειδιά API" }
-    ]
-  },
-  {
-    title: "Ρυθμίσεις διασυνδέσεων",
-    description: "Ίδια κατηγορία με το πλαίσιο ρυθμίσεων του sidebar.",
-    packages: ["Integrations"],
-    groupKey: "setup",
-    items: [
-      { path: "/branches", label: "Σχεδιασμός κλάδων" }
     ]
   },
   {
@@ -268,17 +254,6 @@ export const BACKOFFICE_PAGE_CONTAINER_SECTIONS: PageContainerVisibilitySection[
       { pageId: "agency-and-profile", containerId: "office-instructions", label: "Οδηγίες γραφείου", packages: ["BackOffice"] },
       { pageId: "agency-and-profile", containerId: "support-requests", label: "Αιτήματα υποστήριξης", packages: ["BackOffice"] },
     ],
-  },
-  {
-    title: "Γέφυρες Εταιρειών",
-    description: "Tiles της σελίδας Γέφυρες Εταιρειών.",
-    packages: ["BackOffice"],
-    items: [
-      { pageId: "carrier-bridges-hub", containerId: "production-bridges", label: "Παραγωγή / Γέφυρες εταιρειών", packages: ["BackOffice"] },
-      { pageId: "carrier-bridges-hub", containerId: "over-commission-bridges", label: "Γέφυρες υπερπρομηθειών", packages: ["BackOffice"] },
-      { pageId: "carrier-bridges-hub", containerId: "collection-file-bridges", label: "Γέφυρες οικονομικών (αρχεία είσπραξης)", packages: ["BackOffice"] },
-      { pageId: "carrier-bridges-hub", containerId: "bridge-code-mappings", label: "Αντιστοιχίσεις κωδικών", packages: ["BackOffice"] }
-    ]
   },
   {
     title: "Ταυτοποιήσεις & Καταμερισμοί",

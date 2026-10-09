@@ -58,9 +58,14 @@ const SERVICES: { code: string; label: string; keys: string[]; hint: string; key
     keyHints: { ApiKey: "Το API key από το dashboard του Brevo (Account → SMTP & API).", FromAddress: "Η διεύθυνση αποστολέα (πρέπει να έχει επαληθευτεί στο Brevo).", FromName: "Το εμφανιζόμενο όνομα του γραφείου στα εξερχόμενα mail." } }
 ];
 
+// Τα παλαιότερα integrations παραμένουν διαθέσιμα στον κώδικα/API για
+// συμβατότητα, αλλά δεν εμφανίζονται στην κύρια πλοήγηση. Η σελίδα δείχνει
+// μόνο τις τέσσερις τελευταίες, ενεργές ενότητες.
+const NAV_SERVICES = SERVICES.slice(-4);
+
 export function IntegrationSettingsPage({ crmOnly = false, aiOnly = false }: { crmOnly?: boolean; aiOnly?: boolean }) {
   const { t } = useTranslation();
-  const services = crmOnly ? SERVICES.filter(s => s.code === "Crm") : aiOnly ? SERVICES.filter(s => s.code === "Ai") : SERVICES;
+  const services = crmOnly ? NAV_SERVICES.filter(s => s.code === "Crm") : aiOnly ? NAV_SERVICES.filter(s => s.code === "Ai") : NAV_SERVICES;
   const [tab, setTab] = useState(0);
   const service = services[Math.min(tab, Math.max(services.length - 1, 0))];
 

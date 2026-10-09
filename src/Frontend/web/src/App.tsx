@@ -31,7 +31,6 @@ import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import EventIcon from "@mui/icons-material/Event";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
-import LinkIcon from "@mui/icons-material/Link";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import LeaderboardIcon from "@mui/icons-material/Leaderboard";
 import EngineeringIcon from "@mui/icons-material/Engineering";
@@ -231,7 +230,6 @@ import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import StackedLineChartIcon from "@mui/icons-material/StackedLineChart";
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import GavelOutlinedIcon from "@mui/icons-material/GavelOutlined";
-import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
 import CakeIcon from "@mui/icons-material/Cake";
 // MergeIcon was the customer-merge sidebar row — folded into
 // /reconciliation-hub as a tile, icon no longer needed here.
@@ -308,9 +306,6 @@ export const navByRole: Record<Role, NavItem[]> = {
     // standalone sidebar rows to save space — old /app/documentation
     // and /app/bookkeeping URLs still resolve to the same content via
     // the route registrations further down.
-
-    // ===== BackOffice — Γέφυρες Εταιρειών (hub for 4 carrier-import screens) =====
-    { to: "/carrier-bridges-hub", labelKey: "nav.carrierBridgesHub", icon: <CloudUploadIcon />, package: "BackOffice" },
 
     // ===== BackOffice — ΠΑΡΑΓΩΓΗ (core production records: customers, policies, claims) =====
     // Sidebar consolidation: /production-report (ετήσια παραγωγή) is
@@ -457,18 +452,12 @@ export const navByRole: Record<Role, NavItem[]> = {
 
     // ===== Integrations =====
     { to: "/integration-settings", labelKey: "nav.integrationSettings", icon: <VpnKeyIcon />, package: "Integrations" },
-    { to: "/carrier-bridges-hub", labelKey: "nav.carrierBridgesHub", icon: <CloudUploadIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/timologion", labelKey: "nav.timologion", icon: <ReceiptLongIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/mydata", labelKey: "nav.mydata", icon: <GavelOutlinedIcon />, package: "Integrations" },
-    { to: "/usae", labelKey: "nav.usae", icon: <RuleIcon />, package: "Integrations", group: "integrationsGrp" },
-    { to: "/dias", labelKey: "nav.dias", icon: <AccountBalanceIcon />, package: "Integrations", group: "integrationsGrp" },
-    { to: "/bank-connections", labelKey: "nav.bankConnections", icon: <LinkIcon />, package: "Integrations", group: "integrationsGrp" },
     // company-bridges + bridge-import are duplicates of /carrier-bridges
     // (BackOffice top-level). Routes redirect — sidebar entries removed.
-    { to: "/info-center", labelKey: "nav.infoCenter", icon: <CloudUploadOutlinedIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/partner-portals", labelKey: "nav.b2bPortal", icon: <HubIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/api-keys", labelKey: "nav.thirdParty", icon: <ExtensionIcon />, package: "Integrations", group: "integrationsGrp" },
-    { to: "/branches", labelKey: "nav.branchDesigner", icon: <AccountTreeIcon />, package: "Integrations", group: "setup" },
     { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "Integrations" },
 
     // Always-visible footer.
@@ -526,13 +515,8 @@ export const navByRole: Record<Role, NavItem[]> = {
     // Integrations — shown when the office has enabled the package. The
     // workspace filter keeps these out of other package sidebars.
     { to: "/integration-settings", labelKey: "nav.integrationSettings", icon: <VpnKeyIcon />, package: "Integrations" },
-    { to: "/carrier-bridges-hub", labelKey: "nav.carrierBridgesHub", icon: <CloudUploadIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/timologion", labelKey: "nav.timologion", icon: <ReceiptLongIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/mydata", labelKey: "nav.mydata", icon: <GavelOutlinedIcon />, package: "Integrations" },
-    { to: "/usae", labelKey: "nav.usae", icon: <RuleIcon />, package: "Integrations", group: "integrationsGrp" },
-    { to: "/dias", labelKey: "nav.dias", icon: <AccountBalanceIcon />, package: "Integrations", group: "integrationsGrp" },
-    { to: "/bank-connections", labelKey: "nav.bankConnections", icon: <LinkIcon />, package: "Integrations", group: "integrationsGrp" },
-    { to: "/info-center", labelKey: "nav.infoCenter", icon: <CloudUploadOutlinedIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/partner-portals", labelKey: "nav.b2bPortal", icon: <HubIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/api-keys", labelKey: "nav.thirdParty", icon: <ExtensionIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> },
@@ -584,13 +568,8 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/churn", labelKey: "nav.churn", icon: <SmartToyIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/users", labelKey: "nav.users", icon: <GroupIcon />, package: "BackOffice", group: "admin" },
     { to: "/integration-settings", labelKey: "nav.integrationSettings", icon: <VpnKeyIcon />, package: "Integrations" },
-    { to: "/carrier-bridges-hub", labelKey: "nav.carrierBridgesHub", icon: <CloudUploadIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/timologion", labelKey: "nav.timologion", icon: <ReceiptLongIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/mydata", labelKey: "nav.mydata", icon: <GavelOutlinedIcon />, package: "Integrations" },
-    { to: "/usae", labelKey: "nav.usae", icon: <RuleIcon />, package: "Integrations", group: "integrationsGrp" },
-    { to: "/dias", labelKey: "nav.dias", icon: <AccountBalanceIcon />, package: "Integrations", group: "integrationsGrp" },
-    { to: "/bank-connections", labelKey: "nav.bankConnections", icon: <LinkIcon />, package: "Integrations", group: "integrationsGrp" },
-    { to: "/info-center", labelKey: "nav.infoCenter", icon: <CloudUploadOutlinedIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/partner-portals", labelKey: "nav.b2bPortal", icon: <HubIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/api-keys", labelKey: "nav.thirdParty", icon: <ExtensionIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> },
