@@ -919,18 +919,17 @@ function FeatureCell({ icon: Icon, title, body, index, area, featured }: {
    ============================================================================ */
 const PUBLIC_PACKAGE_DEFS = [
   { key: "backoffice", numeral: "I", color: "#1f7bb3", nameKey: "pricing.packages.items.backoffice.name", taglineKey: "pricing.packages.items.backoffice.tagline", bodyKey: "pricing.packages.items.backoffice.body" },
-  { key: "frontoffice", numeral: "II", color: "#078b88", nameKey: "pricing.packages.items.frontoffice.name", taglineKey: "pricing.packages.items.frontoffice.tagline", bodyKey: "pricing.packages.items.frontoffice.body" },
-  { key: "crm", numeral: "III", color: "#496de8", nameKey: "pricing.packages.items.crm.name", taglineKey: "pricing.packages.items.crm.tagline", bodyKey: "pricing.packages.items.crm.body" },
-  { key: "intelligence", numeral: "IV", color: "#155783", nameKey: "pricing.packages.items.intelligence.name", taglineKey: "pricing.packages.items.intelligence.tagline", bodyKey: "pricing.packages.items.intelligence.body" },
-  { key: "integrations", numeral: "V", color: "#244f78", nameKey: "pricing.packages.items.integrations.name", taglineKey: "pricing.packages.items.integrations.tagline", bodyKey: "pricing.packages.items.integrations.body" },
-  { key: "ermes", numeral: "VI", color: "#0b2545", nameKey: "ws.Ermes.name", taglineKey: "ws.Ermes.name", bodyKey: "ws.Ermes.body" },
+  { key: "crm", numeral: "II", color: "#496de8", nameKey: "pricing.packages.items.crm.name", taglineKey: "pricing.packages.items.crm.tagline", bodyKey: "pricing.packages.items.crm.body" },
+  { key: "intelligence", numeral: "III", color: "#155783", nameKey: "pricing.packages.items.intelligence.name", taglineKey: "pricing.packages.items.intelligence.tagline", bodyKey: "pricing.packages.items.intelligence.body" },
+  { key: "integrations", numeral: "IV", color: "#244f78", nameKey: "pricing.packages.items.integrations.name", taglineKey: "pricing.packages.items.integrations.tagline", bodyKey: "pricing.packages.items.integrations.body" },
+  { key: "ermes", numeral: "V", color: "#0b2545", nameKey: "ws.Ermes.name", taglineKey: "ws.Ermes.name", bodyKey: "ws.Ermes.body" },
 ] as const;
 
 const PUBLIC_PACKAGE_FEATURES = [
   {
     el: "Πελάτες, συμβόλαια & ασφαλιστική παραγωγή",
     en: "Customers, policies & production",
-    values: [true, false, true, true, false, false]
+    values: [true, true, true, false, false]
   },
   {
     el: "Ταμείο, εισπράξεις & προμήθειες",
@@ -938,40 +937,36 @@ const PUBLIC_PACKAGE_FEATURES = [
     values: [true, false, false, false, false, false]
   },
   {
-    el: "Ιστοσελίδα γραφείου & αιτήσεις",
-    en: "Office website & enquiries",
-    values: [false, true, false, false, false, false]
-  },
-  {
     el: "CRM, πύλη πελάτη & καμπάνιες",
     en: "CRM, customer portal & campaigns",
-    values: [false, false, true, false, false, false]
+    values: [false, true, false, false, false]
   },
   {
     el: "Αναφορές, στόχοι & νοημοσύνη",
     en: "Reports, goals & intelligence",
-    values: [false, false, false, true, false, false]
+    values: [false, false, true, false, false]
   },
   {
     el: "Διασυνδέσεις & συμμόρφωση",
     en: "Integrations & compliance",
-    values: [false, false, false, false, true, false]
+    values: [false, false, false, true, false]
   },
   {
     el: "Ασφαλής επικοινωνία & συναντήσεις",
     en: "Secure messaging & meetings",
-    values: [false, false, false, false, false, true]
+    values: [false, false, false, false, true]
   },
   {
     el: "Ενιαία δεδομένα σε όλο το Kalypsis",
     en: "One shared data layer across Kalypsis",
-    values: [true, true, true, true, true, true]
+    values: [true, true, true, true, true]
   }
 ] as const;
 
 function PackageComparisonSection() {
   const { t, i18n } = useTranslation();
   const isEn = i18n.resolvedLanguage?.startsWith("en") ?? false;
+  const packageRailRef = useRef<HTMLDivElement | null>(null);
   const copy = isEn ? {
     eyebrow: "THE KALYPSIS PACKAGES",
     title: "Choose the workspace your agency needs today.",
@@ -1009,7 +1004,23 @@ function PackageComparisonSection() {
           </Box>
         </Reveal>
 
-        <Box sx={{ display: "grid", gap: { xs: 1.5, sm: 2, lg: 1.5 }, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "repeat(6, minmax(0, 1fr))" }, alignItems: "stretch" }}>
+        <Stack direction="row" justifyContent="flex-end" spacing={0.75} sx={{ mb: 1.25 }}>
+          <IconButton
+            aria-label={isEn ? "Scroll packages left" : "Κύλιση πακέτων αριστερά"}
+            onClick={() => packageRailRef.current?.scrollBy({ left: -420, behavior: "smooth" })}
+            sx={{ width: 38, height: 38, color: NAVY, bgcolor: "#fff", border: `1px solid ${RULE}`, "&:hover": { bgcolor: "#eef6fb", borderColor: ACCENT } }}
+          >
+            <ArrowBackIosNewIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+          <IconButton
+            aria-label={isEn ? "Scroll packages right" : "Κύλιση πακέτων δεξιά"}
+            onClick={() => packageRailRef.current?.scrollBy({ left: 420, behavior: "smooth" })}
+            sx={{ width: 38, height: 38, color: NAVY, bgcolor: "#fff", border: `1px solid ${RULE}`, "&:hover": { bgcolor: "#eef6fb", borderColor: ACCENT } }}
+          >
+            <ArrowForwardIosIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Stack>
+        <Box ref={packageRailRef} sx={{ display: "flex", gap: { xs: 1.5, sm: 2 }, overflowX: "auto", pb: 1.5, scrollSnapType: "x mandatory", scrollBehavior: "smooth", overscrollBehaviorX: "contain", scrollbarWidth: "thin", scrollbarColor: `${ACCENT} ${RULE}`, "&::-webkit-scrollbar": { height: 8 }, "&::-webkit-scrollbar-track": { bgcolor: RULE, borderRadius: 99 }, "&::-webkit-scrollbar-thumb": { bgcolor: ACCENT, borderRadius: 99 }, "& > *": { display: "flex", flex: { xs: "0 0 86%", sm: "0 0 46%", md: "0 0 31%", lg: "0 0 18%" }, scrollSnapAlign: "start", minWidth: 0 } }}>
           {PUBLIC_PACKAGE_DEFS.map((pkg, index) => (
             <Reveal key={pkg.key} delay={index * 70}>
               <Box sx={{ height: "100%", bgcolor: "#fff", border: `1px solid ${RULE}`, borderTop: `4px solid ${pkg.color}`, borderRadius: 2, p: { xs: 2.25, md: 2 }, display: "flex", flexDirection: "column", boxShadow: "0 8px 24px rgba(11,37,69,.06)", transition: "transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease", "&:hover": { transform: "translateY(-4px)", boxShadow: "0 18px 32px rgba(11,37,69,.13)", borderColor: pkg.color } }}>
