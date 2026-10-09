@@ -362,9 +362,13 @@ export const navByRole: Record<Role, NavItem[]> = {
 
     // Accounting and cash-control routes remain available from the Financial hub.
 
-    // BackOffice → ΖΗΜΙΕΣ ΚΑΙ ΔΙΑΚΑΝΟΝΙΣΜΟΙ — temporarily disabled (per user request).
-    // Routes below still resolve so we don't crash existing deep-links, but the
-    // sidebar entries are gone. Restore these lines to re-enable the group.
+    // BackOffice → ΖΗΜΙΕΣ ΚΑΙ ΔΙΑΚΑΝΟΝΙΣΜΟΙ
+    // These are full, tenant-scoped workspaces backed by the claims API:
+    // repair shops, reserves, indemnities and friendly settlements.
+    { to: "/garages",              labelKey: "nav.garages",      icon: <EngineeringIcon />, package: "BackOffice", group: "claimsOps" },
+    { to: "/claim-provisions",     labelKey: "nav.provisions",   icon: <AccountBalanceIcon />, package: "BackOffice", group: "claimsOps" },
+    { to: "/indemnities",          labelKey: "nav.indemnities",  icon: <PaymentsIcon />, package: "BackOffice", group: "claimsOps" },
+    { to: "/friendly-settlements", labelKey: "nav.friendly",     icon: <HandshakeIcon />, package: "BackOffice", group: "claimsOps" },
 
     // BackOffice → ΠΑΡΑΜΕΤΡΟΠΟΙΗΣΗ — fewer sidebar entries:
     // Εταιρείες → Κλάδοι/Πακέτα/Καλύψεις → ενιαία παραμετροποίηση προμηθειών/προεπιλογών.
@@ -442,6 +446,10 @@ export const navByRole: Record<Role, NavItem[]> = {
     // clear separation between reporting and AI tools.
     { to: "/named-reports", labelKey: "nav.namedReports", icon: <AssessmentOutlinedIcon />, package: "Intelligence", group: "reports" },
     { to: "/production-stats", labelKey: "nav.productionStats", icon: <LeaderboardIcon />, package: "Intelligence", group: "reports" },
+    { to: "/report-builder", labelKey: "nav.reportBuilder", icon: <AssessmentOutlinedIcon />, package: "Intelligence", group: "reports" },
+    { to: "/goals", labelKey: "nav.goals", icon: <EmojiEventsIcon />, package: "Intelligence", group: "reports" },
+    { to: "/persistency", labelKey: "nav.persistency", icon: <StackedLineChartIcon />, package: "Intelligence", group: "reports" },
+    { to: "/churn", labelKey: "nav.churn", icon: <SmartToyIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "Intelligence" },
 
     // ===== Integrations =====
@@ -487,6 +495,10 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/green-cards", labelKey: "nav.greenCards", icon: <CardMembershipIcon />, package: "BackOffice" },
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice" },
+    { to: "/garages", labelKey: "nav.garages", icon: <EngineeringIcon />, package: "BackOffice", group: "claimsOps" },
+    { to: "/claim-provisions", labelKey: "nav.provisions", icon: <AccountBalanceIcon />, package: "BackOffice", group: "claimsOps" },
+    { to: "/indemnities", labelKey: "nav.indemnities", icon: <PaymentsIcon />, package: "BackOffice", group: "claimsOps" },
+    { to: "/friendly-settlements", labelKey: "nav.friendly", icon: <HandshakeIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/partner-networks", labelKey: "nav.partnerNetworks", icon: <HubIcon />, package: "BackOffice" },
     { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice" },
     { to: "/office-website/overview", labelKey: "nav.officeWebsiteOverview", icon: <DashboardIcon />, package: "FrontOffice", group: "website" },
@@ -496,6 +508,10 @@ export const navByRole: Record<Role, NavItem[]> = {
     // CRM
     { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
+    { to: "/report-builder", labelKey: "nav.reportBuilder", icon: <AssessmentOutlinedIcon />, package: "Intelligence", group: "reports" },
+    { to: "/goals", labelKey: "nav.goals", icon: <EmojiEventsIcon />, package: "Intelligence", group: "reports" },
+    { to: "/persistency", labelKey: "nav.persistency", icon: <StackedLineChartIcon />, package: "Intelligence", group: "reports" },
+    { to: "/churn", labelKey: "nav.churn", icon: <SmartToyIcon />, package: "Intelligence", group: "intelligence" },
     // Integrations — shown when the office has enabled the package. The
     // workspace filter keeps these out of other package sidebars.
     { to: "/integration-settings", labelKey: "nav.integrationSettings", icon: <VpnKeyIcon />, package: "Integrations" },
@@ -521,6 +537,10 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/green-cards", labelKey: "nav.greenCards", icon: <CardMembershipIcon />, package: "BackOffice" },
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice" },
+    { to: "/garages", labelKey: "nav.garages", icon: <EngineeringIcon />, package: "BackOffice", group: "claimsOps" },
+    { to: "/claim-provisions", labelKey: "nav.provisions", icon: <AccountBalanceIcon />, package: "BackOffice", group: "claimsOps" },
+    { to: "/indemnities", labelKey: "nav.indemnities", icon: <PaymentsIcon />, package: "BackOffice", group: "claimsOps" },
+    { to: "/friendly-settlements", labelKey: "nav.friendly", icon: <HandshakeIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/partner-networks", labelKey: "nav.partnerNetworks", icon: <HubIcon />, package: "BackOffice" },
     { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice" },
     { to: "/office-website/overview", labelKey: "nav.officeWebsiteOverview", icon: <DashboardIcon />, package: "FrontOffice", group: "website" },
@@ -540,6 +560,10 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/intelligence-workbench/automations", labelKey: "nav.intelligenceAutomations", icon: <RuleIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/named-reports", labelKey: "nav.namedReports", icon: <AssessmentOutlinedIcon />, package: "Intelligence", group: "reports" },
     { to: "/production-stats", labelKey: "nav.productionStats", icon: <LeaderboardIcon />, package: "Intelligence", group: "reports" },
+    { to: "/report-builder", labelKey: "nav.reportBuilder", icon: <AssessmentOutlinedIcon />, package: "Intelligence", group: "reports" },
+    { to: "/goals", labelKey: "nav.goals", icon: <EmojiEventsIcon />, package: "Intelligence", group: "reports" },
+    { to: "/persistency", labelKey: "nav.persistency", icon: <StackedLineChartIcon />, package: "Intelligence", group: "reports" },
+    { to: "/churn", labelKey: "nav.churn", icon: <SmartToyIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/users", labelKey: "nav.users", icon: <GroupIcon />, package: "BackOffice", group: "admin" },
     { to: "/integration-settings", labelKey: "nav.integrationSettings", icon: <VpnKeyIcon />, package: "Integrations" },
     { to: "/carrier-bridges-hub", labelKey: "nav.carrierBridgesHub", icon: <CloudUploadIcon />, package: "Integrations", group: "integrationsGrp" },
@@ -1088,7 +1112,7 @@ export default function App() {
                   <Route path="over-commissions" element={<OverCommissionsPage />} />
                   <Route path="over-commission-statements" element={<OverCommissionStatementsPage />} />
                   <Route path="over-commission-bridges" element={<OverCommissionBridgesPage />} />
-                  <Route path="goals" element={<ProductionGoalsPage />} />
+                  <Route path="goals" element={<PackageGate package="Intelligence"><ProductionGoalsPage /></PackageGate>} />
                   <Route path="production-stats" element={<ProductionStatsPage />} />
                   <Route path="commission-runs" element={<CommissionRunsPage />} />
                   <Route path="company-bridges" element={<CompanyBridgesPage />} />
@@ -1108,25 +1132,25 @@ export default function App() {
                   <Route path="company-parametrics" element={<AgencyCompanyParametricsPage />} />
                   <Route path="quote-builder" element={<QuoteBuilderPage />} />
                   <Route path="workflows" element={<WorkflowRulesPage />} />
-                  <Route path="churn" element={<ChurnDashboardPage />} />
-                  <Route path="report-builder" element={<ReportBuilderPage />} />
+                  <Route path="churn" element={<PackageGate package="Intelligence"><ChurnDashboardPage /></PackageGate>} />
+                  <Route path="report-builder" element={<PackageGate package="Intelligence"><ReportBuilderPage /></PackageGate>} />
                   <Route path="print-pay" element={<PrintPayBasketPage />} />
                   <Route path="plafond" element={<PlafondPage />} />
                   <Route path="risk-profiles" element={<RiskProfilesPage />} />
                   <Route path="agency-offices" element={<AgencyOfficesPage />} />
                   <Route path="group-policies" element={<Navigate to="/app/policies?view=group" replace />} />
-                  <Route path="garages" element={<GaragesPage />} />
-                  <Route path="claim-provisions" element={<ClaimProvisionsPage />} />
-                  <Route path="indemnities" element={<ClaimIndemnitiesPage />} />
+                  <Route path="garages" element={<PackageGate package="BackOffice"><GaragesPage /></PackageGate>} />
+                  <Route path="claim-provisions" element={<PackageGate package="BackOffice"><ClaimProvisionsPage /></PackageGate>} />
+                  <Route path="indemnities" element={<PackageGate package="BackOffice"><ClaimIndemnitiesPage /></PackageGate>} />
                   <Route path="name-days" element={<PackageGate package="Crm"><NameDaysPage /></PackageGate>} />
                   <Route path="instructions" element={<AgencyInstructionsPage />} />
                   <Route path="backups" element={<BackupsPage />} />
                   <Route path="support-request" element={<SupportRequestPage />} />
                   <Route path="mydata" element={<PackageGate package="Integrations"><MyDataSubmissionsPage /></PackageGate>} />
                   <Route path="document-designer" element={<DocumentDesignerPage />} />
-                  <Route path="friendly-settlements" element={<FriendlySettlementsPage />} />
+                  <Route path="friendly-settlements" element={<PackageGate package="BackOffice"><FriendlySettlementsPage /></PackageGate>} />
                   <Route path="customer-merge" element={<CustomerMergePage />} />
-                  <Route path="persistency" element={<PersistencyPage />} />
+                  <Route path="persistency" element={<PackageGate package="Intelligence"><PersistencyPage /></PackageGate>} />
                   <Route path="policy-delivery" element={<Navigate to="/app/policies?view=delivery" replace />} />
                   <Route path="caller-id" element={<Navigate to="/app" replace />} />
                   <Route path="usae" element={<PackageGate package="Integrations"><UsaeSubmissionsPage /></PackageGate>} />

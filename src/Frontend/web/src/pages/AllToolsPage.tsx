@@ -43,6 +43,7 @@ const TOOLS: Tool[] = [
   { to: "/churn",          labelKey: "nav.churn",          descKey: "tools.churn",          category: "intelligence", pkg: "Intelligence" },
   { to: "/report-builder", labelKey: "nav.reportBuilder", descKey: "tools.reportBuilder", category: "intelligence", pkg: "Intelligence" },
   { to: "/goals",          labelKey: "nav.goals",          descKey: "tools.goals",          category: "intelligence", pkg: "Intelligence" },
+  { to: "/persistency",    labelKey: "nav.persistency",    descKey: "tools.persistency",    category: "intelligence", pkg: "Intelligence" },
 
   // Kalypsis-native messaging workspace. It is a live package-gated route;
   // the catalogue shortcut opens the same workspace used by the sidebar.
@@ -55,10 +56,11 @@ export function AllToolsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [q, setQ] = useState("");
-  // Most catalogue entries are still WIP — clicking them opens a shared
-  // «Coming soon» dialog. Live routes are listed below and navigate directly.
+  // Catalogue entries navigate directly to their package-gated workspace.
   const [pending, setPending] = useState<Tool | null>(null);
-  const LIVE_ROUTES: Record<string, string> = { "/ermes": "/app/ermes" };
+  const LIVE_ROUTES: Record<string, string> = Object.fromEntries(
+    TOOLS.map((tool) => [tool.to, `/app${tool.to}`])
+  );
   const openTool = (tool: Tool) => {
     const live = LIVE_ROUTES[tool.to];
     if (live) { navigate(live); return; }
