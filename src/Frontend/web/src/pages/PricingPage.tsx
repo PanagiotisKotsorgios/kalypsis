@@ -142,9 +142,6 @@ export function PricingPage() {
         "&::before": { content: '""', position: "absolute", inset: "0 0 auto", height: 520, background: "radial-gradient(ellipse at 16% 8%, rgba(255,255,255,.95), transparent 45%), radial-gradient(ellipse at 85% 12%, rgba(45,164,236,.23), transparent 56%), linear-gradient(135deg,#e6f3ff 0%,#fafdff 45%,#dcefff 100%)", zIndex: 0 },
         "&::after": { content: '""', position: "absolute", top: 95, left: "-8%", right: "-8%", height: 185, borderTop: "2px solid rgba(255,255,255,.85)", borderRadius: "50%", transform: "rotate(-4deg)", boxShadow: "0 28px 0 rgba(255,255,255,.35), 0 60px 0 rgba(104,188,239,.13)", pointerEvents: "none", zIndex: 0 } }}>
         <Container maxWidth="xl" sx={{ position: "relative", zIndex: 1, pt: { xs: 2, md: 3 } }}>
-          <Stack direction="row" justifyContent="center" flexWrap="wrap" gap={1} sx={{ color: NAVY, fontSize: 13, fontWeight: 700, mb: 1.5 }}>
-            <span>☎ 2631028971</span><span>✉ info@mykalypsis.gr</span><span>Σύνδεση</span><span>Εγγραφή</span><span>Επικοινωνία / Αναφορά Προβλήματος</span><span>EL</span>
-          </Stack>
           <Stack alignItems="center" textAlign="center" sx={{ mb: { xs: 3, md: 4 } }}>
             <KalypsisLogo size={122} crop />
             <Typography variant="h1" sx={{ color: NAVY, fontWeight: 950, letterSpacing: "-.045em", fontSize: { xs: 31, sm: 42, md: 56 }, mt: 1 }}>{settings.publicTitle}</Typography>
