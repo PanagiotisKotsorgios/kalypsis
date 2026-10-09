@@ -42,6 +42,7 @@ public class PolicyDocumentConfiguration : IEntityTypeConfiguration<PolicyDocume
         b.HasKey(x => x.Id);
         b.Property(x => x.DocumentType).HasConversion<int>();
         b.Property(x => x.FileName).HasMaxLength(255).IsRequired();
+        b.Property(x => x.Notes).HasMaxLength(2000);
         b.Property(x => x.StoragePath).HasMaxLength(512).IsRequired();
         b.Property(x => x.MimeType).HasMaxLength(128).IsRequired();
 

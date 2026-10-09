@@ -92,6 +92,7 @@ interface DocumentDto {
   customerDisplay: string;
   documentType: DocumentType;
   fileName: string;
+  notes: string | null;
   mimeType: string;
   sizeBytes: number;
   createdAt: string;
@@ -324,6 +325,11 @@ export function DocumentsPage() {
                           <Typography variant="caption" color="text.secondary">
                             {Math.round(d.sizeBytes / 1024)} KB · {d.mimeType}
                           </Typography>
+                          {d.notes && (
+                            <Typography variant="caption" display="block" color="text.secondary" noWrap title={d.notes} sx={{ maxWidth: 360 }}>
+                              Σημείωση: {d.notes}
+                            </Typography>
+                          )}
                         </Box>
                       </Stack>
                     </TableCell>
@@ -441,6 +447,7 @@ function DocumentPreviewDrawer({ doc, canEdit, onClose, onChanged }: {
   const [editing, setEditing] = useState(false);
   const [fileName, setFileName] = useState("");
   const [docType, setDocType] = useState<DocumentType>("Policy");
+  const [notes, setNotes] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
   // Blob URL for the preview iframe. We fetch the file via authenticated
@@ -460,6 +467,7 @@ function DocumentPreviewDrawer({ doc, canEdit, onClose, onChanged }: {
     if (doc) {
       setFileName(doc.fileName);
       setDocType(doc.documentType);
+      setNotes(doc.notes ?? "");
     }
   }, [doc]);
 
@@ -499,6 +507,7 @@ function DocumentPreviewDrawer({ doc, canEdit, onClose, onChanged }: {
     mutationFn: async () => (await api.patch(`/documents/${doc!.id}`, {
       fileName: fileName || undefined,
       documentType: docType,
+      notes: notes.trim(),
     })).data,
     onSuccess: () => { setEditing(false); onChanged(); },
     onError: (e) => setErr(extractErrorMessage(e)),
@@ -562,6 +571,11 @@ function DocumentPreviewDrawer({ doc, canEdit, onClose, onChanged }: {
               <Typography variant="caption" color="text.secondary">
                 {Math.round(doc.sizeBytes / 1024)} KB · {doc.mimeType} · {date(doc.createdAt)}
               </Typography>
+              {!editing && doc.notes && (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, whiteSpace: "pre-wrap" }}>
+                  <strong>Σημείωση:</strong> {doc.notes}
+                </Typography>
+              )}
             </Box>
             <Chip size="small" label={t(`documents.types.${doc.documentType}`)} />
             <IconButton onClick={onClose}><CloseIcon /></IconButton>
@@ -609,8 +623,23 @@ function DocumentPreviewDrawer({ doc, canEdit, onClose, onChanged }: {
                         <MenuItem key={d} value={d}>{t(`documents.types.${d}`)}</MenuItem>
                       ))}
                     </SearchableTextField>
+                    {(docType === "Other" || notes) && (
+                      <TextField
+                        size="small"
+                        label="Σημείωση για το έγγραφο"
+                        placeholder="Περιγράψτε τι αφορά το αρχείο"
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        multiline
+                        minRows={2}
+                        maxRows={4}
+                        required={docType === "Other"}
+                        sx={{ minWidth: { xs: "100%", sm: 260 } }}
+                        helperText={docType === "Other" ? "Υποχρεωτικό για τον τύπο «Άλλο»." : "Προαιρετικό"}
+                      />
+                    )}
                     <Button size="small" variant="contained"
-                      disabled={patchMut.isPending || !fileName.trim()}
+                      disabled={patchMut.isPending || !fileName.trim() || (docType === "Other" && !notes.trim())}
                       onClick={() => patchMut.mutate()}>
                       {patchMut.isPending ? <CircularProgress size={16} /> : "Αποθήκευση"}
                     </Button>
@@ -778,6 +807,7 @@ function UploadDialog({ open, onClose, onUploaded }: {
   const { t } = useTranslation();
   const [policyId, setPolicyId] = useState("");
   const [type, setType] = useState<DocumentType>("Policy");
+  const [notes, setNotes] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -793,6 +823,10 @@ function UploadDialog({ open, onClose, onUploaded }: {
       setError(t("documents.errors.required"));
       return;
     }
+    if (type === "Other" && !notes.trim()) {
+      setError("Για τύπο «Άλλο» συμπληρώστε τι αφορά το έγγραφο.");
+      return;
+    }
     setError(null);
     setUploading(true);
     try {
@@ -800,9 +834,10 @@ function UploadDialog({ open, onClose, onUploaded }: {
       fd.append("file", file);
       fd.append("policyId", policyId);
       fd.append("type", type);
+      if (notes.trim()) fd.append("notes", notes.trim());
       await api.post("/documents/upload", fd, { headers: { "Content-Type": "multipart/form-data" } });
       onUploaded();
-      setPolicyId(""); setType("Policy"); setFile(null);
+      setPolicyId(""); setType("Policy"); setNotes(""); setFile(null);
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {
@@ -868,6 +903,20 @@ function UploadDialog({ open, onClose, onUploaded }: {
               <MenuItem key={d} value={d}>{t(`documents.types.${d}`)}</MenuItem>
             )}
           </SearchableTextField>
+          {type === "Other" && (
+            <TextField
+              fullWidth
+              label="Σημείωση για το έγγραφο"
+              placeholder="Περιγράψτε τι αφορά το αρχείο"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              multiline
+              minRows={3}
+              maxRows={6}
+              required
+              helperText="Γράψτε τι είναι το αρχείο, ώστε να αναγνωρίζεται εύκολα στην καρτέλα."
+            />
+          )}
           <Button
             component="label" variant="outlined" startIcon={<CloudUploadIcon />}
             sx={{ py: 1.4 }}
@@ -884,7 +933,7 @@ function UploadDialog({ open, onClose, onUploaded }: {
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>{t("common.cancel")}</Button>
-        <Button variant="contained" onClick={handleUpload} disabled={uploading || !file || !policyId}>
+        <Button variant="contained" onClick={handleUpload} disabled={uploading || !file || !policyId || (type === "Other" && !notes.trim())}>
           {uploading ? <CircularProgress size={18} /> : t("documents.upload.submit")}
         </Button>
       </DialogActions>

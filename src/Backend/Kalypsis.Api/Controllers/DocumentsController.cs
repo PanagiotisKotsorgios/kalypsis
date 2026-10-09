@@ -27,6 +27,7 @@ public class DocumentsController : ControllerBase
     public async Task<ActionResult<PolicyDocumentDto>> Upload(
         [FromForm] Guid policyId,
         [FromForm] DocumentType type,
+        [FromForm] string? notes,
         IFormFile file,
         CancellationToken cancellationToken)
     {
@@ -35,7 +36,7 @@ public class DocumentsController : ControllerBase
 
         await using var stream = file.OpenReadStream();
         var result = await _mediator.Send(new UploadDocumentCommand(
-            policyId, type, file.FileName,
+            policyId, type, notes, file.FileName,
             file.ContentType ?? "application/octet-stream",
             file.Length, stream), cancellationToken);
         return Ok(result);
@@ -84,14 +85,14 @@ public class DocumentsController : ControllerBase
     }
 
     /// <summary>Rename / change type without re-uploading.</summary>
-    public record PatchDocumentBody(string? FileName, DocumentType? DocumentType);
+    public record PatchDocumentBody(string? FileName, DocumentType? DocumentType, string? Notes);
 
     [HttpPatch("{id:guid}")]
     [Authorize(Policy = "AgencyStaff")]
     public async Task<ActionResult<PolicyDocumentDto>> Patch(
         Guid id, [FromBody] PatchDocumentBody body, CancellationToken cancellationToken)
     {
-        var res = await _mediator.Send(new PatchDocumentCommand(id, body.FileName, body.DocumentType), cancellationToken);
+        var res = await _mediator.Send(new PatchDocumentCommand(id, body.FileName, body.DocumentType, body.Notes), cancellationToken);
         return Ok(res);
     }
 

@@ -10,6 +10,8 @@ public class PolicyDocument : TenantEntity
 
     public DocumentType DocumentType { get; set; }
     public string FileName { get; set; } = string.Empty;
+    /// <summary>Optional operator note, especially useful when the type is Other.</summary>
+    public string? Notes { get; set; }
     public string StoragePath { get; set; } = string.Empty;
     public string MimeType { get; set; } = string.Empty;
     public long SizeBytes { get; set; }

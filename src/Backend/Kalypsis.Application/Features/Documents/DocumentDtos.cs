@@ -10,6 +10,7 @@ public record PolicyDocumentDto(
     string CustomerDisplay,
     DocumentType DocumentType,
     string FileName,
+    string? Notes,
     string MimeType,
     long SizeBytes,
     DateTime CreatedAt);

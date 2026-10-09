@@ -42,10 +42,10 @@ public class ListDocumentsQueryHandler : IRequestHandler<ListDocumentsQuery, IRe
         if (request.CustomerId.HasValue) q = q.Where(d => d.Policy.CustomerId == request.CustomerId.Value);
 
         var rows = await q.OrderByDescending(d => d.CreatedAt).Take(500).ToListAsync(ct);
-        return rows.Select(ToDto).ToList();
+        return rows.Select(d => ToDto(d, _current.Role != Role.Customer)).ToList();
     }
 
-    internal static PolicyDocumentDto ToDto(PolicyDocument d)
+    internal static PolicyDocumentDto ToDto(PolicyDocument d, bool includeNotes = true)
     {
         var c = d.Policy?.Customer;
         var display = c is null
@@ -62,6 +62,7 @@ public class ListDocumentsQueryHandler : IRequestHandler<ListDocumentsQuery, IRe
             display,
             d.DocumentType,
             d.FileName,
+            includeNotes ? d.Notes : null,
             d.MimeType,
             d.SizeBytes,
             d.CreatedAt);
@@ -73,6 +74,7 @@ public class ListDocumentsQueryHandler : IRequestHandler<ListDocumentsQuery, IRe
 public record UploadDocumentCommand(
     Guid PolicyId,
     DocumentType Type,
+    string? Notes,
     string FileName,
     string ContentType,
     long SizeBytes,
@@ -96,6 +98,10 @@ public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentComman
     public async Task<PolicyDocumentDto> Handle(UploadDocumentCommand request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim();
+        if (notes?.Length > 2000) throw AppException.Validation("Η σημείωση δεν μπορεί να ξεπερνά τους 2.000 χαρακτήρες.");
+        if (request.Type == DocumentType.Other && string.IsNullOrWhiteSpace(notes))
+            throw AppException.Validation("Για τύπο «Άλλο» συμπληρώστε τι αφορά το έγγραφο.");
         var policy = await _db.Policies
             .Include(p => p.Customer)
             .FirstOrDefaultAsync(p => p.Id == request.PolicyId && p.TenantId == tenantId && p.DeletedAt == null, ct)
@@ -114,6 +120,7 @@ public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentComman
             PolicyId = policy.Id,
             DocumentType = request.Type,
             FileName = Path.GetFileName(request.FileName),
+            Notes = notes,
             StoragePath = path,
             MimeType = safeType,
             SizeBytes = request.SizeBytes,
@@ -126,6 +133,7 @@ public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentComman
         {
             Id = doc.Id, TenantId = tenantId, PolicyId = doc.PolicyId,
             DocumentType = doc.DocumentType, FileName = doc.FileName,
+            Notes = doc.Notes,
             MimeType = doc.MimeType, SizeBytes = doc.SizeBytes,
             CreatedAt = doc.CreatedAt, Policy = policy
         });
@@ -248,7 +256,8 @@ public class ReplaceDocumentCommandHandler : IRequestHandler<ReplaceDocumentComm
 public record PatchDocumentCommand(
     Guid Id,
     string? FileName,
-    DocumentType? DocumentType) : IRequest<PolicyDocumentDto>;
+    DocumentType? DocumentType,
+    string? Notes) : IRequest<PolicyDocumentDto>;
 
 public class PatchDocumentCommandHandler : IRequestHandler<PatchDocumentCommand, PolicyDocumentDto>
 {
@@ -278,6 +287,15 @@ public class PatchDocumentCommandHandler : IRequestHandler<PatchDocumentCommand,
             if (clean.Length > 0) doc.FileName = clean;
         }
         if (request.DocumentType.HasValue) doc.DocumentType = request.DocumentType.Value;
+        // A missing Notes member means a legacy caller only changed the name/type;
+        // preserve the existing note. An explicit empty string clears it.
+        var notes = request.Notes is null
+            ? doc.Notes
+            : string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim();
+        if (notes?.Length > 2000) throw AppException.Validation("Η σημείωση δεν μπορεί να ξεπερνά τους 2.000 χαρακτήρες.");
+        if (doc.DocumentType == DocumentType.Other && string.IsNullOrWhiteSpace(notes))
+            throw AppException.Validation("Για τύπο «Άλλο» συμπληρώστε τι αφορά το έγγραφο.");
+        doc.Notes = notes;
         doc.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync(ct);
