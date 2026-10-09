@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  Stack, Switch, Tab, Tabs, Table, TableBody, TableCell, TableHead, TableRow, TextField, Tooltip, Typography
+  IconButton, InputAdornment, Stack, Switch, Tab, Tabs, Table, TableBody, TableCell, TableHead, TableRow, TextField, Tooltip, Typography
 } from "@mui/material";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import KeyIcon from "@mui/icons-material/Key";
 import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
@@ -133,7 +135,9 @@ function ServicePanel({ service, keys, keyHints }: { service: string; keys: stri
                   </TableCell>
                   <TableCell>
                     {ex ? (
-                      <span style={{ fontFamily: "monospace", fontSize: 13 }}>{ex.value || <em>{t("integrations.empty")}</em>}</span>
+                      ex.isSecret
+                        ? <SecretValue value={ex.value} emptyLabel={t("integrations.empty")} />
+                        : <span style={{ fontFamily: "monospace", fontSize: 13 }}>{ex.value || <em>{t("integrations.empty")}</em>}</span>
                     ) : <Chip size="small" label={t("integrations.notConfigured")} color="warning" />}
                   </TableCell>
                   <TableCell>{ex?.isSecret && <Chip size="small" label="secret" color="error" />}</TableCell>
@@ -164,7 +168,9 @@ function KeyDialog({ open, onClose, service, keyName, existing, onSaved, onError
 }) {
   const { t } = useTranslation();
   const [form, setForm] = useState({ value: "", isSecret: true, notes: "" });
+  const [showValue, setShowValue] = useState(false);
   useEffect(() => {
+    setShowValue(false);
     if (existing) setForm({ value: existing.value ?? "", isSecret: existing.isSecret, notes: existing.notes ?? "" });
     else setForm({ value: "", isSecret: keyName.toLowerCase().includes("password") || keyName.toLowerCase().includes("secret") || keyName.toLowerCase().includes("key"), notes: "" });
   }, [existing, keyName, open]);
@@ -183,7 +189,10 @@ function KeyDialog({ open, onClose, service, keyName, existing, onSaved, onError
         <Stack spacing={2} mt={1}>
           <TextField label={t("integrations.value")} value={form.value}
             onChange={e => setForm({ ...form, value: e.target.value })}
-            type={form.isSecret ? "password" : "text"} fullWidth autoFocus />
+            type={form.isSecret && !showValue ? "password" : "text"} fullWidth autoFocus
+            InputProps={{
+              endAdornment: form.isSecret ? <InputAdornment position="end"><IconButton edge="end" size="small" onClick={() => setShowValue(value => !value)} aria-label={showValue ? "Απόκρυψη τιμής" : "Εμφάνιση τιμής"}>{showValue ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}</IconButton></InputAdornment> : undefined
+            }} />
           <Stack direction="row" alignItems="center" spacing={1}>
             <Switch checked={form.isSecret} onChange={e => setForm({ ...form, isSecret: e.target.checked })} />
             <Typography>{t("integrations.secretField")}</Typography>
@@ -199,5 +208,19 @@ function KeyDialog({ open, onClose, service, keyName, existing, onSaved, onError
         </Button>
       </DialogActions>
     </Dialog>
+  );
+}
+
+function SecretValue({ value, emptyLabel }: { value: string | null; emptyLabel: string }) {
+  const [visible, setVisible] = useState(false);
+  if (!value) return <em>{emptyLabel}</em>;
+  const masked = value.length <= 8 ? "•".repeat(Math.max(6, value.length)) : `${value.slice(0, 4)}${"•".repeat(8)}${value.slice(-3)}`;
+  return (
+    <Stack direction="row" alignItems="center" spacing={0.25} sx={{ minWidth: 0 }}>
+      <Box component="span" sx={{ fontFamily: "monospace", fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: { xs: 180, sm: 280 } }}>{visible ? value : masked}</Box>
+      <IconButton size="small" onClick={() => setVisible(current => !current)} aria-label={visible ? "Απόκρυψη τιμής" : "Εμφάνιση τιμής"} title={visible ? "Απόκρυψη τιμής" : "Εμφάνιση τιμής"}>
+        {visible ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+      </IconButton>
+    </Stack>
   );
 }

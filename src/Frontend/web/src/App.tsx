@@ -319,7 +319,9 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice", group: "production" },
     { to: "/vehicles", labelKey: "nav.vehicleRegistry", icon: <DirectionsCarIcon />, package: "BackOffice", group: "production" },
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice", group: "production" },
+    { to: "/delivery-tracking", labelKey: "nav.deliveryTracking", icon: <LocalShippingIcon />, package: "BackOffice", group: "production", permission: "delivery.read" },
     { to: "/green-cards", labelKey: "nav.greenCards", icon: <CardMembershipIcon />, package: "BackOffice", group: "production" },
+    { to: "/document-manager", labelKey: "nav.documentManager", icon: <FolderSpecialIcon />, package: "BackOffice", group: "production", permission: "documents.read" },
     // "Ανανεώσεις" is now a button inside the Συμβόλαια page — one less sidebar
     // entry to scan through. Legacy /renewals route still lives so anyone
     // with the URL bookmarked keeps working.
@@ -418,8 +420,6 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/crm-groups", labelKey: "nav.crmGroups", icon: <GroupWorkIconRC />, package: "Crm", group: "crm", permission: "marketing.read" },
     { to: "/crm-settings", labelKey: "nav.crmSettings", icon: <VpnKeyIcon />, package: "Crm", group: "crm", permission: "marketing.read" },
     { to: "/name-days", labelKey: "nav.nameDays", icon: <CakeIcon />, package: "Crm", group: "crm", permission: "customers.read" },
-    { to: "/document-manager", labelKey: "nav.documentManager", icon: <FolderSpecialIcon />, package: "Crm", group: "crm", permission: "documents.read" },
-    { to: "/delivery-tracking", labelKey: "nav.deliveryTracking", icon: <LocalShippingIcon />, package: "Crm", group: "crm", permission: "delivery.read" },
     { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "Crm" },
 
     // ===== FrontOffice =====
@@ -490,8 +490,10 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice" },
     { to: "/vehicles", labelKey: "nav.vehicleRegistry", icon: <DirectionsCarIcon />, package: "BackOffice" },
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice" },
+    { to: "/delivery-tracking", labelKey: "nav.deliveryTracking", icon: <LocalShippingIcon />, package: "BackOffice", permission: "delivery.read" },
     { to: "/green-cards", labelKey: "nav.greenCards", icon: <CardMembershipIcon />, package: "BackOffice" },
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
+    { to: "/document-manager", labelKey: "nav.documentManager", icon: <FolderSpecialIcon />, package: "BackOffice", permission: "documents.read" },
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/garages", labelKey: "nav.garages", icon: <EngineeringIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/indemnities", labelKey: "nav.indemnities", icon: <PaymentsIcon />, package: "BackOffice", group: "claimsOps" },
@@ -532,8 +534,10 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice" },
     { to: "/vehicles", labelKey: "nav.vehicleRegistry", icon: <DirectionsCarIcon />, package: "BackOffice" },
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice" },
+    { to: "/delivery-tracking", labelKey: "nav.deliveryTracking", icon: <LocalShippingIcon />, package: "BackOffice", permission: "delivery.read" },
     { to: "/green-cards", labelKey: "nav.greenCards", icon: <CardMembershipIcon />, package: "BackOffice" },
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
+    { to: "/document-manager", labelKey: "nav.documentManager", icon: <FolderSpecialIcon />, package: "BackOffice", permission: "documents.read" },
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/garages", labelKey: "nav.garages", icon: <EngineeringIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/indemnities", labelKey: "nav.indemnities", icon: <PaymentsIcon />, package: "BackOffice", group: "claimsOps" },
@@ -1102,8 +1106,8 @@ export default function App() {
                   <Route path="crm-groups" element={<PackageGate package="Crm"><CrmGroupsPage /></PackageGate>} />
                   <Route path="crm-settings" element={<PackageGate package="Crm"><IntegrationSettingsPage crmOnly /></PackageGate>} />
                   <Route path="intelligence-settings" element={<PackageGate package="Intelligence"><IntegrationSettingsPage aiOnly /></PackageGate>} />
-                  <Route path="delivery-tracking" element={<PackageGate package="Crm"><DeliveryTrackingPage /></PackageGate>} />
-                  <Route path="document-manager" element={<PackageGate package="Crm"><DocumentManagerPage /></PackageGate>} />
+                  <Route path="delivery-tracking" element={<PackageGate package="BackOffice"><DeliveryTrackingPage /></PackageGate>} />
+                  <Route path="document-manager" element={<PackageGate package="BackOffice"><DocumentManagerPage /></PackageGate>} />
                   <Route path="partner-portals" element={<PackageGate package="Integrations"><PartnerPortalsPage /></PackageGate>} />
                   <Route path="api-keys" element={<PackageGate package="Integrations"><ApiKeysPage /></PackageGate>} />
                   <Route path="dias" element={<PackageGate package="Integrations"><DiasCodesPage /></PackageGate>} />

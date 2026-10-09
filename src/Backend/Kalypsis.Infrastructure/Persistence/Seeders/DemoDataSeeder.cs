@@ -221,6 +221,14 @@ public static class DemoDataSeeder
         var demoCustomer = customers.FirstOrDefault(c => c.CustomerNumber == "DEMO-0001");
         if (demoCustomer is not null)
             await EnsureDemoCustomerUserAsync(db, hasher, clock, tenant.Id, demoCustomer, ct);
+
+        // ----- 4b. Name-day catalogue ------------------------------------
+        // Keep the demo tenant useful for a real walkthrough of the CRM
+        // calendar, upcoming celebrants and greeting automations.  The
+        // catalogue is tenant-scoped and additive so existing office data is
+        // never overwritten.
+        await SeedDemoNameDaysAsync(db, tenant.Id, clock.UtcNow, ct);
+
         var companies = await db.InsuranceCompanies.IgnoreQueryFilters().ToListAsync(ct);
         if (companies.Count == 0)
         {
@@ -348,6 +356,56 @@ public static class DemoDataSeeder
         await DemoShowcaseSeeder.SeedAsync(db, clock, tenant, demoAdmin, log, ct);
 
         log.LogInformation("Demo data seed complete for tenant {Tenant}", tenant.Code);
+    }
+
+    private static async Task SeedDemoNameDaysAsync(AppDbContext db, Guid tenantId, DateTime now, CancellationToken ct)
+    {
+        var seeds = new (string Name, int Month, int Day, string Notes)[]
+        {
+            ("Βασίλης", 1, 1, "Άγιος Βασίλειος"),
+            ("Γιάννης", 1, 7, "Άγιος Ιωάννης"),
+            ("Ιωάννα", 1, 7, "Άγιος Ιωάννης"),
+            ("Παναγιώτης", 1, 15, "Άγιος Παναγιώτης"),
+            ("Αντώνης", 1, 17, "Άγιος Αντώνιος"),
+            ("Θανάσης", 1, 18, "Άγιος Αθανάσιος"),
+            ("Γιώργος", 4, 23, "Άγιος Γεώργιος"),
+            ("Ειρήνη", 5, 5, "Αγία Ειρήνη"),
+            ("Κωνσταντίνος", 5, 21, "Άγιοι Κωνσταντίνος και Ελένη"),
+            ("Ελένη", 5, 21, "Άγιοι Κωνσταντίνος και Ελένη"),
+            ("Πέτρος", 6, 29, "Άγιοι Πέτρος και Παύλος"),
+            ("Παύλος", 6, 29, "Άγιοι Πέτρος και Παύλος"),
+            ("Χριστίνα", 7, 24, "Αγία Χριστίνα"),
+            ("Μαρία", 8, 15, "Κοίμηση της Θεοτόκου"),
+            ("Νεφέλη", 8, 20, "Άγιος Νεοφύτος"),
+            ("Σοφία", 9, 17, "Αγία Σοφία"),
+            ("Σταύρος", 9, 14, "Ύψωση Τιμίου Σταυρού"),
+            ("Δημήτρης", 10, 26, "Άγιος Δημήτριος"),
+            ("Αγγελική", 11, 8, "Ταξιαρχών"),
+            ("Κατερίνα", 11, 25, "Αγία Αικατερίνη"),
+            ("Άννα", 12, 9, "Αγία Άννα"),
+            ("Νίκος", 12, 6, "Άγιος Νικόλαος"),
+            ("Χρήστος", 12, 25, "Χριστούγεννα")
+        };
+
+        var existing = await db.NameDays.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId)
+            .Select(x => new { x.Name, x.Month, x.Day })
+            .ToListAsync(ct);
+        var known = existing.Select(x => $"{x.Name.Trim().ToUpperInvariant()}|{x.Month}|{x.Day}").ToHashSet();
+        var added = 0;
+        foreach (var seed in seeds)
+        {
+            var key = $"{seed.Name.ToUpperInvariant()}|{seed.Month}|{seed.Day}";
+            if (!known.Add(key)) continue;
+            db.NameDays.Add(new NameDay
+            {
+                Id = Guid.NewGuid(), TenantId = tenantId, Name = seed.Name,
+                Month = seed.Month, Day = seed.Day, Notes = seed.Notes,
+                IsActive = true, CreatedAt = now
+            });
+            added++;
+        }
+        if (added > 0) await db.SaveChangesAsync(ct);
     }
 
     private static async Task EnsureUserAsync(
