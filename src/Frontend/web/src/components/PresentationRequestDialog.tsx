@@ -33,13 +33,13 @@ const fieldSx = {
 
 /** Short public lead form used by every pre-login presentation CTA. */
 export function PresentationRequestDialog({ open, onClose }: Props) {
-  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", region: "", phase: "", details: "", consent: false });
+  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", region: "", details: "", consent: false });
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [reference, setReference] = useState<string | null>(null);
 
   const reset = () => {
-    setForm({ firstName: "", lastName: "", email: "", phone: "", region: "", phase: "", details: "", consent: false });
+    setForm({ firstName: "", lastName: "", email: "", phone: "", region: "", details: "", consent: false });
     setError(null);
     setReference(null);
   };
@@ -64,10 +64,7 @@ export function PresentationRequestDialog({ open, onClose }: Props) {
         phone: form.phone.trim() || null,
         agencyOrCity: form.region.trim() || null,
         subject: "Αίτημα δωρεάν πλήρους παρουσίασης KALYPSIS",
-        message: [
-          `Φάση γραφείου: ${form.phase.trim() || "Δεν δηλώθηκε"}`,
-          `Λεπτομέρειες: ${form.details.trim()}`,
-        ].join("\n"),
+        message: `Λεπτομέρειες: ${form.details.trim()}`,
         consent: form.consent,
         website: "",
       });
@@ -105,10 +102,7 @@ export function PresentationRequestDialog({ open, onClose }: Props) {
                 <TextField required type="email" label="Email" value={form.email} onChange={e => set("email", e.target.value)} fullWidth sx={fieldSx} />
                 <TextField label="Τηλέφωνο" value={form.phone} onChange={e => set("phone", e.target.value)} fullWidth sx={fieldSx} />
               </Stack>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                <TextField label="Περιοχή" value={form.region} onChange={e => set("region", e.target.value)} fullWidth sx={fieldSx} />
-                <TextField label="Φάση γραφείου" placeholder="π.χ. νέο / ενεργό / επέκταση" value={form.phase} onChange={e => set("phase", e.target.value)} fullWidth sx={fieldSx} />
-              </Stack>
+              <TextField label="Περιοχή" value={form.region} onChange={e => set("region", e.target.value)} fullWidth sx={fieldSx} />
               <TextField required multiline minRows={3} label="Λεπτομέρειες" placeholder="Τι θα θέλατε να δούμε στην παρουσίαση;" value={form.details} onChange={e => set("details", e.target.value)} fullWidth sx={fieldSx} />
               <Stack direction="row" alignItems="flex-start" spacing={1}>
                 <input aria-label="Συγκατάθεση επικοινωνίας" type="checkbox" checked={form.consent} onChange={e => set("consent", e.target.checked)} style={{ marginTop: 4, accentColor: "#1265d8" }} />

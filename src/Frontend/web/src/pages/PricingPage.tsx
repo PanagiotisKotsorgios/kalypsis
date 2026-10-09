@@ -172,16 +172,16 @@ export function PricingPage() {
           </Card>
 
           <Alert
-            severity="info"
+            severity="success"
             sx={{
               mb: { xs: 2.5, md: 3.5 },
-              border: `1px solid ${BLUE}38`,
+              border: "1px solid rgba(255,255,255,.35)",
               borderRadius: 2.5,
-              bgcolor: "rgba(239,248,255,.94)",
-              color: NAVY,
+              bgcolor: "#198754",
+              color: "#fff",
               alignItems: "flex-start",
-              boxShadow: "0 8px 22px rgba(19,84,146,.06)",
-              "& .MuiAlert-icon": { color: BLUE, mt: ".1rem" }
+              boxShadow: "0 8px 22px rgba(25,135,84,.2)",
+              "& .MuiAlert-icon": { color: "#fff", mt: ".1rem" }
             }}
           >
             <Typography component="span" sx={{ fontWeight: 950 }}>
