@@ -174,6 +174,20 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
     ]
   },
   {
+    title: "Πολυτιμολόγηση & προσφορές",
+    description: "Εικονική σύγκριση προσφορών, αιτήσεις και ροές εκτύπωσης/πληρωμής.",
+    packages: ["FrontOffice"],
+    groupKey: "quoting",
+    items: [
+      { path: "/frontoffice/quoting?view=dashboard", label: "Νέα σύγκριση" },
+      { path: "/frontoffice/quoting?view=quotes", label: "Προσφορές" },
+      { path: "/frontoffice/quoting?view=print-pay", label: "Τυπώνω – Πληρώνω" },
+      { path: "/frontoffice/quoting?view=pay-print", label: "Πληρώνω – Τυπώνω" },
+      { path: "/frontoffice/quoting?view=requests", label: "Αιτήσεις ασφάλισης" },
+      { path: "/frontoffice/quoting?view=history", label: "Ιστορικό προσφορών" }
+    ]
+  },
+  {
     title: "Αναφορές",
     description: "Οι αναφορές εμφανίζονται στο δικό τους dropdown του Intelligence workspace.",
     packages: ["Intelligence"],

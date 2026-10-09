@@ -208,6 +208,7 @@ import { NamedReportsPage } from "./pages/NamedReportsPage";
 import { AgencyInstructionsPage } from "./pages/AgencyInstructionsPage";
 import { BackupsPage } from "./pages/BackupsPage";
 import { ConfigHubPage } from "./pages/ConfigHubPage";
+import { FrontOfficeQuotingPage } from "./pages/FrontOfficeQuotingPage";
 import { RecycleBinPage } from "./pages/RecycleBinPage";
 import { ProducerReconciliationPage } from "./pages/ProducerReconciliationPage";
 import { ReconciliationDashboardPage } from "./pages/ReconciliationDashboardPage";
@@ -244,6 +245,9 @@ import FolderSpecialIcon from "@mui/icons-material/FolderSpecial";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import LanguageIcon from "@mui/icons-material/Language";
+import CalculateIcon from "@mui/icons-material/Calculate";
+import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
+import PrintIcon from "@mui/icons-material/Print";
 import { AllToolsPage } from "./pages/AllToolsPage";
 import { ErmesPage } from "./pages/ErmesPage";
 import { ErmesStandalonePage } from "./pages/ErmesStandalonePage";
@@ -430,6 +434,12 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/office-website", labelKey: "nav.officeWebsite", icon: <LanguageIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website/requests", labelKey: "nav.officeWebsiteRequests", icon: <AssignmentIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website/analytics", labelKey: "nav.officeWebsiteAnalytics", icon: <AnalyticsIcon />, package: "FrontOffice", group: "website" },
+    { to: "/frontoffice/quoting?view=dashboard", labelKey: "nav.quotingDashboard", icon: <CalculateIcon />, package: "FrontOffice", group: "quoting" },
+    { to: "/frontoffice/quoting?view=quotes", labelKey: "nav.quotes", icon: <CompareArrowsIcon />, package: "FrontOffice", group: "quoting" },
+    { to: "/frontoffice/quoting?view=print-pay", labelKey: "nav.printPay", icon: <PrintIcon />, package: "FrontOffice", group: "quoting" },
+    { to: "/frontoffice/quoting?view=pay-print", labelKey: "nav.payPrint", icon: <PaymentsIcon />, package: "FrontOffice", group: "quoting" },
+    { to: "/frontoffice/quoting?view=requests", labelKey: "nav.quoteRequests", icon: <AssignmentIcon />, package: "FrontOffice", group: "quoting" },
+    { to: "/frontoffice/quoting?view=history", labelKey: "nav.quoteHistory", icon: <ScheduleIcon />, package: "FrontOffice", group: "quoting" },
 
     // ===== Intelligence =====
     // persistency hidden — analytics shell exists but not wired to data yet.
@@ -508,6 +518,12 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/office-website", labelKey: "nav.officeWebsite", icon: <LanguageIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website/requests", labelKey: "nav.officeWebsiteRequests", icon: <AssignmentIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website/analytics", labelKey: "nav.officeWebsiteAnalytics", icon: <AnalyticsIcon />, package: "FrontOffice", group: "website" },
+    { to: "/frontoffice/quoting?view=dashboard", labelKey: "nav.quotingDashboard", icon: <CalculateIcon />, package: "FrontOffice", group: "quoting" },
+    { to: "/frontoffice/quoting?view=quotes", labelKey: "nav.quotes", icon: <CompareArrowsIcon />, package: "FrontOffice", group: "quoting" },
+    { to: "/frontoffice/quoting?view=print-pay", labelKey: "nav.printPay", icon: <PrintIcon />, package: "FrontOffice", group: "quoting" },
+    { to: "/frontoffice/quoting?view=pay-print", labelKey: "nav.payPrint", icon: <PaymentsIcon />, package: "FrontOffice", group: "quoting" },
+    { to: "/frontoffice/quoting?view=requests", labelKey: "nav.quoteRequests", icon: <AssignmentIcon />, package: "FrontOffice", group: "quoting" },
+    { to: "/frontoffice/quoting?view=history", labelKey: "nav.quoteHistory", icon: <ScheduleIcon />, package: "FrontOffice", group: "quoting" },
     // CRM
     { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
@@ -552,6 +568,12 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/office-website", labelKey: "nav.officeWebsite", icon: <LanguageIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website/requests", labelKey: "nav.officeWebsiteRequests", icon: <AssignmentIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website/analytics", labelKey: "nav.officeWebsiteAnalytics", icon: <AnalyticsIcon />, package: "FrontOffice", group: "website" },
+    { to: "/frontoffice/quoting?view=dashboard", labelKey: "nav.quotingDashboard", icon: <CalculateIcon />, package: "FrontOffice", group: "quoting" },
+    { to: "/frontoffice/quoting?view=quotes", labelKey: "nav.quotes", icon: <CompareArrowsIcon />, package: "FrontOffice", group: "quoting" },
+    { to: "/frontoffice/quoting?view=print-pay", labelKey: "nav.printPay", icon: <PrintIcon />, package: "FrontOffice", group: "quoting" },
+    { to: "/frontoffice/quoting?view=pay-print", labelKey: "nav.payPrint", icon: <PaymentsIcon />, package: "FrontOffice", group: "quoting" },
+    { to: "/frontoffice/quoting?view=requests", labelKey: "nav.quoteRequests", icon: <AssignmentIcon />, package: "FrontOffice", group: "quoting" },
+    { to: "/frontoffice/quoting?view=history", labelKey: "nav.quoteHistory", icon: <ScheduleIcon />, package: "FrontOffice", group: "quoting" },
     { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/crm-groups", labelKey: "nav.crmGroups", icon: <GroupWorkIconRC />, package: "Crm", permission: "marketing.read" },
@@ -1105,6 +1127,7 @@ export default function App() {
                   <Route path="office-website/requests" element={<PackageGate package="FrontOffice"><OfficeWebsitePage initialTab={4} /></PackageGate>} />
                   <Route path="office-website/analytics" element={<PackageGate package="FrontOffice"><OfficeWebsiteAnalyticsPage /></PackageGate>} />
                   <Route path="office-website" element={<PackageGate package="FrontOffice"><OfficeWebsitePage /></PackageGate>} />
+                  <Route path="frontoffice/quoting" element={<PackageGate package="FrontOffice"><FrontOfficeQuotingPage /></PackageGate>} />
                   <Route path="branches" element={<BranchesPage />} />
                   <Route path="securities" element={<Navigate to="/app/financials?tab=securities" replace />} />
                   <Route path="bank-connections" element={<PackageGate package="Integrations"><BankConnectionsPage /></PackageGate>} />
