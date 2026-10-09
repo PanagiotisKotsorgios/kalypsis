@@ -286,13 +286,10 @@ export const navByRole: Record<Role, NavItem[]> = {
   Customer: [
     { to: "/customer-portal", labelKey: "nav.dashboard", icon: <DashboardIcon />, package: "Crm" },
     { to: "/customer-portal?tab=policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "Crm" },
-    { to: "/customer-portal?tab=documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "Crm" },
-    { to: "/customer-portal?tab=green-cards", labelKey: "nav.greenCards", icon: <DescriptionIcon />, package: "Crm" },
+    { to: "/customer-portal?tab=documents", labelKey: "nav.documentsAndCards", icon: <FolderIcon />, package: "Crm" },
     { to: "/customer-portal?tab=notifications", labelKey: "nav.notifications", icon: <NotificationsIcon />, package: "Crm" },
-    { to: "/customer-portal?tab=requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
-    { to: "/customer-portal?tab=claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "Crm" },
-    { to: "/customer-portal?tab=consents", labelKey: "nav.communicationPreferences", icon: <SecurityIcon />, package: "Crm" },
-    { to: "/customer-portal?tab=profile", labelKey: "nav.profile", icon: <AccountCircleIcon />, package: "Crm" }
+    { to: "/customer-portal?tab=requests", labelKey: "nav.requestsAndClaims", icon: <AssignmentIcon />, package: "Crm" },
+    { to: "/customer-portal?tab=profile", labelKey: "nav.profileAndPreferences", icon: <AccountCircleIcon />, package: "Crm" }
   ],
   AgencyAdmin: [
     // ===== Top home link, every workspace =====

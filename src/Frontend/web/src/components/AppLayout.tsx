@@ -115,7 +115,9 @@ interface AppLayoutProps {
 
 const DRAWER_WIDTH = 408;
 const DRAWER_RAIL_WIDTH = 64;
-const MOBILE_DRAWER_WIDTH = "min(88vw, 360px)";
+// Keep the mobile drawer useful without taking over the whole phone screen.
+// The customer portal has a deliberately short six-item navigation.
+const MOBILE_DRAWER_WIDTH = "min(82vw, 320px)";
 // User-resizable sidebar bounds. Below MIN the rail mode kicks in;
 // above MAX we cap so a stray drag can't cover the whole viewport.
 const DRAWER_MIN_WIDTH = 220;
@@ -241,7 +243,7 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
 
   const drawerContent = (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <Toolbar sx={{ px: 2, minHeight: 64, justifyContent: "space-between", gap: 1 }}>
+      <Toolbar sx={{ px: { xs: 1.25, sm: 2 }, minHeight: { xs: 56, sm: 64 }, justifyContent: "space-between", gap: 1 }}>
         {tenantLogoUrl ? (
           <Stack direction="row" spacing={1.2} alignItems="center" sx={{ minWidth: 0 }}>
             <Box
@@ -261,7 +263,7 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
         )}
       </Toolbar>
       <Divider />
-      <List id="app-sidebar-navigation" sx={{ flex: 1, py: 1, overflowY: "auto", overscrollBehavior: "contain", pb: "max(8px, env(safe-area-inset-bottom))" }} component="nav">
+      <List id="app-sidebar-navigation" sx={{ flex: 1, py: { xs: 0.5, sm: 1 }, overflowY: "auto", overscrollBehavior: "contain", pb: "max(8px, env(safe-area-inset-bottom))" }} component="nav">
         {(() => {
           // Per-user permission check. AgencyAdmin sees every item that
           // passes the package/workspace filters; employees only see items
@@ -357,7 +359,7 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
                   mb: 0.4,
                   pl: collapsed ? 1.2 : (indented ? 3 : 2),
                   borderRadius: 1.5,
-                  minHeight: isMobile ? 48 : undefined,
+                  minHeight: isMobile ? 44 : undefined,
                   justifyContent: collapsed ? "center" : "flex-start",
                   opacity: item.comingSoon ? 0.7 : 1
                 }}
@@ -366,7 +368,7 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
                 {!collapsed && (
                   <ListItemText
                     primary={t(item.labelKey)}
-                    primaryTypographyProps={{ fontWeight: 500, noWrap: true, fontSize: indented ? 15 : 15.5 }}
+                    primaryTypographyProps={{ fontWeight: 500, noWrap: true, fontSize: isMobile ? (indented ? 14 : 14.5) : (indented ? 15 : 15.5) }}
                   />
                 )}
                 {!collapsed && premiumLocked && <PremiumCrown />}

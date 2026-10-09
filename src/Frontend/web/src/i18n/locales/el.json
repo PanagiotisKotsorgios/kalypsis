@@ -18,6 +18,9 @@
   },
   "nav": {
     "communicationPreferences": "Προτιμήσεις επικοινωνίας",
+    "documentsAndCards": "Έγγραφα & κάρτες",
+    "requestsAndClaims": "Αιτήματα & ζημιές",
+    "profileAndPreferences": "Προφίλ & προτιμήσεις",
     "dashboard": "Πίνακας Ελέγχου",
     "customers": "Πελάτες",
     "policies": "Συμβόλαια",
