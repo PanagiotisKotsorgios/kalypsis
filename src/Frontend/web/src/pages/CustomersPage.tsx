@@ -49,6 +49,7 @@ import NotesOutlinedIcon from "@mui/icons-material/NotesOutlined";
 import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
 import { useTableState } from "../components/useTableState";
 import { useColumnPreferences } from "../hooks/useColumnPreferences";
@@ -235,6 +236,7 @@ function paymentStatus(account?: CustomerAccountSummary): string {
 export function CustomersPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [needKind, setNeedKind] = useState("");
   const [onlyUninsuredNeeds, setOnlyUninsuredNeeds] = useState(false);
@@ -262,10 +264,11 @@ export function CustomersPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (body: CreateBody) => api.post("/customers", body),
-    onSuccess: () => {
+    mutationFn: async (body: CreateBody) => (await api.post<{ customer: CustomerDto }>("/customers", body)).data,
+    onSuccess: (result) => {
       void qc.invalidateQueries({ queryKey: ["customers"] });
       setCreateStatus(null);
+      if (result.customer?.id) navigate(`/app/customers/${result.customer.id}`);
     },
     onError: (err) => setError(extractErrorMessage(err))
   });
@@ -845,9 +848,47 @@ function CreateCustomerDialog({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
-      <DialogTitle sx={{ py: 1.25 }}>{t("customers.createTitle")}</DialogTitle>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth={initialCustomer ? "lg" : "sm"}>
+      <DialogTitle sx={{ py: 1.25 }}>{initialCustomer ? "Επεξεργασία πελάτη" : t("customers.createTitle")}</DialogTitle>
       <DialogContent sx={{ p: { xs: 1.5, md: 2 } }}>
+        {!initialCustomer ? (
+          <Stack spacing={1.25}>
+            <Alert severity="info" sx={{ py: 0.5 }}>
+              Συμπληρώστε τα βασικά στοιχεία. Μετά τη δημιουργία ανοίγει η πλήρης καρτέλα για όλα τα στοιχεία, οχήματα και έγγραφα.
+            </Alert>
+            <SearchableTextField
+              select
+              label={t("customers.type")}
+              value={form.type}
+              onChange={e => setForm({ ...form, type: e.target.value as CustomerType })}
+              fullWidth
+              textFieldProps={{ InputProps: { startAdornment: <InputAdornment position="start"><CategoryOutlinedIcon fontSize="small" /></InputAdornment> } }}
+            >
+              <MenuItem value="Individual">{t("customers.individual")}</MenuItem>
+              <MenuItem value="Company">{t("customers.company")}</MenuItem>
+            </SearchableTextField>
+            <FormControlLabel
+              control={<Switch checked={form.status === "Prospect"} onChange={e => setForm({ ...form, status: e.target.checked ? "Prospect" : "Active" })} />}
+              label="Πιθανός πελάτης"
+            />
+            {form.type === "Individual" ? (
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                <TextField required fullWidth label={t("customers.firstName")} value={form.firstName ?? ""} onChange={e => setForm({ ...form, firstName: e.target.value })} InputProps={{ startAdornment: <InputAdornment position="start"><PersonOutlineIcon fontSize="small" /></InputAdornment> }} />
+                <TextField required fullWidth label={t("customers.lastName")} value={form.lastName ?? ""} onChange={e => setForm({ ...form, lastName: e.target.value })} InputProps={{ startAdornment: <InputAdornment position="start"><BadgeOutlinedIcon fontSize="small" /></InputAdornment> }} />
+              </Stack>
+            ) : (
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                <TextField required fullWidth label={t("customers.companyName")} value={form.companyName ?? ""} onChange={e => setForm({ ...form, companyName: e.target.value })} InputProps={{ startAdornment: <InputAdornment position="start"><BusinessOutlinedIcon fontSize="small" /></InputAdornment> }} />
+                <TextField fullWidth label={t("customers.vatNumber")} value={form.vatNumber ?? ""} onChange={e => setForm({ ...form, vatNumber: e.target.value })} InputProps={{ startAdornment: <InputAdornment position="start"><BadgeOutlinedIcon fontSize="small" /></InputAdornment> }} />
+              </Stack>
+            )}
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+              <TextField fullWidth type="email" label={t("customers.email")} value={form.email ?? ""} onChange={e => setForm({ ...form, email: e.target.value })} InputProps={{ startAdornment: <InputAdornment position="start"><EmailOutlinedIcon fontSize="small" /></InputAdornment> }} />
+              <TextField fullWidth label={t("customers.phone")} value={form.phone ?? ""} onChange={e => setForm({ ...form, phone: e.target.value })} InputProps={{ startAdornment: <InputAdornment position="start"><PhoneOutlinedIcon fontSize="small" /></InputAdornment> }} />
+            </Stack>
+          </Stack>
+        ) : (
+          <>
         <Typography color="text.secondary" mb={1} variant="body2">
           {t("customers.createHelp")}
         </Typography>
@@ -1084,12 +1125,14 @@ function CreateCustomerDialog({
           </Box>
 
         </Stack>
+          </>
+        )}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>{t("common.cancel")}</Button>
         <Button onClick={handleSubmit} variant="contained"
-          disabled={submitting}>
-          {submitting ? <CircularProgress size={18} /> : t("common.create")}
+          disabled={submitting || (!initialCustomer && (form.type === "Individual" ? !form.firstName?.trim() || !form.lastName?.trim() : !form.companyName?.trim()))}>
+          {submitting ? <CircularProgress size={18} /> : initialCustomer ? "Αποθήκευση" : "Δημιουργία & άνοιγμα καρτέλας"}
         </Button>
       </DialogActions>
     </Dialog>

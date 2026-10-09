@@ -294,16 +294,27 @@ export function CustomerDetailPage() {
               Επεξεργασία πελάτη
             </Button>}
             {tab === 0 && showEditor && (
-              <Button
-                startIcon={<SaveIcon />}
-                variant="contained"
-                color="primary"
-                disabled={!editorSave || editorSaving}
-                onClick={() => editorSave?.()}
-                sx={{ color: "#fff", fontWeight: 800 }}
-              >
-                {editorSaving ? "Αποθήκευση..." : "Αποθήκευση"}
-              </Button>
+              <>
+                <Button
+                  startIcon={<SaveIcon />}
+                  variant="contained"
+                  color="primary"
+                  disabled={!editorSave || editorSaving}
+                  onClick={() => editorSave?.()}
+                  sx={{ color: "#fff", fontWeight: 800 }}
+                >
+                  {editorSaving ? "Αποθήκευση..." : "Αποθήκευση"}
+                </Button>
+                <Button
+                  startIcon={<CloseIcon />}
+                  variant="contained"
+                  color="error"
+                  onClick={() => { setShowEditor(false); setEditorSave(null); setEditorSaving(false); }}
+                  sx={{ color: "#fff", fontWeight: 800 }}
+                >
+                  Ακύρωση επεξεργασίας
+                </Button>
+              </>
             )}
             <Button
               variant={customer.status === "Prospect" ? "contained" : "outlined"}
@@ -486,6 +497,7 @@ interface CustomerVehicleRow {
 
 function CustomerVehiclesTab({ customerId, compact = false }: { customerId: string; compact?: boolean }) {
   const [selectedPlate, setSelectedPlate] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
   const q = useQuery({
     queryKey: ["customer-vehicles", customerId],
     queryFn: async () => (await api.get<CustomerVehicleRow[]>("/policies", { params: { customerId, type: "Auto" } })).data
@@ -497,7 +509,10 @@ function CustomerVehiclesTab({ customerId, compact = false }: { customerId: stri
     <Card variant="outlined" sx={{ p: compact ? 1.25 : 2.5 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: compact ? 0.75 : 1.5 }}>
         <Box><Typography variant={compact ? "subtitle1" : "h6"} fontWeight={800}>Οχήματα πελάτη</Typography><Typography variant="body2" color="text.secondary">Αυτόματη προβολή από τα συμβόλαια αυτοκινήτου.</Typography></Box>
-        <Chip size="small" icon={<DirectionsCarIcon />} label={`${rows.length} συμβόλαια`} />
+        <Stack direction="row" spacing={0.75} alignItems="center">
+          <Button size="small" variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => setAddOpen(true)}>Νέο όχημα</Button>
+          <Chip size="small" icon={<DirectionsCarIcon />} label={`${rows.length} συμβόλαια`} />
+        </Stack>
       </Stack>
       {rows.length === 0 ? <Alert severity="info">Δεν έχει καταχωρηθεί ακόμη συμβόλαιο αυτοκινήτου ή πινακίδα για τον πελάτη.</Alert> : (
         <Table size="small">
@@ -514,8 +529,93 @@ function CustomerVehiclesTab({ customerId, compact = false }: { customerId: stri
         </Table>
       )}
       <VehicleDetailDialog open={selectedPlate !== null} plate={selectedPlate ?? ""} policyIds={rows.filter(row => (row.vehicleRegistrationPlate ?? "") === (selectedPlate ?? "")).map(row => row.id)} onClose={() => setSelectedPlate(null)} />
+      <AddCustomerVehicleDialog open={addOpen} rows={rows} onClose={() => setAddOpen(false)} onSaved={() => { setAddOpen(false); void q.refetch(); }} />
     </Card>
   );
+}
+
+type AddVehicleForm = {
+  policyId: string;
+  plate: string;
+  make: string;
+  model: string;
+  year: string;
+  vin: string;
+  engineCapacity: string;
+  taxableHorsepower: string;
+  estimatedValue: string;
+  purchaseDate: string;
+  condition: string;
+  ownerCount: string;
+  youngDriver: boolean;
+  sunroof: boolean;
+  use: string;
+  color: string;
+  seats: string;
+  notes: string;
+};
+
+const blankAddVehicleForm = (policyId = ""): AddVehicleForm => ({
+  policyId, plate: "", make: "", model: "", year: "", vin: "", engineCapacity: "", taxableHorsepower: "", estimatedValue: "",
+  purchaseDate: "", condition: "Μεταχειρισμένο", ownerCount: "", youngDriver: false, sunroof: false, use: "", color: "", seats: "", notes: ""
+});
+
+function AddCustomerVehicleDialog({ open, rows, onClose, onSaved }: { open: boolean; rows: CustomerVehicleRow[]; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState<AddVehicleForm>(() => blankAddVehicleForm(rows[0]?.id));
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => { if (open) { setForm(blankAddVehicleForm(rows[0]?.id)); setError(null); } }, [open, rows]);
+  const update = useMutation({
+    mutationFn: async () => {
+      const specs: Record<string, unknown> = {
+        make: form.make.trim(), model: form.model.trim(), year: form.year.trim(), vin: form.vin.trim(), engineCapacity: form.engineCapacity.trim(),
+        taxableHorsepower: form.taxableHorsepower.trim(), estimatedValue: form.estimatedValue.trim(), purchaseDate: form.purchaseDate,
+        condition: form.condition, ownerCount: form.ownerCount.trim(), youngDriver: form.youngDriver ? "Ναι" : "Όχι", sunroof: form.sunroof ? "Ναι" : "Όχι",
+        color: form.color.trim(), seats: form.seats.trim()
+      };
+      Object.keys(specs).forEach(key => { const value = specs[key]; if (value === "" || value === undefined) delete specs[key]; });
+      return api.patch(`/policies/${form.policyId}/vehicle`, {
+        vehicleRegistrationPlate: form.plate.trim(), vehicleUseCategory: form.use.trim() || null,
+        specsJson: JSON.stringify(specs), notes: form.notes.trim() || null, replaceDetails: true
+      });
+    },
+    onSuccess: onSaved,
+    onError: e => setError(extractErrorMessage(e))
+  });
+  const set = <K extends keyof AddVehicleForm>(key: K, value: AddVehicleForm[K]) => setForm(current => ({ ...current, [key]: value }));
+  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+    <DialogTitle>Προσθήκη οχήματος στον πελάτη</DialogTitle>
+    <DialogContent dividers>
+      {rows.length === 0 ? <Alert severity="info">Για να συνδεθεί όχημα χρειάζεται πρώτα ένα συμβόλαιο αυτοκινήτου στην καρτέλα του πελάτη.</Alert> : <Stack spacing={1.25} sx={{ pt: 0.25 }}>
+        <Alert severity="info" sx={{ py: 0.5 }}>Το όχημα συνδέεται με το επιλεγμένο συμβόλαιο και όλα τα στοιχεία του παραμένουν επεξεργάσιμα από την καρτέλα οχήματος.</Alert>
+        <TextField select fullWidth label="Συμβόλαιο σύνδεσης" value={form.policyId} onChange={e => set("policyId", e.target.value)}>
+          {rows.map(row => <MenuItem key={row.id} value={row.id}>{row.policyNumber} · {row.insuranceCompanyName} · {row.startDate}</MenuItem>)}
+        </TextField>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" }, gap: 1 }}>
+          <TextField required label="Πινακίδα" value={form.plate} onChange={e => set("plate", e.target.value)} />
+          <TextField label="Μάρκα" value={form.make} onChange={e => set("make", e.target.value)} />
+          <TextField label="Μοντέλο" value={form.model} onChange={e => set("model", e.target.value)} />
+          <TextField label="Έτος κατασκευής" value={form.year} onChange={e => set("year", e.target.value)} />
+          <TextField label="VIN / αριθμός πλαισίου" value={form.vin} onChange={e => set("vin", e.target.value)} />
+          <TextField label="Κυβισμός (cc)" value={form.engineCapacity} onChange={e => set("engineCapacity", e.target.value)} />
+          <TextField label="Φορολογήσιμοι ίπποι" value={form.taxableHorsepower} onChange={e => set("taxableHorsepower", e.target.value)} />
+          <TextField label="Εκτιμώμενη αξία" value={form.estimatedValue} onChange={e => set("estimatedValue", e.target.value)} />
+          <TextField label="Ημερομηνία αγοράς" type="date" value={form.purchaseDate} onChange={e => set("purchaseDate", e.target.value)} InputLabelProps={{ shrink: true }} />
+          <TextField select label="Κατάσταση" value={form.condition} onChange={e => set("condition", e.target.value)}><MenuItem value="Καινούργιο">Καινούργιο</MenuItem><MenuItem value="Μεταχειρισμένο">Μεταχειρισμένο</MenuItem></TextField>
+          <TextField label="Αριθμός ιδιοκτητών" value={form.ownerCount} onChange={e => set("ownerCount", e.target.value)} />
+          <TextField label="Χρήση" value={form.use} onChange={e => set("use", e.target.value)} />
+          <TextField label="Χρώμα" value={form.color} onChange={e => set("color", e.target.value)} />
+          <TextField label="Θέσεις" value={form.seats} onChange={e => set("seats", e.target.value)} />
+        </Box>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+          <FormControlLabel control={<Switch checked={form.youngDriver} onChange={e => set("youngDriver", e.target.checked)} />} label="Νέος οδηγός / οδηγεί παιδί" />
+          <FormControlLabel control={<Switch checked={form.sunroof} onChange={e => set("sunroof", e.target.checked)} />} label="Ηλιοροφή" />
+        </Stack>
+        <TextField label="Σημειώσεις οχήματος" value={form.notes} onChange={e => set("notes", e.target.value)} multiline minRows={2} />
+        {error && <Alert severity="error">{error}</Alert>}
+      </Stack>}
+    </DialogContent>
+    <DialogActions><Button color="error" variant="contained" onClick={onClose} sx={{ color: "#fff" }}>Ακύρωση</Button><Button variant="contained" color="success" onClick={() => update.mutate()} disabled={!form.policyId || !form.plate.trim() || update.isPending || rows.length === 0}>{update.isPending ? "Αποθήκευση…" : "Προσθήκη οχήματος"}</Button></DialogActions>
+  </Dialog>;
 }
 
 interface CustomerStatisticsPolicy {
@@ -889,6 +989,14 @@ function OverviewTab({ customer }: { customer: CustomerDto }) {
   const hasDriverLicense = Boolean(customer.driverLicenseNumber || customer.driverLicenseClass || customer.driverLicenseIssueDate || customer.driverLicenseExpiryDate);
   const licenseExpired = customer.driverLicenseExpiryDate ? new Date(customer.driverLicenseExpiryDate).getTime() < Date.now() : false;
   const licenseStatus = !hasDriverLicense ? "Δεν έχει καταχωρηθεί" : licenseExpired ? "Έχει λήξει" : "Καταχωρημένο / ενεργό";
+  const licenseYears = customer.driverLicenseIssueDate ? (() => {
+    const issue = new Date(customer.driverLicenseIssueDate);
+    if (Number.isNaN(issue.getTime())) return "—";
+    const today = new Date();
+    let years = today.getFullYear() - issue.getFullYear();
+    if (today.getMonth() < issue.getMonth() || (today.getMonth() === issue.getMonth() && today.getDate() < issue.getDate())) years -= 1;
+    return years >= 0 ? `${years} έτη` : "—";
+  })() : "—";
   const contactMethodCount = [customer.email, customer.phone, customer.mobilePhone, customer.altPhone].filter(value => Boolean(value?.trim())).length;
   const identityDocument = customer.idNumber || customer.passportNumber ? "Καταχωρημένο" : "Δεν έχει καταχωρηθεί";
   const taxProfile = customer.vatNumber || customer.taxOffice || customer.gemiNumber ? "Συμπληρωμένο" : "Δεν έχει συμπληρωθεί";
@@ -919,7 +1027,7 @@ function OverviewTab({ customer }: { customer: CustomerDto }) {
     ] },
     { title: "Οδήγηση & εσωτερική πληροφόρηση", fields: [
       ["Οδηγός", hasDriverLicense ? "Ναι" : "Δεν έχει καταχωρηθεί"], ["Κατάσταση διπλώματος", licenseStatus], ["Αριθμός διπλώματος", customer.driverLicenseNumber ?? "—"], ["Κατηγορία", customer.driverLicenseClass ?? "—"],
-      ["Έκδοση διπλώματος", customer.driverLicenseIssueDate ?? "—"], ["Λήξη διπλώματος", customer.driverLicenseExpiryDate ?? "—"], ["Έγγραφο ταυτοποίησης", identityDocument], ["Ετικέτες", customer.tagsJson ?? "—"]
+      ["Έκδοση διπλώματος", customer.driverLicenseIssueDate ?? "—"], ["Χρόνια με δίπλωμα", licenseYears], ["Λήξη διπλώματος", customer.driverLicenseExpiryDate ?? "—"], ["Έγγραφο ταυτοποίησης", identityDocument], ["Ετικέτες", customer.tagsJson ?? "—"]
     ] }
   ];
   const isMissingField = (value: React.ReactNode) => {
@@ -1010,7 +1118,7 @@ function CustomerEditorDialog({ open, customer, onClose, onSaveReady }: { open: 
   return <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 }, "& .MuiTextField-root": { minWidth: 0 } }}>
     <Stack direction="row" justifyContent="space-between" alignItems="center" gap={1} sx={{ mb: 0.75 }}>
       <Box><Typography variant="subtitle1" fontWeight={800}>Επεξεργασία καρτέλας · {customer.customerNumber}</Typography><Typography variant="caption" color="text.secondary">Τα πεδία επεξεργάζονται απευθείας μέσα στην καρτέλα πελάτη.</Typography></Box>
-      <Button size="small" color="inherit" onClick={onClose}>Κλείσιμο επεξεργασίας</Button>
+      <Button size="small" variant="contained" color="error" startIcon={<CloseIcon />} onClick={onClose} sx={{ color: "#fff", fontWeight: 700 }}>Ακύρωση επεξεργασίας</Button>
     </Stack>
       {error && <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>}
       <Stack spacing={0.75}>

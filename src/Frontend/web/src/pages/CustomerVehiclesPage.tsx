@@ -113,6 +113,7 @@ export function VehicleDetailDialog({ open, plate, policyIds, onClose, zIndex, i
   const [editing, setEditing] = useState(false);
   const [associationPolicyId, setAssociationPolicyId] = useState("");
   const [form, setForm] = useState({ plate: "", use: "", driverVat: "", reason: "", characteristic: "", deductible: "", position: "", specsJson: "", notes: "" });
+  const [vehicleSpecs, setVehicleSpecs] = useState<Record<string, string>>({});
   useEffect(() => {
     if (open) setEditing(initialEditing);
   }, [open, initialEditing]);
@@ -130,6 +131,9 @@ export function VehicleDetailDialog({ open, plate, policyIds, onClose, zIndex, i
       specsJson: d.specsJson ?? "",
       notes: d.policyNotes ?? ""
     });
+    const parsed = parseSpecs(d.specsJson);
+    const editableKeys = ["make", "model", "year", "vin", "engineCapacity", "taxableHorsepower", "estimatedValue", "purchaseDate", "condition", "ownerCount", "youngDriver", "sunroof", "color", "seats"];
+    setVehicleSpecs(Object.fromEntries(editableKeys.map(key => [key, parsed[key] == null ? "" : String(parsed[key])] )));
   }, [q.data, plate]);
   const invalidateVehicle = () => {
     void qc.invalidateQueries({ queryKey: ["vehicle-detail", plate, policyIds.join(",")] });
@@ -145,7 +149,12 @@ export function VehicleDetailDialog({ open, plate, policyIds, onClose, zIndex, i
       characteristic: form.characteristic.trim() || null,
       deductible: form.deductible.trim() ? Number(form.deductible) : null,
       position: form.position.trim() || null,
-      specsJson: form.specsJson.trim() || null,
+      specsJson: (() => {
+        let existing: Record<string, unknown> = {};
+        try { existing = form.specsJson.trim() ? JSON.parse(form.specsJson) as Record<string, unknown> : {}; } catch { /* preserve invalid JSON as editable text below */ }
+        const merged = { ...existing, ...Object.fromEntries(Object.entries(vehicleSpecs).filter(([, value]) => value.trim() !== "")) };
+        return Object.keys(merged).length ? JSON.stringify(merged) : null;
+      })(),
       notes: form.notes.trim() || null,
       replaceDetails: true,
       clearVehicleRegistrationPlate: !form.plate.trim()
@@ -174,7 +183,8 @@ export function VehicleDetailDialog({ open, plate, policyIds, onClose, zIndex, i
   const specLabel: Record<string, string> = {
     taxableHorsepower: "Φορολογήσιμοι ίπποι", taxableHp: "Φορολογήσιμοι ίπποι", taxable_horsepower: "Φορολογήσιμοι ίπποι", horsepower: "Ιπποδύναμη (HP)",
     engineCapacity: "Κυβισμός", vin: "VIN / αριθμός πλαισίου", make: "Μάρκα", model: "Μοντέλο", year: "Έτος κατασκευής",
-    color: "Χρώμα", seats: "Θέσεις", usage: "Χρήση"
+    color: "Χρώμα", seats: "Θέσεις", usage: "Χρήση", estimatedValue: "Εκτιμώμενη αξία", purchaseDate: "Ημερομηνία αγοράς",
+    condition: "Κατάσταση οχήματος", ownerCount: "Αριθμός ιδιοκτητών", youngDriver: "Νέος οδηγός / παιδί", sunroof: "Ηλιοροφή"
   };
   const total = (key: keyof VehiclePolicyDetail) => details.reduce((sum, detail) => sum + (Number(detail[key]) || 0), 0);
   return <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg" sx={zIndex ? { zIndex } : undefined}>
@@ -194,6 +204,13 @@ export function VehicleDetailDialog({ open, plate, policyIds, onClose, zIndex, i
               <TextField label="Χαρακτηριστικό" value={form.characteristic} onChange={e => setForm(current => ({ ...current, characteristic: e.target.value }))} />
               <TextField label="Απαλλαγή" type="number" value={form.deductible} onChange={e => setForm(current => ({ ...current, deductible: e.target.value }))} />
               <TextField label="Θέση / spot" value={form.position} onChange={e => setForm(current => ({ ...current, position: e.target.value }))} />
+            </Box>
+            <Typography variant="subtitle2" fontWeight={800}>Πρόσθετα στοιχεία για έκδοση και τιμολόγηση</Typography>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" }, gap: 1 }}>
+              {([["make", "Μάρκα"], ["model", "Μοντέλο"], ["year", "Έτος κατασκευής"], ["vin", "VIN / αριθμός πλαισίου"], ["engineCapacity", "Κυβισμός (cc)"], ["taxableHorsepower", "Φορολογήσιμοι ίπποι"], ["estimatedValue", "Εκτιμώμενη αξία"], ["purchaseDate", "Ημερομηνία αγοράς"], ["ownerCount", "Αριθμός ιδιοκτητών"], ["color", "Χρώμα"], ["seats", "Θέσεις"]] as [string, string][]).map(([key, label]) => <TextField key={key} label={label} type={key === "purchaseDate" ? "date" : undefined} value={vehicleSpecs[key] ?? ""} onChange={e => setVehicleSpecs(current => ({ ...current, [key]: e.target.value }))} InputLabelProps={key === "purchaseDate" ? { shrink: true } : undefined} />)}
+              <TextField select label="Κατάσταση οχήματος" value={vehicleSpecs.condition ?? ""} onChange={e => setVehicleSpecs(current => ({ ...current, condition: e.target.value }))}><MenuItem value="">Δεν έχει οριστεί</MenuItem><MenuItem value="Καινούργιο">Καινούργιο</MenuItem><MenuItem value="Μεταχειρισμένο">Μεταχειρισμένο</MenuItem></TextField>
+              <TextField select label="Νέος οδηγός / οδηγεί παιδί" value={vehicleSpecs.youngDriver ?? ""} onChange={e => setVehicleSpecs(current => ({ ...current, youngDriver: e.target.value }))}><MenuItem value="">Δεν έχει οριστεί</MenuItem><MenuItem value="Ναι">Ναι</MenuItem><MenuItem value="Όχι">Όχι</MenuItem></TextField>
+              <TextField select label="Ηλιοροφή" value={vehicleSpecs.sunroof ?? ""} onChange={e => setVehicleSpecs(current => ({ ...current, sunroof: e.target.value }))}><MenuItem value="">Δεν έχει οριστεί</MenuItem><MenuItem value="Ναι">Ναι</MenuItem><MenuItem value="Όχι">Όχι</MenuItem></TextField>
             </Box>
             <TextField label="Τεχνικά στοιχεία (JSON)" value={form.specsJson} onChange={e => setForm(current => ({ ...current, specsJson: e.target.value }))} multiline minRows={3} helperText={'Προαιρετικά, π.χ. {"make":"Toyota","model":"Yaris"}'} />
             <TextField label="Σημειώσεις οχήματος" value={form.notes} onChange={e => setForm(current => ({ ...current, notes: e.target.value }))} multiline minRows={2} />
