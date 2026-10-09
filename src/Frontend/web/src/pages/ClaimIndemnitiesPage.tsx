@@ -2,11 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import {
   Alert, Box, Button, Card, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
+  IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import PaymentsIcon from "@mui/icons-material/Payments";
+import DownloadIcon from "@mui/icons-material/Download";
+import SearchIcon from "@mui/icons-material/Search";
+import FilterAltOffIcon from "@mui/icons-material/FilterAltOff";
+import PrintIcon from "@mui/icons-material/Print";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
@@ -14,6 +18,7 @@ import { HelpHint } from "../components/HelpHint";
 import { money } from "../utils/format";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
+import { exportRowsCsv } from "../utils/exportCsv";
 
 interface IndemnityDto {
   id: string; claimId: string; claimNumber: string;
@@ -32,6 +37,13 @@ export function ClaimIndemnitiesPage() {
   const qc = useQueryClient();
   const [err, setErr] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [payeeTypeFilter, setPayeeTypeFilter] = useState("all");
+  const [methodFilter, setMethodFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   const q = useQuery({ queryKey: ["indemnities"], queryFn: async () => (await api.get<IndemnityDto[]>("/indemnities")).data });
   const del = useMutation({
@@ -40,14 +52,28 @@ export function ClaimIndemnitiesPage() {
     onError: e => setErr(extractErrorMessage(e))
   });
 
-  const total = (q.data ?? []).reduce((s, i) => s + i.amount, 0);
+  const rows = q.data ?? [];
+  const total = rows.reduce((s, i) => s + i.amount, 0);
+  const filteredRows = useMemo(() => {
+    const term = search.trim().toLocaleLowerCase("el-GR");
+    return rows.filter(i => {
+      const haystack = [i.paymentNumber, i.claimNumber, i.payeeName, i.garageName, i.paymentMethod, i.reference, i.notes]
+        .filter(Boolean).join(" ").toLocaleLowerCase("el-GR");
+      if (term && !haystack.includes(term)) return false;
+      if (payeeTypeFilter !== "all" && i.payeeType !== payeeTypeFilter) return false;
+      if (methodFilter !== "all" && i.paymentMethod !== methodFilter) return false;
+      if (dateFrom && i.paidOn < dateFrom) return false;
+      if (dateTo && i.paidOn > dateTo) return false;
+      return true;
+    });
+  }, [rows, search, payeeTypeFilter, methodFilter, dateFrom, dateTo]);
+  useEffect(() => { setPage(0); }, [search, payeeTypeFilter, methodFilter, dateFrom, dateTo, rowsPerPage]);
 
   const [sortKey, setSortKey] = useState<keyof IndemnityDto | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const sortedRows = useMemo(() => {
-    const rows = q.data ?? [];
-    if (!sortKey) return rows;
-    const arr = rows.slice();
+    if (!sortKey) return filteredRows;
+    const arr = filteredRows.slice();
     arr.sort((a, b) => {
       const va: any = a[sortKey] ?? "";
       const vb: any = b[sortKey] ?? "";
@@ -55,7 +81,27 @@ export function ClaimIndemnitiesPage() {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return arr;
-  }, [q.data, sortKey, sortDir]);
+  }, [filteredRows, sortKey, sortDir]);
+  const pageRows = sortedRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  const clearFilters = () => { setSearch(""); setPayeeTypeFilter("all"); setMethodFilter("all"); setDateFrom(""); setDateTo(""); };
+  const exportColumns = [
+    { key: "paymentNumber", label: "Αριθμός πληρωμής" },
+    { key: "claimNumber", label: "Αριθμός ζημιάς" },
+    { key: "paidOn", label: "Ημερομηνία" },
+    { key: "payeeName", label: "Δικαιούχος", map: (i: IndemnityDto) => i.payeeType === "Garage" ? (i.garageName ?? "—") : (i.payeeName ?? "—") },
+    { key: "payeeType", label: "Τύπος δικαιούχου", map: (i: IndemnityDto) => t(`payeeType.${i.payeeType}`, i.payeeType) },
+    { key: "paymentMethod", label: "Μέθοδος", map: (i: IndemnityDto) => t(`paymentMethod.${i.paymentMethod}`, i.paymentMethod) },
+    { key: "amount", label: "Ποσό", map: (i: IndemnityDto) => money(i.amount, i.currency) },
+    { key: "reference", label: "Αναφορά" }, { key: "notes", label: "Σημειώσεις" }
+  ];
+  const exportCsv = () => void exportRowsCsv({ fileName: "αποζημιώσεις", columns: exportColumns, rows: filteredRows });
+  const exportXlsx = async () => {
+    const XLSX = await import("xlsx");
+    const values = filteredRows.map(row => exportColumns.map(column => column.map ? column.map(row) : row[column.key as keyof IndemnityDto] ?? ""));
+    const sheet = XLSX.utils.aoa_to_sheet([exportColumns.map(column => column.label), ...values]);
+    const book = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(book, sheet, "Αποζημιώσεις");
+    XLSX.writeFile(book, "αποζημιώσεις.xlsx");
+  };
   const inferType = (key: string): ColumnType =>
     key === "paidOn" ? "date" : key === "amount" ? "number" : "string";
   const headerMenu = useHeaderContextMenu({
@@ -97,6 +143,29 @@ export function ClaimIndemnitiesPage() {
         </Stack>
       </Stack>
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
+      <Card variant="outlined" sx={{ p: 1.25, mb: 1.5, bgcolor: "#f4f7fb" }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }} flexWrap="wrap" useFlexGap>
+          <TextField size="small" fullWidth placeholder="Αναζήτηση αριθμού, ζημιάς, δικαιούχου ή αναφοράς" value={search}
+            onChange={e => setSearch(e.target.value)} InputProps={{ startAdornment: <SearchIcon sx={{ mr: 0.75, color: "text.secondary" }} /> }} sx={{ flex: 1, minWidth: { md: 280 } }} />
+          <TextField select size="small" label="Τύπος δικαιούχου" value={payeeTypeFilter} onChange={e => setPayeeTypeFilter(e.target.value)} sx={{ minWidth: 150 }}>
+            <MenuItem value="all">Όλοι</MenuItem>{PAYEE_TYPES.map(v => <MenuItem key={v} value={v}>{t(`payeeType.${v}`, v)}</MenuItem>)}
+          </TextField>
+          <TextField select size="small" label="Μέθοδος" value={methodFilter} onChange={e => setMethodFilter(e.target.value)} sx={{ minWidth: 150 }}>
+            <MenuItem value="all">Όλες</MenuItem>{METHODS.map(v => <MenuItem key={v} value={v}>{t(`paymentMethod.${v}`, v)}</MenuItem>)}
+          </TextField>
+          <TextField type="date" size="small" label="Από" InputLabelProps={{ shrink: true }} value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+          <TextField type="date" size="small" label="Έως" InputLabelProps={{ shrink: true }} value={dateTo} onChange={e => setDateTo(e.target.value)} />
+          <Button size="small" color="error" variant="contained" startIcon={<FilterAltOffIcon />} onClick={clearFilters}>Καθαρισμός φίλτρων</Button>
+        </Stack>
+      </Card>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" useFlexGap spacing={1} sx={{ mb: 1 }}>
+        <Typography variant="body2" color="text.secondary">Εμφανίζονται {filteredRows.length} από {rows.length} αποζημιώσεις</Typography>
+        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+          <Button size="small" variant="outlined" startIcon={<DownloadIcon />} onClick={exportCsv} disabled={!filteredRows.length}>Εξαγωγή CSV</Button>
+          <Button size="small" variant="outlined" startIcon={<DownloadIcon />} onClick={() => void exportXlsx()} disabled={!filteredRows.length}>Εξαγωγή XLSX</Button>
+          <Button size="small" variant="outlined" startIcon={<PrintIcon />} onClick={() => window.print()} disabled={!filteredRows.length}>Εκτύπωση</Button>
+        </Stack>
+      </Stack>
       {q.isLoading ? <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box> : (
         <Card variant="outlined" sx={{ overflowX: "auto" }}>
           <Table size="small">
@@ -116,10 +185,10 @@ export function ClaimIndemnitiesPage() {
               <TableCell align="right" />
             </TableRow></TableHead>
             <TableBody>
-              {sortedRows.length === 0 && (
+              {filteredRows.length === 0 && (
                 <TableRow><TableCell colSpan={7} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("indemnities.empty")}</TableCell></TableRow>
               )}
-              {sortedRows.map(i => (
+              {pageRows.map(i => (
                 <TableRow key={i.id} hover onContextMenu={(e) => rowMenu.open(e, i)}>
                   <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{i.paymentNumber}</TableCell>
                   <TableCell>{i.claimNumber}</TableCell>
@@ -139,6 +208,9 @@ export function ClaimIndemnitiesPage() {
               ))}
             </TableBody>
           </Table>
+          <TablePagination component="div" count={sortedRows.length} page={page} onPageChange={(_, next) => setPage(next)} rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={event => { setRowsPerPage(Number(event.target.value)); setPage(0); }} rowsPerPageOptions={[10, 25, 50, 100]}
+            labelRowsPerPage="Ανά σελίδα" labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`} />
         </Card>
       )}
       {headerMenu.menu}

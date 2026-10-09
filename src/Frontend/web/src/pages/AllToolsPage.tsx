@@ -32,7 +32,6 @@ interface Tool {
 const TOOLS: Tool[] = [
   // Claims & settlements (sub-flows, not main Claims page)
   { to: "/garages",              labelKey: "nav.garages",      descKey: "tools.garages",      category: "claimsOps",   pkg: "BackOffice" },
-  { to: "/claim-provisions",     labelKey: "nav.provisions",   descKey: "tools.provisions",   category: "claimsOps",   pkg: "BackOffice" },
   { to: "/indemnities",          labelKey: "nav.indemnities",  descKey: "tools.indemnities",  category: "claimsOps",   pkg: "BackOffice" },
   { to: "/friendly-settlements", labelKey: "nav.friendly",     descKey: "tools.friendly",     category: "claimsOps",   pkg: "BackOffice" },
 

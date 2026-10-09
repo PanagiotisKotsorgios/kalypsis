@@ -1,12 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  IconButton, MenuItem, Stack, Tab, Tabs, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
+  IconButton, MenuItem, Stack, Tab, Tabs, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import HandshakeIcon from "@mui/icons-material/Handshake";
 import PeopleIcon from "@mui/icons-material/People";
 import DeleteIcon from "@mui/icons-material/Delete";
+import DownloadIcon from "@mui/icons-material/Download";
+import SearchIcon from "@mui/icons-material/Search";
+import FilterAltOffIcon from "@mui/icons-material/FilterAltOff";
+import PrintIcon from "@mui/icons-material/Print";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
@@ -14,6 +18,7 @@ import { HelpHint } from "../components/HelpHint";
 import { money, num } from "../utils/format";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
+import { exportRowsCsv } from "../utils/exportCsv";
 
 interface SettlementDto {
   id: string; claimId: string; claimNumber: string;
@@ -40,6 +45,9 @@ const VICTIM_TYPES = ["Person", "Vehicle", "Property"];
 const STATUS_COLOR: Record<string, "default" | "info" | "warning" | "success" | "error"> = {
   Open: "info", InProgress: "warning", Closed: "success", Disputed: "error"
 };
+const settlementStatusLabel = (status: string) => ({
+  Open: "Ανοιχτή", InProgress: "Σε εξέλιξη", Closed: "Κλειστή", Disputed: "Αμφισβητούμενη"
+} as Record<string, string>)[status] ?? status;
 
 export function FriendlySettlementsPage() {
   const { t } = useTranslation();
@@ -47,9 +55,50 @@ export function FriendlySettlementsPage() {
   const [err, setErr] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [victimsOf, setVictimsOf] = useState<SettlementDto | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [insurerFilter, setInsurerFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   const q = useQuery({ queryKey: ["friendly-settlements"], queryFn: async () =>
     (await api.get<SettlementDto[]>("/friendly-settlements")).data });
+  const rows = q.data ?? [];
+  const insurers = useMemo(() => [...new Set(rows.map(r => r.otherPartyInsurer?.trim()).filter((v): v is string => Boolean(v)))].sort((a, b) => a.localeCompare(b, "el")), [rows]);
+  const filteredRows = useMemo(() => {
+    const term = search.trim().toLocaleLowerCase("el-GR");
+    return rows.filter(s => {
+      const haystack = [s.settlementFileNumber, s.claimNumber, s.settlementAuthority, s.otherPartyInsurer, s.otherPartyPolicy, s.appraisorName, s.notes]
+        .filter(Boolean).join(" ").toLocaleLowerCase("el-GR");
+      if (term && !haystack.includes(term)) return false;
+      if (statusFilter !== "all" && s.status !== statusFilter) return false;
+      if (insurerFilter !== "all" && s.otherPartyInsurer !== insurerFilter) return false;
+      if (dateFrom && s.declarationDate < dateFrom) return false;
+      if (dateTo && s.declarationDate > dateTo) return false;
+      return true;
+    });
+  }, [rows, search, statusFilter, insurerFilter, dateFrom, dateTo]);
+  useEffect(() => { setPage(0); }, [search, statusFilter, insurerFilter, dateFrom, dateTo, rowsPerPage]);
+  const pageRows = filteredRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  const clearFilters = () => { setSearch(""); setStatusFilter("all"); setInsurerFilter("all"); setDateFrom(""); setDateTo(""); };
+  const exportColumns = [
+    { key: "settlementFileNumber", label: "Αριθμός φακέλου" }, { key: "claimNumber", label: "Αριθμός ζημιάς" },
+    { key: "declarationDate", label: "Ημερομηνία δήλωσης" }, { key: "settlementDate", label: "Ημερομηνία διακανονισμού" },
+    { key: "otherPartyInsurer", label: "Ασφαλιστική άλλου μέρους" }, { key: "otherPartyPolicy", label: "Αριθμός συμβολαίου" },
+    { key: "agreedAmount", label: "Συμφωνηθέν ποσό", map: (s: SettlementDto) => s.agreedAmount == null ? "—" : money(s.agreedAmount, s.currency) },
+    { key: "victimCount", label: "Θύματα" }, { key: "status", label: "Κατάσταση", map: (s: SettlementDto) => settlementStatusLabel(s.status) },
+    { key: "notes", label: "Σημειώσεις" }
+  ];
+  const exportCsv = () => void exportRowsCsv({ fileName: "φιλικοί_διακανονισμοί", columns: exportColumns, rows: filteredRows });
+  const exportXlsx = async () => {
+    const XLSX = await import("xlsx");
+    const values = filteredRows.map(row => exportColumns.map(column => column.map ? column.map(row) : row[column.key as keyof SettlementDto] ?? ""));
+    const sheet = XLSX.utils.aoa_to_sheet([exportColumns.map(column => column.label), ...values]);
+    const book = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(book, sheet, "Φιλικοί διακανονισμοί");
+    XLSX.writeFile(book, "φιλικοί_διακανονισμοί.xlsx");
+  };
 
   return (
     <Box>
@@ -69,6 +118,29 @@ export function FriendlySettlementsPage() {
         </Button>
       </Stack>
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
+      <Card variant="outlined" sx={{ p: 1.25, mb: 1.5, bgcolor: "#f4f7fb" }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }} flexWrap="wrap" useFlexGap>
+          <TextField size="small" fullWidth placeholder="Αναζήτηση φακέλου, ζημιάς, ασφαλιστικής ή συμβολαίου" value={search}
+            onChange={e => setSearch(e.target.value)} InputProps={{ startAdornment: <SearchIcon sx={{ mr: 0.75, color: "text.secondary" }} /> }} sx={{ flex: 1, minWidth: { md: 300 } }} />
+          <TextField select size="small" label="Κατάσταση" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} sx={{ minWidth: 150 }}>
+            <MenuItem value="all">Όλες</MenuItem>{STATUSES.map(v => <MenuItem key={v} value={v}>{settlementStatusLabel(v)}</MenuItem>)}
+          </TextField>
+          <TextField select size="small" label="Ασφαλιστική" value={insurerFilter} onChange={e => setInsurerFilter(e.target.value)} sx={{ minWidth: 170 }}>
+            <MenuItem value="all">Όλες</MenuItem>{insurers.map(v => <MenuItem key={v} value={v}>{v}</MenuItem>)}
+          </TextField>
+          <TextField type="date" size="small" label="Από" InputLabelProps={{ shrink: true }} value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+          <TextField type="date" size="small" label="Έως" InputLabelProps={{ shrink: true }} value={dateTo} onChange={e => setDateTo(e.target.value)} />
+          <Button size="small" color="error" variant="contained" startIcon={<FilterAltOffIcon />} onClick={clearFilters}>Καθαρισμός φίλτρων</Button>
+        </Stack>
+      </Card>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" useFlexGap spacing={1} sx={{ mb: 1 }}>
+        <Typography variant="body2" color="text.secondary">Εμφανίζονται {filteredRows.length} από {rows.length} φιλικούς διακανονισμούς</Typography>
+        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+          <Button size="small" variant="outlined" startIcon={<DownloadIcon />} onClick={exportCsv} disabled={!filteredRows.length}>Εξαγωγή CSV</Button>
+          <Button size="small" variant="outlined" startIcon={<DownloadIcon />} onClick={() => void exportXlsx()} disabled={!filteredRows.length}>Εξαγωγή XLSX</Button>
+          <Button size="small" variant="outlined" startIcon={<PrintIcon />} onClick={() => window.print()} disabled={!filteredRows.length}>Εκτύπωση</Button>
+        </Stack>
+      </Stack>
       {q.isLoading ? <CircularProgress /> : (
         <Card variant="outlined" sx={{ overflowX: "auto" }}>
           <Table size="small">
@@ -83,10 +155,10 @@ export function FriendlySettlementsPage() {
               <TableCell align="right" />
             </TableRow></TableHead>
             <TableBody>
-              {(q.data ?? []).length === 0 && (
+              {filteredRows.length === 0 && (
                 <TableRow><TableCell colSpan={8} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("friendly.empty")}</TableCell></TableRow>
               )}
-              {(q.data ?? []).map(s => (
+              {pageRows.map(s => (
                 <TableRow key={s.id} hover>
                   <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{s.settlementFileNumber}</TableCell>
                   <TableCell>{s.claimNumber}</TableCell>
@@ -94,7 +166,7 @@ export function FriendlySettlementsPage() {
                   <TableCell>{s.otherPartyInsurer ?? "—"}</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700 }}>{s.agreedAmount != null ? money(s.agreedAmount, s.currency) : "—"}</TableCell>
                   <TableCell align="center">{s.victimCount}</TableCell>
-                  <TableCell><Chip size="small" color={STATUS_COLOR[s.status] ?? "default"} label={s.status} /></TableCell>
+                  <TableCell><Chip size="small" color={STATUS_COLOR[s.status] ?? "default"} label={settlementStatusLabel(s.status)} /></TableCell>
                   <TableCell align="right">
                     <IconButton size="small" color="primary" onClick={() => setVictimsOf(s)}><PeopleIcon fontSize="small" /></IconButton>
                   </TableCell>
@@ -102,6 +174,9 @@ export function FriendlySettlementsPage() {
               ))}
             </TableBody>
           </Table>
+          <TablePagination component="div" count={filteredRows.length} page={page} onPageChange={(_, next) => setPage(next)} rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={event => { setRowsPerPage(Number(event.target.value)); setPage(0); }} rowsPerPageOptions={[10, 25, 50, 100]}
+            labelRowsPerPage="Ανά σελίδα" labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`} />
         </Card>
       )}
       <CreateDialog open={createOpen} onClose={() => setCreateOpen(false)}

@@ -192,7 +192,6 @@ import { ParametricFilesPage } from "./pages/ParametricFilesPage";
 import { PlatformParametricFilesPage } from "./pages/PlatformParametricFilesPage";
 import { AgencyCompanyParametricsPage } from "./pages/AgencyCompanyParametricsPage";
 import { GaragesPage } from "./pages/GaragesPage";
-import { ClaimProvisionsPage } from "./pages/ClaimProvisionsPage";
 import { ClaimIndemnitiesPage } from "./pages/ClaimIndemnitiesPage";
 import { NameDaysPage } from "./pages/NameDaysPage";
 import { MyDataSubmissionsPage } from "./pages/MyDataSubmissionsPage";
@@ -365,7 +364,6 @@ export const navByRole: Record<Role, NavItem[]> = {
     // These are full, tenant-scoped workspaces backed by the claims API:
     // repair shops, reserves, indemnities and friendly settlements.
     { to: "/garages",              labelKey: "nav.garages",      icon: <EngineeringIcon />, package: "BackOffice", group: "claimsOps" },
-    { to: "/claim-provisions",     labelKey: "nav.provisions",   icon: <AccountBalanceIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/indemnities",          labelKey: "nav.indemnities",  icon: <PaymentsIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/friendly-settlements", labelKey: "nav.friendly",     icon: <HandshakeIcon />, package: "BackOffice", group: "claimsOps" },
 
@@ -495,7 +493,6 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice" },
     { to: "/garages", labelKey: "nav.garages", icon: <EngineeringIcon />, package: "BackOffice", group: "claimsOps" },
-    { to: "/claim-provisions", labelKey: "nav.provisions", icon: <AccountBalanceIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/indemnities", labelKey: "nav.indemnities", icon: <PaymentsIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/friendly-settlements", labelKey: "nav.friendly", icon: <HandshakeIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/partner-networks", labelKey: "nav.partnerNetworks", icon: <HubIcon />, package: "BackOffice" },
@@ -537,7 +534,6 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice" },
     { to: "/garages", labelKey: "nav.garages", icon: <EngineeringIcon />, package: "BackOffice", group: "claimsOps" },
-    { to: "/claim-provisions", labelKey: "nav.provisions", icon: <AccountBalanceIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/indemnities", labelKey: "nav.indemnities", icon: <PaymentsIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/friendly-settlements", labelKey: "nav.friendly", icon: <HandshakeIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/partner-networks", labelKey: "nav.partnerNetworks", icon: <HubIcon />, package: "BackOffice" },
@@ -1139,7 +1135,6 @@ export default function App() {
                   <Route path="agency-offices" element={<AgencyOfficesPage />} />
                   <Route path="group-policies" element={<Navigate to="/app/policies?view=group" replace />} />
                   <Route path="garages" element={<PackageGate package="BackOffice"><GaragesPage /></PackageGate>} />
-                  <Route path="claim-provisions" element={<PackageGate package="BackOffice"><ClaimProvisionsPage /></PackageGate>} />
                   <Route path="indemnities" element={<PackageGate package="BackOffice"><ClaimIndemnitiesPage /></PackageGate>} />
                   <Route path="name-days" element={<PackageGate package="Crm"><NameDaysPage /></PackageGate>} />
                   <Route path="instructions" element={<AgencyInstructionsPage />} />
