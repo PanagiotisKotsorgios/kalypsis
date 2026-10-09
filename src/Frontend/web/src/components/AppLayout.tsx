@@ -58,6 +58,8 @@ export interface NavItem {
   to: string;
   labelKey: string;
   icon: ReactNode;
+  /** Optional visual accent for a special office programme entry. */
+  accent?: "affiliate";
   /** Show a "Coming soon" chip and route to ComingSoonPage. */
   comingSoon?: boolean;
   /**
@@ -361,10 +363,18 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
                   borderRadius: 1.5,
                   minHeight: isMobile ? 44 : undefined,
                   justifyContent: collapsed ? "center" : "flex-start",
-                  opacity: item.comingSoon ? 0.7 : 1
+                  opacity: item.comingSoon ? 0.7 : 1,
+                  ...(item.accent === "affiliate" ? {
+                    bgcolor: "#edf6ff",
+                    color: "#0b4f8a",
+                    border: "1px solid #a9ccec",
+                    boxShadow: "0 2px 6px rgba(20, 92, 155, 0.08)",
+                    "&:hover": { bgcolor: "#dceeff", borderColor: "#78addb" },
+                    "&.Mui-selected": { bgcolor: "#c9e4fb", color: "#073b6c", borderColor: "#4c93cf" }
+                  } : {})
                 }}
               >
-                <ListItemIcon sx={{ minWidth: collapsed ? 0 : 34, justifyContent: "center" }}>{item.icon}</ListItemIcon>
+                <ListItemIcon sx={{ minWidth: collapsed ? 0 : 34, justifyContent: "center", color: item.accent === "affiliate" ? "#0b4f8a" : undefined }}>{item.icon}</ListItemIcon>
                 {!collapsed && (
                   <ListItemText
                     primary={t(item.labelKey)}

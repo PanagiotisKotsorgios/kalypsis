@@ -37,6 +37,7 @@ import LeaderboardIcon from "@mui/icons-material/Leaderboard";
 import EngineeringIcon from "@mui/icons-material/Engineering";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import HomeWorkIcon from "@mui/icons-material/HomeWork";
+import CardGiftcardIcon from "@mui/icons-material/CardGiftcard";
 
 import { useAuth, type Role } from "./auth/AuthContext";
 import { useImpersonation } from "./impersonation/ImpersonationContext";
@@ -279,6 +280,7 @@ import { OfficeWebsiteOverviewPage } from "./pages/OfficeWebsiteOverviewPage";
 import { OfficeWebsiteAnalyticsPage } from "./pages/OfficeWebsiteAnalyticsPage";
 import { OfficePublicSitePage } from "./pages/OfficePublicSitePage";
 import { CustomerPortalPage } from "./pages/CustomerPortalPage";
+import { AffiliateProgramPage } from "./pages/AffiliateProgramPage";
 
 // Exported so Platform Admin can render a read-only, faithful sidebar preview
 // for an office user without starting an impersonation session.
@@ -468,7 +470,8 @@ export const navByRole: Record<Role, NavItem[]> = {
     // + «Προφίλ»). Both live at /agency-and-profile now as tabs to
     // save one row in the sidebar. Old /agency-settings-hub and
     // /profile URLs still work — redirected below into the right tab.
-    { to: "/agency-and-profile", labelKey: "nav.agencyAndProfile", icon: <SettingsIcon /> }
+    { to: "/agency-and-profile", labelKey: "nav.agencyAndProfile", icon: <SettingsIcon /> },
+    { to: "/affiliate-program", labelKey: "nav.affiliateProgram", icon: <CardGiftcardIcon />, package: "BackOffice", accent: "affiliate" }
   ],
   AgencyUser: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon />,
@@ -518,7 +521,8 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/info-center", labelKey: "nav.infoCenter", icon: <CloudUploadOutlinedIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/partner-portals", labelKey: "nav.b2bPortal", icon: <HubIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/api-keys", labelKey: "nav.thirdParty", icon: <ExtensionIcon />, package: "Integrations", group: "integrationsGrp" },
-    { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
+    { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> },
+    { to: "/affiliate-program", labelKey: "nav.affiliateProgram", icon: <CardGiftcardIcon />, package: "BackOffice", accent: "affiliate" }
   ],
   AgencyOfficeAdmin: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon />, workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations","Ermes"] },
@@ -568,7 +572,8 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/info-center", labelKey: "nav.infoCenter", icon: <CloudUploadOutlinedIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/partner-portals", labelKey: "nav.b2bPortal", icon: <HubIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/api-keys", labelKey: "nav.thirdParty", icon: <ExtensionIcon />, package: "Integrations", group: "integrationsGrp" },
-    { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
+    { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> },
+    { to: "/affiliate-program", labelKey: "nav.affiliateProgram", icon: <CardGiftcardIcon />, package: "BackOffice", accent: "affiliate" }
   ],
   Producer: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon /> },
@@ -1066,6 +1071,7 @@ export default function App() {
                       routes above stay as-is so bookmarks + non-Admin
                       roles' /profile links keep working. */}
                   <Route path="agency-and-profile" element={<AgencyAndProfilePage />} />
+                  <Route path="affiliate-program" element={<AffiliateProgramPage />} />
                   <Route path="coming-soon" element={<ComingSoonPage />} />
                   <Route path="platform/registrations" element={<PlatformRegistrationsPage />} />
                   <Route path="platform/economics" element={<PlatformEconomicsPage />} />
