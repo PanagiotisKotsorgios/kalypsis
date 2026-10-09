@@ -20,6 +20,7 @@ public static class DemoDataSeeder
     private const string DemoAdminEmail = "demo@kalypsis.gr";
     private const string DemoUserEmail  = "user@kalypsis.gr";
     private const string DemoProducerEmail = "producer@kalypsis.gr";
+    private const string DemoClientEmail = "demo.client@kalypsis.gr";
     private const string DemoPassword = "Demo@2026!";
 
     private static readonly string[] FirstNamesM = { "Νίκος", "Γιώργος", "Δημήτρης", "Κώστας", "Πέτρος", "Στέλιος", "Μάνος", "Σταύρος", "Παύλος", "Άρης" };
@@ -214,6 +215,12 @@ public static class DemoDataSeeder
         }
 
         var customers = await db.Customers.IgnoreQueryFilters().Where(c => c.TenantId == tenant.Id).ToListAsync(ct);
+        // A deterministic customer login lets sales teams demonstrate the
+        // customer-facing portal without creating a second tenant or manually
+        // linking a user each time the demo is reset.
+        var demoCustomer = customers.FirstOrDefault(c => c.CustomerNumber == "DEMO-0001");
+        if (demoCustomer is not null)
+            await EnsureDemoCustomerUserAsync(db, hasher, clock, tenant.Id, demoCustomer, ct);
         var companies = await db.InsuranceCompanies.IgnoreQueryFilters().ToListAsync(ct);
         if (companies.Count == 0)
         {
@@ -362,6 +369,31 @@ public static class DemoDataSeeder
             PreferredLanguage = "el",
             CreatedAt = clock.UtcNow.AddMonths(-6)
         });
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static async Task EnsureDemoCustomerUserAsync(
+        AppDbContext db, IPasswordHasher hasher, IDateTimeProvider clock,
+        Guid tenantId, Customer customer, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(customer.Email) || customer.Email.EndsWith("@example.gr", StringComparison.OrdinalIgnoreCase))
+            customer.Email = DemoClientEmail;
+
+        var existing = await db.Users.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Email == DemoClientEmail, ct);
+        if (existing is not null && existing.TenantId != tenantId)
+            return; // Never reassign an account that belongs to another tenant.
+
+        var user = existing ?? new User { Id = Guid.NewGuid(), Email = DemoClientEmail, CreatedAt = clock.UtcNow.AddMonths(-2) };
+        user.TenantId = tenantId;
+        user.FirstName = "Demo";
+        user.LastName = "Customer";
+        user.PasswordHash = hasher.Hash(DemoPassword);
+        user.Role = Role.Customer;
+        user.CustomerId = customer.Id;
+        user.IsActive = true;
+        user.PreferredLanguage = "el";
+        if (existing is null) db.Users.Add(user);
         await db.SaveChangesAsync(ct);
     }
 

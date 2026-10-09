@@ -58,6 +58,7 @@ internal static class DemoShowcaseSeeder
             await SeedClaimsAndDeliveryAsync(db, tenant, policies, customers, today, now, ct);
             await SeedCrmAndOperationsAsync(db, tenant, policies, customers, producers, admin, now, ct);
             await SeedWebsiteAndCashboxAsync(db, tenant, policies, customers, admin, today, now, ct);
+            await SeedRequestsAndOperationalShowcaseAsync(db, tenant, policies, customers, producers, carriers, admin, today, now, ct);
 
             log.LogInformation("Demo showcase data ready for {Tenant}: {Customers} customers, {Policies} policies, {Producers} partners",
                 tenant.Code, customers.Count, policies.Count, producers.Count);
@@ -494,6 +495,187 @@ internal static class DemoShowcaseSeeder
                 new CashMovement { Id = Guid.NewGuid(), TenantId = tenant.Id, CashAccountId = cash.Id, MovementDate = today.AddDays(-2), Direction = "Out", Amount = payment?.Amount ?? 180m, Currency = "EUR", Reason = "Απόδοση σε ασφαλιστική εταιρεία", Reference = $"{Marker}-CASH-OUT", RelatedPaymentId = payment?.Id, CreatedAt = now });
             cash.CurrentBalance = (receipt?.Amount ?? 320m) - (payment?.Amount ?? 180m);
         }
+        await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// Fills the newer operational screens that otherwise look empty in a
+    /// fresh demo tenant. All rows carry a stable DEMO-SHOWCASE marker and
+    /// are created only when their natural key is missing.
+    /// </summary>
+    private static async Task SeedRequestsAndOperationalShowcaseAsync(
+        AppDbContext db, Tenant tenant, IReadOnlyList<Policy> policies,
+        IReadOnlyList<Customer> customers, IReadOnlyList<Producer> producers,
+        IReadOnlyList<InsuranceCompany> carriers, User? admin,
+        DateOnly today, DateTime now, CancellationToken ct)
+    {
+        var demoCustomers = customers
+            .Where(x => x.CustomerNumber.StartsWith("DEMO-", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(x => x.CustomerNumber)
+            .ToList();
+        if (demoCustomers.Count == 0) return;
+
+        var demoPolicies = policies.ToList();
+        var customer = demoCustomers[0];
+        var policyForCustomer = demoPolicies.FirstOrDefault(x => x.CustomerId == customer.Id) ?? demoPolicies.FirstOrDefault();
+
+        // Service requests: one row for each type and a mix of lifecycle
+        // states, so the agency and customer portals both have useful data.
+        var requestSeeds = new[]
+        {
+            ("DEMO-REQ-001", ServiceRequestType.NewPolicy, ServiceRequestStatus.Submitted, "Νέα προσφορά ασφάλισης κατοικίας", "Παρακαλώ ετοιμάστε προσφορά για κύρια κατοικία και ενημερώστε με για τις διαθέσιμες καλύψεις.", false),
+            ("DEMO-REQ-002", ServiceRequestType.PolicyChange, ServiceRequestStatus.InReview, "Αλλαγή στοιχείων συμβολαίου", "Χρειάζεται ενημέρωση της διεύθυνσης αλληλογραφίας και προσθήκη δεύτερου οδηγού.", false),
+            ("DEMO-REQ-003", ServiceRequestType.AccidentReport, ServiceRequestStatus.AwaitingCustomerInfo, "Δήλωση τροχαίου ατυχήματος", "Το ατύχημα έγινε σε διασταύρωση και αναμένουμε φωτογραφίες και το έντυπο δήλωσης.", true),
+            ("DEMO-REQ-004", ServiceRequestType.DocumentRequest, ServiceRequestStatus.Resolved, "Αποστολή αντιγράφου ασφαλιστηρίου", "Παρακαλώ αποστείλετε το τελευταίο αντίγραφο του ασφαλιστηρίου σε PDF.", false),
+            ("DEMO-REQ-005", ServiceRequestType.GeneralQuestion, ServiceRequestStatus.Closed, "Ερώτηση για την επόμενη ανανέωση", "Θα ήθελα να γνωρίζω πότε ξεκινά η διαδικασία ανανέωσης και ποια δικαιολογητικά χρειάζονται.", false),
+            ("DEMO-REQ-006", ServiceRequestType.NewPolicy, ServiceRequestStatus.Rejected, "Αίτημα επαγγελματικής ασφάλισης", "Ζητήθηκε πρόγραμμα επαγγελματικής ευθύνης· το αίτημα απορρίφθηκε επειδή λείπουν στοιχεία κινδύνου.", false)
+        };
+
+        foreach (var (number, type, status, subject, description, accident) in requestSeeds)
+        {
+            if (await db.ServiceRequests.IgnoreQueryFilters().AnyAsync(x => x.TenantId == tenant.Id && x.RequestNumber == number, ct))
+                continue;
+
+            var requestCustomer = demoCustomers[(number[^1] - '1') % demoCustomers.Count];
+            var requestPolicy = demoPolicies.FirstOrDefault(x => x.CustomerId == requestCustomer.Id) ?? policyForCustomer;
+            db.ServiceRequests.Add(new ServiceRequest
+            {
+                Id = Guid.NewGuid(), TenantId = tenant.Id, RequestNumber = number,
+                CustomerId = requestCustomer.Id, Type = type, Status = status,
+                Subject = subject, Description = description, RelatedPolicyId = requestPolicy?.Id,
+                IncidentDate = accident ? today.AddDays(-9) : null,
+                IncidentLocation = accident ? "Λεωφόρος Κηφισίας, Αθήνα" : null,
+                OtherPartyInfo = accident ? "Τρίτο όχημα ΙΧ — στοιχεία καταχωρημένα στο έντυπο" : null,
+                AssignedToUserId = admin?.Id,
+                AgencyNotes = status is ServiceRequestStatus.Resolved or ServiceRequestStatus.Closed
+                    ? "Ολοκληρώθηκε από το γραφείο demo και ενημερώθηκε ο πελάτης."
+                    : "Εκκρεμεί επόμενη ενέργεια από τον υπεύθυνο του γραφείου.",
+                ResolvedAt = status is ServiceRequestStatus.Resolved or ServiceRequestStatus.Closed ? now.AddDays(-2) : null,
+                CreatedAt = now.AddDays(-(number[^1] - '0'))
+            });
+        }
+        await db.SaveChangesAsync(ct);
+
+        // Approved repair shops for the claims/settlements walkthrough.
+        var garages = await db.Garages.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenant.Id && x.DeletedAt == null && x.Code.StartsWith("DEMO-GAR-"))
+            .ToListAsync(ct);
+        if (garages.Count == 0)
+        {
+            db.Garages.AddRange(
+                new Garage { Id = Guid.NewGuid(), TenantId = tenant.Id, Code = "DEMO-GAR-001", Name = "AutoFix Κέντρο Επισκευών", Afm = "099999901", Address = "Λεωφόρος Αθηνών 120", City = "Αθήνα", PostalCode = "10441", Phone = "2105551200", Email = "service@autofix-demo.gr", Specialty = "Αμάξωμα και μηχανικές επισκευές", IsApproved = true, IsActive = true, Iban = "GR1601101250000000012300701", Notes = "Συνεργείο επίσημου δικτύου demo." },
+                new Garage { Id = Guid.NewGuid(), TenantId = tenant.Id, Code = "DEMO-GAR-002", Name = "GlassPoint Κρύσταλλα", Afm = "099999902", Address = "Οδό Πατησίων 88", City = "Αθήνα", PostalCode = "11251", Phone = "2105551201", Email = "glass@glasspoint-demo.gr", Specialty = "Κρύσταλλα και παρμπρίζ", IsApproved = true, IsActive = true, Notes = "Εναλλακτικό συνεργείο για ζημιές κρυστάλλων." });
+            await db.SaveChangesAsync(ct);
+            garages = await db.Garages.IgnoreQueryFilters().Where(x => x.TenantId == tenant.Id && x.Code.StartsWith("DEMO-GAR-")).ToListAsync(ct);
+        }
+
+        // A friendly-settlement file and its victim/payment breakdown.
+        var claim = await db.Claims.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenant.Id && x.DeletedAt == null)
+            .OrderBy(x => x.ClaimNumber).FirstOrDefaultAsync(ct);
+        if (claim is not null && !await db.FriendlySettlements.IgnoreQueryFilters().AnyAsync(x => x.TenantId == tenant.Id && x.SettlementFileNumber == $"{Marker}-FRIENDLY-001", ct))
+        {
+            claim.IsFriendlySettlement = true;
+            var settlement = new FriendlySettlement
+            {
+                Id = Guid.NewGuid(), TenantId = tenant.Id, ClaimId = claim.Id,
+                SettlementFileNumber = $"{Marker}-FRIENDLY-001", DeclarationDate = today.AddDays(-18),
+                SettlementAuthority = "Φιλικός διακανονισμός", SettlementDate = today.AddDays(-10),
+                AgreedAmount = 1250m, VatAmount = 300m, FeeAmount = 45m, InterestAmount = 0m,
+                Currency = "EUR", Status = "InProgress", OtherPartyInsurer = carriers.FirstOrDefault()?.Name,
+                OtherPartyPolicy = "DEMO-THIRD-2026-001", AppraisorName = "Νίκος Εκτιμητής",
+                AppraisalDate = today.AddDays(-14), Notes = "Demo φάκελος για έλεγχο ροής φιλικού διακανονισμού.", CreatedAt = now
+            };
+            db.FriendlySettlements.Add(settlement);
+            var victim = new ClaimVictim
+            {
+                Id = Guid.NewGuid(), TenantId = tenant.Id, ClaimId = claim.Id, FriendlySettlementId = settlement.Id,
+                FullName = "Αντώνης Παπαδόπουλος", Afm = "099999903", Phone = "6905551202",
+                Address = "Οδός Ερμού 15, Αθήνα", VictimType = "Vehicle", VehiclePlate = "DEMO-002",
+                Description = "Ζημιά στο πίσω μέρος του οχήματος", ReserveAmount = 1250m, PaidAmount = 500m,
+                Currency = "EUR", Status = "Open", CreatedAt = now
+            };
+            db.ClaimVictims.Add(victim);
+            db.SettlementPayments.Add(new SettlementPayment
+            {
+                Id = Guid.NewGuid(), TenantId = tenant.Id, ClaimVictimId = victim.Id,
+                PaidOn = today.AddDays(-7), PayeeType = "Victim", PayeeName = victim.FullName,
+                GarageId = garages.FirstOrDefault()?.Id, NetAmount = 400m, VatAmount = 96m,
+                FeeAmount = 4m, InterestAmount = 0m, TotalAmount = 500m, Currency = "EUR",
+                PaymentMethod = "BankTransfer", Reference = $"{Marker}-SETTLEMENT-PAY-001",
+                Notes = "Μερική καταβολή αποζημίωσης demo.", CreatedAt = now
+            });
+            await db.SaveChangesAsync(ct);
+        }
+
+        // Partner network and members, for the networks/producer hierarchy UI.
+        var network = await db.PartnerNetworks.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.TenantId == tenant.Id && x.Code == "DEMO-NET-01", ct);
+        if (network is null && producers.Count > 0)
+        {
+            network = new PartnerNetwork
+            {
+                Id = Guid.NewGuid(), TenantId = tenant.Id, Code = "DEMO-NET-01", Name = "Δίκτυο Συνεργατών Demo",
+                Description = "Ενδεικτικό δίκτυο παραγωγών με διαφορετικούς ρόλους και στόχους.",
+                NetworkType = "Δίκτυο συνεργατών", Status = "Ενεργό", ManagerName = "Νίκος Παπαδάκης",
+                Email = "network@demo-kalypsis.gr", Phone = "2105551300", SecondaryEmail = "support@demo-kalypsis.gr",
+                SecondaryPhone = "6905551300", TaxId = "099999904", TaxOffice = "ΔΟΥ Αθηνών",
+                BusinessType = "Ασφαλιστικό δίκτυο", ProfessionalCategory = "Ασφαλιστική διαμεσολάβηση",
+                Address = "Λεωφόρος Συγγρού 100", City = "Αθήνα", PostalCode = "11741",
+                Website = "https://demo.kalypsis.gr", ContractNumber = "DEMO-NET-CON-01",
+                ContractStartDate = today.AddMonths(-6), ContractEndDate = today.AddMonths(18),
+                CommissionPolicyJson = "{\"producer\":10,\"office\":6}", Notes = "Demo δίκτυο για παρουσίαση.", CreatedAt = now
+            };
+            db.PartnerNetworks.Add(network);
+            await db.SaveChangesAsync(ct);
+            foreach (var (producer, index) in producers.Take(3).Select((x, i) => (x, i)))
+                db.PartnerNetworkMembers.Add(new PartnerNetworkMember { Id = Guid.NewGuid(), TenantId = tenant.Id, PartnerNetworkId = network.Id, ProducerId = producer.Id, Role = index == 0 ? "Υπεύθυνος δικτύου" : "Συνεργάτης", IsActive = true, JoinedAt = today.AddMonths(-index - 1), CommissionPercentOverride = index == 0 ? 11m : null, TargetPercent = 100m, Notes = "Demo μέλος δικτύου.", CreatedAt = now });
+        }
+
+        // Goals, over-commission statements and car model lookup records.
+        if (producers.Count > 0 && !await db.ProductionGoals.IgnoreQueryFilters().AnyAsync(x => x.TenantId == tenant.Id && x.Notes != null && x.Notes.StartsWith(Marker), ct))
+        {
+            db.ProductionGoals.AddRange(
+                new ProductionGoal { Id = Guid.NewGuid(), TenantId = tenant.Id, ProducerId = producers[0].Id, Year = today.Year, Month = today.Month, PolicyType = PolicyType.Auto, TargetPremium = 25000m, TargetPolicies = 40, Notes = $"{Marker} · Μηνιαίος στόχος αυτοκινήτου", CreatedAt = now },
+                new ProductionGoal { Id = Guid.NewGuid(), TenantId = tenant.Id, ProducerId = null, Year = today.Year, Month = today.Month, TargetPremium = 75000m, TargetPolicies = 100, Notes = $"{Marker} · Κοινός στόχος γραφείου", CreatedAt = now });
+        }
+        if (producers.Count > 0 && carriers.Count > 0 && !await db.OverCommissionStatements.IgnoreQueryFilters().AnyAsync(x => x.TenantId == tenant.Id && x.Reference == $"{Marker}-OC-001", ct))
+        {
+            db.OverCommissionStatements.Add(new OverCommissionStatement
+            {
+                Id = Guid.NewGuid(), TenantId = tenant.Id, InsuranceCompanyId = carriers[0].Id, ProducerId = producers[0].Id,
+                Year = today.Year, Month = today.Month, GrossAmount = 640m, NetAmount = 640m, Currency = "EUR",
+                Reference = $"{Marker}-OC-001", Notes = "Ενδεικτική κατάσταση υπερπρομήθειας demo.",
+                PaidOn = now.AddDays(-5), ProducerSharePercent = 80m, EnteredByUserId = admin?.Id,
+                PeriodFrom = today.AddMonths(-1).ToDateTime(TimeOnly.MinValue), PeriodTo = today.ToDateTime(TimeOnly.MinValue),
+                BasePremiumsGross = 16000m, BasePremiumsNet = 14000m, ProducerDirectCommission = 1400m
+            });
+        }
+        if (!await db.VehicleModels.IgnoreQueryFilters().AnyAsync(x => x.TenantId == tenant.Id && x.Manufacturer == "DEMO", ct))
+        {
+            db.VehicleModels.AddRange(
+                new VehicleModel { Id = Guid.NewGuid(), TenantId = tenant.Id, Manufacturer = "DEMO", Model = "Corolla", Trim = "Hybrid Active", EngineCc = 1798, HorsePower = 122, FuelType = "Υβριδικό", Category = "Επιβατικό", IsActive = true, CreatedAt = now },
+                new VehicleModel { Id = Guid.NewGuid(), TenantId = tenant.Id, Manufacturer = "DEMO", Model = "Puma", Trim = "Titanium", EngineCc = 999, HorsePower = 125, FuelType = "Βενζίνη", Category = "Επιβατικό", IsActive = true, CreatedAt = now });
+        }
+
+        // Saved filters and a small AI conversation make the advanced package
+        // demonstrable without calling an external provider.
+        if (admin is not null && !await db.SavedReports.IgnoreQueryFilters().AnyAsync(x => x.TenantId == tenant.Id && x.Name.StartsWith(Marker), ct))
+            db.SavedReports.Add(new SavedReport { Id = Guid.NewGuid(), TenantId = tenant.Id, OwnerUserId = admin.Id, Entity = "production-lists", Name = $"{Marker} · Ενεργά συμβόλαια", FiltersJson = "{\"status\":\"Active\",\"period\":\"current-month\"}", IsShared = true, CreatedAt = now });
+        if (admin is not null && !await db.ReportDefinitions.IgnoreQueryFilters().AnyAsync(x => x.TenantId == tenant.Id && x.Name.StartsWith(Marker), ct))
+            db.ReportDefinitions.Add(new ReportDefinition { Id = Guid.NewGuid(), TenantId = tenant.Id, Name = $"{Marker} · Παραγωγή ανά εταιρεία", Entity = ReportEntity.Policies, OwnerUserId = admin.Id, FieldsJson = "[{\"path\":\"policyNumber\",\"label\":\"Αρ. συμβολαίου\"},{\"path\":\"premium\",\"label\":\"Μικτά\"}]", GroupByJson = "[\"insuranceCompany\"]", AggregationsJson = "[{\"path\":\"premium\",\"fn\":\"SUM\"}]", Visibility = "Tenant", IsScheduled = false, CreatedAt = now });
+
+        var prompt = await db.AiPromptTemplates.IgnoreQueryFilters().Where(x => x.TenantId == tenant.Id && x.DeletedAt == null).OrderBy(x => x.CreatedAt).FirstOrDefaultAsync(ct);
+        if (admin is not null && prompt is not null && !await db.AiConversations.IgnoreQueryFilters().AnyAsync(x => x.TenantId == tenant.Id && x.Title.StartsWith(Marker), ct))
+        {
+            var conversation = new AiConversation { Id = Guid.NewGuid(), TenantId = tenant.Id, Title = $"{Marker} · Έλεγχος χαρτοφυλακίου", Kind = "PromptRun", PromptTemplateId = prompt.Id, CustomerId = customer.Id, PolicyId = policyForCustomer?.Id, UserId = admin.Id, LastMessageAt = now.AddHours(-1), Status = "Completed", ResultPreview = "Εντοπίστηκαν 3 συμβόλαια προς ανανέωση και 2 ευκαιρίες συμπληρωματικής κάλυψης.", CreatedAt = now.AddDays(-1) };
+            db.AiConversations.Add(conversation);
+            db.AiConversationMessages.AddRange(
+                new AiConversationMessage { Id = Guid.NewGuid(), TenantId = tenant.Id, ConversationId = conversation.Id, Role = "user", Content = "Δώσε μου σύντομη εικόνα για τον πελάτη και τις επόμενες ενέργειες.", PromptTokens = 24, CompletionTokens = 0, ContentStored = true, CreatedAt = now.AddHours(-1) },
+                new AiConversationMessage { Id = Guid.NewGuid(), TenantId = tenant.Id, ConversationId = conversation.Id, Role = "assistant", Content = "Ο πελάτης έχει ενεργά συμβόλαια και χρειάζεται υπενθύμιση ανανέωσης. Προτείνεται επικοινωνία μέσα στην εβδομάδα.", PromptTokens = 24, CompletionTokens = 39, ContentStored = true, CreatedAt = now.AddMinutes(-58) });
+            db.AiInvocations.Add(new AiInvocation { Id = Guid.NewGuid(), TenantId = tenant.Id, UserId = admin.Id, TaskType = AiTaskType.PortfolioSummary, Model = "demo-stub", PromptRedacted = "Περίληψη πελατολογίου demo", ResponseRedacted = "Demo αποτέλεσμα πρόβλεψης/επόμενης ενέργειας.", PromptTokens = 24, CompletionTokens = 39, Success = true, CreatedAt = now.AddMinutes(-58) });
+        }
+
         await db.SaveChangesAsync(ct);
     }
 }
