@@ -15,6 +15,10 @@ import {
   CircularProgress,
   Container,
   Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Drawer,
   IconButton,
   Stack,
@@ -1309,11 +1313,202 @@ const PUBLIC_PACKAGE_FEATURES = [
   },
 ] as const;
 
+type LocalizedPackageText = { el: string; en: string };
+type PublicPackageDetail = {
+  promise: LocalizedPackageText;
+  idealFor: LocalizedPackageText;
+  tags: LocalizedPackageText[];
+  highlights: LocalizedPackageText[];
+  included: LocalizedPackageText[];
+  faq: { question: LocalizedPackageText; answer: LocalizedPackageText }[];
+};
+
+const PACKAGE_DETAILS: Record<string, PublicPackageDetail> = {
+  backoffice: {
+    promise: {
+      el: "Ο καθημερινός πυρήνας του ασφαλιστικού γραφείου, με όλα τα δεδομένα συγκεντρωμένα σε ένα ασφαλές περιβάλλον.",
+      en: "The daily operating core of an insurance office, with every record connected in one secure workspace.",
+    },
+    idealFor: {
+      el: "Γραφεία που θέλουν να οργανώσουν πελατολόγιο, συμβόλαια, εισπράξεις και παραγωγή χωρίς διάσπαρτα αρχεία.",
+      en: "Offices that want one organised place for customers, policies, receipts and production instead of scattered files.",
+    },
+    tags: [
+      { el: "Πελατολόγιο", en: "Customer records" },
+      { el: "Συμβόλαια", en: "Policies" },
+      { el: "Ταμείο", en: "Cashier" },
+      { el: "Προμήθειες", en: "Commissions" },
+      { el: "Γέφυρες εταιρειών", en: "Carrier bridges" },
+    ],
+    highlights: [
+      { el: "Ενιαίες καρτέλες πελατών, οχημάτων, εταιρειών, συνεργατών και ζημιών.", en: "Unified records for customers, vehicles, carriers, partners and claims." },
+      { el: "Χειροκίνητη ή αυτοματοποιημένη καταχώρηση συμβολαίων και καλύψεων.", en: "Manual or automated policy and coverage entry." },
+      { el: "Αυτόματοι υπολογισμοί μικτών, καθαρών και προμηθειών γραφείου/συνεργάτη.", en: "Automatic gross, net and office/partner commission calculations." },
+      { el: "Εισπράξεις, πληρωμές, εκκρεμότητες και συμφωνίες σε πραγματικό χρόνο.", en: "Real-time receipts, payments, balances and reconciliations." },
+      { el: "Φίλτρα, εξαγωγές, εκτυπώσεις, μαζικές ενέργειες και ασφαλές ιστορικό.", en: "Filters, exports, printouts, bulk actions and a secure audit history." },
+    ],
+    included: [
+      { el: "Λίστες παραγωγής και αναφορές ανά εταιρεία, κλάδο και συνεργάτη.", en: "Production lists and reports by carrier, branch and partner." },
+      { el: "Οφειλές πελατών και υποχρεώσεις προς εταιρείες ή συνεργάτες.", en: "Customer receivables and liabilities to carriers or partners." },
+      { el: "Παραμετρικά πεδία και εισαγωγές αρχείων με έλεγχο διπλοεγγραφών.", en: "Custom fields and file imports with duplicate checks." },
+      { el: "Δικαιώματα χρηστών, υποκαταστήματα και απομόνωση δεδομένων ανά γραφείο.", en: "User permissions, branches and office-level data isolation." },
+    ],
+    faq: [
+      { question: { el: "Μπορώ να ξεκινήσω χωρίς εισαγωγή αρχείων;", en: "Can I start without importing files?" }, answer: { el: "Ναι. Οι πελάτες, τα συμβόλαια και οι οικονομικές κινήσεις μπορούν να καταχωρηθούν χειροκίνητα και να εμπλουτιστούν αργότερα με γέφυρες εταιρειών.", en: "Yes. Customers, policies and financial movements can be entered manually and enriched later with carrier bridges." } },
+      { question: { el: "Οι προμήθειες υπολογίζονται αυτόματα;", en: "Are commissions calculated automatically?" }, answer: { el: "Ναι, με βάση τους ενεργούς κανόνες του γραφείου, την ασφαλιστική, τον κλάδο και το ποσοστό του συνεργάτη.", en: "Yes, using the office rules, carrier, branch and partner percentage." } },
+      { question: { el: "Υπάρχει διαχωρισμός ανά υποκατάστημα;", en: "Is data separated by branch?" }, answer: { el: "Ναι, το γραφείο μπορεί να περιορίζει την πρόσβαση σε χρήστες και δεδομένα κάθε υποκαταστήματος.", en: "Yes, the office can limit access to each branch's users and data." } },
+    ],
+  },
+  crm: {
+    promise: {
+      el: "Μετατρέπει το πελατολόγιο σε καθημερινή ροή επικοινωνίας, ανανεώσεων και ευκαιριών.",
+      en: "Turns your customer base into a daily flow of communication, renewals and opportunities.",
+    },
+    idealFor: {
+      el: "Γραφεία που θέλουν να μη χάνουν follow-up, ανανέωση ή σημαντική επικοινωνία με τον πελάτη.",
+      en: "Offices that want to keep every follow-up, renewal and important customer contact on track.",
+    },
+    tags: [
+      { el: "Έξυπνες ομάδες", en: "Smart groups" },
+      { el: "Καμπάνιες", en: "Campaigns" },
+      { el: "Email & SMS", en: "Email & SMS" },
+      { el: "Follow-ups", en: "Follow-ups" },
+      { el: "Πύλη πελάτη", en: "Customer portal" },
+    ],
+    highlights: [
+      { el: "Ομάδες πελατών με φίλτρα και μαζική επιλογή.", en: "Customer groups with filters and bulk selection." },
+      { el: "Ιστορικό κλήσεων, email, SMS, εργασιών και ραντεβού.", en: "History of calls, email, SMS, tasks and appointments." },
+      { el: "Πρότυπα rich text και στοχευμένες καμπάνιες ανά κοινό.", en: "Rich-text templates and targeted campaigns by audience." },
+      { el: "Brevo και Bulker ανά γραφείο, με συγκαταθέσεις και opt-out.", en: "Office-specific Brevo and Bulker with consent and opt-out controls." },
+      { el: "Αυτοματισμοί για λήξεις, γενέθλια, οφειλές και επαναληπτικές ενέργειες.", en: "Automations for renewals, birthdays, balances and follow-ups." },
+    ],
+    included: [
+      { el: "Πίνακας εργασιών με υπεύθυνο συνεργάτη και προθεσμία.", en: "Task board with an owner and deadline." },
+      { el: "Αρχείο αποστολών με προεπισκόπηση, κατάσταση και φίλτρα.", en: "Send history with preview, status and filters." },
+      { el: "Στατιστικά καμπανιών και ποσοστά ανταπόκρισης.", en: "Campaign statistics and response rates." },
+      { el: "Πύλη πελάτη για αιτήματα, έγγραφα και ραντεβού.", en: "Customer portal for requests, documents and appointments." },
+    ],
+    faq: [
+      { question: { el: "Χρησιμοποιεί το CRM το email του KALYPSIS;", en: "Does CRM use a shared KALYPSIS email?" }, answer: { el: "Όχι. Κάθε γραφείο ρυθμίζει τα δικά του στοιχεία Brevo και Bulker από τις ρυθμίσεις CRM.", en: "No. Each office configures its own Brevo and Bulker credentials in CRM settings." } },
+      { question: { el: "Μπορώ να στείλω μόνο σε όσους έχουν συγκατάθεση;", en: "Can I send only to consented contacts?" }, answer: { el: "Ναι. Τα φίλτρα επικοινωνίας και οι καταγεγραμμένες συγκαταθέσεις εφαρμόζονται πριν από κάθε καμπάνια.", en: "Yes. Contact filters and recorded consent are applied before every campaign." } },
+      { question: { el: "Καταγράφεται τι στάλθηκε;", en: "Is every send recorded?" }, answer: { el: "Ναι, με ιστορικό παραλήπτη, καναλιού, ημερομηνίας, κατάστασης και περιεχομένου.", en: "Yes, with recipient, channel, date, status and content history." } },
+    ],
+  },
+  intelligence: {
+    promise: {
+      el: "Δίνει στη διοίκηση καθαρή εικόνα παραγωγής, στόχων, κινδύνων και ευκαιριών.",
+      en: "Gives management a clear view of production, goals, risks and opportunities.",
+    },
+    idealFor: {
+      el: "Γραφεία που θέλουν να παίρνουν αποφάσεις με δεδομένα και να αξιοποιούν AI ανά γραφείο.",
+      en: "Offices that want data-led decisions and office-specific AI assistance.",
+    },
+    tags: [
+      { el: "Αναφορές", en: "Reports" },
+      { el: "Στόχοι", en: "Goals" },
+      { el: "Προβλέψεις", en: "Forecasts" },
+      { el: "AI ανά γραφείο", en: "Office AI" },
+      { el: "Audit logs", en: "Audit logs" },
+    ],
+    highlights: [
+      { el: "Διαδραστικά γραφήματα παραγωγής, ζημιών, ανανεώσεων και εσόδων.", en: "Interactive charts for production, claims, renewals and revenue." },
+      { el: "Στόχοι ανά συνεργάτη, γραφείο, κλάδο ή τύπο οχήματος.", en: "Goals by partner, office, branch or vehicle type." },
+      { el: "Δημιουργός αναφορών με φίλτρα, εξαγωγή και προγραμματισμό.", en: "Report builder with filters, exports and scheduling." },
+      { el: "AI σύνοψη συμβολαίων, πρόβλεψη απώλειας και προτάσεις ενεργειών.", en: "AI policy summaries, churn prediction and action suggestions." },
+      { el: "Καταγραφή αλλαγών και πλήρης ιχνηλασιμότητα ενεργειών.", en: "Change tracking and complete action traceability." },
+    ],
+    included: [
+      { el: "Εξαγωγή πινάκων και γραφημάτων σε Excel ή PDF.", en: "Export tables and charts to Excel or PDF." },
+      { el: "Χρήση του API key AI του ίδιου του γραφείου.", en: "Uses the office's own AI API key." },
+      { el: "Παρακολούθηση χρήσης tokens και προειδοποιήσεις κόστους.", en: "Token usage tracking and cost alerts." },
+      { el: "Ιστορικό prompts, αποτελεσμάτων και επαναχρησιμοποίηση αναλύσεων.", en: "Prompt and result history with reusable analyses." },
+    ],
+    faq: [
+      { question: { el: "Το AI χρησιμοποιεί κοινό κλειδί;", en: "Does AI use a shared key?" }, answer: { el: "Όχι. Το γραφείο αποθηκεύει και ελέγχει το δικό του API key και τα όρια χρήσης του.", en: "No. The office stores and controls its own API key and usage limits." } },
+      { question: { el: "Οι προβλέψεις αντικαθιστούν τον ασφαλιστή;", en: "Do forecasts replace the broker?" }, answer: { el: "Όχι. Είναι βοηθητικές αναλύσεις και προτάσεις για επαγγελματική αξιολόγηση, όχι αυτόματη ασφαλιστική συμβουλή.", en: "No. They are supporting analyses for professional review, not automated insurance advice." } },
+      { question: { el: "Μπορούν να φιλτραριστούν τα γραφήματα ανά γραφείο;", en: "Can charts be filtered by office?" }, answer: { el: "Ναι, όπου επιτρέπεται από τον ρόλο χρήστη, με φίλτρα περιόδου, γραφείου, συνεργάτη και κλάδου.", en: "Yes, where the user's role allows it, with period, office, partner and branch filters." } },
+    ],
+  },
+  integrations: {
+    promise: {
+      el: "Συνδέει το KALYPSIS με τα εργαλεία και τις ροές που χρησιμοποιεί το ελληνικό ασφαλιστικό γραφείο.",
+      en: "Connects KALYPSIS with the tools and workflows used by Greek insurance offices.",
+    },
+    idealFor: {
+      el: "Γραφεία που χρειάζονται ελεγχόμενες διασυνδέσεις, συγχρονισμό και συμμόρφωση.",
+      en: "Offices that need controlled integrations, synchronisation and compliance.",
+    },
+    tags: [
+      { el: "API", en: "API" },
+      { el: "myDATA", en: "myDATA" },
+      { el: "Πληρωμές", en: "Payments" },
+      { el: "Γέφυρες", en: "Bridges" },
+      { el: "Συμμόρφωση", en: "Compliance" },
+    ],
+    highlights: [
+      { el: "Γέφυρες εισαγωγής από ασφαλιστικές και πρακτορεία.", en: "Import bridges for carriers and agencies." },
+      { el: "Ασφαλή API credentials και ρυθμίσεις ανά γραφείο.", en: "Secure API credentials and per-office settings." },
+      { el: "Έλεγχος συγχρονισμού, επαναλήψεις και audit trail.", en: "Sync checks, retries and an audit trail." },
+      { el: "Σύνδεση με ηλεκτρονική τιμολόγηση και οικονομικές ροές όπου είναι διαθέσιμη.", en: "Connections to e-invoicing and financial flows where available." },
+      { el: "Απομόνωση δεδομένων ανά tenant και ρόλο χρήστη.", en: "Tenant and role-based data isolation." },
+    ],
+    included: [
+      { el: "Κατάσταση σύνδεσης και διαγνωστικά ανά connector.", en: "Connection status and diagnostics per connector." },
+      { el: "Χειροκίνητη επανεκτέλεση αποτυχημένων συγχρονισμών.", en: "Manual retry of failed synchronisations." },
+      { el: "Αναλυτικά logs για κάθε εισαγωγή και μεταβολή.", en: "Detailed logs for each import and change." },
+      { el: "Ρυθμίσεις ενεργοποίησης από τον διαχειριστή πλατφόρμας.", en: "Activation settings controlled by the platform administrator." },
+    ],
+    faq: [
+      { question: { el: "Ενεργοποιούνται όλες οι διασυνδέσεις αυτόματα;", en: "Are all integrations enabled automatically?" }, answer: { el: "Όχι. Ενεργοποιούνται μόνο όσες εγκριθούν και ρυθμιστούν από το γραφείο και τον διαχειριστή πλατφόρμας.", en: "No. Only approved and configured integrations are enabled by the office and platform administrator." } },
+      { question: { el: "Τι γίνεται όταν αποτύχει ένας συγχρονισμός;", en: "What happens when a sync fails?" }, answer: { el: "Η αποτυχία καταγράφεται, εμφανίζεται στις εκκρεμότητες και μπορεί να επανεκτελεστεί με ασφάλεια.", en: "The failure is logged, shown as pending and can be safely retried." } },
+      { question: { el: "Υπάρχει sandbox;", en: "Is there a sandbox?" }, answer: { el: "Όπου παρέχεται από τον εξωτερικό πάροχο, οι δοκιμές γίνονται σε ξεχωριστό περιβάλλον πριν από την παραγωγή.", en: "Where the provider supports it, testing is done in a separate environment before production." } },
+    ],
+  },
+  ermes: {
+    promise: {
+      el: "Ασφαλής εσωτερική επικοινωνία για τις ομάδες του γραφείου, χωρίς να χάνονται μηνύματα και αρχεία.",
+      en: "Secure internal communication for office teams, keeping messages and files together.",
+    },
+    idealFor: {
+      el: "Γραφεία με πολλούς χρήστες, υποκαταστήματα και ανάγκη για οργανωμένη εσωτερική συνεργασία.",
+      en: "Offices with multiple users or branches that need organised internal collaboration.",
+    },
+    tags: [
+      { el: "Μηνύματα", en: "Messages" },
+      { el: "Ομάδες", en: "Groups" },
+      { el: "Συνημμένα", en: "Attachments" },
+      { el: "Ασφάλεια", en: "Security" },
+      { el: "Συναντήσεις", en: "Meetings" },
+    ],
+    highlights: [
+      { el: "Κανάλια και ομάδες ανά γραφείο, τμήμα ή θέμα.", en: "Channels and groups by office, team or topic." },
+      { el: "Μηνύματα με συνημμένα και αναζήτηση ιστορικού.", en: "Messages with attachments and searchable history." },
+      { el: "Ασφαλής επικοινωνία μεταξύ χρηστών του ίδιου γραφείου.", en: "Secure communication between users in the same office." },
+      { el: "Συνδέσεις με εργασίες, πελάτες και εσωτερικές εκκρεμότητες.", en: "Links to tasks, customers and internal follow-ups." },
+      { el: "Έλεγχος πρόσβασης και ιστορικό ενεργειών.", en: "Access control and action history." },
+    ],
+    included: [
+      { el: "Ειδοποιήσεις για νέα μηνύματα και αναθέσεις.", en: "Notifications for new messages and assignments." },
+      { el: "Κοινή χρήση αρχείων με οργανωμένο ιστορικό.", en: "File sharing with an organised history." },
+      { el: "Διαχωρισμός ομάδων ανά γραφείο και ρόλο.", en: "Groups separated by office and role." },
+      { el: "Συγχρονισμός με τις καθημερινές εργασίες του BackOffice.", en: "Connected to daily BackOffice work." },
+    ],
+    faq: [
+      { question: { el: "Μπορούν να δουν τα μηνύματα άλλα γραφεία;", en: "Can other offices see messages?" }, answer: { el: "Όχι, η πρόσβαση ακολουθεί το γραφείο, τον ρόλο και την ομάδα του χρήστη.", en: "No, access follows the user's office, role and group." } },
+      { question: { el: "Μπορώ να στείλω αρχείο μαζί με μήνυμα;", en: "Can I send a file with a message?" }, answer: { el: "Ναι, τα συνημμένα παραμένουν συνδεδεμένα με τη συνομιλία και το ιστορικό της.", en: "Yes, attachments remain connected to the conversation and its history." } },
+      { question: { el: "Είναι υποχρεωτικό το ΕΡΜΗΣ;", en: "Is ΕΡΜΗΣ mandatory?" }, answer: { el: "Όχι. Ενεργοποιείται προαιρετικά ως ξεχωριστό περιβάλλον επικοινωνίας.", en: "No. It is enabled optionally as a separate communication workspace." } },
+    ],
+  },
+};
+
 function PackageComparisonSection() {
   const { t, i18n } = useTranslation();
   const isEn = i18n.resolvedLanguage?.startsWith("en") ?? false;
   const packageRailRef = useRef<HTMLDivElement | null>(null);
   const [activePackageIndex, setActivePackageIndex] = useState(1);
+  const [selectedPackage, setSelectedPackage] = useState<
+    (typeof PUBLIC_PACKAGE_DEFS)[number] | null
+  >(null);
   const movePackage = (direction: -1 | 1) => {
     const next = Math.max(
       0,
@@ -1606,11 +1801,11 @@ function PackageComparisonSection() {
                     {t(pkg.bodyKey)}
                   </Typography>
                   <Button
-                    component={RouterLink}
-                    to="/pricing"
                     size="small"
                     variant="contained"
                     endIcon={<ArrowForwardIcon sx={{ fontSize: 16 }} />}
+                    onClick={() => setSelectedPackage(pkg)}
+                    aria-haspopup="dialog"
                     sx={{
                       mt: 2,
                       bgcolor: pkg.color,
@@ -1781,8 +1976,232 @@ function PackageComparisonSection() {
             {copy.cta}
           </Button>
         </Stack>
+        <PackageDetailDialog
+          pkg={selectedPackage}
+          open={Boolean(selectedPackage)}
+          isEn={isEn}
+          translate={t}
+          onClose={() => setSelectedPackage(null)}
+        />
       </Container>
     </Box>
+  );
+}
+
+function PackageDetailDialog({
+  pkg,
+  open,
+  isEn,
+  translate,
+  onClose,
+}: {
+  pkg: (typeof PUBLIC_PACKAGE_DEFS)[number] | null;
+  open: boolean;
+  isEn: boolean;
+  translate: (key: string) => string;
+  onClose: () => void;
+}) {
+  if (!pkg) return null;
+  const detail = PACKAGE_DETAILS[pkg.key];
+  const localize = (copy: LocalizedPackageText) => (isEn ? copy.en : copy.el);
+  const title = translate(pkg.nameKey);
+  const tagline =
+    pkg.key === "ermes"
+      ? isEn
+        ? "Secure office communication."
+        : "Ασφαλής επικοινωνία γραφείου."
+      : translate(pkg.taglineKey);
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      fullWidth
+      maxWidth="lg"
+      scroll="paper"
+      aria-labelledby="public-package-detail-title"
+      PaperProps={{
+        sx: {
+          width: "min(1040px, calc(100% - 24px))",
+          maxHeight: "min(900px, calc(100vh - 24px))",
+          borderRadius: { xs: 2, md: 3 },
+          overflow: "hidden",
+          border: `1px solid ${RULE}`,
+          boxShadow: "0 32px 100px rgba(11,37,69,.32)",
+        },
+      }}
+    >
+      <DialogTitle sx={{ p: 0 }}>
+        <Box
+          sx={{
+            position: "relative",
+            minHeight: { xs: 220, md: 280 },
+            display: "flex",
+            alignItems: "flex-end",
+            overflow: "hidden",
+            backgroundColor: pkg.color,
+          }}
+        >
+          <Box
+            component="img"
+            src={pkg.image}
+            alt=""
+            sx={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              opacity: 0.56,
+            }}
+          />
+          <Box
+            sx={{
+              position: "absolute",
+              inset: 0,
+              background: `linear-gradient(125deg, ${pkg.color}f5 0%, ${pkg.color}b8 45%, rgba(11,37,69,.56) 100%)`,
+            }}
+          />
+          <Box sx={{ position: "relative", zIndex: 1, p: { xs: 3, md: 5 }, pr: { xs: 8, md: 12 }, color: "#fff" }}>
+            <Typography sx={{ fontSize: 12, letterSpacing: ".2em", fontWeight: 950, opacity: 0.86 }}>
+              {isEn ? "KALYPSIS PACKAGE" : "ΠΑΚΕΤΟ KALYPSIS"} · {pkg.numeral}
+            </Typography>
+            <Typography id="public-package-detail-title" sx={{ mt: 0.7, fontWeight: 950, fontSize: { xs: "2rem", md: "3rem" }, lineHeight: 1.05 }}>
+              {title}
+            </Typography>
+            <Typography sx={{ mt: 1, fontSize: { xs: 14, md: 17 }, fontWeight: 700, opacity: 0.94 }}>
+              {tagline}
+            </Typography>
+          </Box>
+          <IconButton
+            aria-label={isEn ? "Close package details" : "Κλείσιμο λεπτομερειών πακέτου"}
+            onClick={onClose}
+            sx={{
+              position: "absolute",
+              top: 16,
+              right: 16,
+              zIndex: 2,
+              width: 48,
+              height: 48,
+              color: "#fff",
+              bgcolor: "#c62828",
+              border: "2px solid rgba(255,255,255,.9)",
+              boxShadow: "0 8px 20px rgba(0,0,0,.24)",
+              "&:hover": { bgcolor: "#991b1b" },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </Box>
+      </DialogTitle>
+      <DialogContent dividers sx={{ p: { xs: 2, md: 4 }, bgcolor: "#f8fafc" }}>
+        <Stack spacing={{ xs: 2.5, md: 3 }}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "1.2fr .8fr" },
+              gap: 2,
+            }}
+          >
+            <Box sx={{ bgcolor: "#fff", border: `1px solid ${RULE}`, borderRadius: 2, p: { xs: 2, md: 2.5 } }}>
+              <Typography sx={{ color: pkg.color, fontSize: 11, letterSpacing: ".15em", fontWeight: 950 }}>
+                {isEn ? "WHAT THIS PACKAGE DELIVERS" : "ΤΙ ΠΡΟΣΦΕΡΕΙ ΤΟ ΠΑΚΕΤΟ"}
+              </Typography>
+              <Typography sx={{ mt: 1, color: NAVY, fontSize: { xs: 16, md: 18 }, lineHeight: 1.6, fontWeight: 750 }}>
+                {localize(detail.promise)}
+              </Typography>
+            </Box>
+            <Box sx={{ bgcolor: `${pkg.color}12`, border: `1px solid ${pkg.color}38`, borderRadius: 2, p: { xs: 2, md: 2.5 } }}>
+              <Typography sx={{ color: pkg.color, fontSize: 11, letterSpacing: ".15em", fontWeight: 950 }}>
+                {isEn ? "IDEAL FOR" : "ΙΔΑΝΙΚΟ ΓΙΑ"}
+              </Typography>
+              <Typography sx={{ mt: 1, color: NAVY_SOFT, lineHeight: 1.6, fontSize: 14.5 }}>
+                {localize(detail.idealFor)}
+              </Typography>
+            </Box>
+          </Box>
+
+          <Box>
+            <Typography sx={{ color: NAVY, fontWeight: 950, fontSize: { xs: 18, md: 22 }, mb: 1.25 }}>
+              {isEn ? "At a glance" : "Με μια ματιά"}
+            </Typography>
+            <Stack direction="row" flexWrap="wrap" gap={1}>
+              {detail.tags.map((tag) => (
+                <Chip
+                  key={`${pkg.key}-${tag.en}`}
+                  label={localize(tag)}
+                  sx={{ bgcolor: "#fff", color: pkg.color, border: `1px solid ${pkg.color}55`, fontWeight: 850 }}
+                />
+              ))}
+            </Stack>
+          </Box>
+
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+              gap: 2,
+            }}
+          >
+            <Box sx={{ bgcolor: "#fff", border: `1px solid ${RULE}`, borderRadius: 2, p: { xs: 2, md: 2.5 } }}>
+              <Typography sx={{ color: NAVY, fontWeight: 950, fontSize: 18, mb: 1.25 }}>
+                {isEn ? "Core capabilities" : "Βασικές δυνατότητες"}
+              </Typography>
+              <Stack spacing={1.1}>
+                {detail.highlights.map((item) => (
+                  <Stack key={item.en} direction="row" spacing={1} alignItems="flex-start">
+                    <CheckCircleIcon sx={{ mt: 0.2, fontSize: 19, color: "#2f7d4a" }} />
+                    <Typography sx={{ color: NAVY_SOFT, lineHeight: 1.5, fontSize: 14 }}>{localize(item)}</Typography>
+                  </Stack>
+                ))}
+              </Stack>
+            </Box>
+            <Box sx={{ bgcolor: "#fff", border: `1px solid ${RULE}`, borderRadius: 2, p: { xs: 2, md: 2.5 } }}>
+              <Typography sx={{ color: NAVY, fontWeight: 950, fontSize: 18, mb: 1.25 }}>
+                {isEn ? "Included in the workspace" : "Περιλαμβάνονται στο περιβάλλον"}
+              </Typography>
+              <Stack spacing={1.1}>
+                {detail.included.map((item) => (
+                  <Stack key={item.en} direction="row" spacing={1} alignItems="flex-start">
+                    <CheckCircleIcon sx={{ mt: 0.2, fontSize: 19, color: pkg.color }} />
+                    <Typography sx={{ color: NAVY_SOFT, lineHeight: 1.5, fontSize: 14 }}>{localize(item)}</Typography>
+                  </Stack>
+                ))}
+              </Stack>
+            </Box>
+          </Box>
+
+          <Box>
+            <Typography sx={{ color: NAVY, fontWeight: 950, fontSize: { xs: 18, md: 22 }, mb: 1 }}>
+              {isEn ? "Frequently asked questions" : "Συχνές ερωτήσεις"}
+            </Typography>
+            {detail.faq.map((item, index) => (
+              <Accordion key={`${pkg.key}-faq-${index}`} disableGutters sx={{ bgcolor: "#fff", border: `1px solid ${RULE}`, "&:not(:last-child)": { borderBottom: 0 }, "&:before": { display: "none" } }}>
+                <AccordionSummary sx={{ px: 2 }}>
+                  <Typography sx={{ color: NAVY, fontWeight: 850, fontSize: 14.5 }}>{localize(item.question)}</Typography>
+                </AccordionSummary>
+                <AccordionDetails sx={{ px: 2, pt: 0 }}>
+                  <Typography sx={{ color: NAVY_SOFT, lineHeight: 1.6, fontSize: 14 }}>{localize(item.answer)}</Typography>
+                </AccordionDetails>
+              </Accordion>
+            ))}
+          </Box>
+        </Stack>
+      </DialogContent>
+      <DialogActions sx={{ justifyContent: "space-between", p: { xs: 1.5, md: 2 }, bgcolor: "#fff", borderTop: `1px solid ${RULE}` }}>
+        <Typography sx={{ display: { xs: "none", sm: "block" }, color: NAVY_SOFT, fontSize: 12.5 }}>
+          {isEn ? "The final availability follows your office licence." : "Η τελική διαθεσιμότητα ακολουθεί την άδεια του γραφείου σας."}
+        </Typography>
+        <Button
+          onClick={onClose}
+          variant="contained"
+          startIcon={<CloseIcon />}
+          sx={{ bgcolor: "#c62828", color: "#fff", fontWeight: 900, px: 2.5, "&:hover": { bgcolor: "#991b1b" } }}
+        >
+          {isEn ? "Close" : "Κλείσιμο"}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
