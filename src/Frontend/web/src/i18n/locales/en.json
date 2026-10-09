@@ -1249,13 +1249,48 @@
     "agencyLead": "Queue of requests from all of your customers. Update status, assign to an employee, leave notes.",
     "newRequest": "New request",
     "noRequests": "No requests yet.",
+    "colActions": "Actions",
+    "filters": {
+      "search": "Search requests",
+      "status": "Status",
+      "type": "Type",
+      "from": "From",
+      "to": "To",
+      "read": "Read state",
+      "all": "All",
+      "unread": "Unread",
+      "readOnly": "Read",
+      "sort": "Sort",
+      "newest": "Newest first",
+      "oldest": "Oldest first",
+      "unreadFirst": "Unread first",
+      "statusOrder": "By status",
+      "includeArchived": "Include archived",
+      "clear": "Clear filters"
+    },
+    "actions": {
+      "created": "Request submitted successfully.",
+      "markRead": "Mark as read",
+      "markUnread": "Mark as unread",
+      "markedRead": "Request marked as read.",
+      "markedUnread": "Request marked as unread.",
+      "archive": "Archive request",
+      "unarchive": "Restore request",
+      "archived": "Request archived.",
+      "unarchived": "Request restored.",
+      "delete": "Delete request",
+      "deleted": "Request deleted successfully.",
+      "confirmDeleteTitle": "Delete request?",
+      "confirmDeleteBody": "This request will be removed from the active queue. This action cannot be undone."
+    },
     "col": {
       "number": "Ref #",
       "type": "Type",
       "subject": "Subject",
       "customer": "Customer",
       "status": "Status",
-      "created": "Created"
+      "created": "Created",
+      "actions": "Actions"
     },
     "types": {
       "NewPolicy": "New policy",
@@ -1310,7 +1345,15 @@
       "agencyActions": "Manage (agency)",
       "changeStatus": "Change status",
       "agencyNotes": "Agency notes (visible to customer)",
-      "agencyMessage": "Message from the agency"
+      "agencyMessage": "Message from the agency",
+      "messages": "Conversation history",
+      "noMessages": "No messages yet.",
+      "agency": "Agency",
+      "customerMessage": "Customer",
+      "replyTitle": "Reply to customer",
+      "replyPlaceholder": "Write a clear reply to the customer…",
+      "replyHelp": "The reply is added to the request history and the request is marked as read.",
+      "sendReply": "Send reply"
     }
   },
   "notifications": {

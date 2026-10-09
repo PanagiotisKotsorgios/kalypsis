@@ -556,6 +556,35 @@ internal static class DemoShowcaseSeeder
         }
         await db.SaveChangesAsync(ct);
 
+        // Conversation history makes the request-management walkthrough
+        // useful immediately, while remaining idempotent on every boot.
+        var demoRequests = await db.ServiceRequests.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenant.Id && x.RequestNumber.StartsWith("DEMO-REQ-") && x.DeletedAt == null)
+            .ToListAsync(ct);
+        foreach (var request in demoRequests)
+        {
+            if (!await db.ServiceRequestMessages.IgnoreQueryFilters().AnyAsync(x => x.TenantId == tenant.Id && x.ServiceRequestId == request.Id, ct))
+            {
+                db.ServiceRequestMessages.Add(new ServiceRequestMessage
+                {
+                    Id = Guid.NewGuid(), TenantId = tenant.Id, ServiceRequestId = request.Id,
+                    AuthorRole = "Customer", Body = request.Description, CreatedAt = request.CreatedAt
+                });
+            }
+        }
+        var resolvedDemoRequest = demoRequests.FirstOrDefault(x => x.RequestNumber == "DEMO-REQ-004");
+        if (resolvedDemoRequest is not null && !await db.ServiceRequestMessages.IgnoreQueryFilters().AnyAsync(x => x.TenantId == tenant.Id && x.ServiceRequestId == resolvedDemoRequest.Id && x.AuthorRole == "Agency", ct))
+        {
+            db.ServiceRequestMessages.Add(new ServiceRequestMessage
+            {
+                Id = Guid.NewGuid(), TenantId = tenant.Id, ServiceRequestId = resolvedDemoRequest.Id,
+                AuthorRole = "Agency", AuthorUserId = admin?.Id,
+                Body = "Το αντίγραφο του ασφαλιστηρίου είναι έτοιμο και επισυνάφθηκε στην καρτέλα του αιτήματος.",
+                CreatedAt = now.AddDays(-1)
+            });
+        }
+        await db.SaveChangesAsync(ct);
+
         // Approved repair shops for the claims/settlements walkthrough.
         var garages = await db.Garages.IgnoreQueryFilters()
             .Where(x => x.TenantId == tenant.Id && x.DeletedAt == null && x.Code.StartsWith("DEMO-GAR-"))

@@ -28,8 +28,24 @@ public class ServiceRequest : TenantEntity
 
     public string? AgencyNotes { get; set; }
     public DateTime? ResolvedAt { get; set; }
+    public bool IsRead { get; set; }
+    public DateTime? ReadAt { get; set; }
+    public DateTime? ArchivedAt { get; set; }
 
     public ICollection<ServiceRequestAttachment> Attachments { get; set; } = new List<ServiceRequestAttachment>();
+    public ICollection<ServiceRequestMessage> Messages { get; set; } = new List<ServiceRequestMessage>();
+}
+
+/// <summary>Conversation entry attached to a customer service request.</summary>
+public class ServiceRequestMessage : TenantEntity
+{
+    public Guid ServiceRequestId { get; set; }
+    public ServiceRequest ServiceRequest { get; set; } = null!;
+
+    public string AuthorRole { get; set; } = "Customer"; // Customer / Agency
+    public Guid? AuthorUserId { get; set; }
+    public User? AuthorUser { get; set; }
+    public string Body { get; set; } = string.Empty;
 }
 
 public class ServiceRequestAttachment : TenantEntity

@@ -20,8 +20,14 @@ public class ServiceRequestsController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<ServiceRequestDto>>> List(
         [FromQuery] ServiceRequestStatus? status,
         [FromQuery] ServiceRequestType? type,
-        CancellationToken cancellationToken)
-        => Ok(await _mediator.Send(new ListServiceRequestsQuery(status, type), cancellationToken));
+        CancellationToken cancellationToken,
+        [FromQuery] bool includeArchived = false,
+        [FromQuery] bool? isRead = null,
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to = null,
+        [FromQuery] string? search = null,
+        [FromQuery] string? sort = null)
+        => Ok(await _mediator.Send(new ListServiceRequestsQuery(status, type, includeArchived, isRead, from, to, search, sort), cancellationToken));
 
     [HttpPost]
     public async Task<ActionResult<ServiceRequestDto>> Create(
@@ -39,6 +45,29 @@ public class ServiceRequestsController : ControllerBase
         [FromBody] UpdateServiceRequestStatusBody body,
         CancellationToken cancellationToken)
         => Ok(await _mediator.Send(new UpdateServiceRequestStatusCommand(id, body), cancellationToken));
+
+    [HttpPut("{id:guid}/read")]
+    [Authorize(Policy = "AgencyStaff")]
+    public async Task<ActionResult<ServiceRequestDto>> MarkRead(Guid id, [FromBody] MarkReadBody body, CancellationToken cancellationToken)
+        => Ok(await _mediator.Send(new MarkServiceRequestReadCommand(id, body.IsRead), cancellationToken));
+
+    [HttpPut("{id:guid}/archive")]
+    [Authorize(Policy = "AgencyStaff")]
+    public async Task<ActionResult<ServiceRequestDto>> Archive(Guid id, [FromBody] ArchiveBody body, CancellationToken cancellationToken)
+        => Ok(await _mediator.Send(new ArchiveServiceRequestCommand(id, body.Archived), cancellationToken));
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = "AgencyStaff")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        await _mediator.Send(new DeleteServiceRequestCommand(id), cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/reply")]
+    [Authorize(Policy = "AgencyStaff")]
+    public async Task<ActionResult<ServiceRequestDto>> Reply(Guid id, [FromBody] ReplyToServiceRequestBody body, CancellationToken cancellationToken)
+        => Ok(await _mediator.Send(new ReplyToServiceRequestCommand(id, body), cancellationToken));
 
     [HttpPost("{id:guid}/attachments")]
     [RequestSizeLimit(20_000_000)]
@@ -66,3 +95,6 @@ public class ServiceRequestsController : ControllerBase
         return File(stream, mimeType, fileName);
     }
 }
+
+public sealed record MarkReadBody(bool IsRead);
+public sealed record ArchiveBody(bool Archived);

@@ -83,6 +83,11 @@ public class CreateServiceRequestCommandHandler : IRequestHandler<CreateServiceR
             OtherPartyInfo = request.Body.OtherPartyInfo?.Trim()
         };
         _db.ServiceRequests.Add(sr);
+        _db.ServiceRequestMessages.Add(new ServiceRequestMessage
+        {
+            Id = Guid.NewGuid(), TenantId = tenantId, ServiceRequestId = sr.Id,
+            AuthorRole = "Customer", Body = sr.Description, CreatedAt = sr.CreatedAt
+        });
         await _db.SaveChangesAsync(ct);
 
         return await Project(_db, sr.Id, ct);
@@ -93,6 +98,7 @@ public class CreateServiceRequestCommandHandler : IRequestHandler<CreateServiceR
         var sr = await db.ServiceRequests
             .Include(s => s.Customer)
             .Include(s => s.Attachments)
+            .Include(s => s.Messages)
             .FirstOrDefaultAsync(s => s.Id == id, ct)
             ?? throw AppException.NotFound("Service request");
 
@@ -123,17 +129,33 @@ public class CreateServiceRequestCommandHandler : IRequestHandler<CreateServiceR
             sr.AgencyNotes,
             sr.CreatedAt,
             sr.ResolvedAt,
+            sr.IsRead,
+            sr.ReadAt,
+            sr.ArchivedAt,
             sr.Attachments
                 .Where(a => a.DeletedAt == null)
                 .OrderBy(a => a.CreatedAt)
                 .Select(a => new ServiceRequestAttachmentDto(a.Id, a.Category, a.FileName, a.MimeType, a.SizeBytes, a.CreatedAt))
+                .ToList(),
+            sr.Messages
+                .Where(m => m.DeletedAt == null)
+                .OrderBy(m => m.CreatedAt)
+                .Select(m => new ServiceRequestMessageDto(m.Id, m.AuthorRole, m.Body, m.CreatedAt))
                 .ToList());
     }
 }
 
 /* ========== List ========== */
 
-public record ListServiceRequestsQuery(ServiceRequestStatus? Status, ServiceRequestType? Type) : IRequest<IReadOnlyList<ServiceRequestDto>>;
+public record ListServiceRequestsQuery(
+    ServiceRequestStatus? Status,
+    ServiceRequestType? Type,
+    bool IncludeArchived = false,
+    bool? IsRead = null,
+    DateTime? From = null,
+    DateTime? To = null,
+    string? Search = null,
+    string? Sort = null) : IRequest<IReadOnlyList<ServiceRequestDto>>;
 
 public class ListServiceRequestsQueryHandler : IRequestHandler<ListServiceRequestsQuery, IReadOnlyList<ServiceRequestDto>>
 {
@@ -152,7 +174,23 @@ public class ListServiceRequestsQueryHandler : IRequestHandler<ListServiceReques
         var q = _db.ServiceRequests
             .Include(s => s.Customer)
             .Include(s => s.Attachments)
+            .Include(s => s.Messages)
             .Where(s => s.TenantId == tenantId && s.DeletedAt == null);
+
+        if (!request.IncludeArchived) q = q.Where(s => s.ArchivedAt == null);
+        if (request.IsRead.HasValue) q = q.Where(s => s.IsRead == request.IsRead.Value);
+        if (request.From.HasValue) q = q.Where(s => s.CreatedAt >= request.From.Value);
+        if (request.To.HasValue) q = q.Where(s => s.CreatedAt < request.To.Value.AddDays(1));
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            var term = request.Search.Trim();
+            q = q.Where(s => s.RequestNumber.Contains(term)
+                || s.Subject.Contains(term)
+                || s.Description.Contains(term)
+                || (s.Customer.FirstName != null && s.Customer.FirstName.Contains(term))
+                || (s.Customer.LastName != null && s.Customer.LastName.Contains(term))
+                || (s.Customer.CompanyName != null && s.Customer.CompanyName.Contains(term)));
+        }
 
         if (_current.Role == Role.Customer)
         {
@@ -168,7 +206,14 @@ public class ListServiceRequestsQueryHandler : IRequestHandler<ListServiceReques
         if (request.Status.HasValue) q = q.Where(s => s.Status == request.Status.Value);
         if (request.Type.HasValue) q = q.Where(s => s.Type == request.Type.Value);
 
-        var rows = await q.OrderByDescending(s => s.CreatedAt).Take(500).ToListAsync(ct);
+        q = request.Sort?.ToLowerInvariant() switch
+        {
+            "oldest" => q.OrderBy(s => s.CreatedAt),
+            "status" => q.OrderBy(s => s.Status).ThenByDescending(s => s.CreatedAt),
+            "unread" => q.OrderBy(s => s.IsRead).ThenByDescending(s => s.CreatedAt),
+            _ => q.OrderByDescending(s => s.CreatedAt)
+        };
+        var rows = await q.Take(500).ToListAsync(ct);
         return rows.Select(CreateServiceRequestCommandHandler.ToDto).ToList();
     }
 }
@@ -205,6 +250,104 @@ public class UpdateServiceRequestStatusCommandHandler : IRequestHandler<UpdateSe
         {
             sr.ResolvedAt = _clock.UtcNow;
         }
+        await _db.SaveChangesAsync(ct);
+        return await CreateServiceRequestCommandHandler.Project(_db, sr.Id, ct);
+    }
+}
+
+public record MarkServiceRequestReadCommand(Guid Id, bool IsRead) : IRequest<ServiceRequestDto>;
+
+public sealed class MarkServiceRequestReadCommandHandler : IRequestHandler<MarkServiceRequestReadCommand, ServiceRequestDto>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    private readonly IDateTimeProvider _clock;
+
+    public MarkServiceRequestReadCommandHandler(IAppDbContext db, ICurrentUser current, IDateTimeProvider clock)
+    { _db = db; _current = current; _clock = clock; }
+
+    public async Task<ServiceRequestDto> Handle(MarkServiceRequestReadCommand request, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var sr = await _db.ServiceRequests.FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Id == request.Id && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Service request");
+        sr.IsRead = request.IsRead;
+        sr.ReadAt = request.IsRead ? _clock.UtcNow : null;
+        await _db.SaveChangesAsync(ct);
+        return await CreateServiceRequestCommandHandler.Project(_db, sr.Id, ct);
+    }
+}
+
+public record ArchiveServiceRequestCommand(Guid Id, bool Archived) : IRequest<ServiceRequestDto>;
+
+public sealed class ArchiveServiceRequestCommandHandler : IRequestHandler<ArchiveServiceRequestCommand, ServiceRequestDto>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    private readonly IDateTimeProvider _clock;
+
+    public ArchiveServiceRequestCommandHandler(IAppDbContext db, ICurrentUser current, IDateTimeProvider clock)
+    { _db = db; _current = current; _clock = clock; }
+
+    public async Task<ServiceRequestDto> Handle(ArchiveServiceRequestCommand request, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var sr = await _db.ServiceRequests.FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Id == request.Id && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Service request");
+        sr.ArchivedAt = request.Archived ? _clock.UtcNow : null;
+        await _db.SaveChangesAsync(ct);
+        return await CreateServiceRequestCommandHandler.Project(_db, sr.Id, ct);
+    }
+}
+
+public record DeleteServiceRequestCommand(Guid Id) : IRequest;
+
+public sealed class DeleteServiceRequestCommandHandler : IRequestHandler<DeleteServiceRequestCommand>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    private readonly IDateTimeProvider _clock;
+
+    public DeleteServiceRequestCommandHandler(IAppDbContext db, ICurrentUser current, IDateTimeProvider clock)
+    { _db = db; _current = current; _clock = clock; }
+
+    public async Task Handle(DeleteServiceRequestCommand request, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var sr = await _db.ServiceRequests.FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Id == request.Id && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Service request");
+        sr.DeletedAt = _clock.UtcNow;
+        await _db.SaveChangesAsync(ct);
+    }
+}
+
+public record ReplyToServiceRequestCommand(Guid Id, ReplyToServiceRequestBody Body) : IRequest<ServiceRequestDto>;
+
+public sealed class ReplyToServiceRequestCommandHandler : IRequestHandler<ReplyToServiceRequestCommand, ServiceRequestDto>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    private readonly IDateTimeProvider _clock;
+
+    public ReplyToServiceRequestCommandHandler(IAppDbContext db, ICurrentUser current, IDateTimeProvider clock)
+    { _db = db; _current = current; _clock = clock; }
+
+    public async Task<ServiceRequestDto> Handle(ReplyToServiceRequestCommand request, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var message = request.Body.Message?.Trim();
+        if (string.IsNullOrWhiteSpace(message)) throw new AppException("message_required", "Το μήνυμα απάντησης είναι υποχρεωτικό.", 400);
+        if (message.Length > 4000) throw new AppException("message_too_long", "Το μήνυμα είναι πολύ μεγάλο.", 400);
+        var sr = await _db.ServiceRequests.FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Id == request.Id && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Service request");
+        sr.IsRead = true;
+        sr.ReadAt = _clock.UtcNow;
+        if (request.Body.Status.HasValue) sr.Status = request.Body.Status.Value;
+        _db.ServiceRequestMessages.Add(new ServiceRequestMessage
+        {
+            Id = Guid.NewGuid(), TenantId = tenantId, ServiceRequestId = sr.Id,
+            AuthorRole = "Agency", AuthorUserId = _current.UserId, Body = message, CreatedAt = _clock.UtcNow
+        });
         await _db.SaveChangesAsync(ct);
         return await CreateServiceRequestCommandHandler.Project(_db, sr.Id, ct);
     }

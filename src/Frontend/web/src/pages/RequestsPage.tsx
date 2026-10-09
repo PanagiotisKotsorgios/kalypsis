@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
 import {
   Alert,
@@ -6,6 +6,7 @@ import {
   Button,
   Card,
   CardContent,
+  Checkbox,
   Chip,
   CircularProgress,
   Dialog,
@@ -13,6 +14,7 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  FormControlLabel,
   IconButton,
   MenuItem,
   Stack,
@@ -32,6 +34,13 @@ import DescriptionIcon from "@mui/icons-material/Description";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import EditNoteIcon from "@mui/icons-material/EditNote";
 import DownloadIcon from "@mui/icons-material/Download";
+import ArchiveIcon from "@mui/icons-material/Archive";
+import UnarchiveIcon from "@mui/icons-material/Unarchive";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import MarkEmailReadIcon from "@mui/icons-material/MarkEmailRead";
+import MarkEmailUnreadIcon from "@mui/icons-material/MarkEmailUnread";
+import SendIcon from "@mui/icons-material/Send";
+import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
@@ -52,6 +61,13 @@ interface AttachmentDto {
   createdAt: string;
 }
 
+interface ServiceRequestMessageDto {
+  id: string;
+  authorRole: "Customer" | "Agency" | string;
+  body: string;
+  createdAt: string;
+}
+
 interface RequestDto {
   id: string;
   requestNumber: string;
@@ -69,6 +85,10 @@ interface RequestDto {
   createdAt: string;
   resolvedAt: string | null;
   attachments: AttachmentDto[];
+  isRead: boolean;
+  readAt: string | null;
+  archivedAt: string | null;
+  messages: ServiceRequestMessageDto[];
 }
 
 interface CreateBody {
@@ -108,10 +128,35 @@ export function RequestsPage() {
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState<RequestDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<RequestDto | null>(null);
+  const [filters, setFilters] = useState({
+    search: "",
+    status: "" as ServiceRequestStatus | "",
+    type: "" as ServiceRequestType | "",
+    from: "",
+    to: "",
+    read: "" as "" | "read" | "unread",
+    sort: "newest",
+    includeArchived: false
+  });
+
+  const queryParams = useMemo(() => {
+    const params = new URLSearchParams();
+    if (filters.status) params.set("status", filters.status);
+    if (filters.type) params.set("type", filters.type);
+    if (filters.search.trim()) params.set("search", filters.search.trim());
+    if (filters.from) params.set("from", filters.from);
+    if (filters.to) params.set("to", filters.to);
+    if (filters.read) params.set("isRead", String(filters.read === "read"));
+    if (filters.sort) params.set("sort", filters.sort);
+    if (filters.includeArchived) params.set("includeArchived", "true");
+    return params.toString();
+  }, [filters]);
 
   const requestsQuery = useQuery({
-    queryKey: ["service-requests"],
-    queryFn: async () => (await api.get<RequestDto[]>("/service-requests")).data
+    queryKey: ["service-requests", queryParams],
+    queryFn: async () => (await api.get<RequestDto[]>(`/service-requests${queryParams ? `?${queryParams}` : ""}`)).data
   });
 
   const createMutation = useMutation({
@@ -120,11 +165,46 @@ export function RequestsPage() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["service-requests"] });
       setOpen(false);
+      setSuccess(t("requests.actions.created"));
+    },
+    onError: (err) => setError(extractErrorMessage(err))
+  });
+
+  const readMutation = useMutation({
+    mutationFn: async ({ id, isRead }: { id: string; isRead: boolean }) =>
+      (await api.put<RequestDto>(`/service-requests/${id}/read`, { isRead })).data,
+    onSuccess: (_data, variables) => {
+      void qc.invalidateQueries({ queryKey: ["service-requests"] });
+      setSuccess(t(variables.isRead ? "requests.actions.markedRead" : "requests.actions.markedUnread"));
+    },
+    onError: (err) => setError(extractErrorMessage(err))
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: async ({ id, archived }: { id: string; archived: boolean }) =>
+      (await api.put<RequestDto>(`/service-requests/${id}/archive`, { archived })).data,
+    onSuccess: (_data, variables) => {
+      void qc.invalidateQueries({ queryKey: ["service-requests"] });
+      setSuccess(t(variables.archived ? "requests.actions.archived" : "requests.actions.unarchived"));
+    },
+    onError: (err) => setError(extractErrorMessage(err))
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/service-requests/${id}`);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["service-requests"] });
+      setDeleteTarget(null);
+      setDetail(null);
+      setSuccess(t("requests.actions.deleted"));
     },
     onError: (err) => setError(extractErrorMessage(err))
   });
 
   const rows = requestsQuery.data ?? [];
+  const clearFilters = () => setFilters({ search: "", status: "", type: "", from: "", to: "", read: "", sort: "newest", includeArchived: false });
 
   return (
     <Box>
@@ -157,6 +237,70 @@ export function RequestsPage() {
           {error}
         </Alert>
       )}
+      {success && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
+          {success}
+        </Alert>
+      )}
+
+      {isAgency && (
+        <Card sx={{ mb: 2 }}>
+          <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
+            <Stack direction={{ xs: "column", lg: "row" }} spacing={1.25} alignItems={{ lg: "center" }} flexWrap="wrap" useFlexGap>
+              <TextField
+                size="small"
+                label={t("requests.filters.search")}
+                value={filters.search}
+                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                sx={{ minWidth: { xs: "100%", sm: 220, lg: 245 } }}
+              />
+              <SearchableTextField
+                select size="small" label={t("requests.filters.status")} value={filters.status}
+                onChange={(e) => setFilters({ ...filters, status: e.target.value as ServiceRequestStatus | "" })}
+                sx={{ minWidth: 150 }}
+              >
+                <MenuItem value="">{t("requests.filters.all")}</MenuItem>
+                {(["Submitted", "InReview", "AwaitingCustomerInfo", "Resolved", "Closed", "Rejected"] as const).map((s) => (
+                  <MenuItem key={s} value={s}>{t(`requests.statuses.${s}`)}</MenuItem>
+                ))}
+              </SearchableTextField>
+              <SearchableTextField
+                select size="small" label={t("requests.filters.type")} value={filters.type}
+                onChange={(e) => setFilters({ ...filters, type: e.target.value as ServiceRequestType | "" })}
+                sx={{ minWidth: 155 }}
+              >
+                <MenuItem value="">{t("requests.filters.all")}</MenuItem>
+                {(["NewPolicy", "AccidentReport", "DocumentRequest", "PolicyChange", "GeneralQuestion"] as const).map((type) => (
+                  <MenuItem key={type} value={type}>{t(`requests.types.${type}`)}</MenuItem>
+                ))}
+              </SearchableTextField>
+              <TextField size="small" type="date" label={t("requests.filters.from")} value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} InputLabelProps={{ shrink: true }} />
+              <TextField size="small" type="date" label={t("requests.filters.to")} value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} InputLabelProps={{ shrink: true }} />
+              <SearchableTextField
+                select size="small" label={t("requests.filters.read")} value={filters.read}
+                onChange={(e) => setFilters({ ...filters, read: e.target.value as "" | "read" | "unread" })}
+                sx={{ minWidth: 125 }}
+              >
+                <MenuItem value="">{t("requests.filters.all")}</MenuItem>
+                <MenuItem value="unread">{t("requests.filters.unread")}</MenuItem>
+                <MenuItem value="read">{t("requests.filters.readOnly")}</MenuItem>
+              </SearchableTextField>
+              <SearchableTextField select size="small" label={t("requests.filters.sort")} value={filters.sort} onChange={(e) => setFilters({ ...filters, sort: e.target.value })} sx={{ minWidth: 135 }}>
+                <MenuItem value="newest">{t("requests.filters.newest")}</MenuItem>
+                <MenuItem value="oldest">{t("requests.filters.oldest")}</MenuItem>
+                <MenuItem value="unread">{t("requests.filters.unreadFirst")}</MenuItem>
+                <MenuItem value="status">{t("requests.filters.statusOrder")}</MenuItem>
+              </SearchableTextField>
+              <FormControlLabel
+                control={<Checkbox size="small" checked={filters.includeArchived} onChange={(e) => setFilters({ ...filters, includeArchived: e.target.checked })} />}
+                label={t("requests.filters.includeArchived")}
+                sx={{ mr: 0, whiteSpace: "nowrap" }}
+              />
+              <Button size="small" color="error" variant="outlined" startIcon={<FilterAltIcon />} onClick={clearFilters}>{t("requests.filters.clear")}</Button>
+            </Stack>
+          </CardContent>
+        </Card>
+      )}
 
       {requestsQuery.isLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
@@ -180,12 +324,12 @@ export function RequestsPage() {
                   {isAgency && <TableCell>{t("requests.col.customer")}</TableCell>}
                   <TableCell>{t("requests.col.status")}</TableCell>
                   <TableCell>{t("requests.col.created")}</TableCell>
-                  <TableCell />
+                  <TableCell>{isAgency && t("requests.colActions")}</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {rows.map((r) => (
-                  <TableRow key={r.id} hover sx={{ cursor: "pointer" }} onClick={() => setDetail(r)}>
+                  <TableRow key={r.id} hover sx={{ cursor: "pointer", bgcolor: isAgency && !r.isRead ? "action.hover" : undefined }} onClick={() => { setDetail(r); if (isAgency && !r.isRead) readMutation.mutate({ id: r.id, isRead: true }); }}>
                     <TableCell><Chip label={r.requestNumber} size="small" variant="outlined" /></TableCell>
                     <TableCell>
                       <Stack direction="row" spacing={1} alignItems="center">
@@ -204,14 +348,22 @@ export function RequestsPage() {
                     </TableCell>
                     <TableCell>{date(r.createdAt)}</TableCell>
                     <TableCell>
-                      {r.attachments.length > 0 && (
-                        <Chip
-                          icon={<AttachFileIcon />}
-                          label={r.attachments.length}
-                          size="small"
-                          variant="outlined"
-                        />
-                      )}
+                      <Stack direction="row" spacing={0.25} alignItems="center" justifyContent="flex-end">
+                        {r.attachments.length > 0 && <Chip icon={<AttachFileIcon />} label={r.attachments.length} size="small" variant="outlined" />}
+                        {isAgency && (
+                          <>
+                            <IconButton size="small" title={t(r.isRead ? "requests.actions.markUnread" : "requests.actions.markRead")} onClick={(e) => { e.stopPropagation(); readMutation.mutate({ id: r.id, isRead: !r.isRead }); }}>
+                              {r.isRead ? <MarkEmailUnreadIcon fontSize="small" /> : <MarkEmailReadIcon fontSize="small" />}
+                            </IconButton>
+                            <IconButton size="small" title={t(r.archivedAt ? "requests.actions.unarchive" : "requests.actions.archive")} onClick={(e) => { e.stopPropagation(); archiveMutation.mutate({ id: r.id, archived: !r.archivedAt }); }}>
+                              {r.archivedAt ? <UnarchiveIcon fontSize="small" /> : <ArchiveIcon fontSize="small" />}
+                            </IconButton>
+                            <IconButton color="error" size="small" title={t("requests.actions.delete")} onClick={(e) => { e.stopPropagation(); setDeleteTarget(r); }}>
+                              <DeleteOutlineIcon fontSize="small" />
+                            </IconButton>
+                          </>
+                        )}
+                      </Stack>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -234,6 +386,19 @@ export function RequestsPage() {
         onChanged={() => qc.invalidateQueries({ queryKey: ["service-requests"] })}
         isAgency={isAgency}
       />
+
+      <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>{t("requests.actions.confirmDeleteTitle")}</DialogTitle>
+        <DialogContent>
+          <Typography>{t("requests.actions.confirmDeleteBody")}</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteTarget(null)}>{t("common.cancel")}</Button>
+          <Button color="error" variant="contained" onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)} disabled={deleteMutation.isPending} startIcon={deleteMutation.isPending ? <CircularProgress size={16} color="inherit" /> : <DeleteOutlineIcon />}>
+            {t("requests.actions.delete")}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
@@ -374,11 +539,15 @@ function RequestDetailDialog({ request, onClose, onChanged, isAgency }: DetailPr
   const [uploading, setUploading] = useState(false);
   const [newStatus, setNewStatus] = useState<ServiceRequestStatus>("Submitted");
   const [agencyNotes, setAgencyNotes] = useState("");
+  const [reply, setReply] = useState("");
+  const [replyError, setReplyError] = useState<string | null>(null);
 
   useEffect(() => {
     if (request) {
       setNewStatus(request.status);
       setAgencyNotes(request.agencyNotes ?? "");
+      setReply("");
+      setReplyError(null);
     }
   }, [request?.id, request?.status, request?.agencyNotes]);
 
@@ -389,6 +558,18 @@ function RequestDetailDialog({ request, onClose, onChanged, isAgency }: DetailPr
       void qc.invalidateQueries({ queryKey: ["service-requests"] });
       onChanged();
     }
+  });
+
+  const replyMutation = useMutation({
+    mutationFn: async ({ id, message, status }: { id: string; message: string; status: ServiceRequestStatus }) =>
+      (await api.post<RequestDto>(`/service-requests/${id}/reply`, { message, status })).data,
+    onSuccess: () => {
+      setReply("");
+      setReplyError(null);
+      void qc.invalidateQueries({ queryKey: ["service-requests"] });
+      onChanged();
+    },
+    onError: (err) => setReplyError(extractErrorMessage(err))
   });
 
   if (!request) return null;
@@ -463,6 +644,25 @@ function RequestDetailDialog({ request, onClose, onChanged, isAgency }: DetailPr
           <Box>
             <Typography variant="overline" color="text.secondary">{t("requests.detail.description")}</Typography>
             <Typography sx={{ whiteSpace: "pre-wrap", lineHeight: 1.7 }}>{request.description}</Typography>
+          </Box>
+
+          <Box>
+            <Typography variant="overline" color="text.secondary">{t("requests.detail.messages")}</Typography>
+            {request.messages.length === 0 ? (
+              <Typography color="text.secondary" variant="body2" sx={{ mt: 1 }}>{t("requests.detail.noMessages")}</Typography>
+            ) : (
+              <Stack spacing={1} sx={{ mt: 1 }}>
+                {request.messages.map((message) => (
+                  <Card key={message.id} variant="outlined" sx={{ p: 1.5, bgcolor: message.authorRole === "Agency" ? "rgba(30, 167, 225, 0.08)" : "background.paper" }}>
+                    <Stack direction="row" justifyContent="space-between" spacing={1}>
+                      <Typography variant="caption" sx={{ fontWeight: 700 }}>{message.authorRole === "Agency" ? t("requests.detail.agency") : t("requests.detail.customerMessage")}</Typography>
+                      <Typography variant="caption" color="text.secondary">{new Date(message.createdAt).toLocaleString("el-GR")}</Typography>
+                    </Stack>
+                    <Typography sx={{ whiteSpace: "pre-wrap", mt: 0.5 }}>{message.body}</Typography>
+                  </Card>
+                ))}
+              </Stack>
+            )}
           </Box>
 
           {isAccident && (request.incidentDate || request.incidentLocation || request.otherPartyInfo) && (
@@ -600,6 +800,28 @@ function RequestDetailDialog({ request, onClose, onChanged, isAgency }: DetailPr
                     multiline
                     rows={3}
                   />
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ mb: 0.75 }}>{t("requests.detail.replyTitle")}</Typography>
+                    {replyError && <Alert severity="error" sx={{ mb: 1 }} onClose={() => setReplyError(null)}>{replyError}</Alert>}
+                    <TextField
+                      value={reply}
+                      onChange={(e) => setReply(e.target.value)}
+                      placeholder={t("requests.detail.replyPlaceholder")}
+                      helperText={t("requests.detail.replyHelp")}
+                      fullWidth
+                      multiline
+                      minRows={3}
+                    />
+                    <Button
+                      sx={{ mt: 1 }}
+                      variant="contained"
+                      startIcon={replyMutation.isPending ? <CircularProgress size={16} color="inherit" /> : <SendIcon />}
+                      disabled={replyMutation.isPending || reply.trim().length < 1}
+                      onClick={() => replyMutation.mutate({ id: request.id, message: reply.trim(), status: newStatus })}
+                    >
+                      {t("requests.detail.sendReply")}
+                    </Button>
+                  </Box>
                 </Stack>
               </Box>
             </>

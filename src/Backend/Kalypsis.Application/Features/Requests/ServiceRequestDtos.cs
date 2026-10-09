@@ -10,6 +10,12 @@ public record ServiceRequestAttachmentDto(
     long SizeBytes,
     DateTime CreatedAt);
 
+public record ServiceRequestMessageDto(
+    Guid Id,
+    string AuthorRole,
+    string Body,
+    DateTime CreatedAt);
+
 public record ServiceRequestDto(
     Guid Id,
     string RequestNumber,
@@ -26,7 +32,11 @@ public record ServiceRequestDto(
     string? AgencyNotes,
     DateTime CreatedAt,
     DateTime? ResolvedAt,
-    IReadOnlyList<ServiceRequestAttachmentDto> Attachments);
+    bool IsRead,
+    DateTime? ReadAt,
+    DateTime? ArchivedAt,
+    IReadOnlyList<ServiceRequestAttachmentDto> Attachments,
+    IReadOnlyList<ServiceRequestMessageDto> Messages);
 
 public record CreateServiceRequestBody(
     ServiceRequestType Type,
@@ -42,3 +52,5 @@ public record UpdateServiceRequestStatusBody(
     ServiceRequestStatus Status,
     string? AgencyNotes,
     Guid? AssignedToUserId);
+
+public record ReplyToServiceRequestBody(string Message, ServiceRequestStatus? Status = null);

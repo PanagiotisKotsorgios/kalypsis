@@ -26,6 +26,24 @@ public class ServiceRequestConfiguration : IEntityTypeConfiguration<ServiceReque
 
         b.HasIndex(x => new { x.TenantId, x.Status });
         b.HasIndex(x => new { x.TenantId, x.CustomerId });
+        b.HasIndex(x => new { x.TenantId, x.IsRead, x.ArchivedAt });
+    }
+}
+
+public class ServiceRequestMessageConfiguration : IEntityTypeConfiguration<ServiceRequestMessage>
+{
+    public void Configure(EntityTypeBuilder<ServiceRequestMessage> b)
+    {
+        b.ToTable("service_request_messages");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.AuthorRole).HasMaxLength(32).IsRequired();
+        b.Property(x => x.Body).HasMaxLength(4000).IsRequired();
+        b.HasOne(x => x.ServiceRequest)
+            .WithMany(s => s.Messages)
+            .HasForeignKey(x => x.ServiceRequestId)
+            .OnDelete(DeleteBehavior.Cascade);
+        b.HasOne(x => x.AuthorUser).WithMany().HasForeignKey(x => x.AuthorUserId).OnDelete(DeleteBehavior.SetNull);
+        b.HasIndex(x => new { x.TenantId, x.ServiceRequestId, x.CreatedAt });
     }
 }
 

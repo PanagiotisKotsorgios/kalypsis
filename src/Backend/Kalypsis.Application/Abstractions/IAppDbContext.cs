@@ -46,6 +46,7 @@ public interface IAppDbContext
     DbSet<PlatformAnnouncement> PlatformAnnouncements { get; }
     DbSet<UserAnnouncementDismissal> UserAnnouncementDismissals { get; }
     DbSet<ServiceRequest> ServiceRequests { get; }
+    DbSet<ServiceRequestMessage> ServiceRequestMessages { get; }
     DbSet<ServiceRequestAttachment> ServiceRequestAttachments { get; }
 
     DbSet<Appointment> Appointments { get; }

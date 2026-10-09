@@ -53,6 +53,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<PlatformAnnouncement> PlatformAnnouncements => Set<PlatformAnnouncement>();
     public DbSet<UserAnnouncementDismissal> UserAnnouncementDismissals => Set<UserAnnouncementDismissal>();
     public DbSet<ServiceRequest> ServiceRequests => Set<ServiceRequest>();
+    public DbSet<ServiceRequestMessage> ServiceRequestMessages => Set<ServiceRequestMessage>();
     public DbSet<ServiceRequestAttachment> ServiceRequestAttachments => Set<ServiceRequestAttachment>();
 
     public DbSet<Appointment> Appointments => Set<Appointment>();
