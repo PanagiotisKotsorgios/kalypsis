@@ -190,7 +190,25 @@ export function PricingPage() {
             Οι τιμές μπορούν να μειωθούν αν δεν χρειάζεστε συγκεκριμένες λειτουργίες ή να αυξηθούν αν επιλέξετε επιπλέον δυνατότητες, γραφεία, χρήστες ή διασυνδέσεις. Επικοινωνήστε μαζί μας για μια εξατομικευμένη πρόταση.
           </Alert>
 
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2,1fr)", lg: "repeat(4,1fr)", xl: "repeat(5,1fr)" }, gap: { xs: 2, lg: 2.5 }, alignItems: "stretch" }}>
+          <Alert
+            severity="success"
+            sx={{
+              mb: { xs: 2.5, md: 3.5 },
+              border: "1px solid #b7e2c8",
+              borderRadius: 2.5,
+              bgcolor: "#edf9f1",
+              color: "#14532d",
+              alignItems: "flex-start",
+              "& .MuiAlert-icon": { color: "#198754", mt: ".1rem" }
+            }}
+          >
+            <Typography component="span" sx={{ fontWeight: 950 }}>
+              Όλες οι γέφυρες περιλαμβάνονται δωρεάν στο Backoffice.
+            </Typography>{" "}
+            Οι γέφυρες λειτουργούν με τα αρχεία παραγωγής των ασφαλιστικών εταιρειών και δεν υπάρχει επιπλέον χρέωση για καμία από αυτές.
+          </Alert>
+
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2,1fr)", lg: "repeat(3,1fr)" }, gap: { xs: 2, lg: 2.5 }, alignItems: "stretch" }}>
             {activePlans.map(plan => <PlanCard key={plan.code} plan={plan} features={activeFeatures} />)}
           </Box>
           <Typography sx={{ color: RED, fontWeight: 800, fontSize: 13, textAlign: "right", mt: 1 }}>{settings.pricesIncludeVat ? settings.vatLabel : `Οι τιμές δεν περιλαμβάνουν ΦΠΑ (${settings.vatRate}%)`}</Typography>
