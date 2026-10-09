@@ -36,7 +36,8 @@ public record PlanDefinitionDto(
     string? IconKey = null,
     string? Badge = null,
     int IncludedPackages = 0,
-    string[]? FeatureKeys = null);
+    string[]? FeatureKeys = null,
+    bool IsComingSoon = false);
 
 public record AddonDefinitionDto(
     string Code,
@@ -83,6 +84,11 @@ public static class PricingDefaults
         var features = new[]
         {
             new PricingFeatureDto("producer_portal", "Πύλη Συνεργάτη", "Πρόσβαση συνεργάτη στην παραγωγή και στα έγγραφά του.", 10, true, "person"),
+            new PricingFeatureDto("producer_profile", "Πλήρης καρτέλα συνεργάτη", "Στοιχεία προφίλ, επικοινωνίας, σύμβασης και συνεργασίας.", 11, true, "person"),
+            new PricingFeatureDto("producer_production", "Προσωπική παραγωγή", "Προβολή συμβολαίων, πελατών και παραγωγής του συνεργάτη.", 12, true, "chart"),
+            new PricingFeatureDto("producer_commissions", "Προμήθειες και εκκαθαρίσεις", "Παρακολούθηση προμηθειών, εκκαθαρίσεων και οικονομικών κινήσεων.", 13, true, "business"),
+            new PricingFeatureDto("producer_documents", "Έγγραφα και παραδόσεις", "Πρόσβαση στα έγγραφα και στην πορεία παράδοσης των συμβολαίων.", 14, true, "extension"),
+            new PricingFeatureDto("producer_tasks", "Εργασίες και στόχοι", "Εργασίες, follow-up, ραντεβού και προσωπικοί στόχοι παραγωγής.", 15, true, "groups"),
             new PricingFeatureDto("backoffice", "Διαχείριση Γραφείου", "Πελάτες, συμβόλαια, οικονομικά και παραγωγή.", 20, true, "business"),
             new PricingFeatureDto("backoffice_customers", "Πελατολόγιο και πλήρη στοιχεία πελατών", "Ενιαία καρτέλα με όλα τα στοιχεία και τις σχέσεις του πελάτη.", 21, true, "people"),
             new PricingFeatureDto("backoffice_policies", "Διαχείριση ασφαλιστηρίων συμβολαίων", "Συμβόλαια, καλύψεις, οχήματα και συνημμένα έγγραφα.", 22, true, "business"),
@@ -100,9 +106,10 @@ public static class PricingDefaults
             new PricingFeatureDto("frontoffice", "Ιστοσελίδα Γραφείου", "Δημόσια ιστοσελίδα, posts και αιτήσεις.", 70, true, "language"),
             new PricingFeatureDto("intelligence", "Νοημοσύνη και Desktop με συγχρονισμό Cloud", "AI αναλύσεις, προβλέψεις, δημιουργός αναφορών και εφαρμογή υπολογιστή.", 80, true, "smart"),
             new PricingFeatureDto("custom_integrations", "Εξατομικευμένες Διασυνδέσεις", "Προσαρμοσμένα APIs και εξωτερικά συστήματα.", 90, true, "extension"),
-            new PricingFeatureDto("priority_support", "Υποστήριξη Προτεραιότητας", "SLA και τηλεφωνική γραμμή προτεραιότητας.", 100, true, "support")
+            new PricingFeatureDto("priority_support", "Υποστήριξη Προτεραιότητας", "SLA και τηλεφωνική γραμμή προτεραιότητας.", 100, true, "support"),
+            new PricingFeatureDto("multi_quoting", "Πολυτιμολόγηση", "Σύγκριση και διαχείριση προσφορών από πολλαπλές ασφαλιστικές εταιρείες.", 110, true, "calculate")
         };
-        var producer = new[] { "producer_portal" };
+        var producer = new[] { "producer_portal", "producer_profile", "producer_production", "producer_commissions", "producer_documents", "producer_tasks" };
         var backoffice = new[]
         {
             "backoffice", "backoffice_customers", "backoffice_policies", "backoffice_lifecycle",
@@ -112,6 +119,7 @@ public static class PricingDefaults
         var growth = backoffice.Concat(new[] { "client_portal", "crm" }).ToArray();
         var advanced = growth.Append("intelligence").ToArray();
         var premium = advanced.Concat(new[] { "reporting", "frontoffice", "custom_integrations", "priority_support" }).ToArray();
+        var ultimate = premium.Append("multi_quoting").ToArray();
         var plans = new[]
         {
             new PlanDefinitionDto("producer", "Μεμονωμένος συνεργάτης · μόνο πύλη", 90m, 0, 1, 0m, 60m, producer,
@@ -123,7 +131,9 @@ public static class PricingDefaults
             new PlanDefinitionDto("advanced", "1 γραφείο · ανάπτυξη + Νοημοσύνη/Desktop", 300m, 1, 6, 400m, 200m, advanced,
                 Name: "Προχωρημένο", Description: "Backoffice, CRM, Πύλη Πελάτη και Νοημοσύνη με εφαρμογή Desktop και συγχρονισμό Cloud.", SortOrder: 40, IncludedPackages: 4, FeatureKeys: advanced, IconKey: "smart"),
             new PlanDefinitionDto("premium", "Πλήρης σουίτα · όλες οι δυνατότητες", 450m, 3, 10, 500m, 240m, premium,
-                Name: "Πλήρες", Description: "Όλες οι δυνατότητες του KALYPSIS για γραφεία που θέλουν την πλήρη επιχειρηματική σουίτα.", SortOrder: 50, IncludedPackages: 8, FeatureKeys: premium, IconKey: "crown")
+                Name: "Πλήρες", Description: "Όλες οι δυνατότητες του KALYPSIS για γραφεία που θέλουν την πλήρη επιχειρηματική σουίτα.", SortOrder: 50, IncludedPackages: 8, FeatureKeys: premium, IconKey: "crown"),
+            new PlanDefinitionDto("ultimate", "Πλήρες + Πολυτιμολόγηση", 0m, 3, 10, 0m, 0m, ultimate,
+                Name: "Ultimate", Description: "Η πλήρης σουίτα με Πολυτιμολόγηση. Σύντομα διαθέσιμο.", SortOrder: 60, IncludedPackages: 9, FeatureKeys: ultimate, IconKey: "calculate", Badge: "Σύντομα διαθέσιμο", ButtonText: "Εκδήλωση Ενδιαφέροντος →", ButtonUrl: "/contact", IsComingSoon: true)
         };
         var addons = new[]
         {
@@ -143,15 +153,15 @@ public static class PricingDefaults
             new ServiceDefinitionDto("website_creation", "Δημιουργία ιστοσελίδας ασφαλιστικού γραφείου", "σταθερό", 300m, "Δημιουργία Ιστοσελίδας", "fixed", true, 50, "language"),
             new ServiceDefinitionDto("website_maintenance", "Ετήσια συντήρηση ιστοσελίδας από το 1ο έτος", "ανά έτος", 130m, "Συντήρηση Ιστοσελίδας", "yearly", true, 60, "build")
         };
-        return new PricingCatalogDto(3, plans, addons, services) { Features = features, Settings = new PricingSettingsDto() };
+        return new PricingCatalogDto(4, plans, addons, services) { Features = features, Settings = new PricingSettingsDto() };
     }
 
     public static PricingCatalogDto Normalize(PricingCatalogDto parsed)
     {
         var defaults = Build();
-        // v1 was the legacy hard-coded catalogue. Upgrade it to the explicit
-        // v2 catalogue once, so the public page never serves stale legacy prices.
-        if (parsed.Version < 3) return defaults;
+        // Older catalogue versions are replaced by the current explicit
+        // catalogue so the public page never serves stale package definitions.
+        if (parsed.Version < 4) return defaults;
         var featureList = parsed.Features is { Count: > 0 } ? parsed.Features : defaults.Features;
         var settings = parsed.Settings ?? defaults.Settings;
         var plans = parsed.Plans.Select((p, i) =>
@@ -182,7 +192,7 @@ public static class PricingDefaults
             var pricingType = string.IsNullOrWhiteSpace(s.PricingType) ? (s.UnitPrice.HasValue ? "fixed" : "custom_quote") : s.PricingType.Trim().ToLowerInvariant();
             return s with { Name = string.IsNullOrWhiteSpace(s.Name) ? d?.Name ?? s.Code : s.Name, PricingType = pricingType, IsActive = s.IsActive, SortOrder = s.SortOrder == 0 ? (d?.SortOrder ?? (i + 1) * 10) : s.SortOrder };
         }).ToArray();
-        return parsed with { Version = Math.Max(3, parsed.Version), Plans = plans, Addons = addons, Services = services, Features = featureList, Settings = settings };
+        return parsed with { Version = Math.Max(4, parsed.Version), Plans = plans, Addons = addons, Services = services, Features = featureList, Settings = settings };
     }
 }
 
@@ -290,6 +300,7 @@ public sealed class CalculatePricingHandler : IRequestHandler<CalculatePricingQu
     {
         var catalog = await PricingCatalogReader.LoadAsync(_db, ct);
         var p = catalog.Plans.FirstOrDefault(x => x.IsActive && x.Code.Equals(request.Request.PlanCode, StringComparison.OrdinalIgnoreCase)) ?? throw new AppException("unknown_plan", "Το πλάνο δεν είναι διαθέσιμο", 400);
+        if (p.IsComingSoon) throw new AppException("plan_coming_soon", "Το πακέτο είναι σύντομα διαθέσιμο και δεν υπολογίζεται ακόμη.", 400);
         var offices = Math.Max(0, request.Request.ExtraOffices); var users = Math.Max(0, request.Request.ExtraUsers);
         var lines = new List<PricingCalculationLine> { new("base", p.Name, p.PricePerYear) };
         var officeAmount = offices * p.ExtraOfficePerYear; var userAmount = users * p.ExtraUserPerYear;

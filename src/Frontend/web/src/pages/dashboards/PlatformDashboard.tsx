@@ -90,6 +90,7 @@ interface PlanDef {
   extraOfficePerYear: number;
   extraUserPerYear: number;
   packages: string[];
+  isComingSoon?: boolean;
 }
 interface AddonDef { code: string; description: string; pricePerYear: number }
 interface ServiceDef { code: string; description: string; unitLabel: string; unitPrice: number }
@@ -205,16 +206,15 @@ export function PlatformDashboard() {
                 }}>
                   <Typography variant="overline" color="text.secondary">{p.code}</Typography>
                   <Typography variant="h5" fontWeight={800}>
-                    {moneyFmt.format(p.pricePerYear)}
-                    <Typography component="span" variant="caption" color="text.secondary"> /έτος</Typography>
+                    {p.isComingSoon ? "Σύντομα διαθέσιμο" : <>{moneyFmt.format(p.pricePerYear)}<Typography component="span" variant="caption" color="text.secondary"> /έτος</Typography></>}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">{p.tagline}</Typography>
                   <Typography variant="caption" color="text.secondary">
                     Περιλαμβάνει {p.includedOffices} γραφεία · {p.includedUsers} χρήστες
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
+                  {!p.isComingSoon && <Typography variant="caption" color="text.secondary">
                     Extra γραφείο {moneyFmt.format(p.extraOfficePerYear)}/έτος · extra χρήστης {moneyFmt.format(p.extraUserPerYear)}/έτος
-                  </Typography>
+                  </Typography>}
                 </Box>
               ))}
             </Box>
