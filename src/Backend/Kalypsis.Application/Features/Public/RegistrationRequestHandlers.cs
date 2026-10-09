@@ -564,6 +564,11 @@ public class ApproveRegistrationRequestCommandHandler
         var seed = !string.IsNullOrWhiteSpace(rec.OrganizationName) ? rec.OrganizationName! : rec.LastName;
         var code = await BuildUniqueTenantCodeAsync(seed, ct);
 
+        // Resolve the referring office before provisioning. The referral code
+        // is deterministic per tenant, so existing offices do not need a
+        // backfill column or a manual reconfiguration.
+        var referringTenant = await ResolveReferringTenantAsync(rec.ReferralCode, ct);
+
         var tenant = new Tenant
         {
             Id = Guid.NewGuid(),
@@ -575,7 +580,8 @@ public class ApproveRegistrationRequestCommandHandler
             SubscriptionPlan = SubscriptionPlan.Trial,
             ContactEmail = email,
             ContactPhone = rec.Phone,
-            VatNumber = rec.VatNumber
+            VatNumber = rec.VatNumber,
+            ReferredByTenantId = referringTenant?.Id
         };
         _db.Tenants.Add(tenant);
 
@@ -613,6 +619,8 @@ public class ApproveRegistrationRequestCommandHandler
         // the app is broken. Superadmin can revoke individually later from
         // /app/tenants/{id}.
         await _packages.GrantAllDefaultsAsync(tenant.Id, _currentUser.UserId, ct);
+
+        await NotifyAffiliateMilestoneAsync(referringTenant, ct);
 
         // Welcome email is fire-and-forget for the request — if Brevo is down
         // we still want the user provisioned. We surface any error to the UI
@@ -658,6 +666,61 @@ public class ApproveRegistrationRequestCommandHandler
             if (suffix > 999) throw new InvalidOperationException("Failed to derive a unique tenant code.");
         }
         return candidate;
+    }
+
+    private async Task<Tenant?> ResolveReferringTenantAsync(string? referralCode, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(referralCode)) return null;
+        var normalized = referralCode.Trim().ToUpperInvariant();
+        var candidates = await _db.Tenants.IgnoreQueryFilters()
+            .Where(t => t.IsActive && t.DeletedAt == null && t.Code != "PLATFORM")
+            .Select(t => new { Tenant = t, t.ContactEmail })
+            .ToListAsync(ct);
+        return candidates
+            .FirstOrDefault(x => AffiliateReferralCode.ForTenant(x.Tenant.Id, x.ContactEmail) == normalized)
+            ?.Tenant;
+    }
+
+    private async Task NotifyAffiliateMilestoneAsync(Tenant? referringTenant, CancellationToken ct)
+    {
+        if (referringTenant is null) return;
+
+        var activeReferrals = await _db.Tenants.IgnoreQueryFilters()
+            .CountAsync(t => t.ReferredByTenantId == referringTenant.Id && t.IsActive && t.DeletedAt == null, ct);
+        if (activeReferrals < 5) return;
+
+        if (!referringTenant.AffiliateLifetimeFreeUnlocked)
+        {
+            referringTenant.AffiliateLifetimeFreeUnlocked = true;
+            await _db.SaveChangesAsync(ct);
+        }
+
+        var marker = $"/app/affiliate-program?milestone={referringTenant.Id}";
+        var alreadySent = await _db.Notifications.IgnoreQueryFilters()
+            .AnyAsync(n => n.Category == "affiliate-milestone" && n.Link == marker && n.DeletedAt == null, ct);
+        if (alreadySent) return;
+
+        var platformAdmins = await _db.Users.IgnoreQueryFilters()
+            .Where(u => u.Role == Role.PlatformAdmin && u.IsActive && u.DeletedAt == null)
+            .Select(u => new { u.Id, u.TenantId })
+            .ToListAsync(ct);
+        foreach (var admin in platformAdmins)
+        {
+            _db.Notifications.Add(new Notification
+            {
+                Id = Guid.NewGuid(),
+                TenantId = admin.TenantId,
+                UserId = admin.Id,
+                Title = "Ολοκληρώθηκε πρόγραμμα σύστασης",
+                Body = $"Το γραφείο «{referringTenant.Name}» συμπλήρωσε 5 ενεργές συστάσεις και δικαιούται δωρεάν χρήση εφ’ όρου ζωής.",
+                Category = "affiliate-milestone",
+                Link = marker,
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+        if (platformAdmins.Count > 0)
+            await _db.SaveChangesAsync(ct);
     }
 
     private static EmailMessage BuildWelcomeEmail(RegistrationRequest rec, Tenant tenant, string password)

@@ -10,6 +10,13 @@ public class Tenant : BaseEntity
     public bool IsActive { get; set; } = true;
     public SubscriptionPlan SubscriptionPlan { get; set; } = SubscriptionPlan.Trial;
 
+    /// <summary>
+    /// The tenant whose referral link brought this office to Kalypsis.
+    /// Null means the office joined directly or predates the affiliate flow.
+    /// </summary>
+    public Guid? ReferredByTenantId { get; set; }
+    public bool AffiliateLifetimeFreeUnlocked { get; set; }
+
     // Branding & operational defaults editable by the agency admin
     public string? LogoUrl { get; set; }
     public string? BrandColorHex { get; set; }

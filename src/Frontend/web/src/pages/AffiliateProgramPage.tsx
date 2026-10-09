@@ -25,7 +25,9 @@ import LinkIcon from "@mui/icons-material/Link";
 import PercentIcon from "@mui/icons-material/Percent";
 import ShareIcon from "@mui/icons-material/Share";
 import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../auth/AuthContext";
+import { api } from "../api/client";
 
 const BENEFIT_BLUE = "#0b4f8a";
 const BENEFIT_LIGHT = "#edf6ff";
@@ -33,13 +35,27 @@ const BENEFIT_LIGHT = "#edf6ff";
 export function AffiliateProgramPage() {
   const { user } = useAuth();
   const [copied, setCopied] = useState<"code" | "link" | null>(null);
-  const referralCode = useMemo(() => {
+  const progressQuery = useQuery({
+    queryKey: ["affiliate-progress", user?.tenantId],
+    enabled: Boolean(user?.tenantId),
+    queryFn: async () => (await api.get<{
+      referralCode: string;
+      activeReferrals: number;
+      goal: number;
+      lifetimeFreeUnlocked: boolean;
+    }>("/public/affiliate-progress")).data
+  });
+  const localReferralCode = useMemo(() => {
     const source = user?.tenantId ?? user?.email ?? "office";
     const suffix = source.replace(/[^a-z0-9]/gi, "").slice(-8).toUpperCase().padStart(6, "0");
     return `KALY-${suffix}`;
   }, [user?.tenantId, user?.email]);
+  const referralCode = progressQuery.data?.referralCode ?? localReferralCode;
   const origin = typeof window === "undefined" ? "https://mykalypsis.gr" : window.location.origin;
   const referralLink = `${origin}/register?ref=${encodeURIComponent(referralCode)}`;
+  const activeReferrals = progressQuery.data?.activeReferrals ?? 0;
+  const referralGoal = progressQuery.data?.goal ?? 5;
+  const progressPercent = Math.min(100, (activeReferrals / Math.max(1, referralGoal)) * 100);
 
   const copyValue = async (value: string, kind: "code" | "link") => {
     try {
@@ -106,9 +122,9 @@ export function AffiliateProgramPage() {
                 <Typography variant="h6" fontWeight={850}>Πρόοδος προγράμματος</Typography>
                 <GroupsIcon color="primary" />
               </Stack>
-              <Typography variant="h3" fontWeight={900} color={BENEFIT_BLUE}>0 <Typography component="span" variant="h6" color="text.secondary">/ 5 γραφεία</Typography></Typography>
-              <LinearProgress variant="determinate" value={0} sx={{ height: 9, borderRadius: 5, my: 1.25, bgcolor: "#d9eafa", "& .MuiLinearProgress-bar": { bgcolor: BENEFIT_BLUE } }} />
-              <Typography variant="body2" color="text.secondary">Η πρόοδος ενημερώνεται όταν το νέο γραφείο ολοκληρώσει την εγγραφή του και παραμείνει ενεργό σύμφωνα με τους όρους του προγράμματος.</Typography>
+              <Typography variant="h3" fontWeight={900} color={BENEFIT_BLUE}>{activeReferrals} <Typography component="span" variant="h6" color="text.secondary">/ {referralGoal} γραφεία</Typography></Typography>
+              <LinearProgress variant="determinate" value={progressPercent} sx={{ height: 9, borderRadius: 5, my: 1.25, bgcolor: "#d9eafa", "& .MuiLinearProgress-bar": { bgcolor: BENEFIT_BLUE } }} />
+              <Typography variant="body2" color="text.secondary">{progressQuery.isLoading ? "Φόρτωση προόδου…" : progressQuery.data?.lifetimeFreeUnlocked ? "Έχετε συμπληρώσει τον στόχο. Η δωρεάν χρήση εφ’ όρου ζωής έχει ξεκλειδωθεί." : "Η πρόοδος μετρά μόνο γραφεία που ολοκλήρωσαν την εγγραφή τους και παραμένουν ενεργά."}</Typography>
             </CardContent>
           </Card>
         </Grid>

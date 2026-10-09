@@ -249,7 +249,13 @@ export function AppointmentsPage() {
               <Typography variant="overline" sx={{ fontWeight: 800, color: "text.secondary" }}>{day}</Typography>
               <Stack spacing={0.75} mt={0.5}>
                 {list.map((a) => (
-                  <Card key={a.id}>
+                  <Card
+                    key={a.id}
+                    sx={a.title.includes("DEMO-SHOWCASE") ? {
+                      border: "1px solid #b8c9dc",
+                      bgcolor: "#f1f5fa"
+                    } : undefined}
+                  >
                     <CardContent sx={{ p: 1.25, "&:last-child": { pb: 1.25 } }}>
                       <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1}>
                         <Box sx={{ flex: 1, minWidth: 0 }}>

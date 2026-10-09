@@ -305,13 +305,11 @@ export function RegisterPage() {
                       />
                       <TextField
                         label={t("register.referralCode")}
-                        helperText={t("register.referralCodeHelp")}
                         value={form.referralCode}
                         onChange={(e) => set("referralCode", e.target.value)}
                         fullWidth disabled={submitting}
                         autoComplete="off"
                         InputLabelProps={{ sx: authLabelSx }}
-                        FormHelperTextProps={{ sx: { fontSize: 13.5 } }}
                         sx={authFieldSx}
                       />
                     </Stack>

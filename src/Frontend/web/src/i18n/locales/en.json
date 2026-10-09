@@ -1530,7 +1530,6 @@
     "city": "City",
     "organizationName": "Agency / company name",
     "referralCode": "Referral code",
-    "referralCodeHelp": "Optional. Filled automatically when you open the form from a partner link.",
     "organizationHelp": "If you're registering as an agency.",
     "vat": "VAT number",
     "vatHelp": "9 digits (optional)",
