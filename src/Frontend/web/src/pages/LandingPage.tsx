@@ -1277,39 +1277,130 @@ const PUBLIC_PACKAGE_DEFS = [
 
 const PUBLIC_PACKAGE_FEATURES = [
   {
-    el: "Πελάτες, συμβόλαια & ασφαλιστική παραγωγή",
-    en: "Customers, policies & production",
+    el: "Ενοποιημένο πελατολόγιο & κοινά δεδομένα",
+    en: "Unified customer records & shared data",
+    detailEl: "Μία καρτέλα που ακολουθεί τον πελάτη σε κάθε περιβάλλον.",
+    detailEn: "One record that follows the customer across every workspace.",
+    values: [true, true, true, true, true],
+  },
+  {
+    el: "Συμβόλαια, καλύψεις & ανανεώσεις",
+    en: "Policies, coverages & renewals",
+    detailEl: "Πλήρης εικόνα ασφαλιστηρίου, οχήματος και κινήσεων.",
+    detailEn: "Complete policy, vehicle and movement visibility.",
     values: [true, true, true, false, false],
   },
   {
-    el: "Ταμείο, εισπράξεις & προμήθειες",
-    en: "Cashier, receipts & commissions",
+    el: "Εταιρείες, πρακτορεία & συνεργάτες",
+    en: "Carriers, agencies & partners",
+    detailEl: "Συνδέσεις, επαφές, έγγραφα και παραγωγή ανά συνεργασία.",
+    detailEn: "Connections, contacts, documents and production per relationship.",
+    values: [true, false, true, true, false],
+  },
+  {
+    el: "Οχήματα, ζημιές & αποζημιώσεις",
+    en: "Vehicles, claims & settlements",
+    detailEl: "Σύνδεση οχήματος με πελάτη, συμβόλαιο και ζημιά.",
+    detailEn: "Connect each vehicle to its customer, policy and claim.",
+    values: [true, true, true, false, false],
+  },
+  {
+    el: "Ταμείο, εισπράξεις & πληρωμές",
+    en: "Cashier, receipts & payments",
+    detailEl: "Υποχρεώσεις προς εταιρείες, συνεργάτες και καθαρό ταμείο.",
+    detailEn: "Liabilities to carriers, partners and the net cashier balance.",
     values: [true, false, false, false, false],
   },
   {
-    el: "CRM, πύλη πελάτη & καμπάνιες",
-    en: "CRM, customer portal & campaigns",
+    el: "Κανόνες προμηθειών & εκκαθαρίσεις",
+    en: "Commission rules & settlements",
+    detailEl: "Αυτόματοι υπολογισμοί γραφείου, συνεργάτη και υπερπρομήθειας.",
+    detailEn: "Automatic office, partner and bonus commission calculations.",
+    values: [true, false, true, false, false],
+  },
+  {
+    el: "Λίστες παραγωγής & οικονομικές εξαγωγές",
+    en: "Production lists & financial exports",
+    detailEl: "Φίλτρα ανά εταιρεία, κλάδο, συνεργάτη και χρονική περίοδο.",
+    detailEn: "Filters by carrier, branch, partner and reporting period.",
+    values: [true, false, true, false, false],
+  },
+  {
+    el: "Ρόλοι χρηστών & πολλαπλά γραφεία",
+    en: "User roles & multiple offices",
+    detailEl: "Ελεγχόμενη πρόσβαση και απομόνωση δεδομένων ανά γραφείο.",
+    detailEn: "Controlled access and office-level data isolation.",
+    values: [true, true, true, true, true],
+  },
+  {
+    el: "Έξυπνες ομάδες & φίλτρα πελατών",
+    en: "Smart customer groups & filters",
+    detailEl: "Στόχευση πελατών με έτοιμα ή προσαρμοσμένα κριτήρια.",
+    detailEn: "Target customers with ready-made or custom criteria.",
+    values: [false, true, true, false, false],
+  },
+  {
+    el: "Ιστορικό επικοινωνίας, εργασίες & ραντεβού",
+    en: "Communication history, tasks & appointments",
+    detailEl: "Κανένα follow-up δεν μένει χωρίς υπεύθυνο και ημερομηνία.",
+    detailEn: "Every follow-up has an owner and a due date.",
+    values: [false, true, true, false, true],
+  },
+  {
+    el: "Καμπάνιες email & SMS",
+    en: "Email & SMS campaigns",
+    detailEl: "Πρότυπα, συγκαταθέσεις, μαζική αποστολή και αναφορές.",
+    detailEn: "Templates, consent, bulk sending and campaign reports.",
     values: [false, true, false, false, false],
   },
   {
-    el: "Αναφορές, στόχοι & νοημοσύνη",
-    en: "Reports, goals & intelligence",
+    el: "Πύλη πελάτη & ψηφιακές υπογραφές",
+    en: "Customer portal & digital signatures",
+    detailEl: "Έγγραφα, αιτήματα, ραντεβού και υπογραφές σε ένα σημείο.",
+    detailEn: "Documents, requests, appointments and signatures in one place.",
+    values: [false, true, false, false, false],
+  },
+  {
+    el: "Στόχοι, retention & εμπορικές ευκαιρίες",
+    en: "Goals, retention & sales opportunities",
+    detailEl: "Εντοπισμός ανανεώσεων, κινδύνου απώλειας και cross-selling.",
+    detailEn: "Identify renewals, churn risk and cross-selling opportunities.",
+    values: [false, true, true, false, false],
+  },
+  {
+    el: "Διαδραστικά γραφήματα & δημιουργός αναφορών",
+    en: "Interactive charts & report builder",
+    detailEl: "Παραγωγή, ζημιές, έσοδα και στόχοι με φίλτρα και εξαγωγή.",
+    detailEn: "Production, claims, revenue and goals with filters and exports.",
     values: [false, false, true, false, false],
   },
   {
-    el: "Διασυνδέσεις & συμμόρφωση",
-    en: "Integrations & compliance",
+    el: "AI αναλύσεις ανά γραφείο",
+    en: "Office-specific AI analysis",
+    detailEl: "Σύνοψη συμβολαίων, προβλέψεις και προτάσεις με το API key του γραφείου.",
+    detailEn: "Policy summaries, forecasts and suggestions using the office API key.",
+    values: [false, false, true, false, false],
+  },
+  {
+    el: "Γέφυρες ασφαλιστικών & εισαγωγές αρχείων",
+    en: "Carrier bridges & file imports",
+    detailEl: "Έλεγχος αντιστοιχίσεων, ανανεώσεων, ακυρώσεων και διπλοεγγραφών.",
+    detailEn: "Mapping checks for renewals, cancellations and duplicates.",
+    values: [true, false, false, true, false],
+  },
+  {
+    el: "Διασυνδέσεις, API & συμμόρφωση",
+    en: "Integrations, APIs & compliance",
+    detailEl: "Ασφαλή credentials, συγχρονισμός, επαναλήψεις και audit trail.",
+    detailEn: "Secure credentials, synchronisation, retries and audit trails.",
     values: [false, false, false, true, false],
   },
   {
-    el: "Ασφαλής επικοινωνία & συναντήσεις",
-    en: "Secure messaging & meetings",
+    el: "Εσωτερική ασφαλής επικοινωνία ΕΡΜΗΣ",
+    en: "Secure internal ΕΡΜΗΣ communication",
+    detailEl: "Ομάδες, μηνύματα, συνημμένα και συναντήσεις για την ομάδα.",
+    detailEn: "Groups, messages, attachments and meetings for your team.",
     values: [false, false, false, false, true],
-  },
-  {
-    el: "Ενιαία δεδομένα σε όλο το Kalypsis",
-    en: "One shared data layer across Kalypsis",
-    values: [true, true, true, true, true],
   },
 ] as const;
 
@@ -1933,7 +2024,14 @@ function PackageComparisonSection() {
                     fontWeight: 800,
                   }}
                 >
-                  {isEn ? feature.en : feature.el}
+                  <Box>
+                    <Typography sx={{ color: NAVY_SOFT, fontSize: 12.5, fontWeight: 850, lineHeight: 1.25 }}>
+                      {isEn ? feature.en : feature.el}
+                    </Typography>
+                    <Typography sx={{ mt: 0.45, color: "#71869a", fontSize: 10.75, lineHeight: 1.35 }}>
+                      {isEn ? feature.detailEn : feature.detailEl}
+                    </Typography>
+                  </Box>
                 </Box>
                 {feature.values.map((value, index) => (
                   <Box
@@ -1948,8 +2046,8 @@ function PackageComparisonSection() {
                     }}
                   >
                     {value ? (
-                      <Box sx={{ width: 28, height: 28, display: "grid", placeItems: "center", borderRadius: "50%", bgcolor: "#e5f5eb" }}>
-                        <CheckCircleIcon sx={{ color: "#2f7d4a", fontSize: 20 }} />
+                      <Box sx={{ width: 32, height: 32, display: "grid", placeItems: "center", borderRadius: "50%", bgcolor: "#dcf7e5", border: "1px solid #9bd7af", boxShadow: "0 3px 8px rgba(47,125,74,.16)" }}>
+                        <CheckCircleIcon sx={{ color: "#218739", fontSize: 22 }} />
                       </Box>
                     ) : (
                       <Typography sx={{ color: "#9cafbf", fontSize: 16, fontWeight: 700 }}>

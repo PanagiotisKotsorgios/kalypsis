@@ -917,22 +917,6 @@ export function PricingComingSoonPage() {
                 letterSpacing: ".12em",
               }}
             />
-            <Box
-              sx={{
-                width: 74,
-                height: 74,
-                mx: "auto",
-                mb: 2.5,
-                display: "grid",
-                placeItems: "center",
-                borderRadius: "50%",
-                color: "#fff",
-                background: `linear-gradient(145deg, ${NAVY}, ${BLUE})`,
-                boxShadow: "0 12px 28px rgba(31,123,179,.28)",
-              }}
-            >
-              <WorkspacePremiumIcon sx={{ fontSize: 38 }} />
-            </Box>
             <Typography
               variant="h2"
               sx={{
