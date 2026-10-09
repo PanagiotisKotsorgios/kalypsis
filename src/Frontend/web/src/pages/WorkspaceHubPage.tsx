@@ -49,7 +49,7 @@ const PACKAGES: PackageMeta[] = [
   { code: "Intelligence", icon: <InsightsIcon />,      image: "/images/workspace-intelligence.svg?v=20261002", nameKey: "ws.Intelligence.name", bodyKey: "ws.Intelligence.body" },
   { code: "FrontOffice", icon: <LanguageIcon />, image: "/images/workspace-crm.svg", nameKey: "ws.FrontOffice.name", bodyKey: "ws.FrontOffice.body" },
   { code: "Integrations", icon: <HubIcon />, image: "/images/workspace-backoffice.svg", nameKey: "ws.Integrations.name", bodyKey: "ws.Integrations.body" },
-  { code: "Ermes", icon: <MailOutlineIcon />, image: "/images/ermes-inbox.jpg", nameKey: "ws.Ermes.name", bodyKey: "ws.Ermes.body" }
+  { code: "Ermes", icon: <MailOutlineIcon />, image: "/images/workspace-ermes.svg", nameKey: "ws.Ermes.name", bodyKey: "ws.Ermes.body" }
 ];
 // Kept for type safety — this icon is used by the compact sidebar, not by a
 // workspace card.

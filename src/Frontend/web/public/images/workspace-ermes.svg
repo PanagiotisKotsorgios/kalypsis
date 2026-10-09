@@ -1,0 +1,31 @@
+<svg width="420" height="250" viewBox="0 0 420 250" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">ΕΡΜΗΣ ασφαλής επικοινωνία</title>
+  <desc id="desc">Εικονογράφηση ασφαλούς επικοινωνίας με μηνύματα, εισερχόμενα και προστασία.</desc>
+  <defs>
+    <linearGradient id="bg" x1="30" y1="20" x2="390" y2="230" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EEF8F4"/>
+      <stop offset="1" stop-color="#F5FAFD"/>
+    </linearGradient>
+    <linearGradient id="message" x1="82" y1="50" x2="280" y2="184" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E6F5F1"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="404" height="234" rx="28" fill="url(#bg)"/>
+  <path d="M93 181C139 151 174 126 218 101C255 80 294 67 345 55" stroke="#8ED8C0" stroke-width="5" stroke-linecap="round" stroke-dasharray="9 12"/>
+  <rect x="51" y="42" width="214" height="137" rx="22" fill="#0B2545" opacity=".1"/>
+  <rect x="61" y="32" width="214" height="137" rx="22" fill="url(#message)" stroke="#9DDAC8" stroke-width="3"/>
+  <path d="M96 168L88 201L128 173" fill="#E6F5F1" stroke="#9DDAC8" stroke-width="3" stroke-linejoin="round"/>
+  <circle cx="101" cy="96" r="22" fill="#0B2545"/>
+  <path d="M72 137C74 118 86 111 101 111C116 111 128 118 130 137" fill="#1F7BB3"/>
+  <path d="M146 78H233M146 100H218M146 122H198" stroke="#6B8AA9" stroke-width="8" stroke-linecap="round"/>
+  <rect x="292" y="86" width="77" height="100" rx="18" fill="#0B2545"/>
+  <rect x="305" y="108" width="51" height="45" rx="10" fill="#EAF4FB"/>
+  <path d="M317 125H344M317 138H337" stroke="#1F7BB3" stroke-width="7" stroke-linecap="round"/>
+  <path d="M320 86V76C320 60 333 49 346 49C359 49 372 60 372 76V86" stroke="#16A34A" stroke-width="9" stroke-linecap="round"/>
+  <rect x="332" y="72" width="28" height="23" rx="6" fill="#16A34A"/>
+  <circle cx="346" cy="83" r="4" fill="white"/>
+  <path d="M346 87V91" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="346" cy="55" r="17" fill="#16A34A"/>
+  <path d="M337 55L343 61L355 48" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
