@@ -48,7 +48,8 @@ public class PublicController : ControllerBase
         // επικύρωση (must-be-true) να γίνει στον FluentValidator με σαφές
         // μήνυμα στα Ελληνικά αντί για generic "field required".
         bool? DpaAccepted,
-        string? DpaVersion
+        string? DpaVersion,
+        string? ReferralCode
     );
 
     [HttpPost("register")]
@@ -64,7 +65,8 @@ public class PublicController : ControllerBase
             body.City, body.Message, ip,
             string.IsNullOrWhiteSpace(ua) ? null : ua,
             body.DpaAccepted ?? false,
-            body.DpaVersion
+            body.DpaVersion,
+            body.ReferralCode
         ), ct);
         return Ok(dto);
     }

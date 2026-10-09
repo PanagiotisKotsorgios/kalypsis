@@ -21,6 +21,7 @@ public record RegistrationRequestDto(
     string? LicenseNumber,
     string? City,
     string? Message,
+    string? ReferralCode,
     string ReferenceCode,
     string Status,
     string TriageStatus,
@@ -50,6 +51,7 @@ public record RegistrationRequestSummaryDto(
     string Phone,
     string? OrganizationName,
     string? City,
+    string? ReferralCode,
     string ReferenceCode,
     string Status,
     string TriageStatus,
@@ -78,7 +80,8 @@ public record SubmitRegistrationRequestCommand(
     string? IpAddress,
     string? UserAgent,
     bool DpaAccepted,
-    string? DpaVersion
+    string? DpaVersion,
+    string? ReferralCode
 ) : IRequest<RegistrationRequestDto>;
 
 public class SubmitRegistrationRequestCommandValidator : AbstractValidator<SubmitRegistrationRequestCommand>
@@ -99,6 +102,8 @@ public class SubmitRegistrationRequestCommandValidator : AbstractValidator<Submi
             RuleFor(x => x.City!).MaximumLength(120));
         When(x => !string.IsNullOrWhiteSpace(x.Message), () =>
             RuleFor(x => x.Message!).MaximumLength(2000));
+        When(x => !string.IsNullOrWhiteSpace(x.ReferralCode), () =>
+            RuleFor(x => x.ReferralCode!).MaximumLength(80));
         // GDPR Άρθρο 28 — η αποδοχή του DPA είναι αδιαπραγμάτευτη για να μπορέσουμε
         // να επεξεργαστούμε δεδομένα πελατών του γραφείου νόμιμα.
         RuleFor(x => x.DpaAccepted).Equal(true)
@@ -161,6 +166,7 @@ public class SubmitRegistrationRequestCommandHandler
             LicenseNumber    = string.IsNullOrWhiteSpace(r.LicenseNumber)    ? null : r.LicenseNumber.Trim(),
             City             = string.IsNullOrWhiteSpace(r.City)             ? null : r.City.Trim(),
             Message          = string.IsNullOrWhiteSpace(r.Message)          ? null : r.Message.Trim(),
+            ReferralCode     = string.IsNullOrWhiteSpace(r.ReferralCode)     ? null : r.ReferralCode.Trim(),
             ReferenceCode    = code,
             Status           = RegistrationRequestStatus.New,
             IpAddress        = string.IsNullOrWhiteSpace(r.IpAddress) ? null : r.IpAddress,
@@ -214,6 +220,7 @@ public class ListRegistrationRequestsQueryHandler
                 EF.Functions.Like(x.FirstName.ToLower(), $"%{s}%") ||
                 EF.Functions.Like(x.LastName.ToLower(),  $"%{s}%") ||
                 EF.Functions.Like(x.ReferenceCode.ToLower(), $"%{s}%") ||
+                (x.ReferralCode != null && EF.Functions.Like(x.ReferralCode.ToLower(), $"%{s}%")) ||
                 (x.OrganizationName != null && EF.Functions.Like(x.OrganizationName.ToLower(), $"%{s}%")));
         }
         if (!string.IsNullOrWhiteSpace(r.TriageStatus)
@@ -244,7 +251,7 @@ public class ListRegistrationRequestsQueryHandler
         var rows = await q.OrderByDescending(x => x.CreatedAt).Take(500).ToListAsync(ct);
         return rows.Select(x => new RegistrationRequestSummaryDto(
             x.Id, x.FirstName, x.LastName, x.Email, x.Phone,
-            x.OrganizationName, x.City, x.ReferenceCode, x.Status.ToString(),
+            x.OrganizationName, x.City, x.ReferralCode, x.ReferenceCode, x.Status.ToString(),
             x.TriageStatus.ToString(), x.IsRead, x.Category, x.FollowUpAt, x.CreatedAt
         )).ToList();
     }
@@ -414,7 +421,7 @@ internal static class RegistrationRequestMapper
     public static RegistrationRequestDto Map(RegistrationRequest r) => new(
         r.Id, r.FirstName, r.LastName, r.Email, r.Phone,
         r.OrganizationName, r.VatNumber, r.LicenseNumber, r.City, r.Message,
-        r.ReferenceCode, r.Status.ToString(), r.TriageStatus.ToString(), r.IsRead,
+        r.ReferralCode, r.ReferenceCode, r.Status.ToString(), r.TriageStatus.ToString(), r.IsRead,
         r.ReadAt, r.Category, r.FollowUpAt, r.ReviewNotes, r.ReviewedAt,
         r.IpAddress, r.CreatedAt,
         r.MatchedProducerId, r.MatchedProducerTenantId, r.MatchedProducerTenantName

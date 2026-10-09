@@ -19,6 +19,7 @@ public class RegistrationRequestConfiguration : IEntityTypeConfiguration<Registr
         b.Property(x => x.LicenseNumber).HasMaxLength(60);
         b.Property(x => x.City).HasMaxLength(120);
         b.Property(x => x.Message).HasMaxLength(2000);
+        b.Property(x => x.ReferralCode).HasMaxLength(80);
         b.Property(x => x.ReferenceCode).HasMaxLength(20).IsRequired();
         b.Property(x => x.Status).HasConversion<int>();
         b.Property(x => x.TriageStatus).HasConversion<int>();
@@ -33,5 +34,6 @@ public class RegistrationRequestConfiguration : IEntityTypeConfiguration<Registr
         b.HasIndex(x => new { x.IsRead, x.CreatedAt });
         b.HasIndex(x => x.Category);
         b.HasIndex(x => x.Email);
+        b.HasIndex(x => x.ReferralCode);
     }
 }

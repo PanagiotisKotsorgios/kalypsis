@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
   Alert,
   Box,
@@ -15,7 +15,7 @@ import {
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { Trans, useTranslation } from "react-i18next";
-import { useNavigate, Link as RouterLink } from "react-router-dom";
+import { useNavigate, Link as RouterLink, useSearchParams } from "react-router-dom";
 import { KalypsisLogo } from "../components/KalypsisLogo";
 import { LanguageToggle } from "../components/LanguageToggle";
 import { PageEnter } from "../components/PageEnter";
@@ -28,6 +28,7 @@ type RegisterForm = {
   email: string;
   phone: string;
   organizationName: string;
+  referralCode: string;
   vatNumber: string;
   licenseNumber: string;
   city: string;
@@ -42,6 +43,7 @@ const initial: RegisterForm = {
   email: "",
   phone: "",
   organizationName: "",
+  referralCode: "",
   vatNumber: "",
   licenseNumber: "",
   city: "",
@@ -58,10 +60,20 @@ const DPA_VERSION = "v1.0";
 export function RegisterPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const referralCodeFromUrl = (searchParams.get("ref") ?? searchParams.get("referral") ?? "").trim();
   const [form, setForm] = useState<RegisterForm>(initial);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState<{ ref: string } | null>(null);
+
+  useEffect(() => {
+    if (referralCodeFromUrl) {
+      setForm((current) => current.referralCode === referralCodeFromUrl
+        ? current
+        : { ...current, referralCode: referralCodeFromUrl });
+    }
+  }, [referralCodeFromUrl]);
 
   const set = <K extends keyof RegisterForm>(k: K, v: RegisterForm[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -97,6 +109,7 @@ export function RegisterPage() {
         email:            form.email.trim(),
         phone:            form.phone.trim(),
         organizationName: form.organizationName.trim() || null,
+        referralCode:     form.referralCode.trim() || null,
         vatNumber:        form.vatNumber.trim() || null,
         licenseNumber:    form.licenseNumber.trim() || null,
         city:             form.city.trim() || null,
@@ -290,6 +303,19 @@ export function RegisterPage() {
                         fullWidth disabled={submitting}
                         InputLabelProps={{ sx: authLabelSx }} sx={authFieldSx}
                       />
+                      <TextField
+                        label={t("register.referralCode")}
+                        helperText={t("register.referralCodeHelp")}
+                        value={form.referralCode}
+                        onChange={(e) => set("referralCode", e.target.value)}
+                        fullWidth disabled={submitting}
+                        autoComplete="off"
+                        InputLabelProps={{ sx: authLabelSx }}
+                        FormHelperTextProps={{ sx: { fontSize: 13.5 } }}
+                        sx={authFieldSx}
+                      />
+                    </Stack>
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={2.5}>
                       <TextField
                         label={t("register.vat")}
                         value={form.vatNumber}

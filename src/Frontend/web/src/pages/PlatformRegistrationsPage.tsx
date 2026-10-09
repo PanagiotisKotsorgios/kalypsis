@@ -15,6 +15,7 @@ import BusinessOutlinedIcon from "@mui/icons-material/BusinessOutlined";
 import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import ReceiptOutlinedIcon from "@mui/icons-material/ReceiptOutlined";
+import CardGiftcardIcon from "@mui/icons-material/CardGiftcard";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import MarkEmailReadOutlinedIcon from "@mui/icons-material/MarkEmailReadOutlined";
 import PendingActionsIcon from "@mui/icons-material/PendingActions";
@@ -48,6 +49,7 @@ interface RegistrationSummary {
 }
 
 interface RegistrationDetail extends RegistrationSummary {
+  referralCode: string | null;
   vatNumber: string | null;
   licenseNumber: string | null;
   message: string | null;
@@ -651,6 +653,7 @@ function DetailDialog({ id, onClose, onAfterSave }: {
               <DetailRow icon={<PlaceOutlinedIcon fontSize="small" />}   label={t("register.city")}        value={detail.data.city ?? "—"} />
               <DetailRow icon={<BadgeOutlinedIcon fontSize="small" />}   label={t("register.vat")}         value={detail.data.vatNumber ?? "—"} />
               <DetailRow icon={<ReceiptOutlinedIcon fontSize="small" />} label={t("register.licenseNumber")} value={detail.data.licenseNumber ?? "—"} />
+              <DetailRow icon={<CardGiftcardIcon fontSize="small" />} label={t("register.referralCode")} value={detail.data.referralCode ?? "—"} />
             </Box>
 
             {detail.data.message && (

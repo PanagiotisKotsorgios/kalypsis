@@ -39,6 +39,8 @@ public class RegistrationRequest : BaseEntity
     public string? LicenseNumber { get; set; }
     public string? City { get; set; }
     public string? Message { get; set; }
+    /// <summary>Affiliate/referral code supplied by the applicant, usually from ?ref=.</summary>
+    public string? ReferralCode { get; set; }
     public string ReferenceCode { get; set; } = string.Empty;
 
     public RegistrationRequestStatus Status { get; set; } = RegistrationRequestStatus.New;
