@@ -19,6 +19,7 @@ import { Link as RouterLink, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { KalypsisLogo } from "./KalypsisLogo";
 import { LanguageToggle } from "./LanguageToggle";
+import { LandingNavbar } from "./LandingNavbar";
 
 interface PublicNavProps {
   overlayHero?: boolean;
@@ -33,6 +34,10 @@ export function PublicNav({ modern = false }: PublicNavProps = {}) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
+
+  // The homepage masthead is the canonical public navigation. Reuse it for
+  // modern public pages so pricing and the landing page never drift apart.
+  if (modern) return <LandingNavbar />;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 6);
