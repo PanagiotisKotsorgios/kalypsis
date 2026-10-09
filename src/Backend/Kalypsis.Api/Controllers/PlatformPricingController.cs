@@ -20,6 +20,12 @@ public class PlatformPricingController : ControllerBase
     public async Task<ActionResult<PricingCatalogDto>> Get(CancellationToken ct)
         => Ok(await _m.Send(new GetPricingCatalogQuery(), ct));
 
+    [HttpPost("calculate")]
+    [AllowAnonymous]
+    public async Task<ActionResult<PricingCalculationDto>> Calculate(
+        [FromBody] PricingCalculationRequest request, CancellationToken ct)
+        => Ok(await _m.Send(new CalculatePricingQuery(request), ct));
+
     [HttpPut]
     [Authorize(Policy = "PlatformAdmin")]
     public async Task<ActionResult<PricingCatalogDto>> Save(

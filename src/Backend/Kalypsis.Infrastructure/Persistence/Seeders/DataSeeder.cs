@@ -1,6 +1,8 @@
+using System.Text.Json;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Domain.Entities;
 using Kalypsis.Domain.Enums;
+using Kalypsis.Application.Features.PlatformAdmin;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -178,6 +180,13 @@ public static class DataSeeder
         try { await EnsureSchemaSafetyAsync(db, logger, cancellationToken); }
         catch (Exception ex) { logger.LogError(ex, "EnsureSchemaSafetyAsync failed — continuing boot."); }
 
+        // Seed the editable public pricing catalogue once. v2+ catalogue values
+        // are never overwritten, so a redeploy cannot silently change commercial
+        // settings or historical subscription calculations; only the legacy v1
+        // shape is upgraded to the new structured catalogue.
+        try { await EnsurePricingCatalogueAsync(db, logger, cancellationToken); }
+        catch (Exception ex) { logger.LogError(ex, "Pricing catalogue seed failed — the API fallback remains available."); }
+
         // The original office-scope migration missed several TenantEntity
         // tables. Repair those columns after the safety-net table creation so
         // existing and fresh databases get the query-filter column.
@@ -335,6 +344,37 @@ public static class DataSeeder
         catch (Exception ex) { logger.LogError(ex, "Office AI prompt seed failed; continuing boot."); }
 
         await BackfillPackageGrantsAsync(db, logger, cancellationToken);
+    }
+
+    private static async Task EnsurePricingCatalogueAsync(AppDbContext db, ILogger logger, CancellationToken ct)
+    {
+        var catalog = PricingDefaults.Build();
+        var row = await db.PlatformPricings.IgnoreQueryFilters().OrderBy(x => x.Id).FirstOrDefaultAsync(ct);
+        if (row is null)
+        {
+            db.PlatformPricings.Add(new PlatformPricing
+            {
+                Id = Guid.NewGuid(),
+                CatalogJson = JsonSerializer.Serialize(catalog),
+                Version = catalog.Version,
+                CreatedAt = DateTime.UtcNow
+            });
+            await db.SaveChangesAsync(ct);
+            logger.LogInformation("Seeded editable KALYPSIS pricing catalogue (v{Version}).", catalog.Version);
+            return;
+        }
+
+        // The old singleton used v1's frontend-oriented shape. Upgrade only
+        // that legacy row; v2+ is owned by SuperAdmin and is never overwritten
+        // during a redeploy.
+        if (row.Version < catalog.Version)
+        {
+            row.CatalogJson = JsonSerializer.Serialize(catalog);
+            row.Version = catalog.Version;
+            row.UpdatedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
+            logger.LogInformation("Upgraded legacy KALYPSIS pricing catalogue to v{Version}.", catalog.Version);
+        }
     }
 
     private static async Task SeedOfficeEmailTemplatesAsync(AppDbContext db, ILogger logger, CancellationToken ct)

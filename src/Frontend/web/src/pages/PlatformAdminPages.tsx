@@ -35,6 +35,7 @@ import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 import { api } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { PricingManagementPage } from "./PricingManagementPage";
 
 const PageShell = ({ icon, titleKey, subtitleKey, helpId, children }: {
   icon: React.ReactNode; titleKey: string; subtitleKey: string; helpId: string; children: React.ReactNode;
@@ -81,6 +82,14 @@ interface ServiceDef { code: string; description: string; unitLabel: string; uni
 interface PricingCatalog { version: number; plans: PlanDef[]; addons: AddonDef[]; services: ServiceDef[]; }
 
 export function SubscriptionPlansPage() {
+  // Keep the existing route and permissions, but use the complete database-backed
+  // pricing workspace. The legacy editor remains exported below for compatibility
+  // with older imports, without creating a second pricing source.
+  return <PricingManagementPage />;
+}
+
+/** @deprecated Use PricingManagementPage. Kept for older integrations. */
+export function LegacySubscriptionPlansPage() {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<PricingCatalog | null>(null);

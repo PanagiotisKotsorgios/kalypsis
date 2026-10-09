@@ -61,7 +61,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { RegisterPage } from "./pages/RegisterPage";
-import { PricingComingSoonPage } from "./pages/PricingPage";
+import { PricingPage } from "./pages/PricingPage";
 import { DownloadPage } from "./pages/DownloadPage";
 import { DesktopReleasesPage } from "./pages/DesktopReleasesPage";
 import { DesktopReleaseGuidePage } from "./pages/DesktopReleaseGuidePage";
@@ -810,7 +810,7 @@ export default function App() {
         <Route path="/register/agency" element={<Navigate to="/register" replace />} />
         <Route path="/register/agent" element={<Navigate to="/register" replace />} />
         <Route path="/site/:slug" element={<OfficePublicSitePage />} />
-        <Route path="/pricing" element={<PricingComingSoonPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
         <Route path="/download" element={<DownloadPage />} />
         <Route path="/download/releases" element={<DesktopReleasesPage />} />
         <Route path="/download/releases/guide/:assetId" element={<DesktopReleaseGuidePage />} />

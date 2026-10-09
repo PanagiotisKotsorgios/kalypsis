@@ -15,7 +15,7 @@ namespace Kalypsis.Domain.Entities;
 /// </summary>
 public class PlatformPricing : BaseEntity
 {
-    /// <summary>Serialized <see cref="Catalog"/>. Format v1.</summary>
+    /// <summary>Serialized pricing catalog. Current format is v2.</summary>
     public string CatalogJson { get; set; } = "{}";
     public int Version { get; set; } = 1;
 
