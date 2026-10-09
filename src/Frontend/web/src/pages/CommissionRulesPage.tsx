@@ -9,6 +9,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import RuleIcon from "@mui/icons-material/Rule";
 import TuneIcon from "@mui/icons-material/Tune";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import { useMutation, useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
@@ -137,6 +138,7 @@ export function CommissionRulesPage() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [defaultsOpen, setDefaultsOpen] = useState(false);
   const [editing, setEditing] = useState<CommissionRuleDto | null>(null);
+  const [previewing, setPreviewing] = useState<CommissionRuleDto | null>(null);
 
   // Filters
   const [search, setSearch] = useState("");
@@ -417,6 +419,10 @@ export function CommissionRulesPage() {
               )}
               {paged.map(r => (
                 <TableRow key={r.id} hover sx={{ cursor: "pointer" }}
+                  onClick={(event) => {
+                    const target = event.target as HTMLElement;
+                    if (!target.closest("button,a,input,[role='button']")) setPreviewing(r);
+                  }}
                   onContextMenu={(e) => rowMenu.open(e, r)}>
                   <TableCell>{r.insuranceCompanyName ?? <Chip size="small" label="Όλες" variant="outlined" />}</TableCell>
                   <TableCell>{r.policyType ? TYPE_LABEL[r.policyType] : <Chip size="small" label="Όλοι" variant="outlined" />}</TableCell>
@@ -449,6 +455,10 @@ export function CommissionRulesPage() {
                       : <Chip size="small" label="Όλες" variant="outlined" />}
                   </TableCell>
                   <TableCell align="right">
+                    <IconButton size="small" color="info" title="Προεπισκόπηση κανόνα"
+                      onClick={() => setPreviewing(r)}>
+                      <VisibilityOutlinedIcon fontSize="small" />
+                    </IconButton>
                     <IconButton size="small" onClick={() => setEditing(r)}><EditIcon fontSize="small" /></IconButton>
                     <IconButton size="small" color="error"
                       onClick={() => { if (confirm(`Διαγραφή κανόνα;\n${describeScope(r)}`)) del.mutate(r.id); }}>
@@ -487,6 +497,10 @@ export function CommissionRulesPage() {
         </DialogActions>
       </Dialog>
 
+      <CommissionRulePreviewDialog rule={previewing}
+        onClose={() => setPreviewing(null)}
+        onEdit={(rule) => { setPreviewing(null); setEditing(rule); }} />
+
       <RuleDialog open={createOpen || !!editing} rule={editing}
         companies={companies.data ?? []} producers={producers.data ?? []}
         onClose={() => { setCreateOpen(false); setEditing(null); }}
@@ -495,6 +509,58 @@ export function CommissionRulesPage() {
           setCreateOpen(false); setEditing(null);
         }} />
     </Box>
+  );
+}
+
+function CommissionRulePreviewDialog({ rule, onClose, onEdit }: {
+  rule: CommissionRuleDto | null;
+  onClose: () => void;
+  onEdit: (rule: CommissionRuleDto) => void;
+}) {
+  const percent = (value: number | null | undefined) =>
+    value === null || value === undefined ? "—" : `${value.toFixed(2)}%`;
+  const value = (text: string | null | undefined) => text?.trim() || "—";
+  return (
+    <Dialog open={!!rule} onClose={onClose} fullWidth maxWidth="md">
+      <DialogTitle sx={{ fontWeight: 800 }}>Προεπισκόπηση κανόνα προμήθειας</DialogTitle>
+      <DialogContent dividers>
+        {rule && (
+          <Stack spacing={2}>
+            <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: "action.hover" }}>
+              <Typography variant="caption" color="text.secondary">Εφαρμογή κανόνα</Typography>
+              <Typography fontWeight={800}>{describeScope(rule)}</Typography>
+            </Box>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }, gap: 1.25 }}>
+              {[
+                ["Ασφαλιστική εταιρεία", value(rule.insuranceCompanyName)],
+                ["Κλάδος", rule.policyType ? TYPE_LABEL[rule.policyType] : "Όλοι οι κλάδοι"],
+                ["Χρήση", rule.vehicleUseCategory && rule.vehicleUseCategory !== "None" ? value(rule.vehicleUseCategory) : "Όλες οι χρήσεις"],
+                ["Κάλυψη", value(rule.coverCode)],
+                ["Συνεργάτης", value(rule.producerName)],
+                ["Κατηγορία συνεργάτη", rule.producerTier && rule.producerTier !== "None" ? TIER_LABEL[rule.producerTier] : "Όλες οι κατηγορίες"],
+                ["Έναρξη ισχύος", value(rule.effectiveFrom)],
+                ["Λήξη ισχύος", value(rule.effectiveTo)],
+                ["Προμήθεια έδρας", percent(rule.agencyPercent)],
+                ["Προμήθεια συνεργάτη", percent(rule.producerPercent ?? rule.legacyValue)],
+                ["Manager", percent(rule.managerPercent)],
+                ["Μονάδα", percent(rule.unitPercent)],
+                ["Βοηθός", percent(rule.assistantPercent)],
+                ["Παρακράτηση", percent(rule.taxWithholdingPercent)],
+              ].map(([label, text]) => (
+                <Box key={label} sx={{ p: 1, border: 1, borderColor: "divider", borderRadius: 1 }}>
+                  <Typography variant="caption" color="text.secondary">{label}</Typography>
+                  <Typography fontWeight={700}>{text}</Typography>
+                </Box>
+              ))}
+            </Box>
+          </Stack>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button color="error" variant="outlined" onClick={onClose}>Κλείσιμο</Button>
+        {rule && <Button color="success" variant="contained" startIcon={<EditIcon />} onClick={() => onEdit(rule)}>Επεξεργασία</Button>}
+      </DialogActions>
+    </Dialog>
   );
 }
 

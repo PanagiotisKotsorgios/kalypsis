@@ -21,7 +21,6 @@ import BusinessIcon from "@mui/icons-material/Business";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
-import { ALL_OFFICES_VALUE } from "../components/AgencyOfficeSwitcher";
 
 export interface OfficeDto {
   id: string;
@@ -80,6 +79,7 @@ export function AgencyOfficesPage() {
   const yearStartIso = `${new Date().getFullYear()}-01-01`;
   const [overviewFilters, setOverviewFilters] = useState<OverviewFilters>({ from: yearStartIso, to: todayIso });
   const [copyTarget, setCopyTarget] = useState<OfficeDto | null>(null);
+  const [managementAction, setManagementAction] = useState<"overview" | "users" | "parametrics" | null>(null);
 
   const q = useQuery({
     queryKey: ["agency-offices"],
@@ -116,9 +116,18 @@ export function AgencyOfficesPage() {
     localStorage.setItem("kalypsis.activeOfficeId", office.id);
     window.location.reload();
   };
-  const showAllOffices = () => {
-    localStorage.setItem("kalypsis.activeOfficeId", ALL_OFFICES_VALUE);
-    window.location.reload();
+  const selectOfficeForManagement = (office: OfficeDto) => {
+    const action = managementAction;
+    setManagementAction(null);
+    if (action === "overview") {
+      setOverviewFilters({ from: yearStartIso, to: todayIso });
+      setOverviewOffice(office);
+    } else if (action === "users") {
+      setAssigning(office);
+    } else if (action === "parametrics") {
+      localStorage.setItem("kalypsis.activeOfficeId", office.id);
+      navigate("/production-companies-agencies");
+    }
   };
 
   return (
@@ -146,13 +155,13 @@ export function AgencyOfficesPage() {
       </Box>
 
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2 }} flexWrap="wrap">
-        <Button variant="outlined" startIcon={<LoginIcon />} onClick={showAllOffices}>
+        <Button variant="outlined" startIcon={<LoginIcon />} onClick={() => setManagementAction("overview")}>
           Εποπτεία όλων των γραφείων
         </Button>
-        <Button variant="outlined" startIcon={<PeopleAltIcon />} onClick={() => navigate("/users")}>
+        <Button variant="outlined" startIcon={<PeopleAltIcon />} onClick={() => setManagementAction("users")}>
           Διαχείριση υπαλλήλων & ρόλων
         </Button>
-        <Button variant="outlined" startIcon={<BusinessIcon />} onClick={() => navigate("/production-companies-agencies")}>
+        <Button variant="outlined" startIcon={<BusinessIcon />} onClick={() => setManagementAction("parametrics")}>
           Εταιρείες & παραμετρικά
         </Button>
       </Stack>
@@ -256,6 +265,8 @@ export function AgencyOfficesPage() {
         </Card>
       )}
 
+      <OfficeManagementDialog open={managementAction !== null} action={managementAction} offices={offices}
+        onClose={() => setManagementAction(null)} onSelect={selectOfficeForManagement} />
       <OfficeDialog open={createOpen} onClose={() => setCreateOpen(false)} item={null}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["agency-offices"] }); setCreateOpen(false); }} />
       <OfficeDialog open={!!editing} onClose={() => setEditing(null)} item={editing}
@@ -270,6 +281,62 @@ export function AgencyOfficesPage() {
       <CopyParametricsDialog open={!!copyTarget} source={headquarters} target={copyTarget}
         pending={copy.isPending} onClose={() => setCopyTarget(null)} onConfirm={() => copyTarget && copy.mutate(copyTarget)} />
     </Box>
+  );
+}
+
+function OfficeManagementDialog({ open, action, offices, onClose, onSelect }: {
+  open: boolean;
+  action: "overview" | "users" | "parametrics" | null;
+  offices: OfficeDto[];
+  onClose: () => void;
+  onSelect: (office: OfficeDto) => void;
+}) {
+  const copy = {
+    overview: {
+      title: "Εποπτεία γραφείου",
+      description: "Επιλέξτε το γραφείο του οποίου θέλετε να δείτε τα συγκεντρωτικά στοιχεία και τα στατιστικά.",
+      action: "Άνοιγμα εποπτείας",
+    },
+    users: {
+      title: "Διαχείριση υπαλλήλων και ρόλων",
+      description: "Επιλέξτε γραφείο για να αναθέσετε υπαλλήλους και να ελέγξετε τους ρόλους του.",
+      action: "Διαχείριση χρηστών",
+    },
+    parametrics: {
+      title: "Εταιρείες και παραμετρικά γραφείου",
+      description: "Επιλέξτε γραφείο για να ανοίξετε τις εταιρείες, τις γέφυρες και τις παραμέτρους του.",
+      action: "Άνοιγμα παραμετρικών",
+    },
+  } as const;
+  const text = action ? copy[action] : copy.overview;
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle sx={{ fontWeight: 800 }}>{text.title}</DialogTitle>
+      <DialogContent dividers>
+        <Typography color="text.secondary" sx={{ mb: 2 }}>{text.description}</Typography>
+        <Stack spacing={1}>
+          {offices.map(office => (
+            <Card key={office.id} variant="outlined" sx={{ p: 1.25 }}>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ xs: "stretch", sm: "center" }} justifyContent="space-between">
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography fontWeight={800} noWrap>{office.name}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {office.code}{office.city ? ` · ${office.city}` : ""}{office.isHeadquarters ? " · Κεντρικό γραφείο" : ""}
+                  </Typography>
+                </Box>
+                <Button variant="contained" size="small" onClick={() => onSelect(office)} sx={{ flexShrink: 0 }}>
+                  {text.action}
+                </Button>
+              </Stack>
+            </Card>
+          ))}
+          {offices.length === 0 && <Typography color="text.secondary">Δεν υπάρχουν διαθέσιμα γραφεία.</Typography>}
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button color="error" variant="outlined" onClick={onClose}>Κλείσιμο</Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 

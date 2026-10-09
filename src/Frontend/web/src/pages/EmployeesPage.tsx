@@ -11,6 +11,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   MenuItem,
   Stack,
   Table,
@@ -20,10 +21,12 @@ import {
   TableHead,
   TablePagination,
   TableRow,
+  Switch,
   TextField,
   Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
 import VpnKeyIcon from "@mui/icons-material/VpnKey";
 import PrintIcon from "@mui/icons-material/Print";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -68,6 +71,7 @@ export function EmployeesPage() {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [permsUserId, setPermsUserId] = useState<string | null>(null);
+  const [editingUser, setEditingUser] = useState<UserDto | null>(null);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<"" | "AgencyAdmin" | "AgencyOfficeAdmin" | "AgencyUser">("");
   const [page, setPage] = useState(0);
@@ -207,6 +211,9 @@ export function EmployeesPage() {
                       <Chip label={t(`roles.${u.role}`)} size="small" color={u.role === "AgencyAdmin" ? "primary" : u.role === "AgencyOfficeAdmin" ? "warning" : "default"} />
                     </TableCell>
                     <TableCell align="right">
+                      <IconButton size="small" color="success" onClick={() => setEditingUser(u)} title="Επεξεργασία υπαλλήλου">
+                        <EditIcon fontSize="small" />
+                      </IconButton>
                       <IconButton size="small" onClick={() => setPermsUserId(u.id)} title={t("permissions.title")}>
                         <VpnKeyIcon fontSize="small" />
                       </IconButton>
@@ -248,6 +255,12 @@ export function EmployeesPage() {
       />
 
       <UserPermissionsDialog userId={permsUserId} onClose={() => setPermsUserId(null)} />
+      <EditEmployeeDialog
+        user={editingUser}
+        onClose={() => setEditingUser(null)}
+        onSaved={() => { setEditingUser(null); void qc.invalidateQueries({ queryKey: ["users"] }); }}
+        canEditAdmin={currentUser?.role === "AgencyAdmin" || currentUser?.role === "PlatformAdmin" || currentUser?.role === "PlatformEmployee"}
+      />
     </Box>
   );
 }
@@ -335,6 +348,64 @@ function CreateDialog({
         <Button onClick={onClose}>{t("common.cancel")}</Button>
         <Button onClick={() => onSubmit(form)} variant="contained" disabled={submitting}>
           {submitting ? <CircularProgress size={18} /> : t("common.create")}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function EditEmployeeDialog({ user, onClose, onSaved, canEditAdmin }: {
+  user: UserDto | null;
+  onClose: () => void;
+  onSaved: () => void;
+  canEditAdmin: boolean;
+}) {
+  const [form, setForm] = useState({
+    firstName: "", lastName: "", phone: "", role: "AgencyUser" as UserDto["role"], isActive: true,
+  });
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (user) {
+      setForm({ firstName: user.firstName ?? "", lastName: user.lastName ?? "", phone: user.phone ?? "", role: user.role, isActive: user.isActive });
+      setError(null);
+    }
+  }, [user]);
+  const save = useMutation({
+    mutationFn: async () => (await api.put<UserDto>(`/users/${user!.id}`, {
+      firstName: form.firstName.trim(),
+      lastName: form.lastName.trim(),
+      phone: form.phone.trim() || null,
+      role: form.role,
+      isActive: form.isActive,
+    })).data,
+    onSuccess: onSaved,
+    onError: e => setError(extractErrorMessage(e)),
+  });
+  return (
+    <Dialog open={!!user} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle sx={{ fontWeight: 800 }}>Επεξεργασία υπαλλήλου</DialogTitle>
+      <DialogContent dividers>
+        {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
+        <Stack spacing={2}>
+          <TextField label="Email" value={user?.email ?? ""} fullWidth disabled helperText="Το email σύνδεσης δεν αλλάζει από εδώ." />
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <TextField label="Όνομα" value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} fullWidth required />
+            <TextField label="Επώνυμο" value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} fullWidth required />
+          </Stack>
+          <TextField label="Τηλέφωνο" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} fullWidth />
+          <SearchableTextField select label="Ρόλος" value={form.role}
+            onChange={e => setForm({ ...form, role: e.target.value as UserDto["role"] })} fullWidth>
+            <MenuItem value="AgencyUser">Υπάλληλος</MenuItem>
+            <MenuItem value="AgencyOfficeAdmin">Υποδιαχειριστής γραφείου</MenuItem>
+            {canEditAdmin && <MenuItem value="AgencyAdmin">Διαχειριστής γραφείου</MenuItem>}
+          </SearchableTextField>
+          <FormControlLabel control={<Switch checked={form.isActive} onChange={e => setForm({ ...form, isActive: e.target.checked })} />} label="Ενεργός χρήστης" />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} color="error" variant="outlined">Ακύρωση</Button>
+        <Button variant="contained" color="success" disabled={save.isPending || !user || !form.firstName.trim() || !form.lastName.trim()} onClick={() => save.mutate()}>
+          {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}
         </Button>
       </DialogActions>
     </Dialog>
