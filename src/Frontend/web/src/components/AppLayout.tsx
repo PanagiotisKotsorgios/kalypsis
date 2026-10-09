@@ -325,7 +325,8 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
           // Split: the Dashboard ("/") link is pinned at the very top,
           // remaining top-level items render below it, grouped items after.
           const dashboardItem = visible.find(i => i.to === "/" && !i.group);
-          const otherTopLevel = visible.filter(i => !i.group && i.to !== "/");
+          const affiliateItem = visible.find(i => i.accent === "affiliate");
+          const otherTopLevel = visible.filter(i => !i.group && i.to !== "/" && i.accent !== "affiliate");
           const grouped: Record<string, { items: NavItem[]; icon?: ReactNode }> = {};
           const groupOrder: string[] = [];
           for (const item of visible) {
@@ -554,6 +555,7 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
                   </Box>
                 );
               })()}
+              {affiliateItem && renderItem(affiliateItem)}
             </>
           );
         })()}
