@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Box,
@@ -10,6 +10,7 @@ import {
   Container,
   Divider,
   FormControlLabel,
+  IconButton,
   MenuItem,
   Paper,
   Stack,
@@ -22,6 +23,8 @@ import {
   Typography,
 } from "@mui/material";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
+import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
 import CalculateIcon from "@mui/icons-material/Calculate";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
@@ -221,6 +224,59 @@ const PACKAGE_META = [
   },
 ] as const;
 
+const PACKAGE_DETAILS = [
+  {
+    numeral: "I",
+    code: "BackOffice",
+    title: "BackOffice — Το λογιστήριο του γραφείου",
+    lead: "Πελάτες, συμβόλαια, ταμείο, προμήθειες.",
+    body: "Ο πυρήνας του γραφείου σας: ψηφιακό αρχείο πελατών, κατάλογος ασφαλιστικών εταιρειών, παραγωγοί δικτύου, χειροκίνητη ή αυτοματοποιημένη καταχώρηση συμβολαίων. Ταμειακές, εισπράξεις, διαχείριση προμηθειών και υπερπρομηθειών, συμφωνία τραπεζικών εκτυπώσεων, λογιστικές εξαγωγές για τον λογιστή σας. Γέφυρες προς παλιά back-office προγράμματα για ομαλή μετάβαση.",
+    image:
+      "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=82",
+    color: BLUE,
+  },
+  {
+    numeral: "II",
+    code: "CRM",
+    title: "CRM & Πύλη Πελάτη — Η εμπειρία του πελάτη σας",
+    lead: "Αυτοεξυπηρέτηση, ραντεβού, καμπάνιες.",
+    body: "Ο πελάτης σας ζει μέσα στην εφαρμογή σας. Πύλη πελάτη και mobile εφαρμογή για iOS και Android, αιτήματα και εκκρεμότητες, ραντεβού, αυτόματες υπενθυμίσεις λήξης μέσω email/SMS/Viber, διαχείριση εγγράφων και ψηφιακές υπογραφές. Καμπάνιες marketing και μαζική επικοινωνία, αρχείο συγκαταθέσεων GDPR.",
+    image:
+      "https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=1200&q=82",
+    color: "#496de8",
+  },
+  {
+    numeral: "III",
+    code: "Intelligence",
+    title: "Αναλυτικά & Νοημοσύνη — Η επιχειρηματική σας εικόνα",
+    lead: "Αναφορές, στόχοι, AI, audit.",
+    body: "Παρακολούθηση παραγωγής με στόχους ανά συνεργάτη και υποκατάστημα. Δημιουργός αναφορών drag-and-drop με αυτόματη αποστολή μέσω email, εξαγωγή σε Excel ή PDF. AI εξαγωγή στοιχείων από PDF συμβολαίου, AI πρόβλεψη απώλειας πελατών, AI σύνταξη επικοινωνιών. Audit logs για κάθε ενέργεια χρήστη και πλήρες ιστορικό μεταβολών.",
+    image:
+      "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=82",
+    color: "#155783",
+  },
+  {
+    numeral: "IV",
+    code: "Integrations",
+    title: "Ενσωματώσεις & Συμμόρφωση — Το ελληνικό οικοσύστημα",
+    lead: "myDATA, τηλεφωνία, online πληρωμές.",
+    body: "Όλο το ελληνικό περιβάλλον μέσα στην εφαρμογή. Υποβολή myDATA στην Ανεξάρτητη Αρχή, ηλεκτρονικά τιμολόγια, online πληρωμές μέσω e-pos τραπεζών, ePay, DIAS και Viva Wallet. Τηλεφωνία VoIP με ηχογράφηση και αυτόματη απομαγνητοφώνηση κλήσεων στα ελληνικά. Συγχρονισμός email Gmail/Outlook μέσω IMAP, πολλαπλά υποκαταστήματα, B2B portal συνεργατών.",
+    image:
+      "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=82",
+    color: "#244f78",
+  },
+  {
+    numeral: "V",
+    code: "Ermes",
+    title: "ΕΡΜΗΣ — Ασφαλής επικοινωνία",
+    lead: "Ασφαλής επικοινωνία γραφείου.",
+    body: "Εσωτερικά μηνύματα, ομάδες, συνημμένα, κρυπτογραφημένη επικοινωνία και ασφαλείς συναντήσεις.",
+    image:
+      "https://images.unsplash.com/photo-1525182008055-f88b95ff7980?auto=format&fit=crop&w=1200&q=82",
+    color: "#2b7a78",
+  },
+] as const;
+
 const COVERAGE_ROWS = [
   ["Πελάτες, συμβόλαια και παραγωγή", "BackOffice"],
   ["Ταμείο, εισπράξεις, πληρωμές και οικονομικά", "BackOffice"],
@@ -360,6 +416,7 @@ export function PricingPage() {
   const [selectedAddons, setSelectedAddons] = useState<Record<string, boolean>>(
     {},
   );
+  const packageRailRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!catalog.plans.some((p) => p.code === planCode))
       setPlanCode(catalog.plans[0]?.code ?? "");
@@ -610,6 +667,182 @@ export function PricingPage() {
         </Container>
         <Container maxWidth="xl" sx={{ mt: 9 }}>
           <SectionTitle
+            eyebrow="ΠΑΚΕΤΑ KALYPSIS"
+            title="Κάθε πακέτο έχει ξεκάθαρο ρόλο"
+            body="Δες αναλυτικά τι παίρνει το γραφείο σου σε κάθε επίπεδο. Τα πακέτα μπορούν να συνδυαστούν και να προσαρμοστούν ανά γραφείο."
+          />
+          <Stack
+            direction="row"
+            justifyContent="flex-end"
+            spacing={0.75}
+            sx={{ mb: 1.25 }}
+          >
+            <IconButton
+              aria-label="Προηγούμενο πακέτο"
+              onClick={() =>
+                packageRailRef.current?.scrollBy({
+                  left: -420,
+                  behavior: "smooth",
+                })
+              }
+              sx={{
+                color: NAVY,
+                bgcolor: "#fff",
+                border: "1px solid #dce5ef",
+                "&:hover": { bgcolor: "#eaf4fb", borderColor: BLUE },
+              }}
+            >
+              <ArrowBackIosNewIcon sx={{ fontSize: 17 }} />
+            </IconButton>
+            <IconButton
+              aria-label="Επόμενο πακέτο"
+              onClick={() =>
+                packageRailRef.current?.scrollBy({
+                  left: 420,
+                  behavior: "smooth",
+                })
+              }
+              sx={{
+                color: NAVY,
+                bgcolor: "#fff",
+                border: "1px solid #dce5ef",
+                "&:hover": { bgcolor: "#eaf4fb", borderColor: BLUE },
+              }}
+            >
+              <ArrowForwardIosIcon sx={{ fontSize: 17 }} />
+            </IconButton>
+          </Stack>
+          <Box
+            ref={packageRailRef}
+            sx={{
+              display: "flex",
+              gap: 2,
+              overflowX: "auto",
+              pb: 2,
+              scrollBehavior: "smooth",
+              scrollSnapType: "x mandatory",
+              overscrollBehaviorX: "contain",
+              scrollbarWidth: "thin",
+              scrollbarColor: `${BLUE} #dce5ef`,
+              "&::-webkit-scrollbar": { height: 9 },
+              "&::-webkit-scrollbar-track": {
+                bgcolor: "#e6edf4",
+                borderRadius: 99,
+              },
+              "&::-webkit-scrollbar-thumb": { bgcolor: BLUE, borderRadius: 99 },
+              "& > *": {
+                flex: {
+                  xs: "0 0 88%",
+                  sm: "0 0 66%",
+                  md: "0 0 47%",
+                  lg: "0 0 34%",
+                },
+                minWidth: 0,
+                scrollSnapAlign: "start",
+              },
+            }}
+          >
+            {PACKAGE_DETAILS.map((pkg) => (
+              <Card
+                key={pkg.code}
+                sx={{
+                  borderRadius: 2.5,
+                  border: "1px solid #dce5ef",
+                  borderTop: `5px solid ${pkg.color}`,
+                  height: "100%",
+                  overflow: "hidden",
+                  transition: "transform .2s, box-shadow .2s",
+                  "&:hover": { transform: "translateY(-4px)", boxShadow: 5 },
+                }}
+              >
+                <Box
+                  sx={{
+                    height: { xs: 150, md: 185 },
+                    position: "relative",
+                    overflow: "hidden",
+                    bgcolor: `${pkg.color}22`,
+                  }}
+                >
+                  <Box
+                    component="img"
+                    src={pkg.image}
+                    alt=""
+                    loading="lazy"
+                    sx={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      display: "block",
+                    }}
+                  />
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      inset: 0,
+                      background: `linear-gradient(135deg, ${pkg.color}d9 0%, transparent 72%)`,
+                    }}
+                  />
+                  <Typography
+                    sx={{
+                      position: "absolute",
+                      left: 18,
+                      bottom: 12,
+                      color: "#fff",
+                      fontSize: 56,
+                      lineHeight: 1,
+                      fontWeight: 950,
+                      textShadow: "0 2px 12px rgba(0,0,0,.35)",
+                    }}
+                  >
+                    {pkg.numeral}
+                  </Typography>
+                </Box>
+                <CardContent sx={{ p: { xs: 2.25, md: 3 } }}>
+                  <Stack
+                    direction="row"
+                    spacing={1.5}
+                    alignItems="center"
+                    mb={1.5}
+                  >
+                    <Typography
+                      sx={{
+                        color: pkg.color,
+                        fontSize: 42,
+                        lineHeight: 1,
+                        fontWeight: 950,
+                      }}
+                    >
+                      {pkg.numeral}
+                    </Typography>
+                    <Box>
+                      <Typography
+                        variant="overline"
+                        sx={{
+                          color: pkg.color,
+                          fontWeight: 950,
+                          letterSpacing: ".12em",
+                        }}
+                      >
+                        ΠΑΚΕΤΟ
+                      </Typography>
+                      <Typography variant="h5" fontWeight={950} color={NAVY}>
+                        {pkg.title}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                  <Typography fontWeight={900} sx={{ color: NAVY, mb: 1 }}>
+                    {pkg.lead}
+                  </Typography>
+                  <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
+                    {pkg.body}
+                  </Typography>
+                </CardContent>
+              </Card>
+            ))}
+          </Box>
+        </Container>
+        <Container maxWidth="xl" sx={{ mt: 9 }}>
+          <SectionTitle
             eyebrow="02 · ΤΙ ΚΑΛΥΠΤΕΙ"
             title="Λειτουργία προς λειτουργία"
             body="Δες σε ποιο πακέτο βρίσκεται κάθε βασική δυνατότητα, χωρίς να χρειάζεται να μαντέψεις τι αγοράζεις."
@@ -759,7 +992,8 @@ export function PricingPage() {
                 >
                   {catalog.plans.map((p) => (
                     <MenuItem value={p.code} key={p.code}>
-                      {PLAN_LABELS[p.code] ?? p.code} · {EUR.format(p.pricePerYear)} / έτος
+                      {PLAN_LABELS[p.code] ?? p.code} ·{" "}
+                      {EUR.format(p.pricePerYear)} / έτος
                     </MenuItem>
                   ))}
                 </TextField>
@@ -810,7 +1044,8 @@ export function PricingPage() {
                         }
                         label={
                           <Typography variant="body2">
-                            {ADDON_LABELS[a.code] ?? a.code} (+{EUR.format(a.pricePerYear)})
+                            {ADDON_LABELS[a.code] ?? a.code} (+
+                            {EUR.format(a.pricePerYear)})
                           </Typography>
                         }
                       />
