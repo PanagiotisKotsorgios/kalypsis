@@ -1,17 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Alert, Box, Button, Card, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
+  Alert, Box, Button, Card, CardContent, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import DownloadIcon from "@mui/icons-material/Download";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { money } from "../utils/format";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
+import { exportRowsCsv } from "../utils/exportCsv";
 
 const TYPES = ["","Auto","Home","Health","Life","Business","Travel","Other"] as const;
 interface GoalDto { id: string; producerId: string | null; producerName: string | null; year: number; month: number | null; policyType: string | null; targetPremium: number; targetPolicies: number | null; notes: string | null; }
@@ -23,8 +25,29 @@ export function ProductionGoalsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<GoalDto | null>(null);
   const [year, setYear] = useState(new Date().getFullYear());
+  const [search, setSearch] = useState("");
+  const [producerFilter, setProducerFilter] = useState("");
 
   const q = useQuery({ queryKey: ["production-goals", year], queryFn: async () => (await api.get<GoalDto[]>("/production-goals", { params: { year } })).data });
+  const filteredGoals = useMemo(() => {
+    const term = search.trim().toLocaleLowerCase("el-GR");
+    return (q.data ?? []).filter(goal => {
+      const text = `${goal.producerName ?? "Όλο το γραφείο"} ${goal.policyType ?? ""} ${goal.notes ?? ""}`.toLocaleLowerCase("el-GR");
+      return (!term || text.includes(term)) && (!producerFilter || goal.producerId === producerFilter);
+    });
+  }, [q.data, search, producerFilter]);
+  const producerOptions = useMemo(() => Array.from(new Map((q.data ?? []).filter(g => g.producerId && g.producerName).map(g => [g.producerId!, g.producerName!])).entries()), [q.data]);
+  const exportGoals = () => void exportRowsCsv({
+    fileName: `στόχοι-παραγωγής-${year}`,
+    columns: [
+      { key: "producerName", label: "Συνεργάτης" },
+      { key: "period", label: "Περίοδος" },
+      { key: "branch", label: "Κλάδος" },
+      { key: "targetPremium", label: "Στόχος ασφαλίστρου" },
+      { key: "targetPolicies", label: "Στόχος συμβολαίων" }
+    ],
+    rows: filteredGoals.map(g => ({ producerName: g.producerName ?? "Όλο το γραφείο", period: `${g.year}${g.month ? `-${String(g.month).padStart(2, "0")}` : ""}`, branch: g.policyType ?? "Όλοι οι κλάδοι", targetPremium: g.targetPremium, targetPolicies: g.targetPolicies ?? "" }))
+  });
   const del = useMutation({ mutationFn: async (id: string) => api.delete(`/production-goals/${id}`),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["production-goals"] }),
     onError: e => setErr(extractErrorMessage(e)) });
@@ -38,10 +61,24 @@ export function ProductionGoalsPage() {
           <SearchableTextField size="small" select label={t("financials.year")} value={year} onChange={e => setYear(Number(e.target.value))} sx={{ minWidth: 100 }}>
             {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - 1 + i).map(y => <MenuItem key={y} value={y}>{y}</MenuItem>)}
           </SearchableTextField>
-          <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>{t("goals.create")}</Button>
+          <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)} sx={{ minWidth: 155, whiteSpace: "nowrap", flexShrink: 0 }}>{t("goals.create")}</Button>
         </Stack>
       </Stack>
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
+      <Card variant="outlined" sx={{ mb: 2, borderColor: "primary.light" }}>
+        <CardContent sx={{ py: 1.5 }}>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={1.25} alignItems={{ md: "center" }} flexWrap="wrap">
+            <TextField size="small" label="Αναζήτηση συνεργάτη ή κλάδου" value={search} onChange={e => setSearch(e.target.value)} sx={{ minWidth: { xs: "100%", sm: 260 }, flex: 1 }} />
+            <SearchableTextField size="small" select label="Συνεργάτης" value={producerFilter} onChange={e => setProducerFilter(e.target.value)} sx={{ minWidth: 190 }}>
+              <MenuItem value="">Όλοι οι συνεργάτες</MenuItem>
+              {producerOptions.map(([id, name]) => <MenuItem key={id} value={id}>{name}</MenuItem>)}
+            </SearchableTextField>
+            <Button color="error" variant="outlined" onClick={() => { setSearch(""); setProducerFilter(""); }}>Καθαρισμός</Button>
+            <Button variant="contained" startIcon={<DownloadIcon />} onClick={exportGoals} sx={{ whiteSpace: "nowrap" }}>Εξαγωγή CSV</Button>
+            <Typography variant="caption" color="text.secondary" sx={{ ml: { md: "auto" } }}>{filteredGoals.length} στόχοι</Typography>
+          </Stack>
+        </CardContent>
+      </Card>
       {q.isLoading ? <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box> : (
         <Card variant="outlined" sx={{ overflowX: "auto" }}>
           <Table size="small">
@@ -54,10 +91,10 @@ export function ProductionGoalsPage() {
               <TableCell align="right" />
             </TableRow></TableHead>
             <TableBody>
-              {(q.data ?? []).length === 0 && (
+              {filteredGoals.length === 0 && (
                 <TableRow><TableCell colSpan={6} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("goals.empty")}</TableCell></TableRow>
               )}
-              {(q.data ?? []).map(g => (
+              {filteredGoals.map(g => (
                 <TableRow key={g.id} hover>
                   <TableCell><Typography fontWeight={700}>{g.producerName ?? t("goals.agencyWide")}</Typography></TableCell>
                   <TableCell>{g.year}{g.month && ` · ${g.month.toString().padStart(2, "0")}`}</TableCell>

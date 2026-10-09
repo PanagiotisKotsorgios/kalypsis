@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  Divider, IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
+  Divider, IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -22,6 +22,7 @@ const ENTITY_LABELS: Record<ReportEntity, string> = {
   Documents: "Έγγραφα",
   Communications: "Επικοινωνίες"
 };
+const VISIBILITY_LABELS: Record<string, string> = { Private: "Ιδιωτική", Agency: "Όλο το γραφείο" };
 
 // Suggested fields per entity (the runner reflects, so any property name works)
 const SUGGESTED_FIELDS: Record<ReportEntity, { path: string; label: string }[]> = {
@@ -83,11 +84,24 @@ export function ReportBuilderPage() {
   const [error, setError] = useState<string | null>(null);
   const [openBuilder, setOpenBuilder] = useState(false);
   const [previewRun, setPreviewRun] = useState<{ name: string; data: RunResult } | null>(null);
+  const [search, setSearch] = useState("");
+  const [entityFilter, setEntityFilter] = useState("");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const list = useQuery({
     queryKey: ["report-defs"],
     queryFn: async () => (await api.get<ReportDef[]>("/custom-reports")).data
   });
+  const filteredReports = useMemo(() => {
+    const term = search.trim().toLocaleLowerCase("el-GR");
+    return (list.data ?? []).filter(r => {
+      const matchesText = !term || `${r.name} ${ENTITY_LABELS[r.entity] ?? r.entity} ${VISIBILITY_LABELS[r.visibility] ?? r.visibility}`.toLocaleLowerCase("el-GR").includes(term);
+      return matchesText && (!entityFilter || r.entity === entityFilter);
+    });
+  }, [list.data, search, entityFilter]);
+  useEffect(() => setPage(0), [search, entityFilter]);
+  const visibleReports = filteredReports.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   const run = useMutation({
     mutationFn: async (r: ReportDef) => {
@@ -125,6 +139,15 @@ export function ReportBuilderPage() {
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
       ) : (
         <Card variant="outlined" sx={{ overflowX: "auto" }}>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={1.25} alignItems={{ md: "center" }} sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider" }}>
+            <TextField size="small" label="Αναζήτηση αναφοράς" value={search} onChange={e => setSearch(e.target.value)} sx={{ minWidth: { xs: "100%", md: 260 }, flex: 1 }} />
+            <SearchableTextField size="small" select label="Οντότητα" value={entityFilter} onChange={e => setEntityFilter(e.target.value)} sx={{ minWidth: 170 }}>
+              <MenuItem value="">Όλες οι οντότητες</MenuItem>
+              {(Object.keys(ENTITY_LABELS) as ReportEntity[]).map(key => <MenuItem key={key} value={key}>{ENTITY_LABELS[key]}</MenuItem>)}
+            </SearchableTextField>
+            <Button color="error" variant="outlined" onClick={() => { setSearch(""); setEntityFilter(""); }}>Καθαρισμός</Button>
+            <Typography variant="caption" color="text.secondary" sx={{ ml: { md: "auto" }, whiteSpace: "nowrap" }}>{filteredReports.length} αναφορές</Typography>
+          </Stack>
           <Table size="small">
             <TableHead>
               <TableRow>
@@ -136,19 +159,19 @@ export function ReportBuilderPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {(list.data ?? []).length === 0 && (
+              {filteredReports.length === 0 && (
                 <TableRow><TableCell colSpan={5} align="center" sx={{ color: "text.secondary", py: 4 }}>
                   Δεν υπάρχουν αναφορές. Φτιάξτε την πρώτη σας.
                 </TableCell></TableRow>
               )}
-              {(list.data ?? []).map((r) => {
+              {visibleReports.map((r) => {
                 let fieldCount = 0;
                 try { fieldCount = JSON.parse(r.fieldsJson ?? "[]").length ?? 0; } catch { /* ignore */ }
                 return (
                   <TableRow key={r.id} hover>
                     <TableCell><Typography fontWeight={600}>{r.name}</Typography></TableCell>
                     <TableCell><Chip size="small" label={ENTITY_LABELS[r.entity]} /></TableCell>
-                    <TableCell>{r.visibility}</TableCell>
+                    <TableCell>{VISIBILITY_LABELS[r.visibility] ?? r.visibility}</TableCell>
                     <TableCell>{fieldCount} πεδία</TableCell>
                     <TableCell align="right">
                       <Button size="small" startIcon={<PlayArrowIcon />} onClick={() => run.mutate(r)}>
@@ -163,6 +186,7 @@ export function ReportBuilderPage() {
               })}
             </TableBody>
           </Table>
+          <TablePagination component="div" count={filteredReports.length} page={page} onPageChange={(_, next) => setPage(next)} rowsPerPage={rowsPerPage} onRowsPerPageChange={e => { setRowsPerPage(Number(e.target.value)); setPage(0); }} rowsPerPageOptions={[10, 25, 50]} labelRowsPerPage="Ανά σελίδα" labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`} />
         </Card>
       )}
 

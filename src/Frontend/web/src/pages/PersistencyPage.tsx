@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
-  Box, Card, CircularProgress, LinearProgress, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
+  Box, Button, Card, CardContent, CircularProgress, FormControl, InputLabel, LinearProgress, MenuItem, Select, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
 } from "@mui/material";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import DownloadIcon from "@mui/icons-material/Download";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { money } from "../utils/format";
+import { exportRowsCsv } from "../utils/exportCsv";
 
 interface PersistencyRow { dimension: string; issued: number; renewed: number; persistencyPercent: number; premiumRetained: number; }
 interface PersistencyDto {
@@ -22,10 +24,34 @@ export function PersistencyPage() {
   const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
   const [from, setFrom] = useState(yearAgo.toISOString().slice(0, 10));
   const [to, setTo] = useState(now.toISOString().slice(0, 10));
+  const [search, setSearch] = useState("");
+  const [dimensionFilter, setDimensionFilter] = useState("all");
 
   const q = useQuery({
     queryKey: ["persistency", from, to],
     queryFn: async () => (await api.get<PersistencyDto>("/persistency", { params: { from, to } })).data
+  });
+  const sections = useMemo(() => q.data ? [
+    { key: "carrier", title: t("persistency.byCarrier"), rows: q.data.byCarrier },
+    { key: "producer", title: t("persistency.byProducer"), rows: q.data.byProducer },
+    { key: "type", title: t("persistency.byType"), rows: q.data.byPolicyType }
+  ] : [], [q.data, t]);
+  const term = search.trim().toLocaleLowerCase("el-GR");
+  const filteredSections = sections
+    .filter(section => dimensionFilter === "all" || section.key === dimensionFilter)
+    .map(section => ({ ...section, rows: section.rows.filter(row => !term || row.dimension.toLocaleLowerCase("el-GR").includes(term)) }));
+  const filteredCount = filteredSections.reduce((sum, section) => sum + section.rows.length, 0);
+  const exportPersistency = () => void exportRowsCsv({
+    fileName: "διατηρησιμότητα-συμβολαίων",
+    columns: [
+      { key: "dimensionType", label: "Ομαδοποίηση" },
+      { key: "dimension", label: "Ονομασία" },
+      { key: "issued", label: "Εκδόθηκαν" },
+      { key: "renewed", label: "Ανανεώθηκαν" },
+      { key: "persistencyPercent", label: "Διατηρησιμότητα %" },
+      { key: "premiumRetained", label: "Διατηρηθέν ασφάλιστρο" }
+    ],
+    rows: filteredSections.flatMap(section => section.rows.map(row => ({ ...row, dimensionType: section.title })))
   });
 
   return (
@@ -46,6 +72,25 @@ export function PersistencyPage() {
           <TextField type="date" label={t("persistency.to")} InputLabelProps={{ shrink: true }} value={to} onChange={e => setTo(e.target.value)} />
         </Stack>
       </Stack>
+      <Card variant="outlined" sx={{ mb: 3, borderColor: "primary.light" }}>
+        <CardContent sx={{ py: 1.5 }}>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={1.25} alignItems={{ md: "center" }} flexWrap="wrap">
+            <TextField size="small" label="Αναζήτηση ασφαλιστικής, συνεργάτη ή κλάδου" value={search} onChange={e => setSearch(e.target.value)} sx={{ minWidth: { xs: "100%", sm: 280 }, flex: 1 }} />
+            <FormControl size="small" sx={{ minWidth: 180 }}>
+              <InputLabel>Ομαδοποίηση</InputLabel>
+              <Select label="Ομαδοποίηση" value={dimensionFilter} onChange={e => setDimensionFilter(e.target.value)}>
+                <MenuItem value="all">Όλες οι ομάδες</MenuItem>
+                <MenuItem value="carrier">Ανά ασφαλιστική</MenuItem>
+                <MenuItem value="producer">Ανά συνεργάτη</MenuItem>
+                <MenuItem value="type">Ανά κλάδο</MenuItem>
+              </Select>
+            </FormControl>
+            <Button color="error" variant="outlined" onClick={() => { setSearch(""); setDimensionFilter("all"); }}>Καθαρισμός</Button>
+            <Button variant="contained" startIcon={<DownloadIcon />} onClick={exportPersistency} sx={{ whiteSpace: "nowrap" }}>Εξαγωγή CSV</Button>
+            <Typography variant="caption" color="text.secondary" sx={{ ml: { md: "auto" } }}>{filteredCount} ομάδες</Typography>
+          </Stack>
+        </CardContent>
+      </Card>
       {q.isLoading ? <CircularProgress /> : !q.data ? null : (
         <>
           <Stack direction={{ xs: "column", md: "row" }} spacing={2} mb={3}>
@@ -67,9 +112,7 @@ export function PersistencyPage() {
           </Stack>
 
           <Stack spacing={3}>
-            <Section title={t("persistency.byCarrier")} rows={q.data.byCarrier} />
-            <Section title={t("persistency.byProducer")} rows={q.data.byProducer} />
-            <Section title={t("persistency.byType")} rows={q.data.byPolicyType} />
+            {filteredSections.map(section => <Section key={section.key} title={section.title} rows={section.rows} />)}
           </Stack>
         </>
       )}
