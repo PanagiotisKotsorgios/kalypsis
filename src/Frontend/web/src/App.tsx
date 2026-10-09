@@ -291,6 +291,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/customer-portal?tab=notifications", labelKey: "nav.notifications", icon: <NotificationsIcon />, package: "Crm" },
     { to: "/customer-portal?tab=requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/customer-portal?tab=claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "Crm" },
+    { to: "/customer-portal?tab=consents", labelKey: "nav.communicationPreferences", icon: <SecurityIcon />, package: "Crm" },
     { to: "/customer-portal?tab=profile", labelKey: "nav.profile", icon: <AccountCircleIcon />, package: "Crm" }
   ],
   AgencyAdmin: [

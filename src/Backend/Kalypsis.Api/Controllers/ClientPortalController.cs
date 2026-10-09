@@ -153,7 +153,12 @@ public class ClientPortalController : ControllerBase
             .Select(x => new
             {
                 x.Id, x.RequestNumber, x.Type, x.Status, x.Subject, x.Description,
-                x.RelatedPolicyId, x.IncidentDate, x.IncidentLocation, x.CreatedAt, x.ResolvedAt
+                x.RelatedPolicyId, x.IncidentDate, x.IncidentLocation, x.CreatedAt, x.ResolvedAt,
+                x.IsRead, x.ReadAt, x.ArchivedAt,
+                Messages = x.Messages.Where(m => m.DeletedAt == null).OrderBy(m => m.CreatedAt)
+                    .Select(m => new { m.Id, m.AuthorRole, m.Body, m.CreatedAt }).ToList(),
+                Attachments = x.Attachments.Where(a => a.DeletedAt == null).OrderBy(a => a.CreatedAt)
+                    .Select(a => new { a.Id, a.Category, a.FileName, a.MimeType, a.SizeBytes, a.CreatedAt }).ToList()
             })
             .ToListAsync(ct);
 
@@ -218,6 +223,49 @@ public class ClientPortalController : ControllerBase
         return Ok(await _m.Send(new CreateServiceRequestCommand(body with { CustomerId = null }), ct));
     }
 
+    [HttpPut("portal/profile")]
+    public async Task<IActionResult> UpdatePortalProfile(
+        [FromBody] UpdateCustomerPortalProfileBody body, CancellationToken ct)
+    {
+        var customerId = await ResolveMyCustomerIdAsync(ct);
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var customer = await _db.Customers.FirstOrDefaultAsync(
+            x => x.Id == customerId && x.TenantId == tenantId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Customer");
+
+        var email = body.Email is null ? null : body.Email.Trim().ToLowerInvariant();
+        if (!string.IsNullOrWhiteSpace(email))
+        {
+            var duplicate = await _db.Users.IgnoreQueryFilters().AnyAsync(
+                x => x.TenantId == tenantId && x.Email == email && x.CustomerId != customerId && x.DeletedAt == null, ct);
+            if (duplicate) throw new AppException("portal_email_exists", "Το email χρησιμοποιείται ήδη στο γραφείο.", 409);
+        }
+
+        if (body.FirstName is not null) customer.FirstName = body.FirstName.Trim();
+        if (body.LastName is not null) customer.LastName = body.LastName.Trim();
+        if (body.CompanyName is not null) customer.CompanyName = body.CompanyName.Trim();
+        if (body.Email is not null) customer.Email = string.IsNullOrWhiteSpace(email) ? null : email;
+        if (body.Phone is not null) customer.Phone = body.Phone.Trim();
+        if (body.MobilePhone is not null) customer.MobilePhone = body.MobilePhone.Trim();
+        if (body.AltPhone is not null) customer.AltPhone = body.AltPhone.Trim();
+        if (body.Address is not null) customer.Address = body.Address.Trim();
+        if (body.City is not null) customer.City = body.City.Trim();
+        if (body.PostalCode is not null) customer.PostalCode = body.PostalCode.Trim();
+        if (body.Region is not null) customer.Region = body.Region.Trim();
+        if (body.Occupation is not null) customer.Occupation = body.Occupation.Trim();
+        if (body.Notes is not null) customer.Notes = body.Notes.Trim();
+        if (body.BirthDate.HasValue) customer.BirthDate = body.BirthDate;
+
+        var userId = _current.UserId ?? throw AppException.Unauthorized();
+        var user = await _db.Users.FirstOrDefaultAsync(x => x.Id == userId && x.TenantId == tenantId, ct);
+        if (user is not null && body.Email is not null && !string.IsNullOrWhiteSpace(email)) user.Email = email;
+        if (user is not null && body.FirstName is not null) user.FirstName = customer.FirstName ?? user.FirstName;
+        if (user is not null && body.LastName is not null) user.LastName = customer.LastName ?? user.LastName;
+
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     [HttpPost("portal/notifications/{id:guid}/read")]
     public async Task<ActionResult> MarkNotificationRead(Guid id, CancellationToken ct)
     {
@@ -232,3 +280,19 @@ public class ClientPortalController : ControllerBase
         return NoContent();
     }
 }
+
+public sealed record UpdateCustomerPortalProfileBody(
+    string? FirstName = null,
+    string? LastName = null,
+    string? CompanyName = null,
+    string? Email = null,
+    string? Phone = null,
+    string? MobilePhone = null,
+    string? AltPhone = null,
+    string? Address = null,
+    string? City = null,
+    string? PostalCode = null,
+    string? Region = null,
+    string? Occupation = null,
+    string? Notes = null,
+    DateOnly? BirthDate = null);
