@@ -3,7 +3,7 @@ import { HelpHint } from "../components/HelpHint";
 import {
   Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog,
   DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Stack, TextField,
-  ToggleButton, ToggleButtonGroup, Typography
+  ToggleButton, ToggleButtonGroup, Typography, Pagination
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -11,6 +11,8 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import EventIcon from "@mui/icons-material/Event";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
@@ -65,6 +67,10 @@ export function AppointmentsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [createPrefillDate, setCreatePrefillDate] = useState<string | null>(null);
   const [editing, setEditing] = useState<AppointmentDto | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [filters, setFilters] = useState({ search: "", status: "", from: "", to: "" });
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [view, setView] = useState<ViewMode>(() => {
     try {
       const saved = localStorage.getItem(VIEW_STORAGE_KEY);
@@ -72,7 +78,16 @@ export function AppointmentsPage() {
     } catch { return "calendar"; }
   });
 
-  const q = useQuery({ queryKey: ["appointments"], queryFn: async () => (await api.get<AppointmentDto[]>("/appointments")).data });
+  const appointmentQuery = useMemo(() => {
+    const params = new URLSearchParams();
+    if (filters.from) params.set("from", `${filters.from}T00:00:00`);
+    if (filters.to) params.set("to", `${filters.to}T23:59:59.999`);
+    return params.toString();
+  }, [filters.from, filters.to]);
+  const q = useQuery({
+    queryKey: ["appointments", appointmentQuery],
+    queryFn: async () => (await api.get<AppointmentDto[]>(`/appointments${appointmentQuery ? `?${appointmentQuery}` : ""}`)).data
+  });
   // Tasks are only fetched when the calendar is up — the list view never
   // rendered them and shouldn't pay the network hit.
   const tasksQ = useQuery({
@@ -85,9 +100,22 @@ export function AppointmentsPage() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["appointments"] }),
     onError: (err) => setError(extractErrorMessage(err))
   });
+  const notify = useMutation({
+    mutationFn: async (id: string) => (await api.post<{ message?: string }>(`/appointments/${id}/notify`)).data,
+    onSuccess: (result) => setNotice(result.message ?? "Η υπενθύμιση στάλθηκε στο email σας."),
+    onError: (err) => setError(extractErrorMessage(err))
+  });
 
   const items = q.data ?? [];
-  const grouped = items.reduce((acc, a) => {
+  const filteredItems = useMemo(() => items.filter(a => {
+    const search = filters.search.trim().toLowerCase();
+    const matchesSearch = !search || [a.title, a.location, a.customerName, a.producerName, a.policyNumber, a.assignedToUserName]
+      .some(value => String(value ?? "").toLowerCase().includes(search));
+    return matchesSearch && (!filters.status || a.status === filters.status);
+  }), [items, filters.search, filters.status]);
+  const pageCount = Math.max(1, Math.ceil(filteredItems.length / pageSize));
+  const visibleItems = filteredItems.slice((page - 1) * pageSize, page * pageSize);
+  const grouped = visibleItems.reduce((acc, a) => {
     const day = new Date(a.startsAt).toLocaleDateString("el-GR", { weekday: "long", day: "numeric", month: "long" });
     (acc[day] ??= []).push(a);
     return acc;
@@ -96,7 +124,7 @@ export function AppointmentsPage() {
   // Map the two entity types into the calendar's shared event shape. Doing
   // this once here keeps the calendar component decoupled from our DTOs.
   const calendarEvents: CalendarEvent[] = useMemo(() => {
-    const appts: CalendarEvent[] = items.map(a => ({
+    const appts: CalendarEvent[] = filteredItems.map(a => ({
       id: `appt:${a.id}`,
       bucket: "appointment",
       title: a.title,
@@ -120,7 +148,10 @@ export function AppointmentsPage() {
         statusColor: TASK_STATUS_COLOR[tk.status],
       }));
     return [...appts, ...tasks];
-  }, [items, tasksQ.data, t]);
+  }, [filteredItems, tasksQ.data, t]);
+
+  useEffect(() => { setPage(1); }, [filters.search, filters.status, filters.from, filters.to, pageSize]);
+  useEffect(() => { if (page > pageCount) setPage(pageCount); }, [page, pageCount]);
 
   const persistView = (v: ViewMode) => {
     setView(v);
@@ -140,7 +171,7 @@ export function AppointmentsPage() {
 
   return (
     <Box>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
+      <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ md: "center" }} mb={1.25} flexWrap="wrap" gap={1}>
         <Box>
           <Stack direction="row" alignItems="center" spacing={0.5}>
             <Typography variant="h4" sx={{ fontWeight: 800 }}>{t("appointments.title")}</Typography>
@@ -148,7 +179,7 @@ export function AppointmentsPage() {
           </Stack>
           <Typography color="text.secondary">{t("appointments.subtitle")}</Typography>
         </Box>
-        <Stack direction="row" spacing={1} alignItems="center">
+        <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
           <ToggleButtonGroup
             size="small"
             exclusive
@@ -165,14 +196,35 @@ export function AppointmentsPage() {
               {t("appointments.viewList", "Λίστα")}
             </ToggleButton>
           </ToggleButtonGroup>
-          <DataExportButton entity="appointments" />
-          <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setCreatePrefillDate(null); setCreateOpen(true); }}>
+          <DataExportButton
+            entity="appointments"
+            search={filters.search}
+            additionalParams={{ from: filters.from ? `${filters.from}T00:00:00` : undefined, to: filters.to ? `${filters.to}T23:59:59.999` : undefined, status: filters.status || undefined }}
+          />
+          <Button startIcon={<AddIcon />} variant="contained" size="small" onClick={() => { setCreatePrefillDate(null); setCreateOpen(true); }}>
             {t("appointments.create")}
           </Button>
         </Stack>
       </Stack>
 
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
+      {notice && <Alert severity="success" onClose={() => setNotice(null)} sx={{ mb: 1 }}>{notice}</Alert>}
+
+      <Card sx={{ mb: 1.25 }}>
+        <CardContent sx={{ p: 1, "&:last-child": { pb: 1 } }}>
+          <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
+            <TextField size="small" label="Αναζήτηση" value={filters.search} onChange={e => setFilters({ ...filters, search: e.target.value })} sx={{ flex: "1 1 220px", minWidth: { xs: "100%", sm: 190 } }} />
+            <TextField size="small" type="date" label="Από ημερομηνία" value={filters.from} onChange={e => setFilters({ ...filters, from: e.target.value })} InputLabelProps={{ shrink: true }} sx={{ flex: "1 1 135px", minWidth: 125 }} />
+            <TextField size="small" type="date" label="Έως ημερομηνία" value={filters.to} onChange={e => setFilters({ ...filters, to: e.target.value })} InputLabelProps={{ shrink: true }} sx={{ flex: "1 1 135px", minWidth: 125 }} />
+            <TextField select size="small" label="Κατάσταση" value={filters.status} onChange={e => setFilters({ ...filters, status: e.target.value })} sx={{ flex: "1 1 135px", minWidth: 125 }}>
+              <MenuItem value="">Όλες</MenuItem>
+              {(["Scheduled", "Done", "Cancelled"] as const).map(status => <MenuItem key={status} value={status}>{t(`appointments.status.${status}`, status)}</MenuItem>)}
+            </TextField>
+            <Button size="small" color="error" variant="contained" startIcon={<FilterAltIcon />} onClick={() => setFilters({ search: "", status: "", from: "", to: "" })} sx={{ whiteSpace: "nowrap" }}>Καθαρισμός</Button>
+            <Typography variant="caption" color="text.secondary" sx={{ ml: "auto" }}>{filteredItems.length} ραντεβού</Typography>
+          </Stack>
+        </CardContent>
+      </Card>
 
       {view === "calendar" ? (
         q.isLoading ? (
@@ -186,19 +238,19 @@ export function AppointmentsPage() {
         )
       ) : q.isLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
-      ) : items.length === 0 ? (
+      ) : filteredItems.length === 0 ? (
         <Card variant="outlined" sx={{ p: 4, textAlign: "center", color: "text.secondary", borderStyle: "dashed" }}>
-          {t("appointments.empty")}
+          {items.length === 0 ? t("appointments.empty") : "Δεν βρέθηκαν ραντεβού με αυτά τα φίλτρα."}
         </Card>
       ) : (
-        <Stack spacing={3}>
+        <Stack spacing={1.25}>
           {Object.entries(grouped).map(([day, list]) => (
             <Box key={day}>
               <Typography variant="overline" sx={{ fontWeight: 800, color: "text.secondary" }}>{day}</Typography>
-              <Stack spacing={1.5} mt={1}>
+              <Stack spacing={0.75} mt={0.5}>
                 {list.map((a) => (
                   <Card key={a.id}>
-                    <CardContent sx={{ p: 2 }}>
+                    <CardContent sx={{ p: 1.25, "&:last-child": { pb: 1.25 } }}>
                       <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1}>
                         <Box sx={{ flex: 1, minWidth: 0 }}>
                           <Stack direction="row" alignItems="center" spacing={1} mb={0.5} flexWrap="wrap">
@@ -221,6 +273,9 @@ export function AppointmentsPage() {
                           </Stack>
                         </Box>
                         <Stack direction="row" spacing={0.5}>
+                          <IconButton size="small" title="Αποστολή υπενθύμισης στο email μου" onClick={() => notify.mutate(a.id)} disabled={notify.isPending}>
+                            <MailOutlineIcon fontSize="small" />
+                          </IconButton>
                           <IconButton size="small" onClick={() => setEditing(a)}><EditIcon fontSize="small" /></IconButton>
                           <IconButton size="small" color="error" onClick={() => { if (confirm(t("common.confirmDelete"))) del.mutate(a.id); }}>
                             <DeleteIcon fontSize="small" />
@@ -235,6 +290,11 @@ export function AppointmentsPage() {
           ))}
         </Stack>
       )}
+
+      {view === "list" && filteredItems.length > 0 && <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }} justifyContent="space-between" spacing={1} sx={{ mt: 1.25 }}>
+        <Stack direction="row" spacing={1} alignItems="center"><Typography variant="caption" color="text.secondary">Ανά σελίδα</Typography><TextField select size="small" value={pageSize} onChange={e => setPageSize(Number(e.target.value))} sx={{ width: 90 }}>{[10, 25, 50].map(size => <MenuItem key={size} value={size}>{size}</MenuItem>)}</TextField></Stack>
+        <Pagination size="small" color="primary" page={page} count={pageCount} onChange={(_, value) => setPage(value)} showFirstButton showLastButton />
+      </Stack>}
 
       <FormDialog open={createOpen} onClose={() => setCreateOpen(false)} item={null} prefillDate={createPrefillDate}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["appointments"] }); setCreateOpen(false); setCreatePrefillDate(null); }} />

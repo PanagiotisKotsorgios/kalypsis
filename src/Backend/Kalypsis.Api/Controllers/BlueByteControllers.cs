@@ -1,4 +1,6 @@
 using Kalypsis.Api.Authorization;
+using Kalypsis.Application.Abstractions;
+using Kalypsis.Application.Common;
 using Kalypsis.Application.Features.Appointments;
 using Kalypsis.Application.Features.Branches;
 using Kalypsis.Application.Features.CoverNotes;
@@ -12,6 +14,7 @@ using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Kalypsis.Api.Controllers;
 
@@ -23,7 +26,17 @@ namespace Kalypsis.Api.Controllers;
 public class AppointmentsController : ControllerBase
 {
     private readonly IMediator _m;
-    public AppointmentsController(IMediator m) => _m = m;
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    private readonly IEmailSender _email;
+
+    public AppointmentsController(IMediator m, IAppDbContext db, ICurrentUser current, IEmailSender email)
+    {
+        _m = m;
+        _db = db;
+        _current = current;
+        _email = email;
+    }
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<AppointmentDto>>> List(
@@ -42,6 +55,51 @@ public class AppointmentsController : ControllerBase
     [HttpDelete("{id:guid}")] [RequirePermission("appointments.write")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     { await _m.Send(new DeleteAppointmentCommand(id), ct); return NoContent(); }
+
+    /// <summary>
+    /// Sends a one-off reminder to the authenticated office user. The sender
+    /// is always resolved by the tenant-aware Brevo adapter; the platform
+    /// Kalypsis sender is never used for CRM/office mail.
+    /// </summary>
+    [HttpPost("{id:guid}/notify")]
+    [RequirePermission("appointments.write")]
+    public async Task<IActionResult> Notify(Guid id, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var recipient = _current.Email?.Trim();
+        if (string.IsNullOrWhiteSpace(recipient))
+            throw new AppException("appointment_notification_recipient", "Δεν υπάρχει email στον χρήστη που είναι συνδεδεμένος.", 400);
+
+        var appointment = await _db.Appointments
+            .Include(x => x.Customer)
+            .Include(x => x.AssignedToUser)
+            .Include(x => x.Policy)
+            .FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Appointment");
+
+        var starts = appointment.StartsAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+        var ends = appointment.EndsAt.ToLocalTime().ToString("HH:mm");
+        var customer = appointment.Customer is null ? null : appointment.Customer.Type == CustomerType.Individual
+            ? $"{appointment.Customer.FirstName} {appointment.Customer.LastName}".Trim()
+            : appointment.Customer.CompanyName;
+        var details = string.Join(" · ", new[] { customer, appointment.Policy?.PolicyNumber, appointment.Location }
+            .Where(x => !string.IsNullOrWhiteSpace(x)));
+        var html = $"<h2>Υπενθύμιση ραντεβού</h2><p><strong>{System.Net.WebUtility.HtmlEncode(appointment.Title)}</strong></p>" +
+                   $"<p>Ημερομηνία και ώρα: {starts}–{ends}</p>" +
+                   (string.IsNullOrWhiteSpace(details) ? "" : $"<p>{System.Net.WebUtility.HtmlEncode(details)}</p>") +
+                   (string.IsNullOrWhiteSpace(appointment.Description) ? "" : $"<p>{System.Net.WebUtility.HtmlEncode(appointment.Description)}</p>");
+        var result = await _email.SendAsync(new EmailMessage(
+            recipient,
+            _current.Email ?? recipient,
+            $"Υπενθύμιση ραντεβού · {appointment.Title}",
+            html,
+            $"Υπενθύμιση ραντεβού: {appointment.Title}\n{starts}–{ends}\n{details}",
+            TenantId: tenantId), ct);
+
+        if (!result.Success)
+            throw new AppException("appointment_notification_failed", result.ErrorMessage ?? "Η αποστολή email απέτυχε.", 400);
+        return Ok(new { message = "Η υπενθύμιση στάλθηκε στο email σας." });
+    }
 }
 
 [ApiController]

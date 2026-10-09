@@ -208,7 +208,7 @@ export function RequestsPage() {
 
   return (
     <Box>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
+      <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ md: "center" }} mb={1.25} flexWrap="wrap" gap={1}>
         <Box>
           <Stack direction="row" alignItems="center" spacing={0.5}>
             <Typography variant="h4" sx={{ fontWeight: 800 }}>
@@ -223,7 +223,7 @@ export function RequestsPage() {
         {isCustomer && (
           <Button
             variant="contained"
-            size="large"
+            size="small"
             startIcon={<AddIcon />}
             onClick={() => { setError(null); setOpen(true); }}
           >
@@ -244,20 +244,20 @@ export function RequestsPage() {
       )}
 
       {isAgency && (
-        <Card sx={{ mb: 2 }}>
-          <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
-            <Stack direction={{ xs: "column", lg: "row" }} spacing={1.25} alignItems={{ lg: "center" }} flexWrap="wrap" useFlexGap>
+        <Card sx={{ mb: 1.25 }}>
+          <CardContent sx={{ p: 1, "&:last-child": { pb: 1 } }}>
+            <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap sx={{ width: "100%" }}>
               <TextField
                 size="small"
                 label={t("requests.filters.search")}
                 value={filters.search}
                 onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                sx={{ minWidth: { xs: "100%", sm: 220, lg: 245 } }}
+                sx={{ flex: "1 1 220px", minWidth: { xs: "100%", sm: 190 } }}
               />
               <SearchableTextField
                 select size="small" label={t("requests.filters.status")} value={filters.status}
                 onChange={(e) => setFilters({ ...filters, status: e.target.value as ServiceRequestStatus | "" })}
-                sx={{ minWidth: 150 }}
+                sx={{ flex: "1 1 130px", minWidth: { xs: 125, sm: 130 } }}
               >
                 <MenuItem value="">{t("requests.filters.all")}</MenuItem>
                 {(["Submitted", "InReview", "AwaitingCustomerInfo", "Resolved", "Closed", "Rejected"] as const).map((s) => (
@@ -267,25 +267,25 @@ export function RequestsPage() {
               <SearchableTextField
                 select size="small" label={t("requests.filters.type")} value={filters.type}
                 onChange={(e) => setFilters({ ...filters, type: e.target.value as ServiceRequestType | "" })}
-                sx={{ minWidth: 155 }}
+                sx={{ flex: "1 1 135px", minWidth: { xs: 130, sm: 135 } }}
               >
                 <MenuItem value="">{t("requests.filters.all")}</MenuItem>
                 {(["NewPolicy", "AccidentReport", "DocumentRequest", "PolicyChange", "GeneralQuestion"] as const).map((type) => (
                   <MenuItem key={type} value={type}>{t(`requests.types.${type}`)}</MenuItem>
                 ))}
               </SearchableTextField>
-              <TextField size="small" type="date" label={t("requests.filters.from")} value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} InputLabelProps={{ shrink: true }} />
-              <TextField size="small" type="date" label={t("requests.filters.to")} value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} InputLabelProps={{ shrink: true }} />
+              <TextField size="small" type="date" label={t("requests.filters.from")} value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} InputLabelProps={{ shrink: true }} sx={{ flex: "1 1 125px", minWidth: 120 }} />
+              <TextField size="small" type="date" label={t("requests.filters.to")} value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} InputLabelProps={{ shrink: true }} sx={{ flex: "1 1 125px", minWidth: 120 }} />
               <SearchableTextField
                 select size="small" label={t("requests.filters.read")} value={filters.read}
                 onChange={(e) => setFilters({ ...filters, read: e.target.value as "" | "read" | "unread" })}
-                sx={{ minWidth: 125 }}
+                sx={{ flex: "1 1 120px", minWidth: 115 }}
               >
                 <MenuItem value="">{t("requests.filters.all")}</MenuItem>
                 <MenuItem value="unread">{t("requests.filters.unread")}</MenuItem>
                 <MenuItem value="read">{t("requests.filters.readOnly")}</MenuItem>
               </SearchableTextField>
-              <SearchableTextField select size="small" label={t("requests.filters.sort")} value={filters.sort} onChange={(e) => setFilters({ ...filters, sort: e.target.value })} sx={{ minWidth: 135 }}>
+              <SearchableTextField select size="small" label={t("requests.filters.sort")} value={filters.sort} onChange={(e) => setFilters({ ...filters, sort: e.target.value })} sx={{ flex: "1 1 130px", minWidth: 125 }}>
                 <MenuItem value="newest">{t("requests.filters.newest")}</MenuItem>
                 <MenuItem value="oldest">{t("requests.filters.oldest")}</MenuItem>
                 <MenuItem value="unread">{t("requests.filters.unreadFirst")}</MenuItem>
@@ -294,9 +294,9 @@ export function RequestsPage() {
               <FormControlLabel
                 control={<Checkbox size="small" checked={filters.includeArchived} onChange={(e) => setFilters({ ...filters, includeArchived: e.target.checked })} />}
                 label={t("requests.filters.includeArchived")}
-                sx={{ mr: 0, whiteSpace: "nowrap" }}
+                sx={{ mr: 0, whiteSpace: "nowrap", flex: "0 1 auto" }}
               />
-              <Button size="small" color="error" variant="outlined" startIcon={<FilterAltIcon />} onClick={clearFilters}>{t("requests.filters.clear")}</Button>
+              <Button size="small" color="error" variant="contained" startIcon={<FilterAltIcon />} onClick={clearFilters} sx={{ whiteSpace: "nowrap" }}>{t("requests.filters.clear")}</Button>
             </Stack>
           </CardContent>
         </Card>

@@ -83,7 +83,7 @@ public class UniversalExportHandler : IRequestHandler<UniversalExportQuery, Expo
         "tasks"                => await BuildTasksAsync(search, ct),
         "receipts"             => await BuildReceiptsAsync(search, ct),
         "payments"             => await BuildPaymentsAsync(search, ct),
-        "appointments"         => await BuildAppointmentsAsync(search, ct),
+        "appointments"         => await BuildAppointmentsAsync(search, status, from, to, ct),
         "cover-notes"          => await BuildCoverNotesAsync(search, ct),
         "email-templates"      => await BuildEmailTemplatesAsync(search, ct),
         "notifications"        => await BuildNotificationsAsync(search, ct),
@@ -488,13 +488,15 @@ public class UniversalExportHandler : IRequestHandler<UniversalExportQuery, Expo
     }
 
     // ---------------- Appointments ----------------
-    private async Task<Sheet> BuildAppointmentsAsync(string? search, CancellationToken ct)
+    private async Task<Sheet> BuildAppointmentsAsync(string? search, string? status, DateTime? from, DateTime? to, CancellationToken ct)
     {
-        var rows = await _mediator.Send(new ListAppointmentsQuery(null, null, null, null), ct);
+        var rows = await _mediator.Send(new ListAppointmentsQuery(from, to, null, null), ct);
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<AppointmentStatus>(status, true, out var appointmentStatus))
+            rows = rows.Where(a => a.Status == appointmentStatus).ToList();
         if (!string.IsNullOrWhiteSpace(search))
         {
             var s = search.Trim();
-            rows = rows.Where(a => Match(a.Title, s) || Match(a.Location, s) || Match(a.CustomerName, s)).ToList();
+            rows = rows.Where(a => Match(a.Title, s) || Match(a.Location, s) || Match(a.CustomerName, s) || Match(a.ProducerName, s) || Match(a.PolicyNumber, s)).ToList();
         }
         return new Sheet(
             "Ραντεβού",
