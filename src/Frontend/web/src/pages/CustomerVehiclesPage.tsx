@@ -6,6 +6,7 @@ import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import AddIcon from "@mui/icons-material/Add";
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 import { exportActionSx, printActionSx } from "../components/actionButtonStyles";
 import { Link as RouterLink } from "react-router-dom";
@@ -317,6 +318,96 @@ function LegacyCustomerVehiclesPage() {
   </Stack>;
 }
 
+type AddVehicleForm = {
+  policyId: string;
+  plate: string;
+  make: string;
+  model: string;
+  year: string;
+  vin: string;
+  engineCapacity: string;
+  taxableHorsepower: string;
+  estimatedValue: string;
+  purchaseDate: string;
+  condition: string;
+  ownerCount: string;
+  use: string;
+  color: string;
+  seats: string;
+  notes: string;
+};
+
+const emptyVehicleForm = (policyId = ""): AddVehicleForm => ({
+  policyId, plate: "", make: "", model: "", year: "", vin: "", engineCapacity: "",
+  taxableHorsepower: "", estimatedValue: "", purchaseDate: "", condition: "Μεταχειρισμένο",
+  ownerCount: "", use: "", color: "", seats: "", notes: ""
+});
+
+function AddVehicleDialog({ open, rows, onClose, onSaved }: { open: boolean; rows: VehiclePolicyRow[]; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState<AddVehicleForm>(() => emptyVehicleForm(rows[0]?.id));
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (open) { setForm(emptyVehicleForm(rows[0]?.id)); setError(null); }
+  }, [open, rows]);
+  const save = useMutation({
+    mutationFn: async () => {
+      const specs: Record<string, string> = {
+        make: form.make.trim(), model: form.model.trim(), year: form.year.trim(), vin: form.vin.trim(),
+        engineCapacity: form.engineCapacity.trim(), taxableHorsepower: form.taxableHorsepower.trim(),
+        estimatedValue: form.estimatedValue.trim(), purchaseDate: form.purchaseDate, condition: form.condition,
+        ownerCount: form.ownerCount.trim(), use: form.use.trim(), color: form.color.trim(), seats: form.seats.trim()
+      };
+      Object.keys(specs).forEach(key => { if (!specs[key]) delete specs[key]; });
+      return api.patch(`/policies/${form.policyId}/vehicle`, {
+        vehicleRegistrationPlate: form.plate.trim(), vehicleUseCategory: form.use.trim() || null,
+        specsJson: JSON.stringify(specs), notes: form.notes.trim() || null, replaceDetails: true
+      });
+    },
+    onSuccess: onSaved,
+    onError: e => setError(extractErrorMessage(e))
+  });
+  const set = <K extends keyof AddVehicleForm>(key: K, value: AddVehicleForm[K]) => setForm(current => ({ ...current, [key]: value }));
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+      <DialogTitle>Προσθήκη οχήματος</DialogTitle>
+      <DialogContent dividers>
+        {rows.length === 0 ? <Alert severity="info">Δεν υπάρχουν καταχωρημένα ασφαλιστήρια αυτοκινήτου για σύνδεση οχήματος.</Alert> : (
+          <Stack spacing={1.25} sx={{ pt: 0.25 }}>
+            <Alert severity="info" sx={{ py: 0.5 }}>Το όχημα συνδέεται με το επιλεγμένο ασφαλιστήριο. Τα στοιχεία μπορούν να συμπληρωθούν και αργότερα από την καρτέλα οχήματος.</Alert>
+            <TextField select fullWidth label="Συμβόλαιο σύνδεσης" value={form.policyId} onChange={e => set("policyId", e.target.value)}>
+              {rows.map(row => <MenuItem key={row.id} value={row.id}>{row.policyNumber} · {row.customerDisplay ?? "Πελάτης"} · {row.insuranceCompanyName}</MenuItem>)}
+            </TextField>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" }, gap: 1 }}>
+              <TextField required label="Αριθμός κυκλοφορίας" value={form.plate} onChange={e => set("plate", e.target.value)} />
+              <TextField label="Μάρκα" value={form.make} onChange={e => set("make", e.target.value)} />
+              <TextField label="Μοντέλο" value={form.model} onChange={e => set("model", e.target.value)} />
+              <TextField label="Έτος κατασκευής" value={form.year} onChange={e => set("year", e.target.value)} />
+              <TextField label="VIN / αριθμός πλαισίου" value={form.vin} onChange={e => set("vin", e.target.value)} />
+              <TextField label="Κυβισμός (cc)" value={form.engineCapacity} onChange={e => set("engineCapacity", e.target.value)} />
+              <TextField label="Φορολογήσιμοι ίπποι" value={form.taxableHorsepower} onChange={e => set("taxableHorsepower", e.target.value)} />
+              <TextField label="Εκτιμώμενη αξία" value={form.estimatedValue} onChange={e => set("estimatedValue", e.target.value)} />
+              <TextField label="Ημερομηνία αγοράς" type="date" value={form.purchaseDate} onChange={e => set("purchaseDate", e.target.value)} InputLabelProps={{ shrink: true }} />
+              <TextField select label="Κατάσταση" value={form.condition} onChange={e => set("condition", e.target.value)}><MenuItem value="Καινούργιο">Καινούργιο</MenuItem><MenuItem value="Μεταχειρισμένο">Μεταχειρισμένο</MenuItem></TextField>
+              <TextField label="Αριθμός ιδιοκτητών" value={form.ownerCount} onChange={e => set("ownerCount", e.target.value)} />
+              <TextField label="Χρήση" value={form.use} onChange={e => set("use", e.target.value)} />
+              <TextField label="Χρώμα" value={form.color} onChange={e => set("color", e.target.value)} />
+              <TextField label="Θέσεις" value={form.seats} onChange={e => set("seats", e.target.value)} />
+            </Box>
+            <TextField label="Σημειώσεις οχήματος" value={form.notes} onChange={e => set("notes", e.target.value)} multiline minRows={2} />
+            {error && <Alert severity="error">{error}</Alert>}
+          </Stack>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button color="error" variant="contained" onClick={onClose} sx={{ color: "#fff" }}>Ακύρωση</Button>
+        <Button color="success" variant="contained" onClick={() => save.mutate()} disabled={!form.policyId || !form.plate.trim() || save.isPending || rows.length === 0} sx={{ color: "#fff" }}>
+          {save.isPending ? "Αποθήκευση…" : "Προσθήκη οχήματος"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 void LegacyCustomerVehiclesPage;
 
 export function CustomerVehiclesPage() {
@@ -330,6 +421,7 @@ export function CustomerVehiclesPage() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [statsOpen, setStatsOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [statsFocus, setStatsFocus] = useState<string | null>(null);
   const [deleteIds, setDeleteIds] = useState<string[]>([]);
   const [deleteText, setDeleteText] = useState("");
@@ -457,6 +549,7 @@ export function CustomerVehiclesPage() {
     <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" gap={1} alignItems={{ md: "center" }}>
       <Box><Typography variant="h4" fontWeight={800}>Οχήματα πελατών</Typography><Typography color="text.secondary">Κεντρική αναζήτηση, φίλτρα, στατιστικά και ενέργειες για όλα τα οχήματα των συμβολαίων.</Typography></Box>
       <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+        <Button size="small" variant="contained" color="success" startIcon={<AddIcon />} onClick={() => setAddOpen(true)} sx={{ color: "#fff", fontWeight: 800 }}>Προσθήκη οχήματος</Button>
         <Button size="small" variant="outlined" startIcon={<DirectionsCarIcon />} onClick={() => { setStatsFocus(null); setStatsOpen(true); }}>Στατιστικά</Button>
         <Button size="small" variant="outlined" startIcon={<DownloadIcon />} sx={exportActionSx} onClick={() => exportCsv()}>Εξαγωγή CSV</Button>
         <Button size="small" variant="outlined" sx={printActionSx} onClick={() => window.print()}>Εκτύπωση</Button>
@@ -522,6 +615,7 @@ export function CustomerVehiclesPage() {
       <TablePagination component="div" count={filteredRows.length} page={page} onPageChange={(_, next) => setPage(next)} rowsPerPage={rowsPerPage} onRowsPerPageChange={event => { setRowsPerPage(Number(event.target.value)); setPage(0); }} rowsPerPageOptions={[10, 25, 50, 100]} labelRowsPerPage="Ανά σελίδα" labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`} />
     </Card>}
     <VehicleDetailDialog open={selectedVehicle !== null} plate={selectedVehicle?.plate ?? ""} initialEditing={selectedVehicle?.edit ?? false} policyIds={sourceRows.filter(row => (row.vehicleRegistrationPlate ?? "") === (selectedVehicle?.plate ?? "")).map(row => row.id)} onClose={() => setSelectedVehicle(null)} />
+    <AddVehicleDialog open={addOpen} rows={sourceRows} onClose={() => setAddOpen(false)} onSaved={() => { setAddOpen(false); void qc.invalidateQueries({ queryKey: ["customer-vehicles-all"] }); void qc.invalidateQueries({ queryKey: ["customer-vehicles"] }); }} />
     <Dialog open={statsOpen} onClose={() => setStatsOpen(false)} fullWidth maxWidth="lg">
       <DialogTitle sx={{ pb: 1 }}>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} justifyContent="space-between" alignItems={{ sm: "center" }}>

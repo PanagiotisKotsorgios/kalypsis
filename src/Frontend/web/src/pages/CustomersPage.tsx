@@ -1129,7 +1129,7 @@ function CreateCustomerDialog({
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>{t("common.cancel")}</Button>
+        <Button onClick={onClose} color="error" variant="contained" sx={{ color: "#fff", fontWeight: 700 }}>{t("common.cancel", "Άκυρο")}</Button>
         <Button onClick={handleSubmit} variant="contained"
           disabled={submitting || (!initialCustomer && (form.type === "Individual" ? !form.firstName?.trim() || !form.lastName?.trim() : !form.companyName?.trim()))}>
           {submitting ? <CircularProgress size={18} /> : initialCustomer ? "Αποθήκευση" : "Δημιουργία & άνοιγμα καρτέλας"}
