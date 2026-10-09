@@ -66,7 +66,7 @@ export function AffiliateProgramPage() {
                 Συστήστε το Kalypsis σε άλλα ασφαλιστικά γραφεία και κερδίστε μόνιμα προνόμια για το δικό σας γραφείο.
               </Typography>
             </Box>
-            <Chip icon={<WorkspacePremiumIcon />} label="15% lifetime όφελος" sx={{ alignSelf: { xs: "flex-start", sm: "center" }, bgcolor: "#dff3ff", color: "#073b6c", fontWeight: 800 }} />
+            <Chip icon={<WorkspacePremiumIcon />} label="15% για τις συστάσεις σας" sx={{ alignSelf: { xs: "flex-start", sm: "center" }, bgcolor: "#dff3ff", color: "#073b6c", fontWeight: 800 }} />
           </Stack>
         </CardContent>
       </Card>
@@ -120,9 +120,12 @@ export function AffiliateProgramPage() {
           <BenefitCard icon={<WorkspacePremiumIcon />} title="Δωρεάν χρήση εφ’ όρου ζωής" text="Με πέντε γραφεία που εγγράφονται μέσω της σύστασής σας και παραμένουν ενεργά, ενεργοποιείται το lifetime προνόμιο του προγράμματος." />
         </Grid>
         <Grid item xs={12} sm={6}>
-          <BenefitCard icon={<PercentIcon />} title="15% έκπτωση εφ’ όρου ζωής" text="Το προνόμιο εφαρμόζεται στις λειτουργίες και στα πακέτα Kalypsis του γραφείου σας, όσο παραμένετε ενεργός συνεργάτης του προγράμματος." />
+          <BenefitCard icon={<PercentIcon />} title="15% έκπτωση για το γραφείο που συστήνετε" text="Κάθε γραφείο που εγγράφεται με τον δικό σας κωδικό σύστασης παίρνει 15% έκπτωση εφ’ όρου ζωής σε όλες τις λειτουργίες και τα πακέτα Kalypsis." />
         </Grid>
       </Grid>
+      <Alert severity="info" sx={{ mb: 2.5 }}>
+        Σημαντικό: το γραφείο που κάνει τις συστάσεις κερδίζει δωρεάν χρήση εφ’ όρου ζωής μετά από πέντε ενεργές συστάσεις. Η έκπτωση 15% εφ’ όρου ζωής αφορά τα γραφεία που εγγράφονται με τον δικό του κωδικό.
+      </Alert>
 
       <Card sx={{ mb: 2 }}>
         <CardContent sx={{ p: { xs: 1.75, sm: 2.5 } }}>
