@@ -1071,7 +1071,11 @@ export default function App() {
                       routes above stay as-is so bookmarks + non-Admin
                       roles' /profile links keep working. */}
                   <Route path="agency-and-profile" element={<AgencyAndProfilePage />} />
-                  <Route path="affiliate-program" element={<AffiliateProgramPage />} />
+                  <Route path="affiliate-program" element={
+                    (effectiveRole === "AgencyAdmin" || effectiveRole === "AgencyOfficeAdmin" || effectiveRole === "AgencyUser")
+                      ? <AffiliateProgramPage />
+                      : <Navigate to="/" replace />
+                  } />
                   <Route path="coming-soon" element={<ComingSoonPage />} />
                   <Route path="platform/registrations" element={<PlatformRegistrationsPage />} />
                   <Route path="platform/economics" element={<PlatformEconomicsPage />} />
