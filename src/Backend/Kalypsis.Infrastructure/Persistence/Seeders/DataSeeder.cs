@@ -364,9 +364,9 @@ public static class DataSeeder
             return;
         }
 
-        // The old singleton used v1's frontend-oriented shape. Upgrade only
-        // that legacy row; v2+ is owned by SuperAdmin and is never overwritten
-        // during a redeploy.
+        // The old singleton used the previous pricing catalogue. Upgrade the
+        // catalogue version during deployment so the public page and the
+        // SuperAdmin editor share the current package definitions.
         if (row.Version < catalog.Version)
         {
             row.CatalogJson = JsonSerializer.Serialize(catalog);

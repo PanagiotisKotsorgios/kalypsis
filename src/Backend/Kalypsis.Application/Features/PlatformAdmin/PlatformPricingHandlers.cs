@@ -84,34 +84,52 @@ public static class PricingDefaults
         {
             new PricingFeatureDto("producer_portal", "Πύλη Συνεργάτη", "Πρόσβαση συνεργάτη στην παραγωγή και στα έγγραφά του.", 10, true, "person"),
             new PricingFeatureDto("backoffice", "Διαχείριση Γραφείου", "Πελάτες, συμβόλαια, οικονομικά και παραγωγή.", 20, true, "business"),
-            new PricingFeatureDto("client_portal", "Πύλη Πελάτη", "Αιτήματα, συμβόλαια και έγγραφα για τον πελάτη.", 30, true, "people"),
-            new PricingFeatureDto("crm", "CRM", "Επικοινωνίες, ομάδες, εργασίες και καμπάνιες.", 40, true, "groups"),
-            new PricingFeatureDto("all_bridges", "Όλες οι Γέφυρες", "Εισαγωγές και αντιστοιχίσεις αρχείων εταιρειών.", 50, true, "hub"),
+            new PricingFeatureDto("backoffice_customers", "Πελατολόγιο και πλήρη στοιχεία πελατών", "Ενιαία καρτέλα με όλα τα στοιχεία και τις σχέσεις του πελάτη.", 21, true, "people"),
+            new PricingFeatureDto("backoffice_policies", "Διαχείριση ασφαλιστηρίων συμβολαίων", "Συμβόλαια, καλύψεις, οχήματα και συνημμένα έγγραφα.", 22, true, "business"),
+            new PricingFeatureDto("backoffice_lifecycle", "Ανανεώσεις, ακυρώσεις και πρόσθετες πράξεις", "Πλήρης κύκλος ζωής κάθε συμβολαίου.", 23, true, "extension"),
+            new PricingFeatureDto("backoffice_production", "Παρακολούθηση παραγωγής", "Λίστες παραγωγής, προμήθειες και αναλυτική εικόνα.", 24, true, "chart"),
+            new PricingFeatureDto("backoffice_partners", "Συνεργάτες και προμήθειες", "Καρτέλες συνεργατών, κανόνες και εκκαθαρίσεις.", 25, true, "groups"),
+            new PricingFeatureDto("backoffice_financials", "Οικονομική εικόνα γραφείου", "Ταμείο, οφειλές, εισπράξεις και υποχρεώσεις.", 26, true, "business"),
+            new PricingFeatureDto("backoffice_payments", "Εισπράξεις και πληρωμές", "Παρακολούθηση πληρωμών γραφείου, εταιρειών και συνεργατών.", 27, true, "business"),
+            new PricingFeatureDto("all_bridges", "Γέφυρες και εισαγωγές ασφαλιστικών εταιρειών", "Εισαγωγές αρχείων και αντιστοιχίσεις από τις ασφαλιστικές εταιρείες.", 28, true, "hub"),
+            new PricingFeatureDto("backoffice_search_exports", "Αναζητήσεις, φίλτρα και εξαγωγές στοιχείων", "Γρήγορα φίλτρα και εξαγωγή των δεδομένων του γραφείου.", 29, true, "extension"),
+            new PricingFeatureDto("backoffice_analytics", "Προηγμένα στατιστικά και συνολική εικόνα", "Δείκτες δραστηριότητας και γραφήματα για το γραφείο.", 30, true, "chart"),
+            new PricingFeatureDto("client_portal", "Πύλη Πελάτη", "Ο πελάτης βλέπει συγκεντρωμένα συμβόλαια, έγγραφα και αιτήματα.", 40, true, "people"),
+            new PricingFeatureDto("crm", "CRM και αυτοματοποιημένες επικοινωνίες", "Ομάδες, οργανωμένη επικοινωνία, ενημερώσεις και αποστολή έως περίπου 300 email ημερησίως χωρίς επιπλέον χρέωση.", 50, true, "groups"),
             new PricingFeatureDto("reporting", "Αναφορές", "Στατιστικά, στόχοι και αναφορές παραγωγής.", 60, true, "chart"),
             new PricingFeatureDto("frontoffice", "Ιστοσελίδα Γραφείου", "Δημόσια ιστοσελίδα, posts και αιτήσεις.", 70, true, "language"),
-            new PricingFeatureDto("intelligence", "Νοημοσύνη", "AI αναλύσεις, προβλέψεις και δημιουργός αναφορών.", 80, true, "smart"),
+            new PricingFeatureDto("intelligence", "Νοημοσύνη και Desktop με συγχρονισμό Cloud", "AI αναλύσεις, προβλέψεις, δημιουργός αναφορών και εφαρμογή υπολογιστή.", 80, true, "smart"),
             new PricingFeatureDto("custom_integrations", "Εξατομικευμένες Διασυνδέσεις", "Προσαρμοσμένα APIs και εξωτερικά συστήματα.", 90, true, "extension"),
             new PricingFeatureDto("priority_support", "Υποστήριξη Προτεραιότητας", "SLA και τηλεφωνική γραμμή προτεραιότητας.", 100, true, "support")
         };
         var producer = new[] { "producer_portal" };
-        var standard = new[] { "backoffice", "client_portal", "crm", "all_bridges" };
-        var growth = standard.Append("reporting").ToArray();
-        var premium = standard.Concat(new[] { "frontoffice", "intelligence", "custom_integrations", "priority_support" }).ToArray();
+        var backoffice = new[]
+        {
+            "backoffice", "backoffice_customers", "backoffice_policies", "backoffice_lifecycle",
+            "backoffice_production", "backoffice_partners", "backoffice_financials", "backoffice_payments",
+            "all_bridges", "backoffice_search_exports", "backoffice_analytics"
+        };
+        var growth = backoffice.Concat(new[] { "client_portal", "crm" }).ToArray();
+        var advanced = growth.Append("intelligence").ToArray();
+        var premium = advanced.Concat(new[] { "reporting", "frontoffice", "custom_integrations", "priority_support" }).ToArray();
         var plans = new[]
         {
             new PlanDefinitionDto("producer", "Μεμονωμένος συνεργάτης · μόνο πύλη", 90m, 0, 1, 0m, 60m, producer,
-                Name: "Παραγωγός", Description: "Μεμονωμένος συνεργάτης · μόνο πύλη", SortOrder: 10, IncludedPackages: 1, FeatureKeys: producer, IconKey: "person"),
-            new PlanDefinitionDto("standard", "1 γραφείο · κλασικές λειτουργίες", 550m, 1, 4, 400m, 150m, standard,
-                Name: "Βασικό", Description: "1 γραφείο · κλασικές λειτουργίες", IsFeatured: true, Badge: "Πιο Δημοφιλές", SortOrder: 20, IncludedPackages: 4, FeatureKeys: standard, IconKey: "business"),
-            new PlanDefinitionDto("growth", "2 γραφεία · βασικό πακέτο + βασικές αναφορές", 950m, 2, 6, 350m, 180m, growth,
-                Name: "Ανάπτυξη", Description: "2 γραφεία · βασικό πακέτο + βασικές αναφορές", SortOrder: 30, IncludedPackages: 5, FeatureKeys: growth, IconKey: "chart"),
-            new PlanDefinitionDto("premium", "Πλήρης σουίτα · υποστήριξη προτεραιότητας", 1800m, 3, 10, 500m, 240m, premium,
-                Name: "Πλήρες", Description: "Πλήρης σουίτα · υποστήριξη προτεραιότητας", SortOrder: 40, IncludedPackages: 8, FeatureKeys: premium, IconKey: "crown")
+                Name: "Συνεργάτης", Description: "Μεμονωμένος συνεργάτης · μόνο πύλη", SortOrder: 10, IncludedPackages: 1, FeatureKeys: producer, IconKey: "person"),
+            new PlanDefinitionDto("standard", "1 γραφείο · μόνο Backoffice", 150m, 1, 4, 400m, 150m, backoffice,
+                Name: "Απλό", Description: "Η βασική έκδοση του KALYPSIS Backoffice για την καθημερινή λειτουργία του ασφαλιστικού γραφείου.", SortOrder: 20, IncludedPackages: 1, FeatureKeys: backoffice, IconKey: "business"),
+            new PlanDefinitionDto("growth", "1 γραφείο · Backoffice + CRM + Πύλη Πελάτη", 225m, 1, 4, 350m, 180m, growth,
+                Name: "Ανάπτυξης", Description: "Backoffice με οργανωμένη επικοινωνία, αυτοματοποιημένες ενημερώσεις και Πύλη Πελάτη.", IsFeatured: true, Badge: "Πιο Δημοφιλές", SortOrder: 30, IncludedPackages: 3, FeatureKeys: growth, IconKey: "groups"),
+            new PlanDefinitionDto("advanced", "1 γραφείο · ανάπτυξη + Νοημοσύνη/Desktop", 300m, 1, 6, 400m, 200m, advanced,
+                Name: "Προχωρημένο", Description: "Backoffice, CRM, Πύλη Πελάτη και Νοημοσύνη με εφαρμογή Desktop και συγχρονισμό Cloud.", SortOrder: 40, IncludedPackages: 4, FeatureKeys: advanced, IconKey: "smart"),
+            new PlanDefinitionDto("premium", "Πλήρης σουίτα · όλες οι δυνατότητες", 450m, 3, 10, 500m, 240m, premium,
+                Name: "Πλήρες", Description: "Όλες οι δυνατότητες του KALYPSIS για γραφεία που θέλουν την πλήρη επιχειρηματική σουίτα.", SortOrder: 50, IncludedPackages: 8, FeatureKeys: premium, IconKey: "crown")
         };
         var addons = new[]
         {
+            new AddonDefinitionDto("crm_portal", "Οργανωμένη επικοινωνία, ομάδες, αυτοματοποιημένες ενημερώσεις και Πύλη Πελάτη", 75m, "CRM + Πύλη Πελάτη", true, 5, "groups"),
             new AddonDefinitionDto("frontoffice", "Ιστοσελίδα γραφείου + εργαλεία καμπάνιας", 400m, "Ιστοσελίδα Γραφείου", true, 10, "language"),
-            new AddonDefinitionDto("intelligence", "Αναλυτικά στοιχεία + αναφορές + συγκριτικά δεδομένα", 300m, "Νοημοσύνη", true, 20, "smart"),
+            new AddonDefinitionDto("intelligence", "Νοημοσύνη και Desktop εφαρμογή με συγχρονισμό Cloud", 75m, "Νοημοσύνη + Desktop", true, 20, "smart"),
             new AddonDefinitionDto("advanced_bridges", "Προηγμένες γέφυρες — απεριόριστες γέφυρες + αντιστοίχιση AI", 200m, "Προηγμένες Γέφυρες", true, 30, "hub"),
             new AddonDefinitionDto("priority_support", "SLA 4 ωρών · τηλεφωνική γραμμή προτεραιότητας", 130m, "Υποστήριξη Προτεραιότητας", true, 40, "support"),
             new AddonDefinitionDto("custom_integrations", "Ενσωμάτωση με ERP (SAP, Oracle κ.λπ.) + προσαρμοσμένα APIs", 1200m, "Εξατομικευμένες Διασυνδέσεις", true, 50, "extension")
@@ -125,7 +143,7 @@ public static class PricingDefaults
             new ServiceDefinitionDto("website_creation", "Δημιουργία ιστοσελίδας ασφαλιστικού γραφείου", "σταθερό", 300m, "Δημιουργία Ιστοσελίδας", "fixed", true, 50, "language"),
             new ServiceDefinitionDto("website_maintenance", "Ετήσια συντήρηση ιστοσελίδας από το 1ο έτος", "ανά έτος", 130m, "Συντήρηση Ιστοσελίδας", "yearly", true, 60, "build")
         };
-        return new PricingCatalogDto(2, plans, addons, services) { Features = features, Settings = new PricingSettingsDto() };
+        return new PricingCatalogDto(3, plans, addons, services) { Features = features, Settings = new PricingSettingsDto() };
     }
 
     public static PricingCatalogDto Normalize(PricingCatalogDto parsed)
@@ -133,7 +151,7 @@ public static class PricingDefaults
         var defaults = Build();
         // v1 was the legacy hard-coded catalogue. Upgrade it to the explicit
         // v2 catalogue once, so the public page never serves stale legacy prices.
-        if (parsed.Version < 2) return defaults;
+        if (parsed.Version < 3) return defaults;
         var featureList = parsed.Features is { Count: > 0 } ? parsed.Features : defaults.Features;
         var settings = parsed.Settings ?? defaults.Settings;
         var plans = parsed.Plans.Select((p, i) =>
@@ -164,7 +182,7 @@ public static class PricingDefaults
             var pricingType = string.IsNullOrWhiteSpace(s.PricingType) ? (s.UnitPrice.HasValue ? "fixed" : "custom_quote") : s.PricingType.Trim().ToLowerInvariant();
             return s with { Name = string.IsNullOrWhiteSpace(s.Name) ? d?.Name ?? s.Code : s.Name, PricingType = pricingType, IsActive = s.IsActive, SortOrder = s.SortOrder == 0 ? (d?.SortOrder ?? (i + 1) * 10) : s.SortOrder };
         }).ToArray();
-        return parsed with { Version = Math.Max(2, parsed.Version), Plans = plans, Addons = addons, Services = services, Features = featureList, Settings = settings };
+        return parsed with { Version = Math.Max(3, parsed.Version), Plans = plans, Addons = addons, Services = services, Features = featureList, Settings = settings };
     }
 }
 

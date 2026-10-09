@@ -190,7 +190,7 @@ export function PricingPage() {
             Οι τιμές μπορούν να μειωθούν αν δεν χρειάζεστε συγκεκριμένες λειτουργίες ή να αυξηθούν αν επιλέξετε επιπλέον δυνατότητες, γραφεία, χρήστες ή διασυνδέσεις. Επικοινωνήστε μαζί μας για μια εξατομικευμένη πρόταση.
           </Alert>
 
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2,1fr)", lg: "repeat(4,1fr)" }, gap: { xs: 2, lg: 2.5 }, alignItems: "stretch" }}>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2,1fr)", lg: "repeat(4,1fr)", xl: "repeat(5,1fr)" }, gap: { xs: 2, lg: 2.5 }, alignItems: "stretch" }}>
             {activePlans.map(plan => <PlanCard key={plan.code} plan={plan} features={activeFeatures} />)}
           </Box>
           <Typography sx={{ color: RED, fontWeight: 800, fontSize: 13, textAlign: "right", mt: 1 }}>{settings.pricesIncludeVat ? settings.vatLabel : `Οι τιμές δεν περιλαμβάνουν ΦΠΑ (${settings.vatRate}%)`}</Typography>
