@@ -1894,7 +1894,7 @@ export function PlatformCompliancePage() {
 }
 
 /* ===================== Support Inbox ===================== */
-interface SupportReply { id: string; at: string; author: string; body: string; notifiedTenant: boolean; }
+interface SupportReply { id: string; at: string; author: string; body: string; notifiedTenant: boolean; isHistory?: boolean; }
 interface SupportTicket {
   id: string;
   tenantId: string;
@@ -1908,6 +1908,8 @@ interface SupportTicket {
   status: "Open" | "InProgress" | "Waiting" | "Resolved";
   channel: "Email" | "Internal" | "Phone";
   assignee: string | null;
+  deletionRequestedAt: string | null;
+  deletionRequestedBy: string | null;
   replies: SupportReply[];
 }
 
@@ -1924,7 +1926,9 @@ interface SupportTicketApiDto {
   assignee: string | null;
   openedAt: string;
   resolvedAt: string | null;
-  replies: Array<{ id: string; at: string; author: string; body: string; notifiedTenant: boolean }>;
+  deletionRequestedAt: string | null;
+  deletionRequestedBy: string | null;
+  replies: Array<{ id: string; at: string; author: string; body: string; notifiedTenant: boolean; isHistory?: boolean }>;
 }
 
 function apiToTicket(a: SupportTicketApiDto): SupportTicket {
@@ -1941,6 +1945,8 @@ function apiToTicket(a: SupportTicketApiDto): SupportTicket {
     assignee: a.assignee,
     openedAt: a.openedAt,
     resolvedAt: a.resolvedAt,
+    deletionRequestedAt: a.deletionRequestedAt,
+    deletionRequestedBy: a.deletionRequestedBy,
     replies: a.replies
   };
 }
@@ -2007,7 +2013,7 @@ export function PlatformSupportPage() {
     onError: (e) => setBanner({ kind: "error", msg: extractErrorMessage(e) })
   });
   const createTicket = useMutation({
-    mutationFn: async (body: Omit<SupportTicket, "id" | "replies" | "openedAt" | "resolvedAt" | "tenantCode" | "tenant"> & { tenantId: string }) =>
+    mutationFn: async (body: Omit<SupportTicket, "id" | "replies" | "openedAt" | "resolvedAt" | "tenantCode" | "tenant" | "deletionRequestedAt" | "deletionRequestedBy"> & { tenantId: string }) =>
       (await api.post<SupportTicketApiDto>("/platform/support-tickets", {
         tenantId: body.tenantId,
         subject: body.subject,
@@ -2136,7 +2142,10 @@ export function PlatformSupportPage() {
                   <Typography fontWeight={600}>{tt.tenant}</Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>{tt.tenantCode}</Typography>
                 </TableCell>
-                <TableCell>{tt.subject}</TableCell>
+                <TableCell>
+                  <Typography>{tt.subject}</Typography>
+                  {tt.deletionRequestedAt && <Chip size="small" color="warning" label="Αίτημα διαγραφής" sx={{ mt: 0.25 }} />}
+                </TableCell>
                 <TableCell><Chip size="small" color={PRIO_COLOR[tt.priority]} label={tt.priority} /></TableCell>
                 <TableCell sx={{ fontSize: 12 }}>{tt.assignee ?? <em style={{ color: "#999" }}>—</em>}</TableCell>
                 <TableCell sx={{ fontSize: 12 }}>{new Date(tt.openedAt).toLocaleDateString("el-GR")}</TableCell>
@@ -2213,14 +2222,19 @@ export function PlatformSupportPage() {
               <Typography variant="caption" color="text.secondary">
                 Ανοίχθηκε {new Date(openTicket.openedAt).toLocaleString("el-GR")} · {openTicket.channel} · Assignee: {openTicket.assignee ?? "—"}
               </Typography>
+              {openTicket.deletionRequestedAt && (
+                <Alert severity="warning" sx={{ my: 2 }}>
+                  Αίτημα διαγραφής από {openTicket.deletionRequestedBy ?? "χρήστη γραφείου"} στις {new Date(openTicket.deletionRequestedAt).toLocaleString("el-GR")}. Η διαγραφή απαιτεί επιβεβαίωση από τον διαχειριστή.
+                </Alert>
+              )}
               <Alert severity="info" sx={{ my: 2 }}>{openTicket.body}</Alert>
 
-              <Typography variant="overline" color="text.secondary">Απαντήσεις ({openTicket.replies.length})</Typography>
+              <Typography variant="overline" color="text.secondary">Απαντήσεις ({openTicket.replies.filter(r => !r.isHistory).length})</Typography>
               <Stack spacing={1} sx={{ my: 1 }}>
-                {openTicket.replies.length === 0 && (
+                {openTicket.replies.filter(r => !r.isHistory).length === 0 && (
                   <Typography variant="body2" color="text.secondary">— καμία απάντηση ακόμη —</Typography>
                 )}
-                {openTicket.replies.map((r, i) => (
+                {openTicket.replies.filter(r => !r.isHistory).map((r, i) => (
                   <Box key={i} sx={{ p: 1.5, border: 1, borderColor: "divider", borderRadius: 1 }}>
                     <Stack direction="row" justifyContent="space-between">
                       <Typography variant="caption" fontWeight={700}>{r.author}</Typography>
@@ -2232,6 +2246,23 @@ export function PlatformSupportPage() {
                   </Box>
                 ))}
               </Stack>
+
+              {openTicket.replies.some(r => r.isHistory) && (
+                <>
+                  <Typography variant="overline" color="text.secondary">Ιστορικό προηγούμενων εκδόσεων</Typography>
+                  <Stack spacing={1} sx={{ my: 1 }}>
+                    {openTicket.replies.filter(r => r.isHistory).map((r, i) => (
+                      <Box key={`history-${i}`} sx={{ p: 1.5, border: 1, borderStyle: "dashed", borderColor: "divider", borderRadius: 1, bgcolor: "rgba(11,37,69,0.03)" }}>
+                        <Stack direction="row" justifyContent="space-between">
+                          <Typography variant="caption" fontWeight={700}>Πριν την επεξεργασία</Typography>
+                          <Typography variant="caption" color="text.secondary">{new Date(r.at).toLocaleString("el-GR")}</Typography>
+                        </Stack>
+                        <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: "pre-wrap" }}>{r.body}</Typography>
+                      </Box>
+                    ))}
+                  </Stack>
+                </>
+              )}
 
               <Divider sx={{ my: 2 }} />
               <TextField label="Νέα απάντηση (εσωτερική)" fullWidth multiline minRows={3}
@@ -2268,12 +2299,15 @@ export function PlatformSupportPage() {
             <DialogActions>
               <Button color="error"
                 onClick={() => {
-                  if (!confirm(`Διαγραφή ticket ${openTicket.id.slice(0, 8)};`)) return;
+                  const prompt = openTicket.deletionRequestedAt
+                    ? `Επιβεβαίωση οριστικής διαγραφής του αιτήματος ${openTicket.id.slice(0, 8)};`
+                    : `Διαγραφή ticket ${openTicket.id.slice(0, 8)};`;
+                  if (!confirm(prompt)) return;
                   deleteTicket.mutate(openTicket.id);
                 }}
                 sx={{ mr: "auto" }}
                 disabled={deleteTicket.isPending}>
-                Διαγραφή
+                {openTicket.deletionRequestedAt ? "Επιβεβαίωση διαγραφής" : "Διαγραφή"}
               </Button>
               <Button onClick={() => setOpenTicket(null)}>Κλείσιμο</Button>
               <Button variant="outlined" startIcon={<SendIcon />}

@@ -50,7 +50,6 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { CookieBanner } from "./components/CookieBanner";
 import { CookiePreferencesButton } from "./components/CookiePreferencesButton";
 import { UserImpersonationBanner } from "./components/UserImpersonationBanner";
-import { OnboardingWizard } from "./components/OnboardingWizard";
 import { PageLoader } from "./components/PageLoader";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { SeoController } from "./components/SeoController";
@@ -1234,7 +1233,6 @@ export default function App() {
       {!location.pathname.startsWith("/app")
         && !location.pathname.startsWith("/ermes-app") && <CookieBanner />}
       {!location.pathname.startsWith("/ermes-app") && <CookiePreferencesButton />}
-      {user?.role === "AgencyAdmin" && !impersonatedTenantId && <OnboardingWizard />}
     </>
   );
 }

@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Kalypsis.Application.Features.PlatformSupport;
 
 public record SupportReplyDto(
-    Guid Id, DateTime At, string Author, string Body, bool NotifiedTenant);
+    Guid Id, DateTime At, string Author, string Body, bool NotifiedTenant, bool IsHistory);
 
 public record SupportTicketDto(
     Guid Id, Guid TenantId, string TenantName, string TenantCode,
@@ -16,6 +16,7 @@ public record SupportTicketDto(
     string Priority, string Status, string Channel,
     string? Assignee,
     DateTime OpenedAt, DateTime? ResolvedAt,
+    DateTime? DeletionRequestedAt, string? DeletionRequestedBy,
     IReadOnlyList<SupportReplyDto> Replies);
 
 /* ============================ Ticket CRUD ============================ */
@@ -41,9 +42,10 @@ public class ListTicketsHandler : IRequestHandler<ListTicketsQuery, IReadOnlyLis
         return rows.Select(t => new SupportTicketDto(
             t.Id, t.TenantId, t.TenantName, t.TenantCode,
             t.Subject, t.Body, t.Priority, t.Status, t.Channel, t.Assignee,
-            t.OpenedAt, t.ResolvedAt,
+            t.OpenedAt, t.ResolvedAt, t.DeletionRequestedAt, t.DeletionRequestedBy,
             replies.Where(r => r.SupportTicketId == t.Id)
-                   .Select(r => new SupportReplyDto(r.Id, r.CreatedAt, r.Author, r.Body, r.NotifiedTenant))
+                   .Select(r => new SupportReplyDto(r.Id, r.CreatedAt, r.Author, r.Body, r.NotifiedTenant,
+                       r.Author == "Ιστορικό αιτήματος"))
                    .ToList()
         )).ToList();
     }
@@ -92,7 +94,8 @@ public class CreateTicketHandler : IRequestHandler<CreateTicketCommand, SupportT
         await _db.SaveChangesAsync(ct);
         return new SupportTicketDto(t.Id, t.TenantId, t.TenantName, t.TenantCode,
             t.Subject, t.Body, t.Priority, t.Status, t.Channel, t.Assignee,
-            t.OpenedAt, t.ResolvedAt, new List<SupportReplyDto>());
+            t.OpenedAt, t.ResolvedAt, t.DeletionRequestedAt, t.DeletionRequestedBy,
+            new List<SupportReplyDto>());
     }
 }
 
@@ -127,11 +130,12 @@ public class UpdateTicketHandler : IRequestHandler<UpdateTicketCommand, SupportT
         var replies = await db.SupportTicketReplies
             .Where(r => r.SupportTicketId == t.Id && r.DeletedAt == null)
             .OrderBy(r => r.CreatedAt)
-            .Select(r => new SupportReplyDto(r.Id, r.CreatedAt, r.Author, r.Body, r.NotifiedTenant))
+            .Select(r => new SupportReplyDto(r.Id, r.CreatedAt, r.Author, r.Body, r.NotifiedTenant,
+                r.Author == "Ιστορικό αιτήματος"))
             .ToListAsync(ct);
         return new SupportTicketDto(t.Id, t.TenantId, t.TenantName, t.TenantCode,
             t.Subject, t.Body, t.Priority, t.Status, t.Channel, t.Assignee,
-            t.OpenedAt, t.ResolvedAt, replies);
+            t.OpenedAt, t.ResolvedAt, t.DeletionRequestedAt, t.DeletionRequestedBy, replies);
     }
 }
 
@@ -139,7 +143,7 @@ public class UpdateTicketHandler : IRequestHandler<UpdateTicketCommand, SupportT
  * Signed-in users get their own list of tickets belonging to their tenant.
  * Separate from the platform-admin ListTicketsQuery which is global. */
 
-public record MyTicketsQuery(string? Search, string? Status) : IRequest<IReadOnlyList<SupportTicketDto>>;
+public record MyTicketsQuery(string? Search, string? Status, DateTime? OpenedFrom, DateTime? OpenedTo) : IRequest<IReadOnlyList<SupportTicketDto>>;
 public class MyTicketsHandler : IRequestHandler<MyTicketsQuery, IReadOnlyList<SupportTicketDto>>
 {
     private readonly IAppDbContext _db;
@@ -150,6 +154,12 @@ public class MyTicketsHandler : IRequestHandler<MyTicketsQuery, IReadOnlyList<Su
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var q = _db.SupportTickets.Where(t => t.DeletedAt == null && t.TenantId == tenantId);
         if (!string.IsNullOrEmpty(r.Status)) q = q.Where(t => t.Status == r.Status);
+        if (r.OpenedFrom.HasValue) q = q.Where(t => t.OpenedAt >= r.OpenedFrom.Value.ToUniversalTime());
+        if (r.OpenedTo.HasValue)
+        {
+            var end = r.OpenedTo.Value.Date.AddDays(1).ToUniversalTime();
+            q = q.Where(t => t.OpenedAt < end);
+        }
         if (!string.IsNullOrWhiteSpace(r.Search))
         {
             var s = r.Search.Trim();
@@ -164,9 +174,10 @@ public class MyTicketsHandler : IRequestHandler<MyTicketsQuery, IReadOnlyList<Su
         return rows.Select(t => new SupportTicketDto(
             t.Id, t.TenantId, t.TenantName, t.TenantCode,
             t.Subject, t.Body, t.Priority, t.Status, t.Channel, t.Assignee,
-            t.OpenedAt, t.ResolvedAt,
+            t.OpenedAt, t.ResolvedAt, t.DeletionRequestedAt, t.DeletionRequestedBy,
             replies.Where(rp => rp.SupportTicketId == t.Id)
-                   .Select(rp => new SupportReplyDto(rp.Id, rp.CreatedAt, rp.Author, rp.Body, rp.NotifiedTenant))
+                   .Select(rp => new SupportReplyDto(rp.Id, rp.CreatedAt, rp.Author, rp.Body, rp.NotifiedTenant,
+                       rp.Author == "Ιστορικό αιτήματος"))
                    .ToList())).ToList();
     }
 }
@@ -202,7 +213,67 @@ public class CreateMyTicketHandler : IRequestHandler<CreateMyTicketCommand, Supp
         await _db.SaveChangesAsync(ct);
         return new SupportTicketDto(t.Id, t.TenantId, t.TenantName, t.TenantCode,
             t.Subject, t.Body, t.Priority, t.Status, t.Channel, t.Assignee,
-            t.OpenedAt, t.ResolvedAt, new List<SupportReplyDto>());
+            t.OpenedAt, t.ResolvedAt, t.DeletionRequestedAt, t.DeletionRequestedBy,
+            new List<SupportReplyDto>());
+    }
+}
+
+public record UpdateMyTicketCommand(Guid Id, string Subject, string Body) : IRequest<SupportTicketDto>;
+public class UpdateMyTicketHandler : IRequestHandler<UpdateMyTicketCommand, SupportTicketDto>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    public UpdateMyTicketHandler(IAppDbContext db, ICurrentUser current) { _db = db; _current = current; }
+    public async Task<SupportTicketDto> Handle(UpdateMyTicketCommand r, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var t = await _db.SupportTickets.FirstOrDefaultAsync(x => x.Id == r.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("SupportTicket");
+        if (t.DeletionRequestedAt.HasValue) throw AppException.Conflict("Το αίτημα έχει ήδη ζητήσει διαγραφή και δεν μπορεί να τροποποιηθεί.");
+        var subject = (r.Subject ?? "").Trim();
+        var body = (r.Body ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(subject)) throw AppException.Validation("Το θέμα είναι υποχρεωτικό.");
+        if (subject.Length > 400) throw AppException.Validation("Το θέμα δεν μπορεί να ξεπερνά τους 400 χαρακτήρες.");
+        if (string.IsNullOrWhiteSpace(body)) throw AppException.Validation("Το μήνυμα είναι υποχρεωτικό.");
+        _db.SupportTicketReplies.Add(new SupportTicketReply
+        {
+            SupportTicketId = t.Id,
+            Author = "Ιστορικό αιτήματος",
+            Body = $"Πριν την επεξεργασία ({DateTime.UtcNow:O})\nΘέμα: {t.Subject}\n\nΜήνυμα:\n{t.Body}",
+            NotifiedTenant = false
+        });
+        t.Subject = subject;
+        t.Body = body;
+        await _db.SaveChangesAsync(ct);
+        return await UpdateTicketHandler.BuildDtoAsync(_db, t, ct);
+    }
+}
+
+public record RequestTicketDeletionCommand(Guid Id) : IRequest<SupportTicketDto>;
+public class RequestTicketDeletionHandler : IRequestHandler<RequestTicketDeletionCommand, SupportTicketDto>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    public RequestTicketDeletionHandler(IAppDbContext db, ICurrentUser current) { _db = db; _current = current; }
+    public async Task<SupportTicketDto> Handle(RequestTicketDeletionCommand r, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var t = await _db.SupportTickets.FirstOrDefaultAsync(x => x.Id == r.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("SupportTicket");
+        if (!t.DeletionRequestedAt.HasValue)
+        {
+            t.DeletionRequestedAt = DateTime.UtcNow;
+            t.DeletionRequestedBy = _current.Email ?? "Χρήστης γραφείου";
+            _db.SupportTicketReplies.Add(new SupportTicketReply
+            {
+                SupportTicketId = t.Id,
+                Author = "Αίτημα διαγραφής",
+                Body = "Ο χρήστης ζήτησε διαγραφή του αιτήματος. Απαιτείται επιβεβαίωση από διαχειριστή.",
+                NotifiedTenant = false
+            });
+            await _db.SaveChangesAsync(ct);
+        }
+        return await UpdateTicketHandler.BuildDtoAsync(_db, t, ct);
     }
 }
 

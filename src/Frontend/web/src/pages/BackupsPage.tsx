@@ -9,14 +9,11 @@ import BackupIcon from "@mui/icons-material/Backup";
 import DownloadIcon from "@mui/icons-material/Download";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
-import SecurityIcon from "@mui/icons-material/Security";
 import HistoryIcon from "@mui/icons-material/History";
 import SettingsIcon from "@mui/icons-material/Settings";
 import ScheduleIcon from "@mui/icons-material/Schedule";
-import GavelIcon from "@mui/icons-material/Gavel";
 import CloudDoneIcon from "@mui/icons-material/CloudDone";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
 import RestoreIcon from "@mui/icons-material/Restore";
 import WarningIcon from "@mui/icons-material/Warning";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -35,14 +32,6 @@ interface BackupDto {
 interface BackupPolicyDto {
   enabled: boolean; frequencyDays: number; retentionCount: number; lastAutoBackupAt: string | null;
 }
-interface GdprRequestDto {
-  id: string;
-  requesterName: string; requesterEmail: string; requesterPhone: string | null;
-  customerId: string | null; customerDisplay: string | null;
-  reason: string; status: string; notes: string | null;
-  createdAt: string; handledAt: string | null; handledByName: string | null;
-}
-
 // Filled chip styles per backup kind — Χειροκίνητο pops in navy so the
 // operator's own snapshots stand out from the scheduled daily churn.
 const BACKUP_KIND_STYLES: Record<string, { bg: string; fg: string; border: string; label: string }> = {
@@ -69,16 +58,6 @@ function renderSummaryChip(label: string, value: number) {
   return <Chip size="small" label={`${label}: ${value}`}
     sx={{ bgcolor: s.bg, color: s.fg, borderColor: s.border, border: 1, fontWeight: 600 }} />;
 }
-const GDPR_STATUSES = ["Pending", "InReview", "Approved", "Rejected", "Completed"] as const;
-const GDPR_STATUS_LABEL: Record<string, string> = {
-  Pending: "Εκκρεμεί", InReview: "Υπό εξέταση", Approved: "Εγκρίθηκε",
-  Rejected: "Απορρίφθηκε", Completed: "Ολοκληρώθηκε",
-};
-const GDPR_STATUS_COLOR: Record<string, "default" | "info" | "success" | "error" | "warning"> = {
-  Pending: "warning", InReview: "info", Approved: "success",
-  Rejected: "error", Completed: "success",
-};
-
 export function BackupsPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -86,7 +65,7 @@ export function BackupsPage() {
   const [tab, setTab] = useState<number>(() => {
     try {
       const v = Number(localStorage.getItem("kalypsis:backups:tab") ?? "0");
-      return Number.isFinite(v) && v >= 0 && v <= 2 ? v : 0;
+      return Number.isFinite(v) && v >= 0 && v <= 1 ? v : 0;
     } catch { return 0; }
   });
   const changeTab = (v: number) => {
@@ -101,31 +80,29 @@ export function BackupsPage() {
         <Box>
           <Stack direction="row" alignItems="center" spacing={0.5}>
             <Typography variant="h4" sx={{ fontWeight: 800 }}>
-              {t("backups.title", "Αντίγραφα & GDPR")}
+              {t("backups.title", "Αντίγραφα ασφαλείας")}
             </Typography>
             <HelpHint id="page.backups" />
           </Stack>
           <Typography color="text.secondary">
-            {t("backups.subtitle", "Τοπικά αντίγραφα ασφαλείας δεδομένων γραφείου, αυτόματα προγράμματα και αιτήματα GDPR.")}
+            {t("backups.subtitle", "Τοπικά αντίγραφα ασφαλείας δεδομένων γραφείου και αυτόματα προγράμματα διατήρησης.")}
           </Typography>
         </Box>
       </Stack>
 
       {!isAdmin && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          {t("backups.readOnlyNote", "Μόνο ο διαχειριστής του γραφείου μπορεί να δημιουργήσει αντίγραφα ή να αλλάξει τις ρυθμίσεις. Οι αναφορές GDPR είναι διαθέσιμες σε όλο το προσωπικό.")}
+          {t("backups.readOnlyNote", "Μόνο ο διαχειριστής του γραφείου μπορεί να δημιουργήσει αντίγραφα ή να αλλάξει τις ρυθμίσεις.")}
         </Alert>
       )}
 
       <Tabs value={tab} onChange={(_, v) => changeTab(v)} sx={{ mb: 3, borderBottom: 1, borderColor: "divider" }} variant="scrollable">
         <Tab icon={<HistoryIcon fontSize="small" />}  iconPosition="start" label={t("backups.tabs.backups", "Αντίγραφα")} />
         <Tab icon={<ScheduleIcon fontSize="small" />} iconPosition="start" label={t("backups.tabs.auto", "Αυτόματα αντίγραφα")} />
-        <Tab icon={<GavelIcon fontSize="small" />}    iconPosition="start" label={t("backups.tabs.gdpr", "Αιτήματα GDPR")} />
       </Tabs>
 
       {tab === 0 && <BackupsTab isAdmin={isAdmin} />}
       {tab === 1 && <AutoBackupTab isAdmin={isAdmin} />}
-      {tab === 2 && <GdprTab isAdmin={isAdmin} />}
     </Box>
   );
 }
@@ -138,14 +115,32 @@ function BackupsTab({ isAdmin }: { isAdmin: boolean }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [err, setErr] = useState<string | null>(null);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [createStartedAt, setCreateStartedAt] = useState<number | null>(null);
+  const [createElapsedMs, setCreateElapsedMs] = useState(0);
+  const [createCompletedMs, setCreateCompletedMs] = useState<number | null>(null);
+  useEffect(() => {
+    if (createStartedAt === null) return;
+    const timer = window.setInterval(() => setCreateElapsedMs(Date.now() - createStartedAt), 100);
+    return () => window.clearInterval(timer);
+  }, [createStartedAt]);
   const q = useQuery({
     queryKey: ["tenant-backups"],
     queryFn: async () => (await api.get<BackupDto[]>("/backups")).data,
   });
   const create = useMutation({
     mutationFn: async () => (await api.post<BackupDto>("/backups")).data,
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["tenant-backups"] }),
-    onError: e => setErr(extractErrorMessage(e)),
+    onSuccess: () => {
+      const duration = createStartedAt === null ? createElapsedMs : Date.now() - createStartedAt;
+      setCreateElapsedMs(duration);
+      setCreateCompletedMs(duration);
+      setCreateStartedAt(null);
+      void qc.invalidateQueries({ queryKey: ["tenant-backups"] });
+    },
+    onError: e => {
+      setCreateStartedAt(null);
+      setErr(extractErrorMessage(e));
+    },
   });
   const del = useMutation({
     mutationFn: async (id: string) => api.delete(`/backups/${id}`),
@@ -203,7 +198,14 @@ function BackupsTab({ isAdmin }: { isAdmin: boolean }) {
             variant="contained"
             startIcon={create.isPending ? <CircularProgress size={16} color="inherit" /> : <AddIcon />}
             disabled={create.isPending}
-            onClick={() => create.mutate()}
+            onClick={() => {
+              setErr(null);
+              setCreateCompletedMs(null);
+              setCreateElapsedMs(0);
+              setCreateStartedAt(Date.now());
+              setCreateDialogOpen(true);
+              create.mutate();
+            }}
             size="large"
           >
             {t("backups.createNow", "Νέο αντίγραφο τώρα")}
@@ -310,6 +312,45 @@ function BackupsTab({ isAdmin }: { isAdmin: boolean }) {
         </Card>
       )}
       <RestoreDialog backup={restoring} onClose={() => setRestoring(null)} />
+      <Dialog
+        open={createDialogOpen}
+        onClose={(_, reason) => { if (!create.isPending && reason !== "backdropClick") setCreateDialogOpen(false); }}
+        disableEscapeKeyDown={create.isPending}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Δημιουργία αντιγράφου ασφαλείας</DialogTitle>
+        <DialogContent dividers>
+          {create.isPending ? (
+            <Stack spacing={2}>
+              <Alert severity="warning" icon={<BackupIcon />}>
+                Μην κλείσετε αυτό το παράθυρο μέχρι να ολοκληρωθεί η δημιουργία του αντιγράφου.
+              </Alert>
+              <LinearProgress />
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography color="text.secondary">Επεξεργασία δεδομένων γραφείου…</Typography>
+                <Typography fontWeight={800} color="primary.main">
+                  {(createElapsedMs / 1000).toFixed(1)} δευτ.
+                </Typography>
+              </Stack>
+              <Typography variant="caption" color="text.secondary">
+                Ο χρόνος ενημερώνεται ζωντανά και εξαρτάται από το μέγεθος των δεδομένων και τον διαθέσιμο χώρο.
+              </Typography>
+            </Stack>
+          ) : createCompletedMs !== null ? (
+            <Alert severity="success" icon={<CheckCircleIcon />}>
+              Το αντίγραφο δημιουργήθηκε επιτυχώς σε {(createCompletedMs / 1000).toFixed(1)} δευτερόλεπτα.
+            </Alert>
+          ) : (
+            <Alert severity="error">Η δημιουργία του αντιγράφου απέτυχε. Ελέγξτε το μήνυμα σφάλματος και δοκιμάστε ξανά.</Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={create.isPending} onClick={() => setCreateDialogOpen(false)}>
+            {create.isPending ? "Παρακαλώ περιμένετε…" : "Κλείσιμο"}
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Snackbar
         open={!!copyToast}
         autoHideDuration={1600}
@@ -550,6 +591,9 @@ function AutoBackupTab({ isAdmin }: { isAdmin: boolean }) {
   );
 }
 
+/* -----------------------------------------------------------------------------
+   GDPR erasure-request UI moved out of the backup page. The API remains
+   available to the dedicated compliance workflows.
 // -----------------------------------------------------------------------------
 // Tab 3 — GDPR erasure requests.
 // -----------------------------------------------------------------------------
@@ -771,4 +815,5 @@ function GdprHandleDialog({ req, onClose, onSaved }: { req: GdprRequestDto | nul
       </DialogActions>
     </Dialog>
   );
-}
+  }
+*/

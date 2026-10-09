@@ -91,6 +91,9 @@ public class SupportTicket : BaseEntity
     public string? Assignee { get; set; }
     public DateTime OpenedAt { get; set; }
     public DateTime? ResolvedAt { get; set; }
+    /// <summary>Set when the tenant asks for removal; a platform administrator must approve it.</summary>
+    public DateTime? DeletionRequestedAt { get; set; }
+    public string? DeletionRequestedBy { get; set; }
 }
 
 public class SupportTicketReply : BaseEntity

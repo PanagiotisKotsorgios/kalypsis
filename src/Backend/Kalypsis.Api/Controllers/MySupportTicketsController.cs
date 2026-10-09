@@ -20,12 +20,23 @@ public class MySupportTicketsController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<SupportTicketDto>>> List(
-        [FromQuery] string? search, [FromQuery] string? status, CancellationToken ct)
-        => Ok(await _m.Send(new MyTicketsQuery(search, status), ct));
+        [FromQuery] string? search, [FromQuery] string? status,
+        [FromQuery] DateTime? openedFrom, [FromQuery] DateTime? openedTo, CancellationToken ct)
+        => Ok(await _m.Send(new MyTicketsQuery(search, status, openedFrom, openedTo), ct));
 
     public record CreateBody(string Subject, string Body);
 
     [HttpPost]
     public async Task<ActionResult<SupportTicketDto>> Create([FromBody] CreateBody body, CancellationToken ct)
         => Ok(await _m.Send(new CreateMyTicketCommand(body.Subject ?? "", body.Body ?? ""), ct));
+
+    public record UpdateBody(string Subject, string Body);
+
+    [HttpPatch("{id:guid}")]
+    public async Task<ActionResult<SupportTicketDto>> Update(Guid id, [FromBody] UpdateBody body, CancellationToken ct)
+        => Ok(await _m.Send(new UpdateMyTicketCommand(id, body.Subject ?? "", body.Body ?? ""), ct));
+
+    [HttpPost("{id:guid}/request-deletion")]
+    public async Task<ActionResult<SupportTicketDto>> RequestDeletion(Guid id, CancellationToken ct)
+        => Ok(await _m.Send(new RequestTicketDeletionCommand(id), ct));
 }

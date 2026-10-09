@@ -12,6 +12,8 @@ import CloseIcon from "@mui/icons-material/Close";
 import HistoryIcon from "@mui/icons-material/History";
 import SearchIcon from "@mui/icons-material/Search";
 import SendIcon from "@mui/icons-material/Send";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
@@ -38,7 +40,8 @@ interface TicketDto {
   priority: string; status: string; channel: string;
   assignee: string | null;
   openedAt: string; resolvedAt: string | null;
-  replies: Array<{ id: string; at: string; author: string; body: string; notifiedTenant: boolean }>;
+  deletionRequestedAt: string | null; deletionRequestedBy: string | null;
+  replies: Array<{ id: string; at: string; author: string; body: string; notifiedTenant: boolean; isHistory: boolean }>;
 }
 
 const STATUS_STYLES: Record<string, { label: string; bg: string; fg: string; border: string }> = {
@@ -110,19 +113,53 @@ ${diagnosticsText}`
   // History table state
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<string>("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [detailTicket, setDetailTicket] = useState<TicketDto | null>(null);
+  const [editingTicket, setEditingTicket] = useState<TicketDto | null>(null);
+  const [editSubject, setEditSubject] = useState("");
+  const [editMessage, setEditMessage] = useState("");
+  const [deletionTicket, setDeletionTicket] = useState<TicketDto | null>(null);
 
-  useEffect(() => { setPage(0); }, [search, status]);
+  useEffect(() => { setPage(0); }, [search, status, from, to]);
 
   const historyQ = useQuery({
-    queryKey: ["my-support-tickets", search, status],
+    queryKey: ["my-support-tickets", search, status, from, to],
     queryFn: async () => (await api.get<TicketDto[]>("/support-tickets/mine", {
-      params: { search: search || undefined, status: status || undefined }
+      params: {
+        search: search || undefined,
+        status: status || undefined,
+        openedFrom: from || undefined,
+        openedTo: to || undefined,
+      }
     })).data,
   });
   const rows = historyQ.data ?? [];
+
+  const edit$ = useMutation({
+    mutationFn: async () => (await api.patch<TicketDto>(`/support-tickets/mine/${editingTicket!.id}`, {
+      subject: editSubject.trim(), body: editMessage.trim()
+    })).data,
+    onSuccess: (updated) => {
+      setEditingTicket(null);
+      setDetailTicket(updated);
+      setSuccess("Το αίτημα ενημερώθηκε. Το αρχικό περιεχόμενο διατηρήθηκε στο ιστορικό.");
+      void qc.invalidateQueries({ queryKey: ["my-support-tickets"] });
+    },
+    onError: (e) => setError(extractErrorMessage(e, "Δεν ήταν δυνατή η επεξεργασία του αιτήματος.")),
+  });
+  const requestDeletion$ = useMutation({
+    mutationFn: async () => (await api.post<TicketDto>(`/support-tickets/mine/${deletionTicket!.id}/request-deletion`)).data,
+    onSuccess: (updated) => {
+      setDeletionTicket(null);
+      setDetailTicket(updated);
+      setSuccess("Το αίτημα διαγραφής στάλθηκε στον διαχειριστή για επιβεβαίωση.");
+      void qc.invalidateQueries({ queryKey: ["my-support-tickets"] });
+    },
+    onError: (e) => setError(extractErrorMessage(e, "Δεν ήταν δυνατή η υποβολή του αιτήματος διαγραφής.")),
+  });
 
   return (
     <Box>
@@ -193,6 +230,12 @@ ${diagnosticsText}`
               <MenuItem value="Waiting">Αναμονή</MenuItem>
               <MenuItem value="Resolved">Επιλύθηκε</MenuItem>
             </TextField>
+            <TextField size="small" type="date" label="Από"
+              value={from} onChange={e => setFrom(e.target.value)}
+              InputLabelProps={{ shrink: true }} sx={{ minWidth: 145 }} />
+            <TextField size="small" type="date" label="Έως"
+              value={to} onChange={e => setTo(e.target.value)}
+              InputLabelProps={{ shrink: true }} sx={{ minWidth: 145 }} />
           </Stack>
 
           {historyQ.isLoading ? (
@@ -236,10 +279,35 @@ ${diagnosticsText}`
                           : <Typography variant="caption" color="text.disabled">—</Typography>}
                       </TableCell>
                       <TableCell align="right">
+                        {t.deletionRequestedAt && (
+                          <Chip size="small" color="warning" label="Διαγραφή σε έλεγχο" sx={{ mr: 0.5 }} />
+                        )}
                         <Tooltip title="Άνοιγμα καρτέλας">
                           <IconButton size="small" onClick={(e) => { e.stopPropagation(); setDetailTicket(t); }}>
                             <SearchIcon fontSize="small" />
                           </IconButton>
+                        </Tooltip>
+                        <Tooltip title={t.deletionRequestedAt ? "Έχει ζητηθεί διαγραφή" : "Επεξεργασία αιτήματος"}>
+                          <span>
+                            <IconButton size="small" color="primary" disabled={!!t.deletionRequestedAt}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditSubject(t.subject);
+                                const marker = "──────────────── Διαγνωστικά (αυτόματα) ────────────────";
+                                setEditMessage(t.body.split(marker)[0].trim());
+                                setEditingTicket(t);
+                              }}>
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                        <Tooltip title={t.deletionRequestedAt ? "Αναμονή επιβεβαίωσης από διαχειριστή" : "Αίτημα διαγραφής"}>
+                          <span>
+                            <IconButton size="small" color="error" disabled={!!t.deletionRequestedAt}
+                              onClick={(e) => { e.stopPropagation(); setDeletionTicket(t); }}>
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </span>
                         </Tooltip>
                       </TableCell>
                     </TableRow>
@@ -278,6 +346,12 @@ ${diagnosticsText}`
           </Stack>
         </DialogTitle>
         <DialogContent dividers>
+          {detailTicket?.deletionRequestedAt && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              Έχει υποβληθεί αίτημα διαγραφής στις {dateTime(detailTicket.deletionRequestedAt)}.
+              Η οριστική διαγραφή γίνεται μόνο μετά από έλεγχο και επιβεβαίωση διαχειριστή.
+            </Alert>
+          )}
           <Typography variant="overline" color="text.secondary">Μήνυμα</Typography>
           {(() => {
             // Body has the JSON diagnostics appended below a sentinel
@@ -321,11 +395,11 @@ ${diagnosticsText}`
               </>
             );
           })()}
-          {(detailTicket?.replies?.length ?? 0) > 0 && (
+          {(detailTicket?.replies?.some(r => !r.isHistory) ?? false) && (
             <>
               <Divider sx={{ my: 2 }}>Απαντήσεις</Divider>
               <Stack spacing={1.5}>
-                {detailTicket!.replies.map(r => (
+                {detailTicket!.replies.filter(r => !r.isHistory).map(r => (
                   <Box key={r.id} sx={{
                     p: 1.5, borderRadius: 1.5, bgcolor: "rgba(22,163,74,0.05)",
                     border: "1px solid rgba(22,163,74,0.14)",
@@ -340,9 +414,77 @@ ${diagnosticsText}`
               </Stack>
             </>
           )}
+          {(detailTicket?.replies?.some(r => r.isHistory) ?? false) && (
+            <>
+              <Divider sx={{ my: 2 }}>Ιστορικό προηγούμενων εκδόσεων</Divider>
+              <Stack spacing={1.5}>
+                {detailTicket!.replies.filter(r => r.isHistory).map(r => (
+                  <Box key={r.id} sx={{
+                    p: 1.5, borderRadius: 1.5, bgcolor: "rgba(11,37,69,0.04)",
+                    border: "1px dashed rgba(11,37,69,0.25)",
+                  }}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" mb={0.5}>
+                      <Typography variant="caption" fontWeight={700}>Πριν την επεξεργασία</Typography>
+                      <Typography variant="caption" color="text.secondary">{dateTime(r.at)}</Typography>
+                    </Stack>
+                    <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>{r.body}</Typography>
+                  </Box>
+                ))}
+              </Stack>
+            </>
+          )}
         </DialogContent>
         <DialogActions>
+          {detailTicket && !detailTicket.deletionRequestedAt && (
+            <>
+              <Button color="primary" startIcon={<EditIcon />} onClick={() => {
+                setEditSubject(detailTicket.subject);
+                const marker = "──────────────── Διαγνωστικά (αυτόματα) ────────────────";
+                setEditMessage(detailTicket.body.split(marker)[0].trim());
+                setEditingTicket(detailTicket);
+              }}>Επεξεργασία</Button>
+              <Button color="error" startIcon={<DeleteIcon />} onClick={() => setDeletionTicket(detailTicket)}>
+                Αίτημα διαγραφής
+              </Button>
+            </>
+          )}
+          <Box sx={{ flex: 1 }} />
           <Button onClick={() => setDetailTicket(null)}>Κλείσιμο</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={!!editingTicket} onClose={() => { if (!edit$.isPending) setEditingTicket(null); }} fullWidth maxWidth="sm">
+        <DialogTitle>Επεξεργασία αιτήματος</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Alert severity="info">Η προηγούμενη έκδοση θα παραμείνει στο ιστορικό του αιτήματος.</Alert>
+            <TextField label="Θέμα" fullWidth value={editSubject} onChange={e => setEditSubject(e.target.value)} />
+            <TextField label="Μήνυμα" fullWidth multiline minRows={6} value={editMessage} onChange={e => setEditMessage(e.target.value)} />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button color="error" onClick={() => setEditingTicket(null)} disabled={edit$.isPending}>Ακύρωση</Button>
+          <Button variant="contained" startIcon={edit$.isPending ? <CircularProgress size={16} color="inherit" /> : <EditIcon />}
+            disabled={edit$.isPending || !editSubject.trim() || !editMessage.trim()} onClick={() => edit$.mutate()}>
+            Αποθήκευση αλλαγών
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={!!deletionTicket} onClose={() => { if (!requestDeletion$.isPending) setDeletionTicket(null); }} fullWidth maxWidth="sm">
+        <DialogTitle>Αίτημα διαγραφής αιτήματος</DialogTitle>
+        <DialogContent dividers>
+          <Alert severity="warning">
+            Δεν θα διαγραφεί άμεσα. Θα σταλεί αίτημα στον διαχειριστή για έλεγχο και επιβεβαίωση. Το ιστορικό θα παραμείνει διαθέσιμο μέχρι να εγκριθεί.
+          </Alert>
+          <Typography sx={{ mt: 2 }} fontWeight={700}>{deletionTicket?.subject}</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeletionTicket(null)} disabled={requestDeletion$.isPending}>Ακύρωση</Button>
+          <Button color="error" variant="contained" startIcon={requestDeletion$.isPending ? <CircularProgress size={16} color="inherit" /> : <DeleteIcon />}
+            disabled={requestDeletion$.isPending} onClick={() => requestDeletion$.mutate()}>
+            Υποβολή αιτήματος διαγραφής
+          </Button>
         </DialogActions>
       </Dialog>
 

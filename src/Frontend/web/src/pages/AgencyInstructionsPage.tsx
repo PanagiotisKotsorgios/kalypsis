@@ -6,8 +6,6 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
 import CloseIcon from "@mui/icons-material/Close";
-import PrintIcon from "@mui/icons-material/Print";
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import FormatBoldIcon from "@mui/icons-material/FormatBold";
 import FormatItalicIcon from "@mui/icons-material/FormatItalic";
@@ -26,7 +24,6 @@ import { api, extractErrorMessage } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { dateTime } from "../utils/format";
 import { HelpHint } from "../components/HelpHint";
-import { printActionSx } from "../components/actionButtonStyles";
 
 interface InstructionsDto {
   id: string;
@@ -36,7 +33,6 @@ interface InstructionsDto {
   updatedByUserId: string | null;
   updatedByName: string | null;
 }
-
 /**
  * Per-tenant handbook. AgencyAdmin edits, everyone reads. The editor is a
  * `contenteditable` div driven by `document.execCommand` — deprecated but
@@ -107,41 +103,6 @@ function ReaderPanel({ data }: { data: InstructionsDto | null }) {
   const { t } = useTranslation();
   const hasContent = !!(data && data.contentHtml && data.contentHtml.trim().length > 0);
 
-  const openPrint = () => {
-    const win = window.open("", "_blank", "noopener,noreferrer,width=900,height=800");
-    if (!win) return;
-    const now = new Date().toLocaleString("el-GR");
-    const html = `<!doctype html><html lang="el"><head><meta charset="utf-8" />
-<title>${escapeHtml(data?.title ?? "Οδηγίες γραφείου")}</title>
-<style>
-  @page { size: A4; margin: 18mm 16mm; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #111; margin: 0; padding: 22px 28px; line-height: 1.55; }
-  h1.doc-title { color: #0d47a1; border-bottom: 2px solid #0d47a1; padding-bottom: 8px; margin: 0 0 12px; }
-  .doc-meta { font-size: 11px; color: #666; margin-bottom: 18px; }
-  .doc-body h2, .doc-body h3 { color: #0b2545; }
-  .doc-body ul, .doc-body ol { padding-left: 24px; }
-  .doc-body blockquote { border-left: 3px solid #b6c8e0; margin: 8px 0; padding: 4px 12px; color: #444; background: #f5f8fc; }
-  .doc-body p { margin: 6px 0; }
-  .doc-body a { color: #0d47a1; }
-  .doc-body hr { border: none; border-top: 1px solid #e5e7eb; margin: 14px 0; }
-  footer { position: fixed; left: 16mm; right: 16mm; bottom: 8mm; border-top: 1px solid #e5e7eb; padding-top: 6px; font-size: 10px; color: #888; display: flex; justify-content: space-between; }
-  footer .brand { color: #0d47a1; font-weight: 600; }
-</style></head>
-<body>
-  <h1 class="doc-title">${escapeHtml(data?.title ?? "Οδηγίες γραφείου")}</h1>
-  <div class="doc-meta">${data?.updatedByName ? `Τελευταία επεξεργασία από <b>${escapeHtml(data.updatedByName)}</b>` : ""}${data?.updatedAt ? ` · ${new Date(data.updatedAt).toLocaleString("el-GR")}` : ""}${data?.updatedAt ? " · " : ""}Εκτυπώθηκε: ${now}</div>
-  <div class="doc-body">${data?.contentHtml ?? "<p>—</p>"}</div>
-  <footer>
-    <span class="brand">Kalypsis — Πλατφόρμα Διαχείρισης Ασφαλιστικού Γραφείου · https://mykalypsis.gr</span>
-    <span>© ${new Date().getFullYear()} Kalypsis · ${escapeHtml(now)}</span>
-  </footer>
-  <script>window.addEventListener("load", function(){ setTimeout(function(){ window.print(); }, 250); });</script>
-</body></html>`;
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
-  };
-
   return (
     <Card variant="outlined">
       <CardContent>
@@ -150,11 +111,6 @@ function ReaderPanel({ data }: { data: InstructionsDto | null }) {
             <Chip size="small" variant="outlined" label={`Τελευταία επεξεργασία από ${data.updatedByName}`} />
             <Chip size="small" variant="outlined" color="default" label={dateTime(data.updatedAt)} />
             <Box sx={{ flex: 1 }} />
-            <Tooltip title={t("agencyInstructions.print", "Εκτύπωση / PDF")}>
-              <Button size="small" variant="outlined" startIcon={<PrintIcon />} sx={printActionSx} onClick={openPrint}>
-                {t("agencyInstructions.print", "Εκτύπωση / PDF")}
-              </Button>
-            </Tooltip>
           </Stack>
         )}
         {!hasContent ? (
@@ -307,11 +263,3 @@ function EditorPanel({
     </Card>
   );
 }
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-}
-
-// Suppress unused-import warning for the PDF icon (kept for a future
-// "Download as PDF" variant that would render via server-side generation).
-void PictureAsPdfIcon;
