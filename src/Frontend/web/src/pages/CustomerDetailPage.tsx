@@ -51,7 +51,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useParams, Link as RouterLink } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
-import { VehicleDetailDialog } from "./CustomerVehiclesPage";
+import { VehicleDetailDialog, vehicleStatusLabel } from "./CustomerVehiclesPage";
 
 interface CustomerDto {
   id: string;
@@ -523,7 +523,7 @@ function CustomerVehiclesTab({ customerId, compact = false }: { customerId: stri
             <TableCell>{row.insuranceCompanyName}</TableCell>
             <TableCell>{row.startDate} → {row.endDate}</TableCell>
             <TableCell align="right">{row.premium?.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {row.currency}</TableCell>
-            <TableCell><Chip size="small" label={row.status} /></TableCell>
+            <TableCell><Chip size="small" label={vehicleStatusLabel(row.status)} /></TableCell>
             <TableCell><Button size="small" onClick={() => setSelectedPlate(row.vehicleRegistrationPlate ?? "")}>Καρτέλα</Button></TableCell>
           </TableRow>)}</TableBody>
         </Table>

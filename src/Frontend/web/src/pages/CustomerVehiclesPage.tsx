@@ -82,16 +82,38 @@ function money(value?: number | null, currency = "EUR") {
   return value == null ? "—" : `${value.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
 }
 
-function vehicleStatusLabel(status: string) {
+export function vehicleStatusLabel(status?: string | null) {
   const labels: Record<string, string> = {
     Active: "Ενεργό",
     Inactive: "Ανενεργό",
     Cancelled: "Ακυρωμένο",
     Expired: "Ληγμένο",
     Pending: "Σε εκκρεμότητα",
+    PendingRenewal: "Σε ανανέωση",
+    Renewal: "Ανανέωση",
+    Renewed: "Ανανεωμένο",
+    Draft: "Πρόχειρο",
+    Issued: "Εκδομένο",
     Prospect: "Πιθανό συμβόλαιο"
   };
-  return labels[status] ?? status;
+  const value = (status ?? "").trim();
+  if (!value) return "Δεν έχει οριστεί";
+  if (labels[value]) return labels[value];
+  const canonical = Object.keys(labels).find(key => key.toLowerCase() === value.toLowerCase());
+  return canonical ? labels[canonical] : value;
+}
+
+function claimStatusLabel(status?: string | null) {
+  const labels: Record<string, string> = {
+    Reported: "Δηλωμένη", UnderReview: "Υπό εξέταση", Investigating: "Υπό διερεύνηση",
+    Approved: "Εγκεκριμένη", Rejected: "Απορριφθείσα", Settled: "Αποζημιωμένη", Closed: "Κλειστή",
+    Pending: "Σε εκκρεμότητα", Cancelled: "Ακυρωμένη"
+  };
+  const value = (status ?? "").trim();
+  if (!value) return "Δεν έχει οριστεί";
+  if (labels[value]) return labels[value];
+  const canonical = Object.keys(labels).find(key => key.toLowerCase() === value.toLowerCase());
+  return canonical ? labels[canonical] : value;
 }
 
 export function VehicleDetailDialog({ open, plate, policyIds, onClose, zIndex, initialEditing = false }: { open: boolean; plate: string; policyIds: string[]; onClose: () => void; zIndex?: number; initialEditing?: boolean }) {
@@ -236,7 +258,7 @@ export function VehicleDetailDialog({ open, plate, policyIds, onClose, zIndex, i
           {associate.isError && <Alert severity="error" sx={{ mt: 1 }}>{extractErrorMessage(associate.error)}</Alert>}
         </Card>
         <Card variant="outlined" sx={{ p: 1.25 }}><Typography variant="subtitle1" fontWeight={800} sx={{ mb: 0.75 }}>Ασφαλιστήρια</Typography><Table size="small"><TableHead><TableRow><TableCell>Συμβόλαιο</TableCell><TableCell>Ασφαλιστική</TableCell><TableCell>Ισχύς</TableCell><TableCell>Κατάσταση</TableCell><TableCell align="right">Μεικτά</TableCell><TableCell /></TableRow></TableHead><TableBody>{details.map(detail => <TableRow key={detail.id}><TableCell>{detail.policyNumber}</TableCell><TableCell>{detail.insuranceCompanyName}</TableCell><TableCell>{detail.startDate} → {detail.endDate}</TableCell><TableCell><Chip size="small" label={vehicleStatusLabel(detail.status)} /></TableCell><TableCell align="right">{money(detail.premium, detail.currency)}</TableCell><TableCell align="right"><Button size="small" color="error" startIcon={<DeleteOutlineIcon />} onClick={() => { if (window.confirm("Να αφαιρεθεί το όχημα από αυτό το συμβόλαιο; Το συμβόλαιο και τα οικονομικά του δεν διαγράφονται.")) removeVehicle.mutate(detail.id); }}>Αφαίρεση</Button></TableCell></TableRow>)}</TableBody></Table></Card>
-        <Card variant="outlined" sx={{ p: 1.25 }}><Typography variant="subtitle1" fontWeight={800} sx={{ mb: 0.75 }}>Ζημιές</Typography>{(q.data?.claims ?? []).length === 0 ? <Typography color="text.secondary">Δεν υπάρχουν καταχωρημένες ζημιές για το όχημα.</Typography> : <Table size="small"><TableHead><TableRow><TableCell>Αρ. ζημιάς</TableCell><TableCell>Ημερομηνία</TableCell><TableCell>Κατάσταση</TableCell><TableCell align="right">Διεκδίκηση</TableCell><TableCell align="right">Έγκριση</TableCell></TableRow></TableHead><TableBody>{(q.data?.claims ?? []).map(claim => <TableRow key={claim.id}><TableCell>{claim.claimNumber ?? "—"}</TableCell><TableCell>{claim.incidentDate ?? "—"}</TableCell><TableCell><Chip size="small" label={claim.status ?? "—"} /></TableCell><TableCell align="right">{money(claim.claimedAmount, first.currency)}</TableCell><TableCell align="right">{money(claim.approvedAmount, first.currency)}</TableCell></TableRow>)}</TableBody></Table>}</Card>
+        <Card variant="outlined" sx={{ p: 1.25 }}><Typography variant="subtitle1" fontWeight={800} sx={{ mb: 0.75 }}>Ζημιές</Typography>{(q.data?.claims ?? []).length === 0 ? <Typography color="text.secondary">Δεν υπάρχουν καταχωρημένες ζημιές για το όχημα.</Typography> : <Table size="small"><TableHead><TableRow><TableCell>Αρ. ζημιάς</TableCell><TableCell>Ημερομηνία</TableCell><TableCell>Κατάσταση</TableCell><TableCell align="right">Διεκδίκηση</TableCell><TableCell align="right">Έγκριση</TableCell></TableRow></TableHead><TableBody>{(q.data?.claims ?? []).map(claim => <TableRow key={claim.id}><TableCell>{claim.claimNumber ?? "—"}</TableCell><TableCell>{claim.incidentDate ?? "—"}</TableCell><TableCell><Chip size="small" label={claimStatusLabel(claim.status)} /></TableCell><TableCell align="right">{money(claim.claimedAmount, first.currency)}</TableCell><TableCell align="right">{money(claim.approvedAmount, first.currency)}</TableCell></TableRow>)}</TableBody></Table>}</Card>
         {details.some(detail => detail.paidOnCredit || detail.paymentPromisedOn || detail.creditReason || detail.policyNotes) && <Card variant="outlined" sx={{ p: 1.25 }}><Typography variant="subtitle1" fontWeight={800}>Πληρωμές & σημειώσεις</Typography>{details.map(detail => <Box key={detail.id} sx={{ mt: 0.75 }}><Typography fontWeight={700}>{detail.policyNumber}</Typography><Typography variant="body2">{detail.paidOnCredit ? "Πληρωμή επί πιστώσει" : ""}{detail.paymentPromisedOn ? ` · Υπόσχεση πληρωμής: ${detail.paymentPromisedOn}` : ""}{detail.creditReason ? ` · ${detail.creditReason}` : ""}</Typography>{detail.policyNotes && <Typography variant="body2" color="text.secondary">{detail.policyNotes}</Typography>}</Box>)}</Card>}
       </Stack>}
     </DialogContent>
@@ -263,7 +285,7 @@ function LegacyCustomerVehiclesPage() {
   const expiring = rows.filter(row => { const days = (new Date(row.endDate).getTime() - Date.now()) / 86400000; return days >= 0 && days <= 30; }).length;
   const exportCsv = () => {
     const header = ["Πινακίδα", "Πελάτης", "Αριθμός συμβολαίου", "Ασφαλιστική", "Έναρξη", "Λήξη", "Ασφάλιστρο", "Κατάσταση"];
-    const body = rows.map(row => [row.vehicleRegistrationPlate ?? "", row.customerDisplay ?? "", row.policyNumber, row.insuranceCompanyName, row.startDate, row.endDate, String(row.premium ?? ""), row.status]);
+    const body = rows.map(row => [row.vehicleRegistrationPlate ?? "", row.customerDisplay ?? "", row.policyNumber, row.insuranceCompanyName, row.startDate, row.endDate, String(row.premium ?? ""), vehicleStatusLabel(row.status)]);
     const csv = [header, ...body].map(line => line.map(value => `"${String(value).replaceAll('"', '""')}"`).join(",")).join("\r\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "οχηματα-πελατων.csv"; a.click(); URL.revokeObjectURL(url);
@@ -288,7 +310,7 @@ function LegacyCustomerVehiclesPage() {
         <TableCell><Button component={RouterLink} to={`/app/customers/${row.customerId}`} size="small">{row.customerDisplay ?? "Πελάτης"}</Button></TableCell>
         <TableCell><Button component={RouterLink} to={`/app/policies?focus=${row.id}`} size="small">{row.policyNumber}</Button></TableCell>
         <TableCell>{row.insuranceCompanyName}</TableCell><TableCell>{row.startDate}</TableCell><TableCell>{row.endDate}</TableCell>
-        <TableCell align="right">{row.premium?.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {row.currency}</TableCell><TableCell><Chip size="small" label={row.status} /></TableCell><TableCell><Button size="small" onClick={() => setSelectedPlate(row.vehicleRegistrationPlate ?? "")}>Καρτέλα οχήματος</Button></TableCell>
+        <TableCell align="right">{row.premium?.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {row.currency}</TableCell><TableCell><Chip size="small" label={vehicleStatusLabel(row.status)} /></TableCell><TableCell><Button size="small" onClick={() => setSelectedPlate(row.vehicleRegistrationPlate ?? "")}>Καρτέλα οχήματος</Button></TableCell>
       </TableRow>)}</TableBody>
     </Table></Card>}
     <VehicleDetailDialog open={selectedPlate !== null} plate={selectedPlate ?? ""} policyIds={rows.filter(row => (row.vehicleRegistrationPlate ?? "") === (selectedPlate ?? "")).map(row => row.id)} onClose={() => setSelectedPlate(null)} />
@@ -422,7 +444,7 @@ export function CustomerVehiclesPage() {
   const requestDelete = (ids: string[]) => { setDeleteIds(ids); setDeleteText(""); setDeleteOpen(true); };
   const exportCsv = (dataset = filteredRows) => {
     const header = ["Πινακίδα", "Πελάτης", "Αριθμός συμβολαίου", "Ασφαλιστική", "Έναρξη", "Λήξη", "Ασφάλιστρο", "Κατάσταση"];
-    const body = dataset.map(row => [row.vehicleRegistrationPlate ?? "", row.customerDisplay ?? "", row.policyNumber, row.insuranceCompanyName, row.startDate, row.endDate, String(row.premium ?? ""), row.status]);
+    const body = dataset.map(row => [row.vehicleRegistrationPlate ?? "", row.customerDisplay ?? "", row.policyNumber, row.insuranceCompanyName, row.startDate, row.endDate, String(row.premium ?? ""), vehicleStatusLabel(row.status)]);
     const csv = [header, ...body].map(line => line.map(value => `"${String(value).replaceAll('"', '""')}"`).join(",")).join("\r\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "οχήματα-πελατών.csv"; anchor.click(); URL.revokeObjectURL(url);
