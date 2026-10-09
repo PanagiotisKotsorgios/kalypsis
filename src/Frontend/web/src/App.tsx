@@ -130,6 +130,7 @@ import { IntelligencePromptsPage } from "./pages/IntelligencePromptsPage";
 import { IntelligenceChatPage } from "./pages/IntelligenceChatPage";
 import { IntelligenceHistoryPage } from "./pages/IntelligenceHistoryPage";
 import { IntelligenceAutomationsPage } from "./pages/IntelligenceAutomationsPage";
+import { IntelligenceStatsPage } from "./pages/IntelligenceStatsPage";
 import { ProductionReportPage } from "./pages/ProductionReportPage";
 import { CommissionDistributionPage } from "./pages/CommissionDistributionPage";
 import { FinancialReportPage } from "./pages/FinancialReportPage";
@@ -438,6 +439,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/intelligence-workbench/chat", labelKey: "nav.intelligenceChat", icon: <MailOutlineIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/intelligence-workbench/history", labelKey: "nav.intelligenceHistory", icon: <ScheduleIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/intelligence-workbench/automations", labelKey: "nav.intelligenceAutomations", icon: <RuleIcon />, package: "Intelligence", group: "intelligence" },
+    { to: "/intelligence-stats", labelKey: "nav.intelligenceStats", icon: <AnalyticsIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/intelligence-settings", labelKey: "nav.aiSettings", icon: <VpnKeyIcon />, package: "Intelligence", group: "intelligence" },
     // Reports stay in their own dropdown so the Intelligence workspace has a
     // clear separation between reporting and AI tools.
@@ -561,6 +563,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/intelligence-workbench/chat", labelKey: "nav.intelligenceChat", icon: <MailOutlineIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/intelligence-workbench/history", labelKey: "nav.intelligenceHistory", icon: <ScheduleIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/intelligence-workbench/automations", labelKey: "nav.intelligenceAutomations", icon: <RuleIcon />, package: "Intelligence", group: "intelligence" },
+    { to: "/intelligence-stats", labelKey: "nav.intelligenceStats", icon: <AnalyticsIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/named-reports", labelKey: "nav.namedReports", icon: <AssessmentOutlinedIcon />, package: "Intelligence", group: "reports" },
     { to: "/production-stats", labelKey: "nav.productionStats", icon: <LeaderboardIcon />, package: "Intelligence", group: "reports" },
     { to: "/report-builder", labelKey: "nav.reportBuilder", icon: <AssessmentOutlinedIcon />, package: "Intelligence", group: "reports" },
@@ -916,6 +919,7 @@ export default function App() {
                   <Route path="intelligence-workbench/chat" element={<PackageGate package="Intelligence"><IntelligenceChatPage /></PackageGate>} />
                   <Route path="intelligence-workbench/history" element={<PackageGate package="Intelligence"><IntelligenceHistoryPage /></PackageGate>} />
                   <Route path="intelligence-workbench/automations" element={<PackageGate package="Intelligence"><IntelligenceAutomationsPage /></PackageGate>} />
+                  <Route path="intelligence-stats" element={<PackageGate package="Intelligence"><IntelligenceStatsPage /></PackageGate>} />
                   <Route path="production-report" element={<ProductionReportPage />} />
                   <Route path="commission-distribution" element={<CommissionDistributionPage />} />
                   <Route path="financial-report" element={<FinancialReportPage />} />

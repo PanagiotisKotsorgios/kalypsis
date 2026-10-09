@@ -194,7 +194,8 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
       { path: "/intelligence-workbench/prompts", label: "Prompts AI" },
       { path: "/intelligence-workbench/chat", label: "AI συνομιλία" },
       { path: "/intelligence-workbench/history", label: "Ιστορικό AI" },
-      { path: "/intelligence-workbench/automations", label: "Αυτοματισμοί AI" },
+      { path: "/intelligence-workbench/automations", label: "Αυτοματισμοί νοημοσύνης" },
+      { path: "/intelligence-stats", label: "Στατιστικά νοημοσύνης" },
       { path: "/intelligence-settings", label: "Ρυθμίσεις AI γραφείου" }
     ]
   },
