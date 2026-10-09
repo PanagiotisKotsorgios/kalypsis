@@ -13,9 +13,11 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  FormControl,
   FormControlLabel,
   Grid,
   IconButton,
+  InputLabel,
   InputAdornment,
   MenuItem,
   Paper,
@@ -43,12 +45,15 @@ import FilterListOutlinedIcon from "@mui/icons-material/FilterListOutlined";
 import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
 import KeyboardArrowRightRoundedIcon from "@mui/icons-material/KeyboardArrowRightRounded";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
+import GridViewOutlinedIcon from "@mui/icons-material/GridViewOutlined";
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
 import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 import SpeedRoundedIcon from "@mui/icons-material/SpeedRounded";
+import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
+import TableRowsOutlinedIcon from "@mui/icons-material/TableRowsOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import WalletOutlinedIcon from "@mui/icons-material/WalletOutlined";
 
@@ -144,6 +149,8 @@ const mockOffers: OfferRow[] = [
 ];
 
 const currency = (value: number) => value.toLocaleString("el-GR", { style: "currency", currency: "EUR" });
+const quoteRisk = (quote: QuoteRow) => quote.score >= 4.7 ? "Χαμηλός" : quote.score >= 4.5 ? "Μεσαίος" : "Υψηλός";
+const riskColour = (risk: string): "success" | "warning" | "error" => risk === "Χαμηλός" ? "success" : risk === "Μεσαίος" ? "warning" : "error";
 const statusColour: Record<OfferRow["status"], "success" | "info" | "warning" | "error"> = {
   Έτοιμη: "info", Στάλθηκε: "warning", Επιλέχθηκε: "success", Ληγμένη: "error",
 };
@@ -220,15 +227,37 @@ export function FrontOfficeQuotingPage() {
 }
 
 function QuoteWorkspace({ branch, setBranch, preset, quotes, search, setSearch, onlyRecommended, setOnlyRecommended, sortBy, setSortBy, onOpen, onGoOffers }: { branch: BranchKey; setBranch: (value: BranchKey) => void; preset: typeof branchPresets[BranchKey]; quotes: QuoteRow[]; search: string; setSearch: (value: string) => void; onlyRecommended: boolean; setOnlyRecommended: (value: boolean) => void; sortBy: "premium" | "score"; setSortBy: (value: "premium" | "score") => void; onOpen: (quote: QuoteRow) => void; onGoOffers: () => void }) {
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [carrierFilter, setCarrierFilter] = useState("all");
+  const [riskFilter, setRiskFilter] = useState("all");
+  const [coverageFilters, setCoverageFilters] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
+  const carriers = useMemo(() => [...new Set(preset.quotes.map(item => item.carrier))], [preset.quotes]);
+  const coverages = useMemo(() => [...new Set(preset.quotes.flatMap(item => item.coverages))], [preset.quotes]);
+  const visibleQuotes = useMemo(() => quotes.filter(item => {
+    const carrierMatches = carrierFilter === "all" || item.carrier === carrierFilter;
+    const riskMatches = riskFilter === "all" || quoteRisk(item) === riskFilter;
+    const coverageMatches = coverageFilters.length === 0 || coverageFilters.every(coverage => item.coverages.includes(coverage));
+    return carrierMatches && riskMatches && coverageMatches;
+  }), [carrierFilter, coverageFilters, quotes, riskFilter]);
+  const filterCount = (carrierFilter !== "all" ? 1 : 0) + (riskFilter !== "all" ? 1 : 0) + coverageFilters.length;
+  const clearAdvancedFilters = () => { setCarrierFilter("all"); setRiskFilter("all"); setCoverageFilters([]); };
   return <>
     <Grid container spacing={2} sx={{ mb: 2.5 }}>
       {[{ label: "Ενδεικτικές προσφορές", value: quotes.length, icon: <LocalOfferOutlinedIcon />, colour: "#147f8d" }, { label: "Χαμηλότερο ασφάλιστρο", value: quotes[0] ? currency(quotes[0].premium) : "—", icon: <EuroRoundedIcon />, colour: "#1b7f55" }, { label: "Ασφαλιστικές", value: "12", icon: <CompareArrowsRoundedIcon />, colour: "#3457a6" }, { label: "Μέσος χρόνος σύγκρισης", value: "< 1′", icon: <SpeedRoundedIcon />, colour: "#a85f19" }].map((stat) => <Grid item key={stat.label} xs={6} md={3}><Card variant="outlined" sx={{ height: "100%", borderRadius: 2.5 }}><CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}><Stack direction="row" justifyContent="space-between" alignItems="center"><Box><Typography variant="caption" color="text.secondary">{stat.label}</Typography><Typography variant="h5" fontWeight={850}>{stat.value}</Typography></Box><Box sx={{ color: stat.colour, bgcolor: `${stat.colour}16`, borderRadius: 2, p: 1 }}>{stat.icon}</Box></Stack></CardContent></Card></Grid>)}</Grid>
 
+    <Card variant="outlined" sx={{ mb: 2, borderRadius: 2.5, bgcolor: "#fbfcfe" }}><CardContent sx={{ py: 1.25, "&:last-child": { pb: 1.25 } }}><Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }}><Typography variant="body2" fontWeight={800} sx={{ mr: { md: "auto" } }}>Φίλτρα σύγκρισης</Typography><FormControl size="small" sx={{ minWidth: 180 }}><InputLabel>Ασφαλιστική εταιρεία</InputLabel><Select label="Ασφαλιστική εταιρεία" value={carrierFilter} onChange={event => setCarrierFilter(event.target.value)}><MenuItem value="all">Όλες οι εταιρείες</MenuItem>{carriers.map(carrier => <MenuItem key={carrier} value={carrier}>{carrier}</MenuItem>)}</Select></FormControl><FormControl size="small" sx={{ minWidth: 145 }}><InputLabel>Επίπεδο κινδύνου</InputLabel><Select label="Επίπεδο κινδύνου" value={riskFilter} onChange={event => setRiskFilter(event.target.value)}><MenuItem value="all">Όλα τα επίπεδα</MenuItem><MenuItem value="Χαμηλός">Χαμηλός</MenuItem><MenuItem value="Μεσαίος">Μεσαίος</MenuItem><MenuItem value="Υψηλός">Υψηλός</MenuItem></Select></FormControl><Button variant="outlined" startIcon={<TuneRoundedIcon />} onClick={() => setFiltersOpen(true)}>Καλύψεις {filterCount > 0 ? `(${filterCount})` : ""}</Button>{filterCount > 0 && <Button size="small" color="error" onClick={clearAdvancedFilters}>Καθαρισμός</Button>}<Stack direction="row" spacing={0.5} sx={{ ml: { md: 1 } }}><Tooltip title="Προβολή πίνακα"><IconButton size="small" color={viewMode === "table" ? "primary" : "default"} onClick={() => setViewMode("table")}><TableRowsOutlinedIcon /></IconButton></Tooltip><Tooltip title="Προβολή καρτών"><IconButton size="small" color={viewMode === "cards" ? "primary" : "default"} onClick={() => setViewMode("cards")}><GridViewOutlinedIcon /></IconButton></Tooltip></Stack></Stack><Typography variant="caption" color="text.secondary" display="block" mt={0.5}>{visibleQuotes.length} διαθέσιμες προσφορές · τα φίλτρα εφαρμόζονται μόνο στην τοπική προεπισκόπηση.</Typography></CardContent></Card>
+    {viewMode === "table" && <QuoteComparisonTable quotes={visibleQuotes} onOpen={onOpen} />}
     <Grid container spacing={2.5} alignItems="flex-start">
       <Grid item xs={12} lg={4}><Card variant="outlined" sx={{ borderRadius: 2.5, position: { lg: "sticky" }, top: { lg: 16 } }}><CardContent sx={{ p: 2.5 }}><Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5}><Typography variant="h6" fontWeight={850}>Στοιχεία κινδύνου</Typography><Chip size="small" label="Βήμα 1 από 4" color="primary" variant="outlined" /></Stack><Stack spacing={1.5}><TextField size="small" label="Κλάδος ασφάλισης" select value={branch} onChange={(e) => setBranch(e.target.value as BranchKey)} fullWidth>{branchLabels.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}</TextField><TextField size="small" label="Πελάτης" defaultValue={preset.customer} fullWidth InputProps={{ startAdornment: <InputAdornment position="start"><SearchRoundedIcon fontSize="small" /></InputAdornment> }} />{preset.fields.map(([label, value]) => <TextField key={label} size="small" label={label} defaultValue={value} fullWidth />)}<Stack direction="row" spacing={1}><TextField size="small" label="Έναρξη" defaultValue="24/10/2026" fullWidth /><TextField size="small" label="Διάρκεια" defaultValue="12 μήνες" fullWidth /></Stack><Alert icon={false} severity="info" sx={{ fontSize: 12 }}>Τα δεδομένα είναι ενδεικτικά και δεν αποστέλλονται σε ασφαλιστική.</Alert><Button variant="contained" fullWidth startIcon={<CompareArrowsRoundedIcon />} onClick={onGoOffers}>Σύγκριση προσφορών</Button></Stack></CardContent></Card></Grid>
       <Grid item xs={12} lg={8}><Stack spacing={2}><Card variant="outlined" sx={{ borderRadius: 2.5 }}><CardContent sx={{ p: 2 }}><Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ sm: "center" }} justifyContent="space-between"><Box><Typography variant="h6" fontWeight={850}>Προσφορές για {preset.title}</Typography><Typography variant="body2" color="text.secondary">Επιλέξτε το πρόγραμμα που ταιριάζει καλύτερα στον πελάτη.</Typography></Box><Stack direction="row" spacing={1} alignItems="center"><TextField size="small" placeholder="Αναζήτηση ασφαλιστικής" value={search} onChange={(e) => setSearch(e.target.value)} InputProps={{ startAdornment: <InputAdornment position="start"><SearchRoundedIcon fontSize="small" /></InputAdornment> }} sx={{ minWidth: { sm: 230 } }} /><Tooltip title="Φίλτρα προσφορών"><IconButton><FilterListOutlinedIcon /></IconButton></Tooltip></Stack></Stack><Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }} justifyContent="space-between" mt={1.5}><FormControlLabel control={<Checkbox size="small" checked={onlyRecommended} onChange={(e) => setOnlyRecommended(e.target.checked)} />} label="Μόνο προτεινόμενα" /><Select size="small" value={sortBy} onChange={(e) => setSortBy(e.target.value as "premium" | "score")}><MenuItem value="premium">Ταξινόμηση: χαμηλότερη τιμή</MenuItem><MenuItem value="score">Ταξινόμηση: αξιολόγηση</MenuItem></Select></Stack></CardContent></Card>{quotes.map((quote) => <QuoteCard key={quote.id} quote={quote} onOpen={() => onOpen(quote)} />)}{quotes.length === 0 && <Alert severity="info">Δεν βρέθηκαν προσφορές με τα επιλεγμένα φίλτρα.</Alert>}</Stack></Grid>
     </Grid>
+    <Dialog open={filtersOpen} onClose={() => setFiltersOpen(false)} fullWidth maxWidth="sm"><DialogTitle sx={{ fontWeight: 850 }}>Καλύψεις και προτιμήσεις κινδύνου</DialogTitle><DialogContent dividers><Typography variant="body2" color="text.secondary" mb={1.5}>Επιλέξτε μία ή περισσότερες καλύψεις που πρέπει να περιλαμβάνει η προσφορά.</Typography><Stack spacing={0.4}>{coverages.map(coverage => <FormControlLabel key={coverage} control={<Checkbox checked={coverageFilters.includes(coverage)} onChange={event => setCoverageFilters(current => event.target.checked ? [...current, coverage] : current.filter(item => item !== coverage))} />} label={coverage} />)}</Stack><Divider sx={{ my: 2 }} /><Typography variant="body2" fontWeight={750}>Συνδυασμός φίλτρων</Typography><Typography variant="caption" color="text.secondary">Τα φίλτρα εταιρείας, κινδύνου και καλύψεων εφαρμόζονται μαζί στον συγκριτικό πίνακα.</Typography></DialogContent><DialogActions><Button color="error" onClick={clearAdvancedFilters}>Καθαρισμός</Button><Button variant="contained" onClick={() => setFiltersOpen(false)}>Εφαρμογή</Button></DialogActions></Dialog>
   </>;
+}
+
+function QuoteComparisonTable({ quotes, onOpen }: { quotes: QuoteRow[]; onOpen: (quote: QuoteRow) => void }) {
+  return <Card variant="outlined" sx={{ mb: 2.5, borderRadius: 2.5, overflow: "hidden" }}><CardContent sx={{ pb: 1.5 }}><Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} gap={1}><Box><Typography variant="h6" fontWeight={850}>Συγκριτικός πίνακας προσφορών</Typography><Typography variant="body2" color="text.secondary">Μία γραμμή ανά ασφαλιστική και πακέτο, όπως σε επαγγελματικό quotation desk.</Typography></Box><Chip icon={<ShieldOutlinedIcon />} size="small" label="Ενδεικτικές τιμές" color="info" variant="outlined" /></Stack></CardContent><TableContainer sx={{ maxHeight: 480 }}><Table stickyHeader size="small"><TableHead><TableRow><TableCell sx={{ bgcolor: "#e9eff6", fontWeight: 850 }}>Ασφαλιστική / πακέτο</TableCell><TableCell sx={{ bgcolor: "#e9eff6", fontWeight: 850 }}>Επίπεδο κινδύνου</TableCell><TableCell sx={{ bgcolor: "#e9eff6", fontWeight: 850 }}>Καλύψεις</TableCell><TableCell align="right" sx={{ bgcolor: "#e9eff6", fontWeight: 850 }}>Ετήσιο</TableCell><TableCell align="right" sx={{ bgcolor: "#e9eff6", fontWeight: 850 }}>Μήνας</TableCell><TableCell align="right" sx={{ bgcolor: "#e9eff6", fontWeight: 850 }}>Βαθμ.</TableCell><TableCell align="right" sx={{ bgcolor: "#e9eff6", fontWeight: 850 }}>Ενέργεια</TableCell></TableRow></TableHead><TableBody>{quotes.map(quote => { const risk = quoteRisk(quote); return <TableRow key={quote.id} hover sx={{ bgcolor: quote.recommended ? "rgba(28,140,108,.055)" : undefined }}><TableCell><Stack direction="row" spacing={1} alignItems="center"><Box sx={{ width: 30, height: 30, borderRadius: 1.5, display: "grid", placeItems: "center", bgcolor: quote.colour, color: "#fff", fontSize: 11, fontWeight: 850 }}>{quote.initials}</Box><Box><Typography fontWeight={800}>{quote.carrier}</Typography><Typography variant="caption" color="text.secondary">{quote.product}{quote.recommended ? " · Προτεινόμενο" : ""}</Typography></Box></Stack></TableCell><TableCell><Chip size="small" label={risk} color={riskColour(risk)} variant="outlined" /></TableCell><TableCell><Stack direction="row" flexWrap="wrap" useFlexGap gap={0.35}>{quote.coverages.slice(0, 3).map(coverage => <Chip key={coverage} size="small" label={coverage} variant="outlined" sx={{ fontSize: 10 }} />)}{quote.coverages.length > 3 && <Chip size="small" label={`+${quote.coverages.length - 3}`} sx={{ fontSize: 10 }} />}</Stack></TableCell><TableCell align="right" sx={{ fontWeight: 850, color: "primary.main", whiteSpace: "nowrap" }}>{currency(quote.premium)}</TableCell><TableCell align="right" sx={{ whiteSpace: "nowrap" }}>{currency(quote.monthly)}</TableCell><TableCell align="right">{quote.score.toFixed(1)}</TableCell><TableCell align="right"><Button size="small" variant="contained" color="success" onClick={() => onOpen(quote)}>Επιλογή</Button></TableCell></TableRow>; })}{quotes.length === 0 && <TableRow><TableCell colSpan={7} align="center" sx={{ py: 4, color: "text.secondary" }}>Δεν βρέθηκαν προσφορές με τα φίλτρα.</TableCell></TableRow>}</TableBody></Table></TableContainer></Card>;
 }
 
 function QuoteCard({ quote, onOpen }: { quote: QuoteRow; onOpen: () => void }) {

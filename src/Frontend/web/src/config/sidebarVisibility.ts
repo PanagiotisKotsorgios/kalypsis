@@ -157,8 +157,6 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
       { path: "/appointments", label: "Ραντεβού" },
       { path: "/marketing", label: "Marketing" },
       { path: "/name-days", label: "Ονομαστικές εορτές" },
-      { path: "/document-manager", label: "Διαχείριση εγγράφων" },
-      { path: "/delivery-tracking", label: "Παρακολούθηση αποστολών" }
     ]
   },
   {

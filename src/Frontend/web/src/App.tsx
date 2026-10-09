@@ -151,8 +151,6 @@ import { BranchesPage } from "./pages/BranchesPage";
 import { BankConnectionsPage } from "./pages/BankConnectionsPage";
 import { MarketingCampaignsPage } from "./pages/MarketingCampaignsPage";
 import { CrmGroupsPage } from "./pages/CrmGroupsPage";
-import { DeliveryTrackingPage } from "./pages/DeliveryTrackingPage";
-import { DocumentManagerPage } from "./pages/DocumentManagerPage";
 import { PartnerPortalsPage } from "./pages/PartnerPortalsPage";
 import { ApiKeysPage } from "./pages/ApiKeysPage";
 import { DiasCodesPage } from "./pages/DiasCodesPage";
@@ -241,9 +239,7 @@ import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import CardMembershipIcon from "@mui/icons-material/CardMembership";
 import InventoryIcon from "@mui/icons-material/Inventory";
 import HubIcon from "@mui/icons-material/Hub";
-import FolderSpecialIcon from "@mui/icons-material/FolderSpecial";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
-import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import LanguageIcon from "@mui/icons-material/Language";
 import CalculateIcon from "@mui/icons-material/Calculate";
 import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
@@ -324,9 +320,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice", group: "production" },
     { to: "/vehicles", labelKey: "nav.vehicleRegistry", icon: <DirectionsCarIcon />, package: "BackOffice", group: "production" },
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice", group: "production" },
-    { to: "/delivery-tracking", labelKey: "nav.deliveryTracking", icon: <LocalShippingIcon />, package: "BackOffice", group: "production", permission: "delivery.read" },
     { to: "/green-cards", labelKey: "nav.greenCards", icon: <CardMembershipIcon />, package: "BackOffice", group: "production" },
-    { to: "/document-manager", labelKey: "nav.documentManager", icon: <FolderSpecialIcon />, package: "BackOffice", group: "production", permission: "documents.read" },
     // "Ανανεώσεις" is now a button inside the Συμβόλαια page — one less sidebar
     // entry to scan through. Legacy /renewals route still lives so anyone
     // with the URL bookmarked keeps working.
@@ -504,10 +498,8 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice" },
     { to: "/vehicles", labelKey: "nav.vehicleRegistry", icon: <DirectionsCarIcon />, package: "BackOffice" },
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice" },
-    { to: "/delivery-tracking", labelKey: "nav.deliveryTracking", icon: <LocalShippingIcon />, package: "BackOffice", permission: "delivery.read" },
     { to: "/green-cards", labelKey: "nav.greenCards", icon: <CardMembershipIcon />, package: "BackOffice" },
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
-    { to: "/document-manager", labelKey: "nav.documentManager", icon: <FolderSpecialIcon />, package: "BackOffice", permission: "documents.read" },
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/garages", labelKey: "nav.garages", icon: <EngineeringIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/indemnities", labelKey: "nav.indemnities", icon: <PaymentsIcon />, package: "BackOffice", group: "claimsOps" },
@@ -554,10 +546,8 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice" },
     { to: "/vehicles", labelKey: "nav.vehicleRegistry", icon: <DirectionsCarIcon />, package: "BackOffice" },
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice" },
-    { to: "/delivery-tracking", labelKey: "nav.deliveryTracking", icon: <LocalShippingIcon />, package: "BackOffice", permission: "delivery.read" },
     { to: "/green-cards", labelKey: "nav.greenCards", icon: <CardMembershipIcon />, package: "BackOffice" },
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
-    { to: "/document-manager", labelKey: "nav.documentManager", icon: <FolderSpecialIcon />, package: "BackOffice", permission: "documents.read" },
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/garages", labelKey: "nav.garages", icon: <EngineeringIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/indemnities", labelKey: "nav.indemnities", icon: <PaymentsIcon />, package: "BackOffice", group: "claimsOps" },
@@ -1135,8 +1125,9 @@ export default function App() {
                   <Route path="crm-groups" element={<PackageGate package="Crm"><CrmGroupsPage /></PackageGate>} />
                   <Route path="crm-settings" element={<PackageGate package="Crm"><IntegrationSettingsPage crmOnly /></PackageGate>} />
                   <Route path="intelligence-settings" element={<PackageGate package="Intelligence"><IntegrationSettingsPage aiOnly /></PackageGate>} />
-                  <Route path="delivery-tracking" element={<PackageGate package="BackOffice"><DeliveryTrackingPage /></PackageGate>} />
-                  <Route path="document-manager" element={<PackageGate package="BackOffice"><DocumentManagerPage /></PackageGate>} />
+                  {/* Legacy bookmarks remain valid, but both surfaces now live inside their parent workspaces. */}
+                  <Route path="delivery-tracking" element={<Navigate to="/app/policies" replace />} />
+                  <Route path="document-manager" element={<Navigate to="/app/documents?tab=folders" replace />} />
                   <Route path="partner-portals" element={<PackageGate package="Integrations"><PartnerPortalsPage /></PackageGate>} />
                   <Route path="api-keys" element={<PackageGate package="Integrations"><ApiKeysPage /></PackageGate>} />
                   <Route path="dias" element={<PackageGate package="Integrations"><DiasCodesPage /></PackageGate>} />

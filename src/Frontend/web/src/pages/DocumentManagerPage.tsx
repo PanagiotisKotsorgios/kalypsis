@@ -14,7 +14,7 @@ import { SearchableSelect } from "../components/SearchableSelect";
 interface FolderDto { id: string; name: string; description: string | null; customerId: string | null; customerName: string | null; parentFolderId: string | null; color: string; }
 interface CustomerLite { id: string; type: string; firstName?: string; lastName?: string; companyName?: string; }
 
-export function DocumentManagerPage() {
+export function DocumentManagerPage({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [err, setErr] = useState<string | null>(null);
@@ -27,11 +27,12 @@ export function DocumentManagerPage() {
 
   return (
     <Box>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
+      {!embedded && <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
         <Box><Typography variant="h4" sx={{ fontWeight: 800 }}>{t("documentManager.title")}</Typography>
           <Typography color="text.secondary">{t("documentManager.subtitle")}</Typography></Box>
         <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>{t("documentManager.create")}</Button>
-      </Stack>
+      </Stack>}
+      {embedded && <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}><Box><Typography variant="h6" fontWeight={800}>Φάκελοι εγγράφων</Typography><Typography variant="body2" color="text.secondary">Οργανώστε τα αρχεία του γραφείου ή συγκεκριμένου πελάτη.</Typography></Box><Button startIcon={<AddIcon />} variant="contained" onClick={() => setCreateOpen(true)}>{t("documentManager.create")}</Button></Stack>}
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
       {q.isLoading ? <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box> : (q.data ?? []).length === 0 ? (
         <Card variant="outlined" sx={{ p: 4, textAlign: "center", color: "text.secondary", borderStyle: "dashed" }}>
