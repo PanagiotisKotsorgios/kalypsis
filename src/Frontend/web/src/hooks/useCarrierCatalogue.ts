@@ -31,7 +31,9 @@ export interface CarrierParamItem {
   code: string;
   name: string;
   policyType: string | null;
+  policyTypeText?: string | null;
   vehicleUseCategory: string | null;
+  vehicleUseCategoryText?: string | null;
   parentCode: string | null;
 }
 

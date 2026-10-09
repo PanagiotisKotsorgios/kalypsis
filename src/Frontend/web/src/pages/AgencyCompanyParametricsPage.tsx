@@ -17,23 +17,9 @@ import { InlineCreateInsuranceCompanyDialog } from "../components/InlineCreateIn
 import { printTable } from "../utils/printableTable";
 import { exportRowsCsv } from "../utils/exportCsv";
 
-type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
+type PolicyType = string;
 type ParameterKind = "Branch" | "Coverage" | "Use" | "Package";
-type VehicleUseCategory =
-  | "EIX" | "EDX" | "FIX" | "FDX" | "LIX" | "LDX"
-  | "Motorcycle" | "Agricultural" | "Construction";
-
-const VEHICLE_USE_OPTIONS: { value: VehicleUseCategory; label: string }[] = [
-  { value: "EIX",          label: "ΕΙΧ — Επιβατικό Ι.Χ." },
-  { value: "EDX",          label: "ΕΔΧ — Ταξί / Δημ.Χρ." },
-  { value: "FIX",          label: "ΦΙΧ — Φορτηγό Ι.Χ." },
-  { value: "FDX",          label: "ΦΔΧ — Φορτηγό Δ.Χ." },
-  { value: "LIX",          label: "ΛΙΧ — Λεωφορείο Ι.Χ." },
-  { value: "LDX",          label: "ΛΔΧ — Λεωφορείο Δ.Χ." },
-  { value: "Motorcycle",   label: "ΜΟΤ — Μοτοσικλέτα" },
-  { value: "Agricultural", label: "ΑΓΡ — Αγροτικό" },
-  { value: "Construction", label: "ΕΡΓ — Εργοταξιακό" },
-];
+type VehicleUseCategory = string;
 
 interface CompanyDto {
   id: string; name: string; code: string;
@@ -48,7 +34,9 @@ interface ParameterDto {
   code: string;
   name: string;
   policyType: PolicyType | null;
+  policyTypeText?: string | null;
   vehicleUseCategory: VehicleUseCategory | null;
+  vehicleUseCategoryText?: string | null;
   parentCode: string | null;
   isActive: boolean;
   displayOrder: number;
@@ -72,7 +60,6 @@ const KIND_HELP: Record<ParameterKind, string> = {
   Use: "Χρήσεις οχήματος για τον κλάδο Αυτοκινήτου.",
   Package: "Πακέτα καλύψεων που συνδυάζονται από την εταιρεία.",
 };
-const POLICY_TYPES: PolicyType[] = ["Auto", "Home", "Health", "Life", "Business", "Travel", "Other"];
 
 export function AgencyCompanyParametricsPage() {
   const qc = useQueryClient();
@@ -104,9 +91,18 @@ export function AgencyCompanyParametricsPage() {
   const paramsQ = useQuery({
     queryKey: ["company-parameters", "agency", selectedCarrierId, tab],
     enabled: !!selectedCarrierId,
-    queryFn: async () => (await api.get<ParameterDto[]>("/company-parameters", {
-      params: { insuranceCompanyId: selectedCarrierId, kind: tab }
-    })).data
+    queryFn: async () => {
+      const rows = (await api.get<ParameterDto[]>("/company-parameters", {
+        params: { insuranceCompanyId: selectedCarrierId, kind: tab }
+      })).data;
+      // Keep the legacy fields as the display/filter surface so arbitrary
+      // office-entered labels work everywhere without changing old consumers.
+      return rows.map(p => ({
+        ...p,
+        policyType: (p.policyTypeText ?? p.policyType) as PolicyType | null,
+        vehicleUseCategory: (p.vehicleUseCategoryText ?? p.vehicleUseCategory) as VehicleUseCategory | null,
+      }));
+    }
   });
 
   const filteredParams = useMemo(() => {
@@ -359,8 +355,8 @@ function EditDialog({ open, item, carrierId, carrierName, kind, onClose, onSaved
   const [form, setForm] = useState({
     code: item?.code ?? "",
     name: item?.name ?? "",
-    policyType: (item?.policyType ?? (kind === "Branch" ? "Auto" : kind === "Use" ? "Auto" : "")) as PolicyType | "",
-    vehicleUseCategory: (item?.vehicleUseCategory ?? "") as VehicleUseCategory | "",
+    policyType: (item?.policyTypeText ?? item?.policyType ?? "") as PolicyType | "",
+    vehicleUseCategory: (item?.vehicleUseCategoryText ?? item?.vehicleUseCategory ?? "") as VehicleUseCategory | "",
     parentCode: item?.parentCode ?? "",
     isActive: item?.isActive ?? true,
     displayOrder: item?.displayOrder ?? 0,
@@ -375,8 +371,12 @@ function EditDialog({ open, item, carrierId, carrierName, kind, onClose, onSaved
         kind,
         code: form.code.trim(),
         name: form.name.trim(),
-        policyType: form.policyType || null,
-        vehicleUseCategory: kind === "Use" ? (form.vehicleUseCategory || null) : null,
+        // Enum fields remain null for free-form labels; the API derives a
+        // known enum when possible and preserves the exact text separately.
+        policyType: null,
+        vehicleUseCategory: null,
+        policyTypeText: form.policyType.trim() || null,
+        vehicleUseCategoryText: kind === "Use" ? (form.vehicleUseCategory.trim() || null) : null,
         parentCode: form.parentCode.trim() || null,
         bridgeSystem: null,
         bridgeCode: null,
@@ -396,11 +396,7 @@ function EditDialog({ open, item, carrierId, carrierName, kind, onClose, onSaved
     onError: e => setErr(extractErrorMessage(e))
   });
 
-  const requiresPolicyType = kind === "Branch" || kind === "Coverage" || kind === "Package";
-  const requiresVehicleUse = kind === "Use";
   const canSave = !!form.code.trim() && !!form.name.trim()
-    && (!requiresPolicyType || !!form.policyType)
-    && (!requiresVehicleUse || !!form.vehicleUseCategory)
     && (kind !== "Coverage" && kind !== "Package" ? true : !!form.parentCode.trim());
 
   return (
@@ -417,21 +413,18 @@ function EditDialog({ open, item, carrierId, carrierName, kind, onClose, onSaved
             <TextField label="Όνομα" required fullWidth
               value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
           </Stack>
-          {requiresPolicyType && (
-            <TextField select label="Κλάδος (τύπος συμβολαίου)" required
-              value={form.policyType}
-              onChange={e => setForm({ ...form, policyType: e.target.value as PolicyType })}
-              fullWidth>
-              {POLICY_TYPES.map(t => <MenuItem key={t} value={t}>{t}</MenuItem>)}
-            </TextField>
-          )}
-          {requiresVehicleUse && (
-            <TextField select label="Κατηγορία χρήσης οχήματος" required
+          <TextField label="Κλάδος / τύπος συμβολαίου (προαιρετικό)"
+            value={form.policyType}
+            onChange={e => setForm({ ...form, policyType: e.target.value as PolicyType })}
+            fullWidth
+            helperText="Ελεύθερη τιμή γραφείου. Δεν περιορίζεται σε προκαθορισμένη λίστα.">
+          </TextField>
+          {kind === "Use" && (
+            <TextField label="Κατηγορία χρήσης οχήματος (προαιρετικό)"
               value={form.vehicleUseCategory}
               onChange={e => setForm({ ...form, vehicleUseCategory: e.target.value as VehicleUseCategory })}
               fullWidth
-              helperText="Επιλέξτε την τυποποιημένη κατηγορία (ΕΙΧ / ΕΔΧ / …). Χωρίς αυτή, το dropdown Χρήσεις σε άλλες σελίδες δεν την εμφανίζει.">
-              {VEHICLE_USE_OPTIONS.map(o => <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)}
+              helperText="Πληκτρολογήστε την ονομασία που χρησιμοποιεί το γραφείο, π.χ. ΕΙΧ, ταξί ή επαγγελματικό.">
             </TextField>
           )}
           {(kind === "Coverage" || kind === "Package") && (

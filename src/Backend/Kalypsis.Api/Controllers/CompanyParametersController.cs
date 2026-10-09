@@ -47,7 +47,9 @@ public class CompanyParametersController : ControllerBase
         bool IsActive,
         int DisplayOrder,
         string Source,
-        string? Notes);
+        string? Notes,
+        string? PolicyTypeText,
+        string? VehicleUseCategoryText);
 
     public record CompanyParameterItemBody(
         Guid InsuranceCompanyId,
@@ -66,7 +68,9 @@ public class CompanyParametersController : ControllerBase
         bool IsActive,
         int DisplayOrder,
         string? Source,
-        string? Notes);
+        string? Notes,
+        string? PolicyTypeText,
+        string? VehicleUseCategoryText);
 
     public record SeedCompanyParametersBody(Guid? InsuranceCompanyId);
     public record SeedCompanyParametersResult(int CompaniesProcessed, int ItemsCreated);
@@ -261,8 +265,8 @@ public class CompanyParametersController : ControllerBase
             sheet.Cell(r, col++).Value = x.Kind.ToString();
             sheet.Cell(r, col++).Value = x.Code;
             sheet.Cell(r, col++).Value = x.Name;
-            sheet.Cell(r, col++).Value = x.PolicyType.HasValue ? x.PolicyType.Value.ToString() : "";
-            sheet.Cell(r, col++).Value = x.VehicleUseCategory.HasValue ? x.VehicleUseCategory.Value.ToString() : "";
+            sheet.Cell(r, col++).Value = x.PolicyTypeText ?? (x.PolicyType.HasValue ? x.PolicyType.Value.ToString() : "");
+            sheet.Cell(r, col++).Value = x.VehicleUseCategoryText ?? (x.VehicleUseCategory.HasValue ? x.VehicleUseCategory.Value.ToString() : "");
             sheet.Cell(r, col++).Value = x.ParentCode ?? "";
             sheet.Cell(r, col++).Value = x.BridgeSystem ?? "";
             sheet.Cell(r, col++).Value = x.BridgeCode ?? "";
@@ -557,6 +561,8 @@ public class CompanyParametersController : ControllerBase
             q = q.Where(x =>
                 EF.Functions.Like(x.Code, s) ||
                 EF.Functions.Like(x.Name, s) ||
+                (x.PolicyTypeText != null && EF.Functions.Like(x.PolicyTypeText, s)) ||
+                (x.VehicleUseCategoryText != null && EF.Functions.Like(x.VehicleUseCategoryText, s)) ||
                 (x.ParentCode != null && EF.Functions.Like(x.ParentCode, s)) ||
                 (x.BridgeSystem != null && EF.Functions.Like(x.BridgeSystem, s)) ||
                 (x.BridgeCode != null && EF.Functions.Like(x.BridgeCode, s)));
@@ -585,19 +591,9 @@ public class CompanyParametersController : ControllerBase
         if (body.EffectiveFrom.HasValue && body.EffectiveTo.HasValue && body.EffectiveTo.Value < body.EffectiveFrom.Value)
             throw new AppException("invalid_effective_period", "Η ισχύς έως δεν μπορεί να είναι πριν την ισχύ από.", 400);
 
-        if (body.VehicleUseCategory.HasValue && body.PolicyType is not PolicyType.Auto)
-            throw new AppException("vehicle_use_requires_auto",
-                "Η χρήση οχήματος μπορεί να οριστεί μόνο σε κλάδο Αυτοκινήτου.", 400);
-
-        if (body.Kind is CompanyParameterItemKind.Branch && !body.PolicyType.HasValue)
-            throw new AppException("branch_requires_policy_type", "Ο κλάδος πρέπει να έχει τύπο συμβολαίου.", 400);
-
-        if (body.Kind is CompanyParameterItemKind.Use && !body.VehicleUseCategory.HasValue)
-            throw new AppException("use_requires_vehicle_category", "Η χρήση πρέπει να έχει κατηγορία χρήσης οχήματος.", 400);
-
         if (body.Kind is CompanyParameterItemKind.Coverage or CompanyParameterItemKind.Package)
         {
-            if (!body.PolicyType.HasValue || string.IsNullOrWhiteSpace(body.ParentCode))
+            if (string.IsNullOrWhiteSpace(body.ParentCode))
                 throw new AppException("coverage_package_requires_scope",
                     "Καλύψεις και πακέτα πρέπει να έχουν κλάδο/parent code.", 400);
         }
@@ -648,8 +644,10 @@ public class CompanyParametersController : ControllerBase
         item.Kind = body.Kind;
         item.Code = NormalizeCode(body.Code);
         item.Name = body.Name.Trim();
-        item.PolicyType = body.PolicyType;
-        item.VehicleUseCategory = body.VehicleUseCategory;
+        item.PolicyTypeText = Clean(body.PolicyTypeText) ?? body.PolicyType?.ToString();
+        item.VehicleUseCategoryText = Clean(body.VehicleUseCategoryText) ?? body.VehicleUseCategory?.ToString();
+        item.PolicyType = ParsePolicyType(body.PolicyType, item.PolicyTypeText);
+        item.VehicleUseCategory = ParseVehicleUseCategory(body.VehicleUseCategory, item.VehicleUseCategoryText);
         item.ParentCode = NormalizeCodeOrNull(body.ParentCode);
         item.BridgeSystem = NormalizeCodeOrNull(body.BridgeSystem);
         item.BridgeCode = Clean(body.BridgeCode);
@@ -683,7 +681,46 @@ public class CompanyParametersController : ControllerBase
         x.IsActive,
         x.DisplayOrder,
         x.Source,
-        x.Notes);
+        x.Notes,
+        x.PolicyTypeText,
+        x.VehicleUseCategoryText);
+
+    private static PolicyType? ParsePolicyType(PolicyType? known, string? raw)
+    {
+        if (known.HasValue) return known;
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        if (Enum.TryParse<PolicyType>(raw.Trim(), true, out var parsed)) return parsed;
+        var value = raw.Trim().ToUpperInvariant();
+        if (value.Contains("ΑΥΤΟ") || value.Contains("AUTO")) return PolicyType.Auto;
+        if (value.Contains("ΚΑΤΟΙΚ") || value.Contains("HOME")) return PolicyType.Home;
+        if (value.Contains("ΥΓΕΙ") || value.Contains("HEALTH")) return PolicyType.Health;
+        if (value.Contains("ΖΩΗ") || value.Contains("LIFE")) return PolicyType.Life;
+        if (value.Contains("ΕΠΙΧ") || value.Contains("BUSINESS")) return PolicyType.Business;
+        if (value.Contains("ΤΑΞΙΔ") || value.Contains("TRAVEL")) return PolicyType.Travel;
+        if (value.Contains("ΛΟΙΠ") || value.Contains("OTHER")) return PolicyType.Other;
+        return null;
+    }
+
+    private static VehicleUseCategory? ParseVehicleUseCategory(VehicleUseCategory? known, string? raw)
+    {
+        if (known.HasValue) return known;
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        if (Enum.TryParse<VehicleUseCategory>(raw.Trim(), true, out var parsed)) return parsed;
+        var value = raw.Trim().ToUpperInvariant();
+        return value switch
+        {
+            "ΕΙΧ" or "ΙΧ" or "ΙΔΙΩΤΙΚΗ ΧΡΗΣΗ" => VehicleUseCategory.EIX,
+            "ΕΔΧ" or "ΤΑΞΙ" or "ΔΗΜΟΣΙΑ ΧΡΗΣΗ" => VehicleUseCategory.EDX,
+            "ΦΙΧ" => VehicleUseCategory.FIX,
+            "ΦΔΧ" => VehicleUseCategory.FDX,
+            "ΛΙΧ" => VehicleUseCategory.LIX,
+            "ΛΔΧ" => VehicleUseCategory.LDX,
+            "ΜΟΤΟΣΥΚΛΕΤΑ" or "ΜΗΧΑΝΗ" => VehicleUseCategory.Motorcycle,
+            "ΑΓΡΟΤΙΚΟ" => VehicleUseCategory.Agricultural,
+            "ΕΡΓΟΤΑΞΙΑΚΟ" => VehicleUseCategory.Construction,
+            _ => null
+        };
+    }
 
     private static string NormalizeCode(string? code)
     {

@@ -38,7 +38,7 @@ import { api, extractErrorMessage } from "../api/client";
 import { BulkImportDialog, type BulkImportColumn, type BulkImportResult } from "./BulkImportDialog";
 
 type Kind = "Branch" | "Use" | "Coverage" | "Package";
-type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
+type PolicyType = string;
 
 interface Item {
   id: string;
@@ -49,7 +49,9 @@ interface Item {
   code: string;
   name: string;
   policyType: PolicyType | null;
+  policyTypeText?: string | null;
   vehicleUseCategory: string | null;
+  vehicleUseCategoryText?: string | null;
   parentCode: string | null;
   bridgeSystem: string | null;
   bridgeCode: string | null;
@@ -66,14 +68,13 @@ const KIND_LABEL: Record<Kind, string> = {
   Package: "Πακέτο"
 };
 
-const POLICY_TYPES: PolicyType[] = ["Auto", "Home", "Health", "Life", "Business", "Travel", "Other"];
 
 const PARAMETRIC_IMPORT_COLUMNS: BulkImportColumn[] = [
   { key: "kind", label: "Είδος (Branch/Use/Coverage/Package)", required: true, example: "Coverage" },
   { key: "code", label: "Κωδικός", required: true, example: "AUTO_BASIC" },
   { key: "name", label: "Ονομασία", required: true, example: "Βασική κάλυψη" },
-  { key: "policyType", label: "Κλάδος (Auto/Home/Health/Life/Business/Travel/Other)", example: "Auto" },
-  { key: "vehicleUseCategory", label: "Κατηγορία χρήσης οχήματος", example: "Private" },
+  { key: "policyType", label: "Κλάδος / τύπος συμβολαίου (ελεύθερο κείμενο)", example: "Ασφάλιση σκάφους" },
+  { key: "vehicleUseCategory", label: "Κατηγορία χρήσης οχήματος (ελεύθερο κείμενο)", example: "Επαγγελματικό" },
   { key: "parentCode", label: "Κωδικός γονέα", example: "AUTO" },
   { key: "bridgeSystem", label: "Σύστημα γέφυρας", example: "" },
   { key: "bridgeCode", label: "Κωδικός γέφυρας", example: "" },
@@ -113,9 +114,16 @@ export function CompanyCatalogueDialog({
   const q = useQuery({
     enabled: open && !!insuranceCompanyId,
     queryKey: ["company-parameters", insuranceCompanyId],
-    queryFn: async () => (await api.get<Item[]>("/company-parameters", {
-      params: { insuranceCompanyId }
-    })).data
+    queryFn: async () => {
+      const rows = (await api.get<Item[]>("/company-parameters", {
+        params: { insuranceCompanyId }
+      })).data;
+      return rows.map(r => ({
+        ...r,
+        policyType: (r.policyTypeText ?? r.policyType) as PolicyType | null,
+        vehicleUseCategory: r.vehicleUseCategoryText ?? r.vehicleUseCategory,
+      }));
+    }
   });
 
   const rows = useMemo(() => {
@@ -152,8 +160,10 @@ export function CompanyCatalogueDialog({
           kind,
           code: row.code.trim(),
           name: row.name.trim(),
-          policyType: row.policyType?.trim() || null,
-          vehicleUseCategory: row.vehicleUseCategory?.trim() || null,
+          policyType: null,
+          vehicleUseCategory: null,
+          policyTypeText: row.policyType?.trim() || null,
+          vehicleUseCategoryText: row.vehicleUseCategory?.trim() || null,
           parentCode: row.parentCode?.trim() || null,
           bridgeSystem: row.bridgeSystem?.trim() || null,
           bridgeCode: row.bridgeCode?.trim() || null,
@@ -379,8 +389,8 @@ function CatalogueItemDialog({
     kind: editing?.kind ?? defaultKind,
     code: editing?.code ?? "",
     name: editing?.name ?? "",
-    policyType: editing?.policyType ?? null,
-    vehicleUseCategory: editing?.vehicleUseCategory ?? null,
+    policyType: editing?.policyTypeText ?? editing?.policyType ?? null,
+    vehicleUseCategory: editing?.vehicleUseCategoryText ?? editing?.vehicleUseCategory ?? null,
     parentCode: editing?.parentCode ?? "",
     bridgeSystem: editing?.bridgeSystem ?? "",
     bridgeCode: editing?.bridgeCode ?? "",
@@ -403,8 +413,10 @@ function CatalogueItemDialog({
         kind: form.kind,
         code: form.code.trim().toUpperCase(),
         name: form.name.trim(),
-        policyType: form.policyType,
-        vehicleUseCategory: form.vehicleUseCategory,
+        policyType: null,
+        vehicleUseCategory: null,
+        policyTypeText: form.policyType?.trim() || null,
+        vehicleUseCategoryText: form.vehicleUseCategory?.trim() || null,
         parentCode: form.parentCode.trim() || null,
         bridgeSystem: form.bridgeSystem.trim() || null,
         bridgeCode: form.bridgeCode.trim() || null,
@@ -448,11 +460,14 @@ function CatalogueItemDialog({
           </Stack>
           <TextField size="small" label="Όνομα" value={form.name} required fullWidth
             onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <TextField select size="small" label="Κλάδος (προαιρετικό)" value={form.policyType ?? ""}
-            onChange={(e) => setForm({ ...form, policyType: (e.target.value || null) as PolicyType | null })}>
-            <MenuItem value="">—</MenuItem>
-            {POLICY_TYPES.map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
-          </TextField>
+          <TextField size="small" label="Κλάδος / τύπος συμβολαίου (προαιρετικό)" value={form.policyType ?? ""}
+            helperText="Ελεύθερη τιμή γραφείου — δεν περιορίζεται σε προκαθορισμένες επιλογές."
+            onChange={(e) => setForm({ ...form, policyType: e.target.value })} />
+          {form.kind === "Use" && (
+            <TextField size="small" label="Κατηγορία χρήσης οχήματος (προαιρετικό)" value={form.vehicleUseCategory ?? ""}
+              helperText="Πληκτρολογήστε την ονομασία που χρησιμοποιεί το γραφείο."
+              onChange={(e) => setForm({ ...form, vehicleUseCategory: e.target.value })} />
+          )}
           {form.kind === "Coverage" || form.kind === "Package" ? (
             <TextField size="small" label="Parent code (π.χ. branch / package)" value={form.parentCode}
               onChange={(e) => setForm({ ...form, parentCode: e.target.value.toUpperCase() })} />

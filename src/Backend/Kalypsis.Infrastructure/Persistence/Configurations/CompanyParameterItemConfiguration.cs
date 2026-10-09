@@ -13,6 +13,8 @@ public class CompanyParameterItemConfiguration : IEntityTypeConfiguration<Compan
         b.Property(x => x.Kind).HasConversion<int>();
         b.Property(x => x.PolicyType).HasConversion<int?>();
         b.Property(x => x.VehicleUseCategory).HasConversion<int?>();
+        b.Property(x => x.PolicyTypeText).HasMaxLength(200);
+        b.Property(x => x.VehicleUseCategoryText).HasMaxLength(200);
         b.Property(x => x.Code).HasMaxLength(80).IsRequired();
         b.Property(x => x.Name).HasMaxLength(200).IsRequired();
         b.Property(x => x.ParentCode).HasMaxLength(80);

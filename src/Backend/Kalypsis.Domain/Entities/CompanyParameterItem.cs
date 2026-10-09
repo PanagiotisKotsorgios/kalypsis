@@ -24,8 +24,18 @@ public class CompanyParameterItem : BaseEntity
     /// <summary>Optional branch scope when this item belongs to a policy type.</summary>
     public PolicyType? PolicyType { get; set; }
 
+    /// <summary>
+    /// User-entered branch/type label. PolicyType remains populated for known
+    /// values so legacy filtering and bridge integrations continue to work,
+    /// while this field allows each office to use its own terminology.
+    /// </summary>
+    public string? PolicyTypeText { get; set; }
+
     /// <summary>Optional vehicle-use scope for motor parameters.</summary>
     public VehicleUseCategory? VehicleUseCategory { get; set; }
+
+    /// <summary>User-entered vehicle-use label for office-specific categories.</summary>
+    public string? VehicleUseCategoryText { get; set; }
 
     /// <summary>Parent parameter code, usually a branch or package code.</summary>
     public string? ParentCode { get; set; }
