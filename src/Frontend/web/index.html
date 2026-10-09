@@ -81,17 +81,11 @@
         background: rgba(255, 255, 255, .94);
         box-shadow: 0 18px 50px rgba(11, 37, 69, .10);
       }
-      .boot-mark {
-        width: 48px;
-        height: 48px;
-        border-radius: 14px;
-        display: grid;
-        place-items: center;
-        color: #fff;
-        background: #0b2545;
-        font-weight: 800;
-        letter-spacing: -.04em;
-        box-shadow: 0 8px 20px rgba(11, 37, 69, .22);
+      .boot-logo {
+        width: min(210px, 80vw);
+        height: 94px;
+        object-fit: contain;
+        display: block;
       }
       .boot-title { margin: 0; font-size: 18px; font-weight: 800; }
       .boot-copy { margin: 0; color: #5e7188; font-size: 13px; }
@@ -121,8 +115,7 @@
     <div id="root">
       <div id="boot-splash" role="status" aria-live="polite" aria-label="Φόρτωση Kalypsis">
         <div class="boot-card">
-          <div class="boot-mark" aria-hidden="true">K</div>
-          <p class="boot-title">Kalypsis</p>
+          <img class="boot-logo" src="/kalypsis-logo.png?v=20261009" alt="Kalypsis" />
           <p class="boot-copy">Φόρτωση ασφαλούς περιβάλλοντος…</p>
           <div class="boot-progress" aria-hidden="true"></div>
         </div>
