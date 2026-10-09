@@ -559,13 +559,16 @@ export function LandingPage() {
         </PageEnter>
       </Container>
 
-      {/* Full-width dark section — Kalypsis Desktop presentation. Sits outside
-          the max-width Container so the black bleeds edge-to-edge. */}
-      <DesktopAppSection />
+      {/* Public package catalogue — a clear comparison view inspired by the
+          reference screenshots, but using Kalypsis' own packages, wording and
+          visual system. It replaces the old Desktop-only showcase below the
+          hero and keeps the public page focused on the complete platform. */}
+      <PackageComparisonSection />
 
-      {/* ΕΡΜΗΣ pre-login showcase — Kalypsis-native messaging pitched to
-          visitors before they sign up. Free-for-life callout is the anchor. */}
-      <ErmesShowcaseSection />
+      {/* A second, calmer section explains how the packages work together and
+          gives visitors a direct next step without adding another screenshot
+          carousel or repeating the same Desktop copy. */}
+      <KalypsisOperatingModelSection />
 
       <Container maxWidth={false} sx={{
         maxWidth: { xs: "100%", md: "82%", xl: "1600px" },
@@ -907,6 +910,221 @@ function FeatureCell({ icon: Icon, title, body, index, area, featured }: {
     </Box>
   );
 }
+
+/* ============================================================================
+   Public package catalogue — a comparison-first section for visitors who
+   want to understand the product quickly. The layout follows the familiar
+   package-card + striped comparison-table pattern from the supplied reference
+   screenshots, but the copy, palette and functionality are Kalypsis-native.
+   ============================================================================ */
+const PUBLIC_PACKAGE_DEFS = [
+  { key: "backoffice", numeral: "I", color: "#1f7bb3", nameKey: "pricing.packages.items.backoffice.name", taglineKey: "pricing.packages.items.backoffice.tagline", bodyKey: "pricing.packages.items.backoffice.body" },
+  { key: "frontoffice", numeral: "II", color: "#078b88", nameKey: "pricing.packages.items.frontoffice.name", taglineKey: "pricing.packages.items.frontoffice.tagline", bodyKey: "pricing.packages.items.frontoffice.body" },
+  { key: "crm", numeral: "III", color: "#496de8", nameKey: "pricing.packages.items.crm.name", taglineKey: "pricing.packages.items.crm.tagline", bodyKey: "pricing.packages.items.crm.body" },
+  { key: "intelligence", numeral: "IV", color: "#155783", nameKey: "pricing.packages.items.intelligence.name", taglineKey: "pricing.packages.items.intelligence.tagline", bodyKey: "pricing.packages.items.intelligence.body" },
+  { key: "integrations", numeral: "V", color: "#244f78", nameKey: "pricing.packages.items.integrations.name", taglineKey: "pricing.packages.items.integrations.tagline", bodyKey: "pricing.packages.items.integrations.body" },
+  { key: "ermes", numeral: "VI", color: "#0b2545", nameKey: "ws.Ermes.name", taglineKey: "ws.Ermes.name", bodyKey: "ws.Ermes.body" },
+] as const;
+
+const PUBLIC_PACKAGE_FEATURES = [
+  {
+    el: "Πελάτες, συμβόλαια & ασφαλιστική παραγωγή",
+    en: "Customers, policies & production",
+    values: [true, false, true, true, false, false]
+  },
+  {
+    el: "Ταμείο, εισπράξεις & προμήθειες",
+    en: "Cashier, receipts & commissions",
+    values: [true, false, false, false, false, false]
+  },
+  {
+    el: "Ιστοσελίδα γραφείου & αιτήσεις",
+    en: "Office website & enquiries",
+    values: [false, true, false, false, false, false]
+  },
+  {
+    el: "CRM, πύλη πελάτη & καμπάνιες",
+    en: "CRM, customer portal & campaigns",
+    values: [false, false, true, false, false, false]
+  },
+  {
+    el: "Αναφορές, στόχοι & νοημοσύνη",
+    en: "Reports, goals & intelligence",
+    values: [false, false, false, true, false, false]
+  },
+  {
+    el: "Διασυνδέσεις & συμμόρφωση",
+    en: "Integrations & compliance",
+    values: [false, false, false, false, true, false]
+  },
+  {
+    el: "Ασφαλής επικοινωνία & συναντήσεις",
+    en: "Secure messaging & meetings",
+    values: [false, false, false, false, false, true]
+  },
+  {
+    el: "Ενιαία δεδομένα σε όλο το Kalypsis",
+    en: "One shared data layer across Kalypsis",
+    values: [true, true, true, true, true, true]
+  }
+] as const;
+
+function PackageComparisonSection() {
+  const { t, i18n } = useTranslation();
+  const isEn = i18n.resolvedLanguage?.startsWith("en") ?? false;
+  const copy = isEn ? {
+    eyebrow: "THE KALYPSIS PACKAGES",
+    title: "Choose the workspace your agency needs today.",
+    body: "Start with one focused environment and add the rest when your workflow grows. Every package shares the same customers, policies and documents — no duplicate data, no forced bundle.",
+    compare: "Compare the capabilities",
+    compareBody: "A quick view of what each workspace adds to your day-to-day operation.",
+    details: "View package details",
+    cta: "See pricing and combinations",
+    note: "Packages are enabled per office by the platform administrator. Features shown are indicative; the live office menu follows its active licence."
+  } : {
+    eyebrow: "ΤΑ ΠΑΚΕΤΑ KALYPSIS",
+    title: "Επιλέξτε το περιβάλλον που χρειάζεται σήμερα το γραφείο σας.",
+    body: "Ξεκινήστε από ένα στοχευμένο περιβάλλον και προσθέστε τα υπόλοιπα όταν μεγαλώσει η ροή σας. Όλα τα πακέτα μοιράζονται τους ίδιους πελάτες, τα ίδια συμβόλαια και τα ίδια έγγραφα — χωρίς διπλές καταχωρήσεις.",
+    compare: "Συγκρίνετε τις δυνατότητες",
+    compareBody: "Μια γρήγορη εικόνα για το τι προσθέτει κάθε περιβάλλον στην καθημερινή λειτουργία.",
+    details: "Δείτε το πακέτο",
+    cta: "Δείτε τιμές και συνδυασμούς",
+    note: "Τα πακέτα ενεργοποιούνται ανά γραφείο από τον διαχειριστή της πλατφόρμας. Η τελική εικόνα του μενού ακολουθεί την ενεργή άδεια του γραφείου."
+  };
+
+  return (
+    <Box component="section" sx={{ py: { xs: 7, md: 11 }, bgcolor: "#f7fafc", borderTop: `1px solid ${RULE}`, borderBottom: `1px solid ${RULE}` }}>
+      <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3, md: 5 } }}>
+        <Reveal>
+          <Box sx={{ textAlign: "center", maxWidth: 860, mx: "auto", mb: { xs: 5, md: 7 } }}>
+            <Typography sx={{ color: ACCENT, fontSize: 11, letterSpacing: "0.24em", fontWeight: 800, mb: 1.5 }}>
+              {copy.eyebrow}
+            </Typography>
+            <Typography component="h2" sx={{ color: NAVY, fontWeight: 900, fontSize: { xs: 28, md: 44 }, lineHeight: 1.12, letterSpacing: "-0.02em", mb: 2 }}>
+              {copy.title}
+            </Typography>
+            <Typography sx={{ color: NAVY_SOFT, fontSize: { xs: 15, md: 17 }, lineHeight: 1.65 }}>
+              {copy.body}
+            </Typography>
+          </Box>
+        </Reveal>
+
+        <Box sx={{ display: "grid", gap: { xs: 1.5, sm: 2, lg: 1.5 }, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "repeat(6, minmax(0, 1fr))" }, alignItems: "stretch" }}>
+          {PUBLIC_PACKAGE_DEFS.map((pkg, index) => (
+            <Reveal key={pkg.key} delay={index * 70}>
+              <Box sx={{ height: "100%", bgcolor: "#fff", border: `1px solid ${RULE}`, borderTop: `4px solid ${pkg.color}`, borderRadius: 2, p: { xs: 2.25, md: 2 }, display: "flex", flexDirection: "column", boxShadow: "0 8px 24px rgba(11,37,69,.06)", transition: "transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease", "&:hover": { transform: "translateY(-4px)", boxShadow: "0 18px 32px rgba(11,37,69,.13)", borderColor: pkg.color } }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+                  <Typography sx={{ fontSize: 28, fontWeight: 900, color: pkg.color, lineHeight: 1 }}>{pkg.numeral}</Typography>
+                  <Typography sx={{ fontSize: 10, letterSpacing: "0.12em", fontWeight: 800, color: NAVY_SOFT }}>{isEn ? "PACKAGE" : "ΠΑΚΕΤΟ"}</Typography>
+                </Stack>
+                <Typography sx={{ color: NAVY, fontWeight: 900, fontSize: { xs: 17, md: 16 }, lineHeight: 1.2, minHeight: { md: 58 }, mb: 1 }}>
+                  {t(pkg.nameKey)}
+                </Typography>
+                <Typography sx={{ color: pkg.color, fontSize: 12, fontWeight: 800, lineHeight: 1.35, minHeight: { md: 35 }, mb: 1.25 }}>
+                  {pkg.key === "ermes" ? (isEn ? "Secure office communication." : "Ασφαλής επικοινωνία γραφείου.") : t(pkg.taglineKey)}
+                </Typography>
+                <Typography sx={{ color: NAVY_SOFT, fontSize: 12.5, lineHeight: 1.55, display: "-webkit-box", WebkitLineClamp: 5, WebkitBoxOrient: "vertical", overflow: "hidden", flex: 1 }}>
+                  {t(pkg.bodyKey)}
+                </Typography>
+                <Button component={RouterLink} to="/pricing" size="small" variant="contained" endIcon={<ArrowForwardIcon sx={{ fontSize: 16 }} />} sx={{ mt: 2, bgcolor: pkg.color, color: "#fff", borderRadius: 1.5, fontSize: 11, fontWeight: 800, textTransform: "none", "&:hover": { bgcolor: pkg.color, filter: "brightness(.9)" } }}>
+                  {copy.details}
+                </Button>
+              </Box>
+            </Reveal>
+          ))}
+        </Box>
+
+        <Reveal delay={180}>
+          <Box sx={{ mt: { xs: 5, md: 7 }, mb: 2 }}>
+            <Typography component="h3" sx={{ color: NAVY, fontSize: { xs: 22, md: 30 }, fontWeight: 900, textAlign: "center", mb: 1 }}>
+              {copy.compare}
+            </Typography>
+            <Typography sx={{ color: NAVY_SOFT, textAlign: "center", mb: 3, fontSize: 14.5 }}>
+              {copy.compareBody}
+            </Typography>
+          </Box>
+        </Reveal>
+
+        <Box sx={{ overflowX: "auto", border: `1px solid ${RULE}`, borderRadius: 2, bgcolor: "#fff", boxShadow: "0 12px 30px rgba(11,37,69,.07)" }}>
+          <Box sx={{ minWidth: 1060 }}>
+            <Box sx={{ display: "grid", gridTemplateColumns: "minmax(250px, 1.6fr) repeat(6, minmax(135px, 1fr))", bgcolor: NAVY, color: "#fff" }}>
+              <Box sx={{ p: 2, fontWeight: 800, fontSize: 13 }}>{isEn ? "Capability" : "Δυνατότητα"}</Box>
+              {PUBLIC_PACKAGE_DEFS.map(pkg => <Box key={pkg.key} sx={{ p: 1.5, textAlign: "center", borderLeft: "1px solid rgba(255,255,255,.14)", fontSize: 12, fontWeight: 800, lineHeight: 1.25 }}>{t(pkg.nameKey).split(" — ")[0]}</Box>)}
+            </Box>
+            {PUBLIC_PACKAGE_FEATURES.map((feature, rowIndex) => (
+              <Box key={feature.en} sx={{ display: "grid", gridTemplateColumns: "minmax(250px, 1.6fr) repeat(6, minmax(135px, 1fr))", bgcolor: rowIndex % 2 === 0 ? "#fff" : "#f1f4f7", borderTop: `1px solid ${RULE}` }}>
+                <Box sx={{ p: 1.5, color: NAVY_SOFT, fontSize: 12.5, fontWeight: 700 }}>{isEn ? feature.en : feature.el}</Box>
+                {feature.values.map((value, index) => <Box key={`${feature.en}-${index}`} sx={{ p: 1.25, minHeight: 46, display: "flex", alignItems: "center", justifyContent: "center", borderLeft: `1px solid ${RULE}` }}>{value ? <CheckCircleIcon sx={{ color: "#2f7d4a", fontSize: 20 }} /> : <Typography sx={{ color: "#aeb8c3", fontSize: 16 }}>—</Typography>}</Box>)}
+              </Box>
+            ))}
+          </Box>
+        </Box>
+
+        <Stack direction={{ xs: "column", sm: "row" }} alignItems="center" justifyContent="space-between" spacing={2} sx={{ mt: 3 }}>
+          <Typography sx={{ color: NAVY_SOFT, fontSize: 12.5, lineHeight: 1.5, maxWidth: 760 }}>{copy.note}</Typography>
+          <Button component={RouterLink} to="/pricing" variant="contained" endIcon={<ArrowForwardIcon />} sx={{ flexShrink: 0, bgcolor: NAVY, fontWeight: 800, borderRadius: 1.75, px: 2.5, "&:hover": { bgcolor: "#17417f" } }}>
+            {copy.cta}
+          </Button>
+        </Stack>
+      </Container>
+    </Box>
+  );
+}
+
+function KalypsisOperatingModelSection() {
+  const { i18n } = useTranslation();
+  const isEn = i18n.resolvedLanguage?.startsWith("en") ?? false;
+  const copy = isEn ? {
+    eyebrow: "ONE OPERATING MODEL",
+    title: "Everything stays connected as your agency grows.",
+    body: "Kalypsis keeps the day-to-day work in one place: the same customer record flows from the first enquiry to the policy, payment, renewal and follow-up.",
+    steps: [
+      ["01", "Choose your starting point", "Activate only the workspace your office needs now."],
+      ["02", "Work from one record", "Customers, policies, vehicles, claims and documents stay connected."],
+      ["03", "Automate the routine", "Use reminders, imports, campaigns and reports instead of spreadsheets."],
+      ["04", "Scale without switching", "Add teams, branches and packages without rebuilding your workflow."]
+    ],
+    cta: "Talk to Kalypsis"
+  } : {
+    eyebrow: "ΕΝΙΑΙΑ ΡΟΗ ΕΡΓΑΣΙΑΣ",
+    title: "Όλα μένουν συνδεδεμένα όσο μεγαλώνει το γραφείο σας.",
+    body: "Το Kalypsis κρατά την καθημερινή εργασία σε ένα περιβάλλον: η ίδια καρτέλα πελάτη ακολουθεί το αίτημα, το συμβόλαιο, την είσπραξη, την ανανέωση και το follow-up.",
+    steps: [
+      ["01", "Ξεκινάτε από εκεί που χρειάζεστε", "Ενεργοποιείτε μόνο το περιβάλλον που χρειάζεται σήμερα το γραφείο."],
+      ["02", "Δουλεύετε από μία καρτέλα", "Πελάτες, συμβόλαια, οχήματα, ζημιές και έγγραφα παραμένουν συνδεδεμένα."],
+      ["03", "Αυτοματοποιείτε τα επαναλαμβανόμενα", "Υπενθυμίσεις, εισαγωγές, καμπάνιες και αναφορές αντί για διάσπαρτα Excel."],
+      ["04", "Μεγαλώνετε χωρίς αλλαγή συστήματος", "Προσθέτετε ομάδες, γραφεία και πακέτα χωρίς να ξαναστήνετε τη ροή σας."]
+    ],
+    cta: "Μιλήστε με την Kalypsis"
+  };
+  const icons = [HubOutlinedIcon, GroupsOutlinedIcon, CloudSyncOutlinedIcon, LeaderboardOutlinedIcon];
+  return (
+    <Box component="section" sx={{ py: { xs: 7, md: 10 }, bgcolor: "#fff" }}>
+      <Container maxWidth="lg">
+        <Reveal>
+          <Box sx={{ maxWidth: 820, mb: { xs: 4, md: 6 } }}>
+            <Typography sx={{ color: ACCENT, fontSize: 11, letterSpacing: "0.23em", fontWeight: 800, mb: 1.5 }}>{copy.eyebrow}</Typography>
+            <Typography component="h2" sx={{ color: NAVY, fontSize: { xs: 27, md: 40 }, fontWeight: 900, lineHeight: 1.15, letterSpacing: "-0.02em", mb: 1.5 }}>{copy.title}</Typography>
+            <Typography sx={{ color: NAVY_SOFT, fontSize: { xs: 15, md: 17 }, lineHeight: 1.65 }}>{copy.body}</Typography>
+          </Box>
+        </Reveal>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }, gap: 1.5 }}>
+          {copy.steps.map(([number, title, body], index) => {
+            const Icon = icons[index];
+            return <Reveal key={number} delay={index * 80}><Box sx={{ height: "100%", p: { xs: 2.5, md: 3 }, border: `1px solid ${RULE}`, borderRadius: 2, bgcolor: index === 0 ? "#f4f9fc" : "#fff", transition: "border-color 180ms ease, box-shadow 180ms ease", "&:hover": { borderColor: ACCENT, boxShadow: "0 14px 28px rgba(11,37,69,.09)" } }}><Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}><Box sx={{ width: 42, height: 42, borderRadius: 1.5, bgcolor: "rgba(31,123,179,.1)", color: ACCENT, display: "grid", placeItems: "center" }}><Icon /></Box><Typography sx={{ color: ACCENT, fontSize: 12, fontWeight: 900, letterSpacing: "0.12em" }}>{number}</Typography></Stack><Typography sx={{ color: NAVY, fontSize: 17, fontWeight: 900, mb: 1 }}>{title}</Typography><Typography sx={{ color: NAVY_SOFT, fontSize: 14, lineHeight: 1.6 }}>{body}</Typography></Box></Reveal>;
+          })}
+        </Box>
+        <Reveal delay={180}><Box sx={{ mt: { xs: 4, md: 5 }, display: "flex", justifyContent: { xs: "stretch", sm: "flex-end" } }}><Button component={RouterLink} to="/contact" variant="outlined" endIcon={<ArrowForwardIcon />} sx={{ width: { xs: "100%", sm: "auto" }, borderColor: ACCENT, color: NAVY, fontWeight: 800, borderRadius: 1.75, px: 2.75, "&:hover": { borderColor: NAVY, bgcolor: "#f4f9fc" } }}>{copy.cta}</Button></Box></Reveal>
+      </Container>
+    </Box>
+  );
+}
+
+// These legacy implementations remain in the source for the landing editor's
+// existing content model, but the public page now uses the package catalogue
+// above instead of rendering them.
+void DesktopAppSection;
+void ErmesShowcaseSection;
 
 /* ============================================================================
    Desktop App section — full-width dark presentation of the native
