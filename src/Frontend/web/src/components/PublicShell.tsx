@@ -8,6 +8,7 @@ interface PublicShellProps {
   children: ReactNode;
   mainSx?: SxProps<Theme>;
   hideFooter?: boolean;
+  modernNav?: boolean;
 }
 
 /**
@@ -16,7 +17,7 @@ interface PublicShellProps {
  * grain texture, slow motion) to the public site only — the post-login app
  * keeps its existing MUI theme.
  */
-export function PublicShell({ overlayHero, children, mainSx, hideFooter }: PublicShellProps) {
+export function PublicShell({ overlayHero, children, mainSx, hideFooter, modernNav = false }: PublicShellProps) {
   return (
     <Box
       className="editorial"
@@ -24,10 +25,10 @@ export function PublicShell({ overlayHero, children, mainSx, hideFooter }: Publi
         minHeight: "100vh",
         display: "flex",
         flexDirection: "column",
-        backgroundColor: "var(--paper)"
+        backgroundColor: modernNav ? "#f4f7fb" : "var(--paper)"
       }}
     >
-      <PublicNav overlayHero={overlayHero} />
+      <PublicNav overlayHero={overlayHero} modern={modernNav} />
       <Box component="main" sx={{ flex: 1, ...mainSx }}>
         {children}
       </Box>

@@ -22,12 +22,13 @@ import { LanguageToggle } from "./LanguageToggle";
 
 interface PublicNavProps {
   overlayHero?: boolean;
+  modern?: boolean;
 }
 
 /**
  * Editorial public nav — paper background, hairline rule, slim type.
  */
-export function PublicNav(_: PublicNavProps = {}) {
+export function PublicNav({ modern = false }: PublicNavProps = {}) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -57,7 +58,7 @@ export function PublicNav(_: PublicNavProps = {}) {
         position="sticky"
         elevation={0}
         sx={{
-          bgcolor: "transparent",
+          bgcolor: modern ? "#f4f7fb" : "transparent",
           color: "#0b2545",
           pt: { xs: 1, md: 1.75 },
           px: { xs: 1, md: 2 },
@@ -82,8 +83,10 @@ export function PublicNav(_: PublicNavProps = {}) {
               px: { xs: 1.5, md: 3.5 },
               py: { xs: 0.75, md: 1.1 },
               background: scrolled
-                ? "rgba(255,255,255,.96)"
-                : "rgba(255,255,255,.86)",
+                ? "rgba(255,255,255,.98)"
+                : modern
+                  ? "rgba(255,255,255,.94)"
+                  : "rgba(255,255,255,.86)",
               backdropFilter: "blur(16px)",
               WebkitBackdropFilter: "blur(16px)",
               boxShadow: "0 16px 38px rgba(15,42,80,.12)",
@@ -167,9 +170,13 @@ export function PublicNav(_: PublicNavProps = {}) {
                       transformOrigin: "right",
                       transition: "transform 380ms var(--ease-editorial)",
                     },
+                    "&:hover": modern
+                      ? { color: "#1f7bb3", bgcolor: "#eef6fb", borderRadius: 1.5 }
+                      : undefined,
                     "&:hover::after": {
                       transform: "scaleX(1)",
                       transformOrigin: "left",
+                      display: modern ? "none" : "block",
                     },
                   }}
                 >
@@ -201,13 +208,21 @@ export function PublicNav(_: PublicNavProps = {}) {
               </Box>
               <RouterLink
                 to="/login"
-                className="ghost-button"
+                className={modern ? undefined : "ghost-button"}
                 style={{
                   padding: "12px 20px",
                   fontSize: 14,
                   fontWeight: 700,
                   letterSpacing: "0.01em",
                   whiteSpace: "nowrap",
+                  ...(modern
+                    ? {
+                        border: "1px solid rgba(31,123,179,.38)",
+                        borderRadius: "999px",
+                        color: "#0b2545",
+                        background: "rgba(255,255,255,.75)",
+                      }
+                    : {}),
                 }}
               >
                 <LoginIcon style={{ fontSize: 17 }} />
@@ -215,13 +230,21 @@ export function PublicNav(_: PublicNavProps = {}) {
               </RouterLink>
               <RouterLink
                 to="/register"
-                className="ink-button"
+                className={modern ? undefined : "ink-button"}
                 style={{
                   padding: "13px 22px",
                   fontSize: 14,
                   fontWeight: 700,
                   letterSpacing: "0.01em",
                   whiteSpace: "nowrap",
+                  ...(modern
+                    ? {
+                        border: "1px solid #0b2545",
+                        borderRadius: "999px",
+                        color: "#fff",
+                        background: "#0b2545",
+                      }
+                    : {}),
                 }}
               >
                 <span>{t("publicNav.tryFree")}</span>
@@ -237,8 +260,8 @@ export function PublicNav(_: PublicNavProps = {}) {
                 color: "#0b2545",
                 width: 44,
                 height: 44,
-                border: "1px solid var(--rule)",
-                borderRadius: 0,
+                border: modern ? "1px solid rgba(31,123,179,.3)" : "1px solid var(--rule)",
+                borderRadius: modern ? 2 : 0,
                 "& svg": { fontSize: 24 },
               }}
               edge="end"
@@ -264,8 +287,8 @@ export function PublicNav(_: PublicNavProps = {}) {
         PaperProps={{
           sx: {
             width: { xs: "min(86vw, 380px)", sm: 380 },
-            backgroundColor: "#f5ede1", // paper, literal
-            borderLeft: "1px solid #d6c6ab",
+            backgroundColor: modern ? "#f4f7fb" : "#f5ede1",
+            borderLeft: modern ? "1px solid #d6e5f1" : "1px solid #d6c6ab",
             boxShadow: "0 0 0 100vmax rgba(11,37,69,0.32)",
           },
         }}
@@ -276,8 +299,8 @@ export function PublicNav(_: PublicNavProps = {}) {
         }}
       >
         <Box
-          className="editorial"
-          sx={{ p: 3.5, height: "100%", backgroundColor: "#f5ede1" }}
+          className={modern ? undefined : "editorial"}
+          sx={{ p: 3.5, height: "100%", backgroundColor: modern ? "#f4f7fb" : "#f5ede1" }}
         >
           <Stack
             direction="row"
@@ -289,7 +312,7 @@ export function PublicNav(_: PublicNavProps = {}) {
             <IconButton
               onClick={() => setOpen(false)}
               sx={{
-                color: "var(--ink)",
+                color: modern ? "#0b2545" : "var(--ink)",
                 width: 44,
                 height: 44,
                 border: "1px solid var(--rule)",
@@ -324,15 +347,15 @@ export function PublicNav(_: PublicNavProps = {}) {
                   sx={{
                     py: 2.5,
                     px: 1,
-                    fontFamily: "var(--display)",
-                    fontStyle: "italic",
+                    fontFamily: modern ? '"Inter", "Segoe UI", system-ui, sans-serif' : "var(--display)",
+                    fontStyle: modern ? "normal" : "italic",
                     fontSize: 22,
-                    color: "var(--ink)",
+                    color: modern ? "#0b2545" : "var(--ink)",
                     transition:
                       "color 280ms var(--ease-editorial), background 280ms var(--ease-editorial)",
                     "&:hover": {
-                      color: "var(--terracotta)",
-                      backgroundColor: "rgba(176, 138, 62, 0.06)",
+                      color: modern ? "#1f7bb3" : "var(--terracotta)",
+                      backgroundColor: modern ? "#eaf4fb" : "rgba(176, 138, 62, 0.06)",
                     },
                   }}
                 >
@@ -344,7 +367,7 @@ export function PublicNav(_: PublicNavProps = {}) {
           <Stack spacing={1.5} mt={5}>
             <RouterLink
               to="/login"
-              className="ghost-button"
+              className={modern ? undefined : "ghost-button"}
               onClick={() => setOpen(false)}
               style={{
                 fontSize: 15,
@@ -352,6 +375,9 @@ export function PublicNav(_: PublicNavProps = {}) {
                 padding: "16px 24px",
                 width: "100%",
                 boxSizing: "border-box",
+                ...(modern
+                  ? { border: "1px solid rgba(31,123,179,.38)", borderRadius: "999px", color: "#0b2545", background: "#fff" }
+                  : {}),
               }}
             >
               <LoginIcon style={{ fontSize: 19 }} />
@@ -359,7 +385,7 @@ export function PublicNav(_: PublicNavProps = {}) {
             </RouterLink>
             <RouterLink
               to="/register"
-              className="ink-button"
+              className={modern ? undefined : "ink-button"}
               onClick={() => setOpen(false)}
               style={{
                 fontSize: 15,
@@ -367,6 +393,9 @@ export function PublicNav(_: PublicNavProps = {}) {
                 padding: "17px 26px",
                 width: "100%",
                 boxSizing: "border-box",
+                ...(modern
+                  ? { border: "1px solid #0b2545", borderRadius: "999px", color: "#fff", background: "#0b2545" }
+                  : {}),
               }}
             >
               <span>{t("publicNav.tryFree")}</span>

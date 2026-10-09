@@ -873,7 +873,7 @@ export function PricingPage() {
  */
 export function PricingComingSoonPage() {
   return (
-    <PublicShell>
+    <PublicShell modernNav>
       <Box
         sx={{
           minHeight: { xs: "68vh", md: "72vh" },

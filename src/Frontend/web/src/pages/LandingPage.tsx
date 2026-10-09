@@ -1858,38 +1858,55 @@ function PackageComparisonSection() {
         <Box
           sx={{
             overflowX: "auto",
-            border: `1px solid ${RULE}`,
-            borderRadius: 2,
+            border: `1px solid #cbd9e6`,
+            borderRadius: 3,
             bgcolor: "#fff",
-            boxShadow: "0 12px 30px rgba(11,37,69,.07)",
+            boxShadow: "0 20px 48px rgba(11,37,69,.11)",
+            "&::-webkit-scrollbar": { height: 10 },
+            "&::-webkit-scrollbar-track": { bgcolor: "#eaf1f7", borderRadius: 99 },
+            "&::-webkit-scrollbar-thumb": { bgcolor: ACCENT, borderRadius: 99 },
           }}
         >
-          <Box sx={{ minWidth: 930 }}>
+          <Box sx={{ minWidth: 960 }}>
             <Box
               sx={{
                 display: "grid",
                 gridTemplateColumns:
                   "minmax(250px, 1.6fr) repeat(5, minmax(135px, 1fr))",
-                bgcolor: NAVY,
+                minHeight: 82,
+                alignItems: "stretch",
+                background: "linear-gradient(125deg, #0b2545 0%, #164e7d 58%, #1f7bb3 100%)",
                 color: "#fff",
               }}
             >
-              <Box sx={{ p: 2, fontWeight: 800, fontSize: 13 }}>
-                {isEn ? "Capability" : "Δυνατότητα"}
+              <Box sx={{ p: 2, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                <Typography sx={{ fontWeight: 950, fontSize: 13, letterSpacing: ".06em", textTransform: "uppercase" }}>
+                  {isEn ? "Capability" : "Δυνατότητα"}
+                </Typography>
+                <Typography sx={{ mt: 0.45, color: "rgba(255,255,255,.7)", fontSize: 11 }}>
+                  {isEn ? "Included in each workspace" : "Τι περιλαμβάνει κάθε περιβάλλον"}
+                </Typography>
               </Box>
               {PUBLIC_PACKAGE_DEFS.map((pkg) => (
                 <Box
                   key={pkg.key}
                   sx={{
-                    p: 1.5,
+                    p: 1.25,
                     textAlign: "center",
                     borderLeft: "1px solid rgba(255,255,255,.14)",
-                    fontSize: 12,
-                    fontWeight: 800,
-                    lineHeight: 1.25,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 0.5,
+                    flexDirection: "column",
                   }}
                 >
-                  {t(pkg.nameKey).split(" — ")[0]}
+                  <Typography sx={{ color: "rgba(255,255,255,.62)", fontSize: 10, fontWeight: 900, letterSpacing: ".14em" }}>
+                    {pkg.numeral}
+                  </Typography>
+                  <Typography sx={{ color: "#fff", fontSize: 12, fontWeight: 900, lineHeight: 1.2 }}>
+                    {t(pkg.nameKey).split(" — ")[0]}
+                  </Typography>
                 </Box>
               ))}
             </Box>
@@ -1900,16 +1917,20 @@ function PackageComparisonSection() {
                   display: "grid",
                   gridTemplateColumns:
                     "minmax(250px, 1.6fr) repeat(5, minmax(135px, 1fr))",
-                  bgcolor: rowIndex % 2 === 0 ? "#fff" : "#f1f4f7",
-                  borderTop: `1px solid ${RULE}`,
+                  bgcolor: rowIndex % 2 === 0 ? "#fff" : "#f5f8fb",
+                  borderTop: `1px solid #dce7f0`,
+                  transition: "background-color 160ms ease",
+                  "&:hover": { bgcolor: "#edf6fc" },
                 }}
               >
                 <Box
                   sx={{
                     p: 1.5,
+                    display: "flex",
+                    alignItems: "center",
                     color: NAVY_SOFT,
                     fontSize: 12.5,
-                    fontWeight: 700,
+                    fontWeight: 800,
                   }}
                 >
                   {isEn ? feature.en : feature.el}
@@ -1923,15 +1944,15 @@ function PackageComparisonSection() {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      borderLeft: `1px solid ${RULE}`,
+                      borderLeft: `1px solid #dce7f0`,
                     }}
                   >
                     {value ? (
-                      <CheckCircleIcon
-                        sx={{ color: "#2f7d4a", fontSize: 20 }}
-                      />
+                      <Box sx={{ width: 28, height: 28, display: "grid", placeItems: "center", borderRadius: "50%", bgcolor: "#e5f5eb" }}>
+                        <CheckCircleIcon sx={{ color: "#2f7d4a", fontSize: 20 }} />
+                      </Box>
                     ) : (
-                      <Typography sx={{ color: "#aeb8c3", fontSize: 16 }}>
+                      <Typography sx={{ color: "#9cafbf", fontSize: 16, fontWeight: 700 }}>
                         —
                       </Typography>
                     )}
