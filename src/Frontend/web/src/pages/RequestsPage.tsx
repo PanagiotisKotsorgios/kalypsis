@@ -130,6 +130,7 @@ export function RequestsPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<RequestDto | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [filters, setFilters] = useState({
     search: "",
     status: "" as ServiceRequestStatus | "",
@@ -205,6 +206,13 @@ export function RequestsPage() {
 
   const rows = requestsQuery.data ?? [];
   const clearFilters = () => setFilters({ search: "", status: "", type: "", from: "", to: "", read: "", sort: "newest", includeArchived: false });
+  const advancedFilterCount = [
+    filters.status,
+    filters.type,
+    filters.read,
+    filters.sort !== "newest" ? filters.sort : "",
+    filters.includeArchived ? "archived" : ""
+  ].filter(Boolean).length;
 
   return (
     <Box>
@@ -246,58 +254,20 @@ export function RequestsPage() {
       {isAgency && (
         <Card sx={{ mb: 1.25 }}>
           <CardContent sx={{ p: 1, "&:last-child": { pb: 1 } }}>
-            <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap sx={{ width: "100%" }}>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "minmax(220px, 1fr) 150px 150px auto" }, gap: 0.75, alignItems: "center", width: "100%" }}>
               <TextField
                 size="small"
                 label={t("requests.filters.search")}
                 value={filters.search}
                 onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                sx={{ flex: "1 1 220px", minWidth: { xs: "100%", sm: 190 } }}
+                sx={{ minWidth: 0, gridColumn: { xs: "1 / -1", sm: "auto" } }}
               />
-              <SearchableTextField
-                select size="small" label={t("requests.filters.status")} value={filters.status}
-                onChange={(e) => setFilters({ ...filters, status: e.target.value as ServiceRequestStatus | "" })}
-                sx={{ flex: "1 1 130px", minWidth: { xs: 125, sm: 130 } }}
-              >
-                <MenuItem value="">{t("requests.filters.all")}</MenuItem>
-                {(["Submitted", "InReview", "AwaitingCustomerInfo", "Resolved", "Closed", "Rejected"] as const).map((s) => (
-                  <MenuItem key={s} value={s}>{t(`requests.statuses.${s}`)}</MenuItem>
-                ))}
-              </SearchableTextField>
-              <SearchableTextField
-                select size="small" label={t("requests.filters.type")} value={filters.type}
-                onChange={(e) => setFilters({ ...filters, type: e.target.value as ServiceRequestType | "" })}
-                sx={{ flex: "1 1 135px", minWidth: { xs: 130, sm: 135 } }}
-              >
-                <MenuItem value="">{t("requests.filters.all")}</MenuItem>
-                {(["NewPolicy", "AccidentReport", "DocumentRequest", "PolicyChange", "GeneralQuestion"] as const).map((type) => (
-                  <MenuItem key={type} value={type}>{t(`requests.types.${type}`)}</MenuItem>
-                ))}
-              </SearchableTextField>
-              <TextField size="small" type="date" label={t("requests.filters.from")} value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} InputLabelProps={{ shrink: true }} sx={{ flex: "1 1 125px", minWidth: 120 }} />
-              <TextField size="small" type="date" label={t("requests.filters.to")} value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} InputLabelProps={{ shrink: true }} sx={{ flex: "1 1 125px", minWidth: 120 }} />
-              <SearchableTextField
-                select size="small" label={t("requests.filters.read")} value={filters.read}
-                onChange={(e) => setFilters({ ...filters, read: e.target.value as "" | "read" | "unread" })}
-                sx={{ flex: "1 1 120px", minWidth: 115 }}
-              >
-                <MenuItem value="">{t("requests.filters.all")}</MenuItem>
-                <MenuItem value="unread">{t("requests.filters.unread")}</MenuItem>
-                <MenuItem value="read">{t("requests.filters.readOnly")}</MenuItem>
-              </SearchableTextField>
-              <SearchableTextField select size="small" label={t("requests.filters.sort")} value={filters.sort} onChange={(e) => setFilters({ ...filters, sort: e.target.value })} sx={{ flex: "1 1 130px", minWidth: 125 }}>
-                <MenuItem value="newest">{t("requests.filters.newest")}</MenuItem>
-                <MenuItem value="oldest">{t("requests.filters.oldest")}</MenuItem>
-                <MenuItem value="unread">{t("requests.filters.unreadFirst")}</MenuItem>
-                <MenuItem value="status">{t("requests.filters.statusOrder")}</MenuItem>
-              </SearchableTextField>
-              <FormControlLabel
-                control={<Checkbox size="small" checked={filters.includeArchived} onChange={(e) => setFilters({ ...filters, includeArchived: e.target.checked })} />}
-                label={t("requests.filters.includeArchived")}
-                sx={{ mr: 0, whiteSpace: "nowrap", flex: "0 1 auto" }}
-              />
-              <Button size="small" color="error" variant="contained" startIcon={<FilterAltIcon />} onClick={clearFilters} sx={{ whiteSpace: "nowrap" }}>{t("requests.filters.clear")}</Button>
-            </Stack>
+              <TextField size="small" type="date" label={t("requests.filters.from")} value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} InputLabelProps={{ shrink: true }} sx={{ minWidth: 0 }} />
+              <TextField size="small" type="date" label={t("requests.filters.to")} value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} InputLabelProps={{ shrink: true }} sx={{ minWidth: 0 }} />
+              <Button size="small" variant="outlined" startIcon={<FilterAltIcon />} onClick={() => setAdvancedOpen(true)} sx={{ whiteSpace: "nowrap", minHeight: 40, gridColumn: { xs: "1 / -1", sm: "auto" } }}>
+                Σύνθετα φίλτρα{advancedFilterCount > 0 ? ` (${advancedFilterCount})` : ""}
+              </Button>
+            </Box>
           </CardContent>
         </Card>
       )}
@@ -399,6 +369,56 @@ export function RequestsPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {isAgency && (
+        <Dialog open={advancedOpen} onClose={() => setAdvancedOpen(false)} fullWidth maxWidth="sm">
+          <DialogTitle sx={{ fontWeight: 800 }}>Σύνθετα φίλτρα αιτημάτων</DialogTitle>
+          <DialogContent dividers>
+            <Stack spacing={1.5} sx={{ pt: 0.5 }}>
+              <SearchableTextField
+                select size="small" label={t("requests.filters.status")} value={filters.status}
+                onChange={(e) => setFilters({ ...filters, status: e.target.value as ServiceRequestStatus | "" })}
+              >
+                <MenuItem value="">{t("requests.filters.all")}</MenuItem>
+                {(["Submitted", "InReview", "AwaitingCustomerInfo", "Resolved", "Closed", "Rejected"] as const).map((s) => (
+                  <MenuItem key={s} value={s}>{t(`requests.statuses.${s}`)}</MenuItem>
+                ))}
+              </SearchableTextField>
+              <SearchableTextField
+                select size="small" label={t("requests.filters.type")} value={filters.type}
+                onChange={(e) => setFilters({ ...filters, type: e.target.value as ServiceRequestType | "" })}
+              >
+                <MenuItem value="">{t("requests.filters.all")}</MenuItem>
+                {(["NewPolicy", "AccidentReport", "DocumentRequest", "PolicyChange", "GeneralQuestion"] as const).map((type) => (
+                  <MenuItem key={type} value={type}>{t(`requests.types.${type}`)}</MenuItem>
+                ))}
+              </SearchableTextField>
+              <SearchableTextField
+                select size="small" label={t("requests.filters.read")} value={filters.read}
+                onChange={(e) => setFilters({ ...filters, read: e.target.value as "" | "read" | "unread" })}
+              >
+                <MenuItem value="">{t("requests.filters.all")}</MenuItem>
+                <MenuItem value="unread">{t("requests.filters.unread")}</MenuItem>
+                <MenuItem value="read">{t("requests.filters.readOnly")}</MenuItem>
+              </SearchableTextField>
+              <SearchableTextField select size="small" label={t("requests.filters.sort")} value={filters.sort} onChange={(e) => setFilters({ ...filters, sort: e.target.value })}>
+                <MenuItem value="newest">{t("requests.filters.newest")}</MenuItem>
+                <MenuItem value="oldest">{t("requests.filters.oldest")}</MenuItem>
+                <MenuItem value="unread">{t("requests.filters.unreadFirst")}</MenuItem>
+                <MenuItem value="status">{t("requests.filters.statusOrder")}</MenuItem>
+              </SearchableTextField>
+              <FormControlLabel
+                control={<Checkbox size="small" checked={filters.includeArchived} onChange={(e) => setFilters({ ...filters, includeArchived: e.target.checked })} />}
+                label={t("requests.filters.includeArchived")}
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button color="error" variant="contained" startIcon={<FilterAltIcon />} onClick={() => { clearFilters(); setAdvancedOpen(false); }}>{t("requests.filters.clear")}</Button>
+            <Button variant="contained" onClick={() => setAdvancedOpen(false)}>Εφαρμογή</Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </Box>
   );
 }

@@ -39,6 +39,7 @@ import FormatUnderlinedIcon from "@mui/icons-material/FormatUnderlined";
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import LinkIcon from "@mui/icons-material/Link";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import BarChartIcon from "@mui/icons-material/BarChart";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
@@ -47,6 +48,7 @@ import { dateTime } from "../utils/format";
 import { HelpHint } from "../components/HelpHint";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { DataExportButton } from "../components/DataExportButton";
+import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 
 /* =============================================================================
    Marketing & Καμπάνιες — full-scale engine.
@@ -351,6 +353,7 @@ function DashboardTab() {
   const scope = marketingScope(user);
   const [rules] = useLocalStore<AutomationRule>(`kalypsis:marketing:rules:${scope}`, []);
   const [legacyLog] = useLocalStore<SendLogEntry>(`kalypsis:marketing:log:${scope}`, []);
+  const [statsOpen, setStatsOpen] = useState(false);
 
   const campaigns = q.data ?? [];
   const thirtyDaysAgo = Date.now() - 30 * 24 * 3600e3;
@@ -376,25 +379,13 @@ function DashboardTab() {
 
   return (
     <Box>
-      <Stack direction="row" spacing={2} mb={3} flexWrap="wrap" useFlexGap>
-        <Kpi label={t("marketing.kpi.sentMonth", "Στάλθηκαν 30d")} value={sentThisMonth.toLocaleString("el-GR")} color="#1976d2" icon={<SendIcon />} />
-        <Kpi label={t("marketing.kpi.delivered", "Παραδόθηκαν")}   value={`${deliveryPct}%`} color="#2e7d32" icon={<CheckCircleIcon />} />
-        <Kpi label={t("marketing.kpi.opens", "Άνοιγμα")}          value={`${openPct}%`}     color="#ed6c02" icon={<EmailIcon />} />
-        <Kpi label={t("marketing.kpi.clicks", "Κλικ")}            value={`${clickPct}%`}    color="#9c27b0" icon={<BoltIcon />} />
-        <Kpi label={t("marketing.kpi.activeCampaigns", "Ενεργές καμπάνιες")} value={activeCampaigns} icon={<CampaignIcon />} />
-        <Kpi label={t("marketing.kpi.activeRules", "Ενεργοί αυτοματισμοί")}  value={activeRules}     color="#673ab7" icon={<AutoAwesomeMotionIcon />} />
+      <Stack direction="row" justifyContent="flex-end" mb={2}>
+        <Button variant="outlined" startIcon={<BarChartIcon />} onClick={() => setStatsOpen(true)} sx={{ borderColor: "#0b5cad", color: "#0b5cad", fontWeight: 800 }}>
+          Στατιστικά & εικόνα γραφείου
+        </Button>
       </Stack>
 
       {overviewQ.data && <>
-        <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 1 }}>Πραγματική εικόνα γραφείου</Typography>
-        <Stack direction="row" spacing={2} mb={3} flexWrap="wrap" useFlexGap>
-          <Kpi label="Πελάτες" value={`${overviewQ.data.activeCustomers}/${overviewQ.data.customers}`} color="#0b5cad" icon={<GroupsIcon />} />
-          <Kpi label="Ενεργά συμβόλαια" value={overviewQ.data.activePolicies} color="#1976d2" icon={<DescriptionIcon />} />
-          <Kpi label="Λήξεις 30 ημερών" value={overviewQ.data.policiesExpiring30Days} color="#ed6c02" icon={<HourglassBottomIcon />} />
-          <Kpi label="Εκκρεμείς εργασίες" value={`${overviewQ.data.openTasks} (${overviewQ.data.tasksDueToday} σήμερα)`} color="#9c27b0" icon={<AutoAwesomeMotionIcon />} />
-          <Kpi label="Ανοιχτές ζημιές" value={overviewQ.data.openClaims} color="#d32f2f" icon={<ErrorIcon />} />
-          <Kpi label="Ανοιχτές ευκαιρίες" value={overviewQ.data.openOpportunities} color="#2e7d32" icon={<TrendingUpIcon />} />
-        </Stack>
         <Alert severity={overviewQ.data.failedDeliveriesLast30Days > 0 ? "warning" : "success"} sx={{ mb: 2 }}>
           Αποστολές τελευταίων 30 ημερών: {overviewQ.data.deliveriesLast30Days} · αποτυχημένες/παραλειφθείσες: {overviewQ.data.failedDeliveriesLast30Days} · λήξεις προς ενέργεια: {overviewQ.data.policiesExpiring30Days}.
         </Alert>
@@ -465,8 +456,78 @@ function DashboardTab() {
           </CardContent>
         </Card>
       </Box>
+
+      <MarketingStatsDialog
+        open={statsOpen}
+        onClose={() => setStatsOpen(false)}
+        sentThisMonth={sentThisMonth}
+        deliveryPct={deliveryPct}
+        openPct={openPct}
+        clickPct={clickPct}
+        activeCampaigns={activeCampaigns}
+        activeRules={activeRules}
+        overview={overviewQ.data}
+      />
     </Box>
   );
+}
+
+function MarketingStatsDialog({
+  open, onClose, sentThisMonth, deliveryPct, openPct, clickPct, activeCampaigns, activeRules, overview
+}: {
+  open: boolean; onClose: () => void; sentThisMonth: number; deliveryPct: number; openPct: number; clickPct: number;
+  activeCampaigns: number; activeRules: number; overview?: CrmOverview;
+}) {
+  const campaignStats = [
+    { name: "Στάλθηκαν", value: sentThisMonth, color: "#1976d2" },
+    { name: "Παραδόθηκαν", value: deliveryPct, color: "#2e7d32" },
+    { name: "Άνοιγμα", value: openPct, color: "#ed6c02" },
+    { name: "Κλικ", value: clickPct, color: "#9c27b0" },
+    { name: "Καμπάνιες", value: activeCampaigns, color: "#546e7a" },
+    { name: "Αυτοματισμοί", value: activeRules, color: "#673ab7" },
+  ];
+  const officeStats = overview ? [
+    { name: "Πελάτες", value: overview.activeCustomers, color: "#0b5cad" },
+    { name: "Συμβόλαια", value: overview.activePolicies, color: "#1976d2" },
+    { name: "Λήξεις 30ημ.", value: overview.policiesExpiring30Days, color: "#ed6c02" },
+    { name: "Εργασίες", value: overview.openTasks, color: "#9c27b0" },
+    { name: "Ζημιές", value: overview.openClaims, color: "#d32f2f" },
+    { name: "Ευκαιρίες", value: overview.openOpportunities, color: "#2e7d32" },
+  ] : [];
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg" PaperProps={{ sx: { borderRadius: 3 } }}>
+      <DialogTitle sx={{ fontWeight: 900 }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" gap={2}>
+          <Stack direction="row" alignItems="center" spacing={1}><BarChartIcon color="primary" /><span>Στατιστικά CRM</span></Stack>
+          <Typography variant="body2" color="text.secondary">Περάστε τον δείκτη πάνω από τα γραφήματα για αναλυτικές τιμές.</Typography>
+        </Stack>
+      </DialogTitle>
+      <DialogContent dividers>
+        <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 1 }}>Αποστολές και απόδοση τελευταίων 30 ημερών</Typography>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(3, 1fr)", lg: "repeat(6, 1fr)" }, gap: 1.2, mb: 2.5 }}>
+          <Kpi label="Στάλθηκαν 30d" value={sentThisMonth.toLocaleString("el-GR")} color="#1976d2" icon={<SendIcon />} />
+          <Kpi label="Παραδόθηκαν" value={`${deliveryPct}%`} color="#2e7d32" icon={<CheckCircleIcon />} />
+          <Kpi label="Άνοιγμα" value={`${openPct}%`} color="#ed6c02" icon={<EmailIcon />} />
+          <Kpi label="Κλικ" value={`${clickPct}%`} color="#9c27b0" icon={<BoltIcon />} />
+          <Kpi label="Ενεργές καμπάνιες" value={activeCampaigns} icon={<CampaignIcon />} />
+          <Kpi label="Ενεργοί αυτοματισμοί" value={activeRules} color="#673ab7" icon={<AutoAwesomeMotionIcon />} />
+        </Box>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" }, gap: 2 }}>
+          <MarketingChartPanel title="Απόδοση επικοινωνιών" subtitle="Ποσοστά και πλήθος ανά δείκτη">
+            <ResponsiveContainer width="100%" height="100%"><BarChart data={campaignStats}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis allowDecimals={false} /><ChartTooltip /><Bar dataKey="value" name="Τιμή" radius={[5, 5, 0, 0]}>{campaignStats.map(item => <Cell key={item.name} fill={item.color} />)}</Bar></BarChart></ResponsiveContainer>
+          </MarketingChartPanel>
+          <MarketingChartPanel title="Εικόνα γραφείου" subtitle="Κύριοι δείκτες λειτουργίας">
+            {officeStats.length === 0 ? <Typography color="text.secondary">Δεν υπάρχουν διαθέσιμα δεδομένα γραφείου.</Typography> : <ResponsiveContainer width="100%" height="100%"><BarChart data={officeStats}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis allowDecimals={false} /><ChartTooltip /><Bar dataKey="value" name="Πλήθος" radius={[5, 5, 0, 0]}>{officeStats.map(item => <Cell key={item.name} fill={item.color} />)}</Bar></BarChart></ResponsiveContainer>}
+          </MarketingChartPanel>
+        </Box>
+      </DialogContent>
+      <DialogActions><Button onClick={onClose} color="error" variant="contained">Κλείσιμο</Button></DialogActions>
+    </Dialog>
+  );
+}
+
+function MarketingChartPanel({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+  return <Card variant="outlined" sx={{ p: 1.5, borderRadius: 2, minWidth: 0 }}><Typography variant="subtitle1" sx={{ fontWeight: 800 }}>{title}</Typography><Typography variant="caption" color="text.secondary">{subtitle}</Typography><Box sx={{ height: 260, mt: 1 }}>{children}</Box></Card>;
 }
 
 // -----------------------------------------------------------------------------

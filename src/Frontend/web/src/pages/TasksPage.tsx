@@ -26,6 +26,7 @@ import PersonIcon from "@mui/icons-material/Person";
 import UnfoldMoreIcon from "@mui/icons-material/UnfoldMore";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import BarChartIcon from "@mui/icons-material/BarChart";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
@@ -37,6 +38,10 @@ import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../com
 import { InlineCreateCustomerDialog } from "../components/InlineCreateCustomerDialog";
 import { date, dateTime } from "../utils/format";
 import { useAuth } from "../auth/AuthContext";
+import {
+  Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart,
+  ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis
+} from "recharts";
 
 type TaskStatus = "Open" | "InProgress" | "Completed" | "Cancelled";
 type TaskPriority = "Low" | "Normal" | "High" | "Urgent";
@@ -140,6 +145,7 @@ export function TasksPage() {
   const [filters, setFilters] = useLocalState<Filters>(`${storagePrefix}:filters`, EMPTY_FILTERS);
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<TaskDto | null>(null);
+  const [statsOpen, setStatsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -182,6 +188,7 @@ export function TasksPage() {
   const allTasks = tasksQuery.data ?? [];
   const filteredTasks = useMemo(() => filterTasks(allTasks, filters), [allTasks, filters]);
   const kpis = useMemo(() => computeKpis(allTasks), [allTasks]);
+  const stats = useMemo(() => computeTaskStats(allTasks), [allTasks]);
   const activeFilterCount = countActiveFilters(filters);
 
   return (
@@ -204,14 +211,16 @@ export function TasksPage() {
         </Stack>
       </Stack>
 
-      {/* KPI STRIP */}
-      <Stack direction="row" spacing={1.5} mb={2.5} flexWrap="wrap" useFlexGap>
-        <Kpi label="Ανοιχτές" value={kpis.open + kpis.inProgress} color="#1976d2" icon={<PendingIcon />} />
-        <Kpi label="Ληξιπρόθεσμες" value={kpis.overdue} color="#d32f2f" icon={<WarningIcon />} />
-        <Kpi label="Σήμερα" value={kpis.today} color="#ed6c02" icon={<EventIcon />} />
-        <Kpi label="Αυτή τη βδομάδα" value={kpis.thisWeek} color="#9c27b0" icon={<EventIcon />} />
-        <Kpi label="Υψηλή/Επείγον" value={kpis.highPri} color="#e91e63" icon={<FlagIcon />} />
-        <Kpi label="Ολοκλ. τον μήνα" value={kpis.completedThisMonth} color="#2e7d32" icon={<CheckCircleIcon />} />
+      {/* KPI + charts are available on demand so the task list stays compact. */}
+      <Stack direction="row" justifyContent="flex-end" mb={2}>
+        <Button
+          variant="outlined"
+          startIcon={<BarChartIcon />}
+          onClick={() => setStatsOpen(true)}
+          sx={{ borderColor: "#0b5cad", color: "#0b5cad", fontWeight: 800 }}
+        >
+          Στατιστικά εργασιών
+        </Button>
       </Stack>
 
       {/* FILTERS ROW */}
@@ -303,6 +312,24 @@ export function TasksPage() {
         task={editing}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["tasks"] }); setEditing(null); }}
       />
+      <TaskStatsDialog
+        open={statsOpen}
+        onClose={() => setStatsOpen(false)}
+        kpis={kpis}
+        stats={stats}
+        onStatusFilter={(status) => {
+          setFilters(prev => ({ ...prev, statuses: [status] }));
+          setStatsOpen(false);
+        }}
+        onPriorityFilter={(priorities) => {
+          setFilters(prev => ({ ...prev, priorities }));
+          setStatsOpen(false);
+        }}
+        onDueFilter={(dueBucket) => {
+          setFilters(prev => ({ ...prev, dueBucket, showCompleted: false }));
+          setStatsOpen(false);
+        }}
+      />
     </Box>
   );
 }
@@ -351,6 +378,161 @@ function Kpi({ label, value, color, icon }: { label: string; value: React.ReactN
           </Box>
         </Stack>
       </CardContent>
+    </Card>
+  );
+}
+
+interface TaskStats {
+  status: Array<{ key: TaskStatus; name: string; value: number }>;
+  priority: Array<{ key: TaskPriority; name: string; value: number }>;
+  due: Array<{ key: DueBucket; name: string; value: number }>;
+  createdTrend: Array<{ label: string; value: number }>;
+}
+
+const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
+  Open: "Ανοιχτές", InProgress: "Σε εξέλιξη", Completed: "Ολοκληρωμένες", Cancelled: "Ακυρωμένες"
+};
+const TASK_PRIORITY_LABEL: Record<TaskPriority, string> = {
+  Low: "Χαμηλή", Normal: "Κανονική", High: "Υψηλή", Urgent: "Επείγον"
+};
+const TASK_STATUS_CHART_COLORS: Record<TaskStatus, string> = {
+  Open: "#1976d2", InProgress: "#7b1fa2", Completed: "#2e7d32", Cancelled: "#757575"
+};
+const TASK_PRIORITY_CHART_COLORS: Record<TaskPriority, string> = {
+  Low: "#90a4ae", Normal: "#0288d1", High: "#ed6c02", Urgent: "#d32f2f"
+};
+
+function computeTaskStats(tasks: TaskDto[]): TaskStats {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfWeek = new Date(startOfToday);
+  startOfWeek.setDate(startOfToday.getDate() - ((startOfToday.getDay() + 6) % 7));
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 7);
+  const statusKeys: TaskStatus[] = ["Open", "InProgress", "Completed", "Cancelled"];
+  const priorityKeys: TaskPriority[] = ["Low", "Normal", "High", "Urgent"];
+  const status = statusKeys.map(key => ({ key, name: TASK_STATUS_LABEL[key], value: tasks.filter(task => task.status === key).length }));
+  const priority = priorityKeys.map(key => ({
+    key,
+    name: TASK_PRIORITY_LABEL[key],
+    value: tasks.filter(task => task.priority === key && task.status !== "Completed" && task.status !== "Cancelled").length
+  }));
+  const due: TaskStats["due"] = [
+    { key: "overdue", name: "Ληξιπρόθεσμες", value: 0 },
+    { key: "today", name: "Σήμερα", value: 0 },
+    { key: "week", name: "Αυτή τη βδομάδα", value: 0 },
+    { key: "none", name: "Χωρίς προθεσμία", value: 0 },
+  ];
+  tasks.forEach(task => {
+    const active = task.status !== "Completed" && task.status !== "Cancelled";
+    if (!active || !task.dueAt) {
+      if (active && !task.dueAt) due[3].value++;
+      return;
+    }
+    const dateValue = new Date(task.dueAt);
+    if (dateValue < now) due[0].value++;
+    else if (dateValue >= startOfToday && dateValue < new Date(startOfToday.getTime() + 24 * 3600e3)) due[1].value++;
+    else if (dateValue >= startOfWeek && dateValue < endOfWeek) due[2].value++;
+  });
+  const createdTrend: TaskStats["createdTrend"] = [];
+  for (let offset = 6; offset >= 0; offset--) {
+    const day = new Date(startOfToday);
+    day.setDate(startOfToday.getDate() - offset);
+    const end = new Date(day);
+    end.setDate(day.getDate() + 1);
+    createdTrend.push({
+      label: day.toLocaleDateString("el-GR", { day: "2-digit", month: "2-digit" }),
+      value: tasks.filter(task => {
+        const created = new Date(task.createdAt);
+        return created >= day && created < end;
+      }).length
+    });
+  }
+  return { status, priority, due, createdTrend };
+}
+
+interface TaskStatsDialogProps {
+  open: boolean;
+  onClose: () => void;
+  kpis: KpiSummary;
+  stats: TaskStats;
+  onStatusFilter: (status: TaskStatus) => void;
+  onPriorityFilter: (priorities: TaskPriority[]) => void;
+  onDueFilter: (bucket: DueBucket) => void;
+}
+
+function TaskStatsDialog({ open, onClose, kpis, stats, onStatusFilter, onPriorityFilter, onDueFilter }: TaskStatsDialogProps) {
+  const kpiItems = [
+    { label: "Ανοιχτές", value: kpis.open + kpis.inProgress, color: "#1976d2", icon: <PendingIcon /> },
+    { label: "Ληξιπρόθεσμες", value: kpis.overdue, color: "#d32f2f", icon: <WarningIcon /> },
+    { label: "Σήμερα", value: kpis.today, color: "#ed6c02", icon: <EventIcon /> },
+    { label: "Αυτή τη βδομάδα", value: kpis.thisWeek, color: "#9c27b0", icon: <EventIcon /> },
+    { label: "Υψηλή/Επείγον", value: kpis.highPri, color: "#e91e63", icon: <FlagIcon /> },
+    { label: "Ολοκλ. τον μήνα", value: kpis.completedThisMonth, color: "#2e7d32", icon: <CheckCircleIcon /> },
+  ];
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg" PaperProps={{ sx: { borderRadius: 3 } }}>
+      <DialogTitle sx={{ fontWeight: 900, pb: 1 }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" gap={2}>
+          <Stack direction="row" alignItems="center" spacing={1}><BarChartIcon color="primary" /><span>Στατιστικά εργασιών</span></Stack>
+          <Typography variant="body2" color="text.secondary">Κάντε κλικ σε γράφημα για εφαρμογή φίλτρου</Typography>
+        </Stack>
+      </DialogTitle>
+      <DialogContent dividers>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(3, 1fr)", lg: "repeat(6, 1fr)" }, gap: 1.2, mb: 2.5 }}>
+          {kpiItems.map(item => <Kpi key={item.label} {...item} />)}
+        </Box>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" }, gap: 2 }}>
+          <ChartPanel title="Κατάσταση εργασιών" subtitle="Επιλέξτε μία κατάσταση">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stats.status} onClick={(event: unknown) => {
+                const payload = (event as { activePayload?: Array<{ payload?: { key?: TaskStatus } }> }).activePayload?.[0]?.payload;
+                if (payload?.key) onStatusFilter(payload.key);
+              }}>
+                <CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis allowDecimals={false} /><ChartTooltip /><Bar dataKey="value" name="Εργασίες" radius={[5, 5, 0, 0]}>{stats.status.map(entry => <Cell key={entry.key} fill={TASK_STATUS_CHART_COLORS[entry.key]} />)}</Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartPanel>
+          <ChartPanel title="Προτεραιότητες σε εκκρεμότητα" subtitle="Επιλέξτε προτεραιότητα για φιλτράρισμα">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stats.priority} onClick={(event: unknown) => {
+                const payload = (event as { activePayload?: Array<{ payload?: { key?: TaskPriority } }> }).activePayload?.[0]?.payload;
+                if (payload?.key) onPriorityFilter([payload.key]);
+              }}>
+                <CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis allowDecimals={false} /><ChartTooltip /><Bar dataKey="value" name="Εργασίες" radius={[5, 5, 0, 0]}>{stats.priority.map(entry => <Cell key={entry.key} fill={TASK_PRIORITY_CHART_COLORS[entry.key]} />)}</Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartPanel>
+          <ChartPanel title="Προθεσμίες" subtitle="Ενεργές εργασίες ανά χρονικό bucket">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={stats.due} dataKey="value" nameKey="name" innerRadius={48} outerRadius={82} paddingAngle={2} onClick={(entry) => { const key = String(entry.key ?? ""); if (["overdue", "today", "week", "none"].includes(key)) onDueFilter(key as DueBucket); }}>
+                  {stats.due.map((entry, index) => <Cell key={entry.key} fill={["#d32f2f", "#ed6c02", "#7b1fa2", "#90a4ae"][index]} />)}
+                </Pie>
+                <ChartTooltip /><Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </ChartPanel>
+          <ChartPanel title="Νέες εργασίες τελευταίων 7 ημερών" subtitle="Ημερήσια εξέλιξη δημιουργίας">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={stats.createdTrend}>
+                <CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="label" /><YAxis allowDecimals={false} /><ChartTooltip /><Line type="monotone" dataKey="value" name="Νέες εργασίες" stroke="#0b5cad" strokeWidth={3} dot={{ r: 4 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </ChartPanel>
+        </Box>
+      </DialogContent>
+      <DialogActions><Button onClick={onClose} color="error" variant="contained">Κλείσιμο</Button></DialogActions>
+    </Dialog>
+  );
+}
+
+function ChartPanel({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+  return (
+    <Card variant="outlined" sx={{ p: 1.5, borderRadius: 2, minWidth: 0 }}>
+      <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>{title}</Typography>
+      <Typography variant="caption" color="text.secondary">{subtitle}</Typography>
+      <Box sx={{ height: 245, mt: 1 }}>{children}</Box>
     </Card>
   );
 }

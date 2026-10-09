@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
 import {
-  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog,
-  DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Stack, TextField,
+  Alert, Box, Button, Card, CardContent, Checkbox, Chip, CircularProgress, Dialog,
+  DialogActions, DialogContent, DialogTitle, FormControlLabel, IconButton, MenuItem, Stack, TextField,
   ToggleButton, ToggleButtonGroup, Typography, Pagination
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
+import DoneAllIcon from "@mui/icons-material/DoneAll";
 import EventIcon from "@mui/icons-material/Event";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
@@ -67,6 +69,10 @@ export function AppointmentsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [createPrefillDate, setCreatePrefillDate] = useState<string | null>(null);
   const [editing, setEditing] = useState<AppointmentDto | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AppointmentDto | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleteText, setBulkDeleteText] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [notice, setNotice] = useState<string | null>(null);
   const [filters, setFilters] = useState({ search: "", status: "", from: "", to: "" });
   const [page, setPage] = useState(1);
@@ -97,7 +103,45 @@ export function AppointmentsPage() {
   });
   const del = useMutation({
     mutationFn: async (id: string) => api.delete(`/appointments/${id}`),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["appointments"] }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ["appointments"] }); setDeleteTarget(null); setNotice("Το ραντεβού διαγράφηκε επιτυχώς."); },
+    onError: (err) => setError(extractErrorMessage(err))
+  });
+  const bulkDelete = useMutation({
+    mutationFn: async (ids: string[]) => Promise.all(ids.map(id => api.delete(`/appointments/${id}`))),
+    onSuccess: (_result, ids) => {
+      void qc.invalidateQueries({ queryKey: ["appointments"] });
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+      setBulkDeleteText("");
+      setNotice(`${ids.length} ραντεβού διαγράφηκαν επιτυχώς.`);
+    },
+    onError: (err) => setError(extractErrorMessage(err))
+  });
+  const bulkStatus = useMutation({
+    mutationFn: async ({ ids, status }: { ids: string[]; status: Status }) => {
+      const current = q.data ?? [];
+      return Promise.all(ids.map(async id => {
+        const item = current.find(a => a.id === id);
+        if (!item) return;
+        return api.put(`/appointments/${id}`, {
+          title: item.title,
+          description: item.description,
+          location: item.location,
+          startsAt: item.startsAt,
+          endsAt: item.endsAt,
+          status,
+          assignedToUserId: item.assignedToUserId,
+          customerId: item.customerId,
+          policyId: item.policyId,
+          producerId: item.producerId,
+        });
+      }));
+    },
+    onSuccess: (_result, variables) => {
+      void qc.invalidateQueries({ queryKey: ["appointments"] });
+      setSelectedIds(new Set());
+      setNotice(variables.status === "Done" ? "Τα επιλεγμένα ραντεβού σημειώθηκαν ως ολοκληρωμένα." : "Η κατάσταση ενημερώθηκε.");
+    },
     onError: (err) => setError(extractErrorMessage(err))
   });
   const notify = useMutation({
@@ -115,6 +159,7 @@ export function AppointmentsPage() {
   }), [items, filters.search, filters.status]);
   const pageCount = Math.max(1, Math.ceil(filteredItems.length / pageSize));
   const visibleItems = filteredItems.slice((page - 1) * pageSize, page * pageSize);
+  const visibleSelectedCount = visibleItems.filter(item => selectedIds.has(item.id)).length;
   const grouped = visibleItems.reduce((acc, a) => {
     const day = new Date(a.startsAt).toLocaleDateString("el-GR", { weekday: "long", day: "numeric", month: "long" });
     (acc[day] ??= []).push(a);
@@ -226,6 +271,36 @@ export function AppointmentsPage() {
         </CardContent>
       </Card>
 
+      {view === "list" && (
+        <Card variant="outlined" sx={{ mb: 1.25, bgcolor: selectedIds.size > 0 ? "#eef5fc" : "background.paper" }}>
+          <CardContent sx={{ py: 0.5, "&:last-child": { pb: 0.5 } }}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
+              <FormControlLabel
+                control={<Checkbox
+                  size="small"
+                  checked={visibleItems.length > 0 && visibleSelectedCount === visibleItems.length}
+                  indeterminate={visibleSelectedCount > 0 && visibleSelectedCount < visibleItems.length}
+                  onChange={(event) => setSelectedIds(prev => {
+                    const next = new Set(prev);
+                    visibleItems.forEach(item => event.target.checked ? next.add(item.id) : next.delete(item.id));
+                    return next;
+                  })}
+                />}
+                label="Επιλογή σελίδας"
+              />
+              {selectedIds.size > 0 ? (
+                <>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>{selectedIds.size} επιλεγμένα</Typography>
+                  <Button size="small" color="success" variant="outlined" startIcon={<DoneAllIcon />} onClick={() => bulkStatus.mutate({ ids: Array.from(selectedIds), status: "Done" })} disabled={bulkStatus.isPending}>Ολοκληρώθηκαν</Button>
+                  <Button size="small" color="error" variant="contained" startIcon={<DeleteSweepIcon />} onClick={() => setBulkDeleteOpen(true)}>Μαζική διαγραφή</Button>
+                  <Button size="small" onClick={() => setSelectedIds(new Set())}>Καθαρισμός επιλογής</Button>
+                </>
+              ) : <Typography variant="caption" color="text.secondary">Επιλέξτε ραντεβού για μαζικές ενέργειες.</Typography>}
+            </Stack>
+          </CardContent>
+        </Card>
+      )}
+
       {view === "calendar" ? (
         q.isLoading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
@@ -258,6 +333,13 @@ export function AppointmentsPage() {
                   >
                     <CardContent sx={{ p: 1.25, "&:last-child": { pb: 1.25 } }}>
                       <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1}>
+                        <Checkbox
+                          size="small"
+                          checked={selectedIds.has(a.id)}
+                          onChange={(event) => setSelectedIds(prev => { const next = new Set(prev); event.target.checked ? next.add(a.id) : next.delete(a.id); return next; })}
+                          sx={{ mt: -0.5, display: view === "list" ? "inline-flex" : "none" }}
+                          inputProps={{ "aria-label": `Επιλογή ${a.title}` }}
+                        />
                         <Box sx={{ flex: 1, minWidth: 0 }}>
                           <Stack direction="row" alignItems="center" spacing={1} mb={0.5} flexWrap="wrap">
                             <EventIcon fontSize="small" color="action" />
@@ -283,7 +365,7 @@ export function AppointmentsPage() {
                             <MailOutlineIcon fontSize="small" />
                           </IconButton>
                           <IconButton size="small" onClick={() => setEditing(a)}><EditIcon fontSize="small" /></IconButton>
-                          <IconButton size="small" color="error" onClick={() => { if (confirm(t("common.confirmDelete"))) del.mutate(a.id); }}>
+                          <IconButton size="small" color="error" onClick={() => setDeleteTarget(a)}>
                             <DeleteIcon fontSize="small" />
                           </IconButton>
                         </Stack>
@@ -306,6 +388,27 @@ export function AppointmentsPage() {
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["appointments"] }); setCreateOpen(false); setCreatePrefillDate(null); }} />
       <FormDialog open={!!editing} onClose={() => setEditing(null)} item={editing} prefillDate={null}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["appointments"] }); setEditing(null); }} />
+
+      <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Διαγραφή ραντεβού;</DialogTitle>
+        <DialogContent><Typography>Είστε σίγουροι ότι θέλετε να διαγράψετε το ραντεβού; Η ενέργεια δεν μπορεί να αναιρεθεί.</Typography></DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteTarget(null)}>Ακύρωση</Button>
+          <Button color="error" variant="contained" startIcon={<DeleteIcon />} onClick={() => deleteTarget && del.mutate(deleteTarget.id)} disabled={del.isPending}>Διαγραφή</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={bulkDeleteOpen} onClose={() => { setBulkDeleteOpen(false); setBulkDeleteText(""); }} maxWidth="xs" fullWidth>
+        <DialogTitle>Μαζική διαγραφή ραντεβού;</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 1.5 }}>Θα διαγραφούν οριστικά {selectedIds.size} ραντεβού. Πληκτρολογήστε <strong>ΔΙΑΓΡΑΦΗ</strong> για επιβεβαίωση.</Typography>
+          <TextField autoFocus fullWidth size="small" label="Επιβεβαίωση" value={bulkDeleteText} onChange={event => setBulkDeleteText(event.target.value)} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setBulkDeleteOpen(false); setBulkDeleteText(""); }}>Ακύρωση</Button>
+          <Button color="error" variant="contained" startIcon={<DeleteSweepIcon />} disabled={bulkDeleteText.trim().toUpperCase() !== "ΔΙΑΓΡΑΦΗ" || bulkDelete.isPending} onClick={() => bulkDelete.mutate(Array.from(selectedIds))}>Διαγραφή όλων</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
