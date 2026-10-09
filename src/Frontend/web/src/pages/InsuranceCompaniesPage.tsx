@@ -710,7 +710,7 @@ export function CarrierProfileDialog({ open, carrier, onClose, onEdit }: {
             </Typography>
           </Box>
           {carrier?.isActive ? <Chip size="small" color="success" label="Ενεργή" /> : <Chip size="small" label="Ανενεργή" />}
-          {carrier && <Button startIcon={<EditIcon />} size="small" onClick={() => onEdit(carrier)}>Επεξεργασία</Button>}
+          {carrier && <Button startIcon={<EditIcon />} size="small" variant="contained" color="success" sx={{ color: "#fff", fontWeight: 800 }} onClick={() => onEdit(carrier)}>Επεξεργασία</Button>}
         </Stack>
       </DialogTitle>
       <DialogContent dividers>
@@ -820,7 +820,7 @@ export function CarrierProfileDialog({ open, carrier, onClose, onEdit }: {
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Κλείσιμο</Button>
+        <Button onClick={onClose} variant="contained" color="error" sx={{ color: "#fff", fontWeight: 800 }}>Κλείσιμο</Button>
       </DialogActions>
     </Dialog>
   );
