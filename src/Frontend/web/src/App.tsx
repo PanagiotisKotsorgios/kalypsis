@@ -471,7 +471,9 @@ export const navByRole: Record<Role, NavItem[]> = {
     // save one row in the sidebar. Old /agency-settings-hub and
     // /profile URLs still work — redirected below into the right tab.
     { to: "/agency-and-profile", labelKey: "nav.agencyAndProfile", icon: <SettingsIcon /> },
-    { to: "/affiliate-program", labelKey: "nav.affiliateProgram", icon: <CardGiftcardIcon />, package: "BackOffice", accent: "affiliate" }
+    // Referral programme is intentionally package-independent: it stays
+    // visible while the operator switches between all workspaces.
+    { to: "/affiliate-program", labelKey: "nav.affiliateProgram", icon: <CardGiftcardIcon />, accent: "affiliate" }
   ],
   AgencyUser: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon />,
@@ -524,7 +526,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/partner-portals", labelKey: "nav.b2bPortal", icon: <HubIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/api-keys", labelKey: "nav.thirdParty", icon: <ExtensionIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> },
-    { to: "/affiliate-program", labelKey: "nav.affiliateProgram", icon: <CardGiftcardIcon />, package: "BackOffice", accent: "affiliate" }
+    { to: "/affiliate-program", labelKey: "nav.affiliateProgram", icon: <CardGiftcardIcon />, accent: "affiliate" }
   ],
   AgencyOfficeAdmin: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon />, workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations","Ermes"] },
@@ -577,7 +579,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/partner-portals", labelKey: "nav.b2bPortal", icon: <HubIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/api-keys", labelKey: "nav.thirdParty", icon: <ExtensionIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> },
-    { to: "/affiliate-program", labelKey: "nav.affiliateProgram", icon: <CardGiftcardIcon />, package: "BackOffice", accent: "affiliate" }
+    { to: "/affiliate-program", labelKey: "nav.affiliateProgram", icon: <CardGiftcardIcon />, accent: "affiliate" }
   ],
   Producer: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon /> },

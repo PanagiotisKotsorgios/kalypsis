@@ -366,16 +366,16 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
                   justifyContent: collapsed ? "center" : "flex-start",
                   opacity: item.comingSoon ? 0.7 : 1,
                   ...(item.accent === "affiliate" ? {
-                    bgcolor: "#edf6ff",
-                    color: "#0b4f8a",
-                    border: "1px solid #a9ccec",
-                    boxShadow: "0 2px 6px rgba(20, 92, 155, 0.08)",
-                    "&:hover": { bgcolor: "#dceeff", borderColor: "#78addb" },
-                    "&.Mui-selected": { bgcolor: "#c9e4fb", color: "#073b6c", borderColor: "#4c93cf" }
+                    bgcolor: "#102f50",
+                    color: "#ffffff",
+                    border: "1px solid #1f527e",
+                    boxShadow: "0 3px 9px rgba(5, 24, 44, 0.24)",
+                    "&:hover": { bgcolor: "#17466f", borderColor: "#347bb2" },
+                    "&.Mui-selected": { bgcolor: "#0a213a", color: "#ffffff", borderColor: "#58a9e5" }
                   } : {})
                 }}
               >
-                <ListItemIcon sx={{ minWidth: collapsed ? 0 : 34, justifyContent: "center", color: item.accent === "affiliate" ? "#0b4f8a" : undefined }}>{item.icon}</ListItemIcon>
+                <ListItemIcon sx={{ minWidth: collapsed ? 0 : 34, justifyContent: "center", color: item.accent === "affiliate" ? "#ffffff" : undefined }}>{item.icon}</ListItemIcon>
                 {!collapsed && (
                   <ListItemText
                     primary={t(item.labelKey)}
@@ -530,7 +530,8 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
                             "&:hover": {
                               background: `linear-gradient(135deg, ${greenHover} 0%, ${greenGlow} 100%)`,
                               transform: "translateY(-1px)"
-                            }
+                            },
+                            ...(entry.key === "desktop" ? { "& .MuiChip-root": { display: "none" } } : {})
                           }}
                         >
                           <ListItemIcon sx={{ minWidth: 36, color: "#fff" }}>
