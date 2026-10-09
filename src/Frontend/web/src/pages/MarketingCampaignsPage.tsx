@@ -3,7 +3,7 @@ import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../com
 import {
   Alert, Avatar, Box, Button, Card, CardContent, Checkbox, Chip, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, Divider, FormControlLabel, IconButton, LinearProgress, MenuItem, Paper, Stack,
-  Switch, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, TextField, Tooltip, Typography
+  Switch, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, TextField, Tooltip, Typography, Pagination
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -540,6 +540,9 @@ function CampaignsTab() {
   const [err, setErr] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<CampaignDto | null>(null);
+  const [statsOpen, setStatsOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const q = useQuery({
     queryKey: ["marketing-campaigns"],
@@ -589,6 +592,10 @@ function CampaignsTab() {
     });
     return arr;
   }, [campaignsRaw, sortKey, sortDir]);
+  const pageCount = Math.max(1, Math.ceil(campaigns.length / pageSize));
+  const visibleCampaigns = campaigns.slice((page - 1) * pageSize, page * pageSize);
+  useEffect(() => { setPage(1); }, [sortKey, sortDir, pageSize]);
+  useEffect(() => { if (page > pageCount) setPage(pageCount); }, [page, pageCount]);
   const inferType = (key: string): ColumnType =>
     key === "sentAt" ? "date" : key === "recipients" ? "number" : "string";
   const headerMenu = useHeaderContextMenu({
@@ -612,11 +619,10 @@ function CampaignsTab() {
 
   return (
     <Box>
-      <Stack direction="row" spacing={2} mb={2} flexWrap="wrap" useFlexGap>
-        <Kpi label={t("marketing.statusLabel.Draft", "Πρόχειρα")}     value={drafts}   icon={<EditIcon />} />
-        <Kpi label={t("marketing.statusLabel.Scheduled", "Προγραμματισμένες")} value={scheduled} color="#1976d2" icon={<SendIcon />} />
-        <Kpi label={t("marketing.statusLabel.Sent", "Στάλθηκαν")}     value={sent}     color="#2e7d32" icon={<CheckCircleIcon />} />
-        <Box sx={{ flex: 1 }} />
+      <Stack direction="row" spacing={1} mb={2} justifyContent="flex-end" flexWrap="wrap" useFlexGap>
+        <Button variant="outlined" startIcon={<BarChartIcon />} onClick={() => setStatsOpen(true)} sx={{ borderColor: "#0b5cad", color: "#0b5cad", fontWeight: 800 }}>
+          Στατιστικά καμπανιών
+        </Button>
         {canWrite && (
           <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>
             {t("marketing.create", "Νέα καμπάνια")}
@@ -661,7 +667,7 @@ function CampaignsTab() {
                   </TableCell>
                 </TableRow>
               )}
-              {campaigns.map(c => (
+              {visibleCampaigns.map(c => (
                 <TableRow key={c.id} hover onContextMenu={(e) => rowMenu.open(e, c)}>
                   <TableCell><Typography fontWeight={700}>{c.name}</Typography></TableCell>
                   <TableCell sx={{ color: "text.secondary" }}>{c.subject}</TableCell>
@@ -703,13 +709,53 @@ function CampaignsTab() {
           </Table>
         </Card>
       )}
+      {campaigns.length > 0 && (
+        <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }} justifyContent="space-between" spacing={1.25} sx={{ mt: 1.25 }}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="caption" color="text.secondary">{(page - 1) * pageSize + 1}–{Math.min(page * pageSize, campaigns.length)} από {campaigns.length}</Typography>
+            <TextField select size="small" label="Ανά σελίδα" value={pageSize} onChange={event => setPageSize(Number(event.target.value))} sx={{ width: 112 }}>
+              {[10, 25, 50, 100].map(size => <MenuItem key={size} value={size}>{size}</MenuItem>)}
+            </TextField>
+          </Stack>
+          <Pagination size="small" color="primary" page={page} count={pageCount} onChange={(_, value) => setPage(value)} showFirstButton showLastButton />
+        </Stack>
+      )}
       {headerMenu.menu}
       {rowMenu.menu}
       <CampaignFormDialog open={createOpen} onClose={() => setCreateOpen(false)} item={null}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["marketing-campaigns"] }); setCreateOpen(false); }} />
       <CampaignFormDialog open={!!editing} onClose={() => setEditing(null)} item={editing}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["marketing-campaigns"] }); setEditing(null); }} />
+      <CampaignStatsDialog open={statsOpen} onClose={() => setStatsOpen(false)} drafts={drafts} scheduled={scheduled} sent={sent} />
     </Box>
+  );
+}
+
+function CampaignStatsDialog({ open, onClose, drafts, scheduled, sent }: { open: boolean; onClose: () => void; drafts: number; scheduled: number; sent: number }) {
+  const data = [
+    { name: "Πρόχειρα", value: drafts, color: "#78909c" },
+    { name: "Προγραμματισμένες", value: scheduled, color: "#1976d2" },
+    { name: "Στάλθηκαν", value: sent, color: "#2e7d32" },
+  ];
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" PaperProps={{ sx: { borderRadius: 3 } }}>
+      <DialogTitle sx={{ fontWeight: 900 }}><Stack direction="row" alignItems="center" spacing={1}><BarChartIcon color="primary" /><span>Στατιστικά καμπανιών</span></Stack></DialogTitle>
+      <DialogContent dividers>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" }, gap: 1.5, mb: 2 }}>
+          <Kpi label="Πρόχειρα" value={drafts} icon={<EditIcon />} />
+          <Kpi label="Προγραμματισμένες" value={scheduled} color="#1976d2" icon={<SendIcon />} />
+          <Kpi label="Στάλθηκαν" value={sent} color="#2e7d32" icon={<CheckCircleIcon />} />
+        </Box>
+        <Card variant="outlined" sx={{ p: 1.5 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Καμπάνιες ανά κατάσταση</Typography>
+          <Typography variant="caption" color="text.secondary">Τοποθετήστε τον δείκτη πάνω στις μπάρες για τις ακριβείς τιμές.</Typography>
+          <Box sx={{ height: 280, mt: 1 }}>
+            <ResponsiveContainer width="100%" height="100%"><BarChart data={data}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis allowDecimals={false} /><ChartTooltip /><Bar dataKey="value" name="Καμπάνιες" radius={[5, 5, 0, 0]}>{data.map(item => <Cell key={item.name} fill={item.color} />)}</Bar></BarChart></ResponsiveContainer>
+          </Box>
+        </Card>
+      </DialogContent>
+      <DialogActions><Button onClick={onClose} color="error" variant="contained">Κλείσιμο</Button></DialogActions>
+    </Dialog>
   );
 }
 
@@ -1709,6 +1755,9 @@ function HistoryTabBackend() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [preview, setPreview] = useState<DeliveryLogDto | null>(null);
+  const [statsOpen, setStatsOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const query = useQuery({
     queryKey: ["marketing-deliveries", search, filterChannel, filterProvider, filterStatus, from, to],
     queryFn: async () => (await api.get<DeliveryLogDto[]>("/marketing-campaigns/deliveries", { params: {
@@ -1719,13 +1768,15 @@ function HistoryTabBackend() {
   const rows = query.data ?? [];
   const delivered = rows.filter(x => ["Sent", "Delivered", "Opened", "Clicked"].includes(x.status)).length;
   const failed = rows.filter(x => ["Failed", "SkippedConsent", "SkippedNoRecipient"].includes(x.status)).length;
+  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+  const visibleRows = rows.slice((page - 1) * pageSize, page * pageSize);
+  useEffect(() => { setPage(1); }, [search, filterChannel, filterProvider, filterStatus, from, to, pageSize]);
+  useEffect(() => { if (page > pageCount) setPage(pageCount); }, [page, pageCount]);
   const clear = () => { setSearch(""); setFilterChannel(""); setFilterProvider(""); setFilterStatus(""); setFrom(""); setTo(""); };
   return <Box>
-    <Stack direction="row" spacing={2} mb={2} flexWrap="wrap" useFlexGap>
-      <Kpi label="Απόπειρες αποστολής" value={rows.length} icon={<SendIcon />} />
-      <Kpi label="Εστάλησαν" value={delivered} color="#2e7d32" icon={<CheckCircleIcon />} />
-      <Kpi label="Αποτυχίες / παραλείψεις" value={failed} color="#d32f2f" icon={<ErrorIcon />} />
-      <Box sx={{ ml: "auto" }}><DataExportButton entity="crm-delivery-history" endpoint="/data-exports/crm-delivery-history" search={search} additionalParams={{ channel: filterChannel, provider: filterProvider, status: filterStatus, from, to }} label="Εξαγωγή ιστορικού" /></Box>
+    <Stack direction="row" spacing={1} mb={2} justifyContent="flex-end" flexWrap="wrap" useFlexGap>
+      <Button variant="outlined" startIcon={<BarChartIcon />} onClick={() => setStatsOpen(true)} sx={{ borderColor: "#0b5cad", color: "#0b5cad", fontWeight: 800 }}>Στατιστικά ιστορικού</Button>
+      <DataExportButton entity="crm-delivery-history" endpoint="/data-exports/crm-delivery-history" search={search} additionalParams={{ channel: filterChannel, provider: filterProvider, status: filterStatus, from, to }} label="Εξαγωγή ιστορικού" />
     </Stack>
     <Stack direction={{ xs: "column", md: "row" }} spacing={1} mb={2} flexWrap="wrap" useFlexGap>
       <TextField size="small" label="Αναζήτηση καμπάνιας / παραλήπτη" value={search} onChange={e => setSearch(e.target.value)} sx={{ minWidth: 260 }} />
@@ -1739,11 +1790,22 @@ function HistoryTabBackend() {
     {query.isLoading ? <CircularProgress /> : <Card variant="outlined" sx={{ overflowX: "auto" }}>
       <Table size="small"><TableHead><TableRow><TableCell>Ημερομηνία</TableCell><TableCell>Καμπάνια</TableCell><TableCell>Παραλήπτης</TableCell><TableCell>Κανάλι</TableCell><TableCell>Πάροχος</TableCell><TableCell>Κατάσταση</TableCell><TableCell align="right">Προεπισκόπηση</TableCell></TableRow></TableHead><TableBody>
         {rows.length === 0 && <TableRow><TableCell colSpan={7} align="center" sx={{ py: 4, color: "text.secondary" }}>Δεν υπάρχουν καταγεγραμμένες αποστολές.</TableCell></TableRow>}
-        {rows.map(row => <TableRow key={row.id} hover><TableCell>{dateTime(row.sentAt)}</TableCell><TableCell>{row.campaignName}</TableCell><TableCell><Typography variant="body2" fontWeight={700}>{row.recipientName || row.customerName || "—"}</Typography><Typography variant="caption" color="text.secondary">{row.recipient || "—"}</Typography></TableCell><TableCell><ChannelIcon channel={row.channel as Channel} /></TableCell><TableCell>{row.provider}</TableCell><TableCell><Chip size="small" color={row.status === "Sent" ? "success" : row.status === "Failed" ? "error" : "warning"} label={row.status} /></TableCell><TableCell align="right"><IconButton size="small" onClick={() => setPreview(row)}><VisibilityIcon fontSize="small" /></IconButton></TableCell></TableRow>)}
+        {visibleRows.map(row => <TableRow key={row.id} hover><TableCell>{dateTime(row.sentAt)}</TableCell><TableCell>{row.campaignName}</TableCell><TableCell><Typography variant="body2" fontWeight={700}>{row.recipientName || row.customerName || "—"}</Typography><Typography variant="caption" color="text.secondary">{row.recipient || "—"}</Typography></TableCell><TableCell><ChannelIcon channel={row.channel as Channel} /></TableCell><TableCell>{row.provider}</TableCell><TableCell><Chip size="small" color={row.status === "Sent" ? "success" : row.status === "Failed" ? "error" : "warning"} label={row.status} /></TableCell><TableCell align="right"><IconButton size="small" onClick={() => setPreview(row)}><VisibilityIcon fontSize="small" /></IconButton></TableCell></TableRow>)}
       </TableBody></Table>
     </Card>}
+    {rows.length > 0 && <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }} justifyContent="space-between" spacing={1.25} sx={{ mt: 1.25 }}><Stack direction="row" spacing={1} alignItems="center"><Typography variant="caption" color="text.secondary">{(page - 1) * pageSize + 1}–{Math.min(page * pageSize, rows.length)} από {rows.length}</Typography><TextField select size="small" label="Ανά σελίδα" value={pageSize} onChange={event => setPageSize(Number(event.target.value))} sx={{ width: 112 }}>{[10, 25, 50, 100].map(size => <MenuItem key={size} value={size}>{size}</MenuItem>)}</TextField></Stack><Pagination size="small" color="primary" page={page} count={pageCount} onChange={(_, value) => setPage(value)} showFirstButton showLastButton /></Stack>}
+    <HistoryStatsDialog open={statsOpen} onClose={() => setStatsOpen(false)} attempts={rows.length} delivered={delivered} failed={failed} />
     <Dialog open={!!preview} onClose={() => setPreview(null)} fullWidth maxWidth="md"><DialogTitle>Ακριβές περιεχόμενο αποστολής</DialogTitle><DialogContent dividers>{preview && <Stack spacing={1.5}><Typography><b>Καμπάνια:</b> {preview.campaignName}</Typography><Typography><b>Παραλήπτης:</b> {preview.recipientName || preview.customerName || "—"} · {preview.recipient || "—"}</Typography><Typography><b>Κανάλι / πάροχος:</b> {preview.channel} · {preview.provider} · {preview.status}</Typography>{preview.subject && <Typography><b>Θέμα:</b> {preview.subject}</Typography>}{preview.bodyHtml ? <Box component="iframe" title="Προεπισκόπηση email" srcDoc={preview.bodyHtml} sandbox="" sx={{ width: "100%", minHeight: 300, border: 1, borderColor: "divider", borderRadius: 1 }} /> : <Paper variant="outlined" sx={{ p: 2, whiteSpace: "pre-wrap" }}>{preview.bodyText || "—"}</Paper>}{preview.errorMessage && <Alert severity="error">{preview.errorMessage}</Alert>}</Stack>}</DialogContent><DialogActions><Button onClick={() => setPreview(null)}>Κλείσιμο</Button></DialogActions></Dialog>
   </Box>;
+}
+
+function HistoryStatsDialog({ open, onClose, attempts, delivered, failed }: { open: boolean; onClose: () => void; attempts: number; delivered: number; failed: number }) {
+  const data = [
+    { name: "Απόπειρες", value: attempts, color: "#1976d2" },
+    { name: "Εστάλησαν", value: delivered, color: "#2e7d32" },
+    { name: "Αποτυχίες / παραλείψεις", value: failed, color: "#d32f2f" },
+  ];
+  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" PaperProps={{ sx: { borderRadius: 3 } }}><DialogTitle sx={{ fontWeight: 900 }}><Stack direction="row" alignItems="center" spacing={1}><BarChartIcon color="primary" /><span>Στατιστικά ιστορικού αποστολών</span></Stack></DialogTitle><DialogContent dividers><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" }, gap: 1.5, mb: 2 }}><Kpi label="Απόπειρες αποστολής" value={attempts} icon={<SendIcon />} /><Kpi label="Εστάλησαν" value={delivered} color="#2e7d32" icon={<CheckCircleIcon />} /><Kpi label="Αποτυχίες / παραλείψεις" value={failed} color="#d32f2f" icon={<ErrorIcon />} /></Box><Card variant="outlined" sx={{ p: 1.5 }}><Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Αποτελέσματα αποστολών</Typography><Typography variant="caption" color="text.secondary">Περάστε τον δείκτη πάνω από τις μπάρες για ακριβείς τιμές.</Typography><Box sx={{ height: 280, mt: 1 }}><ResponsiveContainer width="100%" height="100%"><BarChart data={data}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis allowDecimals={false} /><ChartTooltip /><Bar dataKey="value" name="Αριθμός" radius={[5, 5, 0, 0]}>{data.map(item => <Cell key={item.name} fill={item.color} />)}</Bar></BarChart></ResponsiveContainer></Box></Card></DialogContent><DialogActions><Button onClick={onClose} color="error" variant="contained">Κλείσιμο</Button></DialogActions></Dialog>;
 }
 
 const OPPORTUNITY_STAGES = ["New", "Contacted", "Quoted", "FollowUp", "Won", "Lost"] as const;

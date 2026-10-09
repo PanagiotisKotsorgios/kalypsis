@@ -25,7 +25,8 @@ import {
   TableHead,
   TableRow,
   TextField,
-  Typography
+  Typography,
+  Pagination
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
@@ -131,6 +132,8 @@ export function RequestsPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<RequestDto | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [filters, setFilters] = useState({
     search: "",
     status: "" as ServiceRequestStatus | "",
@@ -205,6 +208,10 @@ export function RequestsPage() {
   });
 
   const rows = requestsQuery.data ?? [];
+  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+  const visibleRows = rows.slice((page - 1) * pageSize, page * pageSize);
+  useEffect(() => { setPage(1); }, [queryParams, pageSize]);
+  useEffect(() => { if (page > pageCount) setPage(pageCount); }, [page, pageCount]);
   const clearFilters = () => setFilters({ search: "", status: "", type: "", from: "", to: "", read: "", sort: "newest", includeArchived: false });
   const advancedFilterCount = [
     filters.status,
@@ -298,7 +305,7 @@ export function RequestsPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {rows.map((r) => (
+                {visibleRows.map((r) => (
                   <TableRow key={r.id} hover sx={{ cursor: "pointer", bgcolor: isAgency && !r.isRead ? "action.hover" : undefined }} onClick={() => { setDetail(r); if (isAgency && !r.isRead) readMutation.mutate({ id: r.id, isRead: true }); }}>
                     <TableCell><Chip label={r.requestNumber} size="small" variant="outlined" /></TableCell>
                     <TableCell>
@@ -341,6 +348,22 @@ export function RequestsPage() {
             </Table>
           </TableContainer>
         </Card>
+      )}
+
+      {rows.length > 0 && (
+        <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }} justifyContent="space-between" spacing={1.25} sx={{ mt: 1.25 }}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="caption" color="text.secondary">{(page - 1) * pageSize + 1}–{Math.min(page * pageSize, rows.length)} από {rows.length}</Typography>
+            <TextField
+              select size="small" label="Ανά σελίδα" value={pageSize}
+              onChange={(event) => setPageSize(Number(event.target.value))}
+              sx={{ width: 112 }}
+            >
+              {[10, 25, 50, 100].map(size => <MenuItem key={size} value={size}>{size}</MenuItem>)}
+            </TextField>
+          </Stack>
+          <Pagination size="small" color="primary" page={page} count={pageCount} onChange={(_, value) => setPage(value)} showFirstButton showLastButton />
+        </Stack>
       )}
 
       <CreateRequestDialog
