@@ -865,3 +865,135 @@ export function PricingPage() {
     </PublicShell>
   );
 }
+
+/**
+ * Temporary public placeholder for pricing while the new catalogue is being
+ * finalised.  The full PricingPage stays available in the source so it can be
+ * re-enabled without rebuilding the pricing model from scratch.
+ */
+export function PricingComingSoonPage() {
+  return (
+    <PublicShell>
+      <Box
+        sx={{
+          minHeight: { xs: "68vh", md: "72vh" },
+          display: "grid",
+          placeItems: "center",
+          px: { xs: 2, md: 4 },
+          py: { xs: 7, md: 12 },
+          background:
+            "radial-gradient(circle at 15% 10%, rgba(31,123,179,.14), transparent 38%), linear-gradient(180deg, #f8fbfe 0%, #eef5fa 100%)",
+        }}
+      >
+        <Container maxWidth="md">
+          <Paper
+            elevation={0}
+            sx={{
+              position: "relative",
+              overflow: "hidden",
+              border: `1px solid ${RULE}`,
+              borderRadius: 4,
+              px: { xs: 3, md: 7 },
+              py: { xs: 4, md: 6 },
+              textAlign: "center",
+              boxShadow: "0 24px 70px rgba(11,37,69,.12)",
+              "&::before": {
+                content: '""',
+                position: "absolute",
+                inset: "0 0 auto",
+                height: 6,
+                background: `linear-gradient(90deg, ${NAVY}, ${BLUE}, #36a271)`,
+              },
+            }}
+          >
+            <Chip
+              label="ΣΥΝΤΟΜΑ"
+              sx={{
+                mb: 2,
+                bgcolor: "#e4f1fa",
+                color: NAVY,
+                border: `1px solid ${BLUE}`,
+                fontWeight: 950,
+                letterSpacing: ".12em",
+              }}
+            />
+            <Box
+              sx={{
+                width: 74,
+                height: 74,
+                mx: "auto",
+                mb: 2.5,
+                display: "grid",
+                placeItems: "center",
+                borderRadius: "50%",
+                color: "#fff",
+                background: `linear-gradient(145deg, ${NAVY}, ${BLUE})`,
+                boxShadow: "0 12px 28px rgba(31,123,179,.28)",
+              }}
+            >
+              <WorkspacePremiumIcon sx={{ fontSize: 38 }} />
+            </Box>
+            <Typography
+              variant="h2"
+              sx={{
+                color: NAVY,
+                fontWeight: 950,
+                letterSpacing: "-.035em",
+                fontSize: { xs: "2rem", md: "3rem" },
+              }}
+            >
+              Ο τιμοκατάλογος ετοιμάζεται
+            </Typography>
+            <Typography
+              sx={{
+                mt: 1.5,
+                mx: "auto",
+                maxWidth: 600,
+                color: "#526579",
+                fontSize: { xs: "1rem", md: "1.1rem" },
+                lineHeight: 1.75,
+              }}
+            >
+              Ετοιμάζουμε μια ξεκάθαρη, ευέλικτη παρουσίαση των πακέτων και των
+              δυνατοτήτων του KALYPSIS. Θα είναι σύντομα διαθέσιμη.
+            </Typography>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1.5}
+              justifyContent="center"
+              sx={{ mt: 3.5 }}
+            >
+              <Button
+                component={RouterLink}
+                to="/"
+                variant="contained"
+                endIcon={<ArrowForwardIcon />}
+                sx={{
+                  px: 3,
+                  bgcolor: NAVY,
+                  fontWeight: 900,
+                  "&:hover": { bgcolor: BLUE },
+                }}
+              >
+                Επιστροφή στην αρχική
+              </Button>
+              <Button
+                component={RouterLink}
+                to="/contact"
+                variant="outlined"
+                sx={{
+                  px: 3,
+                  color: NAVY,
+                  borderColor: "#a9bdcf",
+                  fontWeight: 900,
+                }}
+              >
+                Επικοινωνήστε μαζί μας
+              </Button>
+            </Stack>
+          </Paper>
+        </Container>
+      </Box>
+    </PublicShell>
+  );
+}
