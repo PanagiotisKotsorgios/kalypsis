@@ -323,7 +323,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     // "Ανανεώσεις" is now a button inside the Συμβόλαια page — one less sidebar
     // entry to scan through. Legacy /renewals route still lives so anyone
     // with the URL bookmarked keeps working.
-    { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice", group: "production" },
+    { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/producers", labelKey: "nav.producers", icon: <HandshakeIcon />, package: "BackOffice", group: "production" },
     { to: "/partner-networks", labelKey: "nav.partnerNetworks", icon: <HubIcon />, package: "BackOffice", group: "production" },
     // «Πρόσθετες πράξεις» + «Ακυρώσεις» are reachable as buttons inside
@@ -491,7 +491,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice" },
     { to: "/green-cards", labelKey: "nav.greenCards", icon: <CardMembershipIcon />, package: "BackOffice" },
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
-    { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice" },
+    { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/garages", labelKey: "nav.garages", icon: <EngineeringIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/indemnities", labelKey: "nav.indemnities", icon: <PaymentsIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/friendly-settlements", labelKey: "nav.friendly", icon: <HandshakeIcon />, package: "BackOffice", group: "claimsOps" },
@@ -532,7 +532,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice" },
     { to: "/green-cards", labelKey: "nav.greenCards", icon: <CardMembershipIcon />, package: "BackOffice" },
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
-    { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice" },
+    { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/garages", labelKey: "nav.garages", icon: <EngineeringIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/indemnities", labelKey: "nav.indemnities", icon: <PaymentsIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/friendly-settlements", labelKey: "nav.friendly", icon: <HandshakeIcon />, package: "BackOffice", group: "claimsOps" },
