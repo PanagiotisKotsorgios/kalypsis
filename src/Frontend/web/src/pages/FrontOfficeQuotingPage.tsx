@@ -247,9 +247,9 @@ export function FrontOfficeQuotingPage({ standalone = false }: { standalone?: bo
 
 function StandalonePluginFooter() {
   return <Box component="footer" sx={{ borderTop: "1px solid #cbd9e6", bgcolor: "#fff", mt: 3 }}>
-    <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: 1.5, sm: 2.5, lg: 4 }, py: 1.25, display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 1 }}>
+    <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: 1.5, sm: 2.5, lg: 4 }, py: 1.25, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "flex-end", gap: .5 }}>
       <Typography variant="caption" sx={{ color: "#526578", fontWeight: 750, letterSpacing: ".02em" }}>Powered by Kalypsis</Typography>
-      <KalypsisLogo size={30} crop />
+      <KalypsisLogo size={52} crop />
     </Box>
   </Box>;
 }
