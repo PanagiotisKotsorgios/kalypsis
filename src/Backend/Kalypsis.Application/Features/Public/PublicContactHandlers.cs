@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
+using Kalypsis.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,7 +27,10 @@ public record PublicContactBody(
     // Honeypot: this field is rendered as a CSS-hidden input in the form. A real
     // user never touches it; bots that auto-fill every field do. If it has any
     // value we silently drop the message (return success so the bot doesn't retry).
-    string? Website = null);
+    string? Website = null,
+    // Optional package selected from the public pricing page. Package-interest
+    // submissions are also persisted in the platform admin request inbox.
+    string? SelectedPackage = null);
 
 public record PublicContactResult(string Reference, bool Delivered);
 
@@ -64,6 +68,43 @@ public class SubmitPublicContactHandler : IRequestHandler<SubmitPublicContactCom
         if ((b.Message ?? "").Length > 5000) throw new AppException("contact_message", "Το μήνυμα είναι πολύ μακρύ.", 400);
 
         var reference = $"KLP-CT-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
+        var selectedPackage = string.IsNullOrWhiteSpace(b.SelectedPackage)
+            ? null
+            : b.SelectedPackage.Trim();
+
+        // Keep the existing email notification, and also put package-interest
+        // leads in the normal platform-admin request workflow. This makes the
+        // lead visible for triage/read/pending/follow-up even if email delivery
+        // is temporarily unavailable. Regular contact submissions remain
+        // email-only.
+        if (selectedPackage is not null)
+        {
+            var registrationReference = reference;
+            if (await _db.RegistrationRequests.AnyAsync(x => x.ReferenceCode == registrationReference, ct))
+                registrationReference = $"KLP-CT-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
+
+            _db.RegistrationRequests.Add(new RegistrationRequest
+            {
+                Id = Guid.NewGuid(),
+                FirstName = b.FirstName.Trim(),
+                LastName = b.LastName.Trim(),
+                Email = b.Email.Trim().ToLowerInvariant(),
+                Phone = b.Phone?.Trim() ?? string.Empty,
+                City = string.IsNullOrWhiteSpace(b.AgencyOrCity) ? null : b.AgencyOrCity.Trim(),
+                ReferenceCode = registrationReference,
+                Category = "Εκδήλωση ενδιαφέροντος πακέτου",
+                Message = BuildPackageInterestMessage(selectedPackage, b.Message ?? string.Empty),
+                Status = RegistrationRequestStatus.New,
+                TriageStatus = RegistrationRequestTriageStatus.New,
+                IsRead = false,
+                DpaAccepted = b.Consent,
+                DpaVersion = b.Consent ? "public-contact-v1" : null,
+                DpaAcceptedAt = b.Consent ? DateTime.UtcNow : null,
+                IpAddress = string.IsNullOrWhiteSpace(cmd.ClientIp) ? null : cmd.ClientIp,
+                UserAgent = string.IsNullOrWhiteSpace(cmd.UserAgent) ? null : cmd.UserAgent
+            });
+            await _db.SaveChangesAsync(ct);
+        }
 
         var settings = await _db.PlatformSettings.IgnoreQueryFilters().OrderBy(s => s.CreatedAt).FirstOrDefaultAsync(ct);
         var to = !string.IsNullOrWhiteSpace(settings?.SupportEmail)
@@ -79,7 +120,7 @@ public class SubmitPublicContactHandler : IRequestHandler<SubmitPublicContactCom
             "sales"     => "[SALES] ",
             _ => "[ΕΠΙΚΟΙΝΩΝΙΑ] "
         };
-        var subject = $"{subjectPrefix}{TruncForSubject(b.Subject)} ({reference})";
+        var subject = $"{subjectPrefix}{TruncForSubject(b.Subject ?? string.Empty)} ({reference})";
 
         var result = await _email.SendAsync(new EmailMessage(
             ToEmail: to,
@@ -117,6 +158,8 @@ public class SubmitPublicContactHandler : IRequestHandler<SubmitPublicContactCom
         Row(sb, "Τύπος", b.InquiryType ?? "—");
         Row(sb, "Όνομα", $"{b.FirstName} {b.LastName}".Trim());
         Row(sb, "Email", b.Email);
+        if (!string.IsNullOrWhiteSpace(b.SelectedPackage))
+            Row(sb, "Επιλεγμένο πακέτο", b.SelectedPackage!);
         Row(sb, "Τηλέφωνο", b.Phone ?? "—");
         Row(sb, "Γραφείο / Πόλη", b.AgencyOrCity ?? "—");
         Row(sb, "Θέμα", b.Subject);
@@ -136,5 +179,13 @@ public class SubmitPublicContactHandler : IRequestHandler<SubmitPublicContactCom
         sb.Append($"<td style='border:1px solid #d9e1ea;background:#f4f6fa;font-weight:700;width:160px'>{WebUtility.HtmlEncode(label)}</td>");
         sb.Append($"<td style='border:1px solid #d9e1ea'>{WebUtility.HtmlEncode(value)}</td>");
         sb.Append("</tr>");
+    }
+
+    private static string BuildPackageInterestMessage(string package, string message)
+    {
+        var details = string.IsNullOrWhiteSpace(message)
+            ? "Δεν προστέθηκαν επιπλέον λεπτομέρειες."
+            : message.Trim();
+        return $"Πακέτο που επέλεξε ο χρήστης: {package}\n\nΛεπτομέρειες ενδιαφέροντος:\n{details}";
     }
 }

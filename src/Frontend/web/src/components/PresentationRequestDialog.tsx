@@ -20,6 +20,9 @@ import { api, extractErrorMessage } from "../api/client";
 interface Props {
   open: boolean;
   onClose: () => void;
+  /** Package selected from the public pricing cards. */
+  selectedPlan?: string | null;
+  selectedPlanCode?: string | null;
 }
 
 const fieldSx = {
@@ -32,7 +35,7 @@ const fieldSx = {
 };
 
 /** Short public lead form used by every pre-login presentation CTA. */
-export function PresentationRequestDialog({ open, onClose }: Props) {
+export function PresentationRequestDialog({ open, onClose, selectedPlan, selectedPlanCode }: Props) {
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", region: "", details: "", consent: false });
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -63,8 +66,13 @@ export function PresentationRequestDialog({ open, onClose }: Props) {
         email: form.email.trim(),
         phone: form.phone.trim() || null,
         agencyOrCity: form.region.trim() || null,
-        subject: "Αίτημα δωρεάν πλήρους παρουσίασης KALYPSIS",
-        message: `Λεπτομέρειες: ${form.details.trim()}`,
+        subject: selectedPlan
+          ? `Εκδήλωση ενδιαφέροντος για το πακέτο ${selectedPlan}`
+          : "Αίτημα δωρεάν πλήρους παρουσίασης KALYPSIS",
+        message: selectedPlan
+          ? `Πακέτο που επέλεξε ο χρήστης: ${selectedPlan}${selectedPlanCode ? ` (${selectedPlanCode})` : ""}\n\nΛεπτομέρειες ενδιαφέροντος: ${form.details.trim()}`
+          : `Λεπτομέρειες: ${form.details.trim()}`,
+        selectedPackage: selectedPlan ? `${selectedPlan}${selectedPlanCode ? ` (${selectedPlanCode})` : ""}` : null,
         consent: form.consent,
         website: "",
       });
@@ -79,7 +87,7 @@ export function PresentationRequestDialog({ open, onClose }: Props) {
   return (
     <Dialog open={open} onClose={close} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: 3, overflow: "hidden" } }}>
       <DialogTitle sx={{ bgcolor: "#eef7ff", color: "#0a2b67", fontWeight: 950, pr: 7 }}>
-        {reference ? "Το αίτημά σας στάλθηκε" : "Κλείστε δωρεάν παρουσίαση"}
+        {reference ? "Το αίτημά σας στάλθηκε" : selectedPlan ? `Εκδήλωση ενδιαφέροντος · ${selectedPlan}` : "Κλείστε δωρεάν παρουσίαση"}
         <Button onClick={close} color="error" aria-label="Κλείσιμο" sx={{ position: "absolute", right: 12, top: 12, minWidth: 0, px: 1, fontWeight: 900 }}><CloseIcon /></Button>
       </DialogTitle>
       <DialogContent sx={{ pt: 2.5 }}>
@@ -87,12 +95,12 @@ export function PresentationRequestDialog({ open, onClose }: Props) {
           <Stack alignItems="center" textAlign="center" spacing={1.5} sx={{ py: 3 }}>
             <CheckCircleIcon sx={{ color: "#16803c", fontSize: 56 }} />
             <Typography fontWeight={900} color="#0a2b67">Ευχαριστούμε για το ενδιαφέρον σας.</Typography>
-            <Typography color="text.secondary">Θα επικοινωνήσουμε μαζί σας για να προγραμματίσουμε την παρουσίαση.</Typography>
+            <Typography color="text.secondary">{selectedPlan ? `Θα επικοινωνήσουμε μαζί σας για το πακέτο «${selectedPlan}».` : "Θα επικοινωνήσουμε μαζί σας για να προγραμματίσουμε την παρουσίαση."}</Typography>
             <Typography variant="caption" color="text.secondary">Κωδικός αναφοράς: {reference}</Typography>
           </Stack>
         ) : (
           <Box component="form" id="presentation-request-form" onSubmit={submit}>
-            <Typography color="text.secondary" sx={{ mb: 2 }}>Συμπληρώστε τα βασικά στοιχεία και θα επικοινωνήσουμε μαζί σας.</Typography>
+            <Typography color="text.secondary" sx={{ mb: 2 }}>{selectedPlan ? `Συμπληρώστε τα στοιχεία σας και θα επικοινωνήσουμε μαζί σας για το πακέτο «${selectedPlan}».` : "Συμπληρώστε τα βασικά στοιχεία και θα επικοινωνήσουμε μαζί σας."}</Typography>
             <Stack spacing={1.5}>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
                 <TextField required label="Όνομα" value={form.firstName} onChange={e => set("firstName", e.target.value)} fullWidth sx={fieldSx} />
@@ -103,10 +111,10 @@ export function PresentationRequestDialog({ open, onClose }: Props) {
                 <TextField label="Τηλέφωνο" value={form.phone} onChange={e => set("phone", e.target.value)} fullWidth sx={fieldSx} />
               </Stack>
               <TextField label="Περιοχή" value={form.region} onChange={e => set("region", e.target.value)} fullWidth sx={fieldSx} />
-              <TextField required multiline minRows={3} label="Λεπτομέρειες" placeholder="Τι θα θέλατε να δούμε στην παρουσίαση;" value={form.details} onChange={e => set("details", e.target.value)} fullWidth sx={fieldSx} />
+              <TextField required multiline minRows={3} label="Λεπτομέρειες" placeholder={selectedPlan ? "Πείτε μας τι χρειάζεστε από το πακέτο…" : "Τι θα θέλατε να δούμε στην παρουσίαση;"} value={form.details} onChange={e => set("details", e.target.value)} fullWidth sx={fieldSx} />
               <Stack direction="row" alignItems="flex-start" spacing={1}>
                 <input aria-label="Συγκατάθεση επικοινωνίας" type="checkbox" checked={form.consent} onChange={e => set("consent", e.target.checked)} style={{ marginTop: 4, accentColor: "#1265d8" }} />
-                <Typography variant="caption" color="text.secondary">Συναινώ να επικοινωνήσει μαζί μου η KALYPSIS για το αίτημα παρουσίασης.</Typography>
+                <Typography variant="caption" color="text.secondary">Συναινώ να επικοινωνήσει μαζί μου η KALYPSIS για το αίτημά μου.</Typography>
               </Stack>
               {error && <Alert severity="error">{error}</Alert>}
             </Stack>
@@ -114,7 +122,7 @@ export function PresentationRequestDialog({ open, onClose }: Props) {
         )}
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2.5 }}>
-        {reference ? <Button onClick={close} variant="contained" sx={{ bgcolor: "#0a2b67", fontWeight: 900 }}>Κλείσιμο</Button> : <><Button onClick={close} color="error" sx={{ fontWeight: 800 }}>Ακύρωση</Button><Button type="submit" form="presentation-request-form" variant="contained" disabled={submitting} endIcon={submitting ? <CircularProgress size={17} color="inherit" /> : <ArrowForwardIcon />} sx={{ bgcolor: "#1265d8", fontWeight: 900 }}>{submitting ? "Αποστολή…" : "Αίτημα παρουσίασης"}</Button></>}
+        {reference ? <Button onClick={close} variant="contained" sx={{ bgcolor: "#0a2b67", fontWeight: 900 }}>Κλείσιμο</Button> : <><Button onClick={close} color="error" sx={{ fontWeight: 800 }}>Ακύρωση</Button><Button type="submit" form="presentation-request-form" variant="contained" disabled={submitting} endIcon={submitting ? <CircularProgress size={17} color="inherit" /> : <ArrowForwardIcon />} sx={{ bgcolor: "#1265d8", fontWeight: 900 }}>{submitting ? "Αποστολή…" : selectedPlan ? "Αποστολή ενδιαφέροντος" : "Αίτημα παρουσίασης"}</Button></>}
       </DialogActions>
     </Dialog>
   );

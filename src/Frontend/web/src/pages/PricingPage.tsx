@@ -72,9 +72,8 @@ function SectionHeading({ number, title, subtitle }: { number: string; title: st
   );
 }
 
-function PlanCard({ plan, features, currency }: { plan: Plan; features: PricingFeature[]; currency: string }) {
+function PlanCard({ plan, features, currency, onSelect }: { plan: Plan; features: PricingFeature[]; currency: string; onSelect: (plan: Plan) => void }) {
   const included = plan.featureKeys ?? plan.packages ?? [];
-  const actionUrl = plan.buttonUrl || "/register";
   const action: "contained" | "outlined" = plan.isFeatured ? "contained" : "outlined";
   const comingSoon = Boolean(plan.isComingSoon);
   return (
@@ -113,7 +112,9 @@ function PlanCard({ plan, features, currency }: { plan: Plan; features: PricingF
         </Stack>
         <Box sx={{ flex: 1 }} />
         {!comingSoon && <Typography variant="caption" color="text.secondary">{plan.extraOfficeLabel || "Επιπλέον γραφείο"}: {money(plan.extraOfficePerYear, currency)} / {plan.extraPricePeriodLabel || "έτος"} · {plan.extraUserLabel || "Επιπλέον χρήστης"}: {money(plan.extraUserPerYear, currency)} / {plan.extraPricePeriodLabel || "έτος"}</Typography>}
-        {comingSoon ? <Button component={RouterLink} to={actionUrl || "/contact"} variant="contained" endIcon={<ArrowForwardIcon />} sx={{ mt: .5, borderRadius: 2, fontWeight: 900, bgcolor: BLUE }}>{plan.buttonText || "Εκδήλωση Ενδιαφέροντος →"}</Button> : actionUrl.startsWith("http") ? <Button component="a" href={actionUrl} variant={action} endIcon={<ArrowForwardIcon />} sx={{ mt: .5, borderRadius: 2, fontWeight: 900, ...(plan.isFeatured ? { bgcolor: BLUE } : { color: BLUE, borderColor: BLUE }) }}>{plan.buttonText || "Επιλογή Πακέτου →"}</Button> : <Button component={RouterLink} to={actionUrl} variant={action} endIcon={<ArrowForwardIcon />} sx={{ mt: .5, borderRadius: 2, fontWeight: 900, ...(plan.isFeatured ? { bgcolor: BLUE } : { color: BLUE, borderColor: BLUE }) }}>{plan.buttonText || "Επιλογή Πακέτου →"}</Button>}
+        <Button type="button" onClick={() => onSelect(plan)} variant={comingSoon ? "contained" : action} endIcon={<ArrowForwardIcon />} sx={{ mt: .5, borderRadius: 2, fontWeight: 900, ...(comingSoon || plan.isFeatured ? { bgcolor: BLUE } : { color: BLUE, borderColor: BLUE }) }}>
+          {plan.buttonText || (comingSoon ? "Εκδήλωση Ενδιαφέροντος →" : "Επιλογή Πακέτου →")}
+        </Button>
       </Stack>
     </Card>
   );
@@ -135,6 +136,15 @@ export function PricingPage() {
   const [selectedAddons, setSelectedAddons] = useState<Record<string, boolean>>({});
   const [selectedServices, setSelectedServices] = useState<Record<string, boolean>>({});
   const [presentationOpen, setPresentationOpen] = useState(false);
+  const [interestPlan, setInterestPlan] = useState<Plan | null>(null);
+  const openInterestDialog = (plan: Plan | null) => {
+    setInterestPlan(plan);
+    setPresentationOpen(true);
+  };
+  const closeInterestDialog = () => {
+    setPresentationOpen(false);
+    setInterestPlan(null);
+  };
   useEffect(() => {
     if (catalog && !catalog.plans.some(p => p.code === planCode)) setPlanCode(catalog.plans.find(p => p.isActive)?.code ?? "");
   }, [catalog, planCode]);
@@ -184,7 +194,7 @@ export function PricingPage() {
                   <Typography sx={{ mt: .3, color: "rgba(255,255,255,.9)", fontSize: { xs: 14, md: 16 } }}>Δωρεάν προσαρμογή του προγράμματος για το γραφείο σας.</Typography>
                 </Box>
               </Stack>
-              <Button onClick={() => setPresentationOpen(true)} variant="contained" endIcon={<ArrowForwardIcon />} sx={{ flexShrink: 0, bgcolor: "#fff", color: NAVY, fontWeight: 950, borderRadius: 2, px: 2.5, py: 1.2, "&:hover": { bgcolor: "#fff4c7" } }}>Κλείστε παρουσίαση</Button>
+              <Button onClick={() => openInterestDialog(null)} variant="contained" endIcon={<ArrowForwardIcon />} sx={{ flexShrink: 0, bgcolor: "#fff", color: NAVY, fontWeight: 950, borderRadius: 2, px: 2.5, py: 1.2, "&:hover": { bgcolor: "#fff4c7" } }}>Κλείστε παρουσίαση</Button>
             </Stack>
           </Card>
 
@@ -226,7 +236,7 @@ export function PricingPage() {
           </Alert>
 
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2,1fr)", lg: "repeat(3,1fr)" }, gap: { xs: 2, lg: 2.5 }, alignItems: "stretch" }}>
-            {activePlans.map(plan => <PlanCard key={plan.code} plan={plan} features={activeFeatures} currency={settings.currency} />)}
+            {activePlans.map(plan => <PlanCard key={plan.code} plan={plan} features={activeFeatures} currency={settings.currency} onSelect={openInterestDialog} />)}
           </Box>
           <Typography sx={{ color: RED, fontWeight: 800, fontSize: 13, textAlign: "right", mt: 1 }}>{settings.pricesIncludeVat ? settings.vatLabel : `Οι τιμές δεν περιλαμβάνουν ΦΠΑ (${settings.vatRate}%)`}</Typography>
 
@@ -272,7 +282,12 @@ export function PricingPage() {
 
           <Stack alignItems="center" textAlign="center" sx={{ mt: 4 }}><Typography variant="h5" fontWeight={950} color={NAVY}>Θέλεις να το προσαρμόσουμε στο γραφείο σου;</Typography><Typography color="text.secondary" sx={{ mt: .5 }}>Επικοινώνησε μαζί μας για ενεργοποίηση πακέτων ή ειδική τιμολόγηση.</Typography><Button component={RouterLink} to="/contact" variant="contained" endIcon={<ArrowForwardIcon />} sx={{ mt: 1.5, bgcolor: NAVY, fontWeight: 900 }}>Ζήτησε διαμόρφωση</Button></Stack>
         </Container>
-        <PresentationRequestDialog open={presentationOpen} onClose={() => setPresentationOpen(false)} />
+        <PresentationRequestDialog
+          open={presentationOpen}
+          onClose={closeInterestDialog}
+          selectedPlan={interestPlan?.name ?? null}
+          selectedPlanCode={interestPlan?.code ?? null}
+        />
       </Box>
     </PublicShell>
   );
