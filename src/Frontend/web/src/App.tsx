@@ -47,8 +47,6 @@ import { CommandPalette } from "./components/CommandPalette";
 import { GlobalStickyHeaders } from "./components/GlobalStickyHeaders";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ProtectedRoute } from "./components/ProtectedRoute";
-import { CookieBanner } from "./components/CookieBanner";
-import { CookiePreferencesButton } from "./components/CookiePreferencesButton";
 import { UserImpersonationBanner } from "./components/UserImpersonationBanner";
 import { PageLoader } from "./components/PageLoader";
 import { ScrollToTop } from "./components/ScrollToTop";
@@ -1229,9 +1227,6 @@ export default function App() {
         && !location.pathname.startsWith("/ermes-app")
         && !location.pathname.startsWith("/frontoffice-quoting")
         && !location.pathname.startsWith("/download") && <PreloginDesktopDownload />}
-      {!location.pathname.startsWith("/app")
-        && !location.pathname.startsWith("/ermes-app") && <CookieBanner />}
-      {!location.pathname.startsWith("/ermes-app") && <CookiePreferencesButton />}
     </>
   );
 }

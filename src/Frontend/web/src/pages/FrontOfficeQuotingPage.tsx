@@ -68,6 +68,7 @@ import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { KalypsisLogo } from "../components/KalypsisLogo";
 
 type ViewKey = "dashboard" | "quotes" | "print-pay" | "pay-print" | "requests" | "history";
 type BranchKey = "Αυτοκίνητο" | "Κατοικία" | "Υγεία" | "Ζωή" | "Επιχείρηση";
@@ -189,9 +190,9 @@ export function FrontOfficeQuotingPage({ standalone = false }: { standalone?: bo
   const go = (next: ViewKey) => setParams({ view: next });
 
   return (
-    <Box sx={standalone ? { minHeight: "100vh", bgcolor: "#edf3f8", pb: 6, color: "#172a3a" } : { maxWidth: 1540, mx: "auto", pb: 5 }}>
+    <Box sx={standalone ? { minHeight: "100vh", bgcolor: "#edf3f8", pb: 2, color: "#172a3a", display: "flex", flexDirection: "column" } : { maxWidth: 1540, mx: "auto", pb: 5 }}>
       {standalone && <StandalonePluginHeader view={view} onNavigate={go} />}
-      <Box sx={standalone ? { maxWidth: 1540, mx: "auto", px: { xs: 1.5, sm: 2.5, lg: 4 }, pt: { xs: 2, md: 3 } } : undefined}>
+      <Box sx={standalone ? { maxWidth: 1540, mx: "auto", px: { xs: 1.5, sm: 2.5, lg: 4 }, pt: { xs: 2, md: 3 }, flex: 1, width: "100%" } : undefined}>
       {!standalone && <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ md: "center" }} spacing={2} sx={{ mb: 2.5 }}>
         <Stack direction="row" spacing={1.5} alignItems="center">
           <Box sx={{ width: 48, height: 48, borderRadius: 2.5, display: "grid", placeItems: "center", color: "#fff", background: "linear-gradient(135deg,#123a64,#168f9a)" }}><CalculateOutlinedIcon /></Box>
@@ -239,8 +240,18 @@ export function FrontOfficeQuotingPage({ standalone = false }: { standalone?: bo
         </>}
       </Dialog>
       </Box>
+      {standalone && <StandalonePluginFooter />}
     </Box>
   );
+}
+
+function StandalonePluginFooter() {
+  return <Box component="footer" sx={{ borderTop: "1px solid #cbd9e6", bgcolor: "#fff", mt: 3 }}>
+    <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: 1.5, sm: 2.5, lg: 4 }, py: 1.25, display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 1 }}>
+      <Typography variant="caption" sx={{ color: "#526578", fontWeight: 750, letterSpacing: ".02em" }}>Powered by Kalypsis</Typography>
+      <KalypsisLogo size={30} crop />
+    </Box>
+  </Box>;
 }
 
 const standaloneDropdowns: { key: string; label: string; views: { label: string; view: ViewKey }[] }[] = [
