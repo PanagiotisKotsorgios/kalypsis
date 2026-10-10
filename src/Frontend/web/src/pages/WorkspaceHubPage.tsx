@@ -39,17 +39,19 @@ interface PackageMeta {
   image: string;
   nameKey: string;
   bodyKey: string;
+  accent: string;
+  surface: string;
 }
 
 // Workspace cards are available for every operational package and are filtered
 // by the tenant's active packages and the current user's permissions.
 const PACKAGES: PackageMeta[] = [
-  { code: "BackOffice",   icon: <AccountBalanceIcon />, image: "/images/workspace-backoffice.svg", nameKey: "ws.BackOffice.name",   bodyKey: "ws.BackOffice.body" },
-  { code: "Crm",          icon: <PeopleIcon />,         image: "/images/workspace-crm.svg",       nameKey: "ws.Crm.name",          bodyKey: "ws.Crm.body" },
-  { code: "Intelligence", icon: <InsightsIcon />,      image: "/images/workspace-intelligence.svg?v=20261002", nameKey: "ws.Intelligence.name", bodyKey: "ws.Intelligence.body" },
-  { code: "FrontOffice", icon: <LanguageIcon />, image: "/images/workspace-crm.svg", nameKey: "ws.FrontOffice.name", bodyKey: "ws.FrontOffice.body" },
-  { code: "Integrations", icon: <HubIcon />, image: "/images/workspace-backoffice.svg", nameKey: "ws.Integrations.name", bodyKey: "ws.Integrations.body" },
-  { code: "Ermes", icon: <MailOutlineIcon />, image: "/images/workspace-ermes.svg", nameKey: "ws.Ermes.name", bodyKey: "ws.Ermes.body" }
+  { code: "BackOffice", icon: <AccountBalanceIcon />, image: "/images/kalypsis-backoffice.png", nameKey: "ws.BackOffice.name", bodyKey: "ws.BackOffice.body", accent: "#1678b8", surface: "#edf7ff" },
+  { code: "Crm", icon: <PeopleIcon />, image: "/images/kalypsis-crm-clientportal.png", nameKey: "ws.Crm.name", bodyKey: "ws.Crm.body", accent: "#258bb4", surface: "#edfafa" },
+  { code: "Intelligence", icon: <InsightsIcon />, image: "/images/kalypsis-analytics-intelligence.png", nameKey: "ws.Intelligence.name", bodyKey: "ws.Intelligence.body", accent: "#4268b6", surface: "#f1f4ff" },
+  { code: "FrontOffice", icon: <LanguageIcon />, image: "/images/kalypsis-frontoffice.png", nameKey: "ws.FrontOffice.name", bodyKey: "ws.FrontOffice.body", accent: "#1597c7", surface: "#eefaff" },
+  { code: "Integrations", icon: <HubIcon />, image: "/images/kalypsis-integrations-compliance.png", nameKey: "ws.Integrations.name", bodyKey: "ws.Integrations.body", accent: "#238e99", surface: "#eefaf9" },
+  { code: "Ermes", icon: <MailOutlineIcon />, image: "/images/kalypsis-ermis-secure-messaging.png", nameKey: "ws.Ermes.name", bodyKey: "ws.Ermes.body", accent: "#315d91", surface: "#f0f6ff" }
 ];
 // Kept for type safety — this icon is used by the compact sidebar, not by a
 // workspace card.
@@ -191,7 +193,8 @@ export function WorkspaceHubPage() {
         return (
       <Box sx={{
         display: "grid",
-        gap: { xs: 2, md: 2.5 },
+        gap: { xs: 2.25, md: 2.75 },
+        alignItems: "stretch",
         gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" }
       }}>
         {enabledPackages.map((pkg) => {
@@ -203,38 +206,39 @@ export function WorkspaceHubPage() {
               variant="outlined"
               sx={{
                 position: "relative",
-                // Permanent navy-tinted frame — matches the KPI + chart
-                // containers so the whole hub reads as one design system.
-                borderColor: (theme) => active
-                  ? (theme.palette.mode === "dark" ? "#6fd2ff" : ACCENT)
-                  : enabled
-                    ? (theme.palette.mode === "dark" ? "rgba(148,191,230,0.32)" : "rgba(11,37,69,0.32)")
-                  : "divider",
-                borderWidth: active ? 2.5 : 1.5,
-                borderRadius: 2.5,
-                bgcolor: active ? (theme) => theme.palette.mode === "dark" ? "rgba(31,123,179,0.16)" : "rgba(31,123,179,0.06)" : "background.paper",
+                display: "flex",
+                height: "100%",
+                minHeight: { xs: 350, md: 382 },
+                borderColor: active ? pkg.accent : `${pkg.accent}3f`,
+                borderWidth: active ? 2 : 1,
+                borderRadius: "20px",
+                background: active
+                  ? `linear-gradient(145deg, ${pkg.surface} 0%, #ffffff 65%, ${pkg.accent}12 100%)`
+                  : `linear-gradient(145deg, ${pkg.surface} 0%, #ffffff 72%, ${pkg.accent}0c 100%)`,
                 opacity: enabled ? 1 : 0.65,
                 overflow: "hidden",
-                boxShadow: active ? 5 : undefined,
-                transition: "transform 220ms cubic-bezier(.22,.61,.36,1), box-shadow 220ms cubic-bezier(.22,.61,.36,1), border-color 220ms ease",
+                boxShadow: active ? `0 12px 30px ${pkg.accent}25` : "0 8px 22px rgba(11,37,69,0.07)",
+                transition: "transform 220ms cubic-bezier(.22,.61,.36,1), box-shadow 220ms cubic-bezier(.22,.61,.36,1), border-color 220ms ease, background 220ms ease",
                 "&:hover": enabled ? {
                   transform: "translateY(-3px)",
-                  borderColor: "primary.main",
-                  boxShadow: 6,
+                  borderColor: pkg.accent,
+                  boxShadow: `0 14px 30px ${pkg.accent}2b`,
+                  background: `linear-gradient(145deg, ${pkg.surface} 0%, #ffffff 58%, ${pkg.accent}16 100%)`,
+                  "& .workspace-package-art": { transform: "scale(1.02) translateY(-2px)" },
+                  "& .workspace-package-arrow": { transform: "translateX(3px)" },
                 } : {},
                 "&:active": enabled ? { transform: "translateY(-1px)", transition: "transform 80ms ease" } : {},
-                // Accent line pinned to the bottom — grows in on hover.
-                "&::after": enabled ? {
+                "&::before": {
                   content: '""',
                   position: "absolute",
-                  left: 0, right: 0, bottom: 0,
-                  height: 3,
-                  background: `linear-gradient(90deg, ${ACCENT}, ${INK})`,
-                  transform: active ? "scaleX(1)" : "scaleX(0)",
-                  transformOrigin: "left",
-                  transition: "transform 360ms cubic-bezier(.22,.61,.36,1)"
-                } : {},
-                "&:hover::after": enabled ? { transform: "scaleX(1)" } : {}
+                  width: 170,
+                  height: 170,
+                  borderRadius: "50%",
+                  right: -70,
+                  top: -75,
+                  background: `radial-gradient(circle, ${pkg.accent}16 0%, transparent 68%)`,
+                  pointerEvents: "none",
+                },
               }}
             >
               {active && (
@@ -242,36 +246,24 @@ export function WorkspaceHubPage() {
                   position: "absolute", top: 12, right: 14, zIndex: 3,
                   display: "inline-flex", alignItems: "center", gap: 0.5,
                   px: 1, py: 0.45, borderRadius: 99,
-                  bgcolor: ACCENT, color: "#fff",
+                  bgcolor: INK, color: "#fff",
                   fontSize: 11, fontWeight: 800, letterSpacing: "0.04em",
-                  boxShadow: `0 3px 10px ${ACCENT}55`,
+                  boxShadow: `0 4px 12px ${INK}30`,
                 }}>
-                  <CheckCircleIcon sx={{ fontSize: 15 }} />
+                  <Box component="span" sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: "#61d99b" }} />
                   Ενεργό
                 </Box>
               )}
-              {/* Permanent L-bracket ornament in the bottom-right corner —
-                  two thick navy strokes making the card feel like a labeled,
-                  bordered container even when idle. Sits behind the click
-                  surface via pointer-events: none. */}
-              {enabled && (
-                <>
-                  <Box aria-hidden sx={{
-                    position: "absolute",
-                    right: 14, bottom: 14, width: 76, height: 3,
-                    bgcolor: INK, borderRadius: 1,
-                    pointerEvents: "none",
-                    boxShadow: `0 1px 0 ${INK}20`,
-                  }} />
-                  <Box aria-hidden sx={{
-                    position: "absolute",
-                    right: 14, bottom: 14, width: 3, height: 42,
-                    bgcolor: ACCENT, borderRadius: 1,
-                    pointerEvents: "none",
-                    boxShadow: `0 0 0 1px ${ACCENT}20`,
-                  }} />
-                </>
-              )}
+              <Box aria-hidden sx={{
+                position: "absolute",
+                width: 150,
+                height: 100,
+                left: -72,
+                bottom: 50,
+                borderRadius: "50%",
+                background: `radial-gradient(ellipse, ${pkg.accent}0c 0%, transparent 72%)`,
+                pointerEvents: "none",
+              }} />
               <CardActionArea
                 disabled={!enabled}
                 onClick={() => {
@@ -279,41 +271,52 @@ export function WorkspaceHubPage() {
                   enter(pkg.code);
                   navigate(WORKSPACE_DEFAULT_ROUTE[pkg.code]);
                 }}
-                sx={{ height: "100%", alignItems: "stretch" }}
+                sx={{
+                  height: "100%",
+                  alignItems: "stretch",
+                  display: "flex",
+                  flexDirection: "column",
+                  "& .MuiCardActionArea-focusHighlight": { backgroundColor: `${pkg.accent}08` },
+                }}
               >
-                <CardContent sx={{ p: { xs: 2.5, md: 3.5 }, height: "100%", display: "flex", flexDirection: "column", position: "relative" }}>
+                <CardContent sx={{
+                  p: { xs: 2.5, md: 3.25 },
+                  height: "100%",
+                  width: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  position: "relative",
+                  "&:last-child": { pb: { xs: 2.5, md: 3.25 } },
+                }}>
                   <Box
                     component="img"
                     src={pkg.image}
-                    alt=""
-                    aria-hidden="true"
+                    alt={t(pkg.nameKey)}
+                    className="workspace-package-art"
                     sx={{
                       position: "absolute",
-                      top: { xs: 14, md: 18 },
-                      right: { xs: 10, md: 18 },
-                      // Keep the illustration clear of the heading.  The
-                      // artwork has an opaque background, so an oversized
-                      // image can otherwise cover the end of
-                      // “BackOffice — Λογιστήριο” on compact cards.
-                      width: { xs: 118, sm: 142, md: 158 },
-                      height: { xs: 86, sm: 102, md: 114 },
+                      top: { xs: 13, md: 16 },
+                      right: { xs: 8, md: 13 },
+                      width: { xs: 125, sm: 148, md: 174 },
+                      height: { xs: 125, sm: 148, md: 174 },
                       objectFit: "contain",
-                      opacity: enabled ? 0.92 : 0.22,
+                      opacity: enabled ? 0.95 : 0.22,
                       zIndex: 0,
                       pointerEvents: "none",
                       userSelect: "none",
-                      transition: "transform 260ms ease, opacity 220ms ease"
+                      transition: "transform 260ms ease, opacity 220ms ease",
                     }}
                   />
-                  {/* Header — themed icon badge, matching the AnimatedKpiCard style
-                      used on the dashboards. No monospace I/II tag anymore. */}
+                  {/* Secondary package icon; the supplied artwork remains the primary visual. */}
                   <Box sx={{
-                    width: 48, height: 48,
-                    borderRadius: 1.5,
+                    width: 50, height: 50,
+                    borderRadius: 2,
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    bgcolor: enabled ? `${INK}12` : "action.disabledBackground",
-                    color: enabled ? INK : "text.disabled",
-                    mb: 2,
+                    bgcolor: enabled ? `${pkg.accent}16` : "action.disabledBackground",
+                    color: enabled ? pkg.accent : "text.disabled",
+                    border: "1px solid",
+                    borderColor: enabled ? `${pkg.accent}30` : "divider",
+                    mb: 2.5,
                     position: "relative",
                     zIndex: 1,
                     "& svg": { fontSize: 26 }
@@ -326,6 +329,7 @@ export function WorkspaceHubPage() {
                     color: enabled ? "text.primary" : "text.disabled",
                     lineHeight: 1.25,
                     mb: 1,
+                    maxWidth: { xs: "68%", sm: "72%" },
                     position: "relative",
                     zIndex: 1,
                     letterSpacing: "-0.005em"
@@ -334,9 +338,9 @@ export function WorkspaceHubPage() {
                   </Typography>
 
                   <Typography sx={{
-                    color: "text.secondary",
-                    fontSize: 14,
-                    lineHeight: 1.55,
+                    color: enabled ? INK_SOFT : "text.disabled",
+                    fontSize: { xs: 13.5, md: 14.25 },
+                    lineHeight: 1.6,
                     position: "relative",
                     zIndex: 1,
                     flex: 1
@@ -344,22 +348,46 @@ export function WorkspaceHubPage() {
                     {t(pkg.bodyKey)}
                   </Typography>
 
-                  {/* Footer arrow */}
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{
-                    mt: 2.5, pt: 2,
-                    borderTop: "1px solid",
-                    borderColor: "divider",
+                  <Box sx={{
+                    mt: 3,
+                    minHeight: 50,
+                    px: 1.75,
+                    py: 1,
+                    borderRadius: "15px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 1,
                     position: "relative",
                     zIndex: 1,
-                    color: enabled ? "primary.main" : "text.disabled",
-                    fontWeight: 700,
-                    fontSize: 13,
-                    letterSpacing: "0.06em",
-                    textTransform: "uppercase"
+                    color: active ? "#fff" : enabled ? INK : "text.disabled",
+                    background: active ? `linear-gradient(100deg, ${pkg.accent}, #145d94)` : `${pkg.accent}0d`,
+                    border: "1px solid",
+                    borderColor: active ? "transparent" : `${pkg.accent}26`,
+                    fontWeight: 800,
+                    fontSize: { xs: 12, md: 12.5 },
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                    transition: "background 200ms ease, color 200ms ease",
                   }}>
-                    <span>{active ? "Ενεργό πακέτο" : enabled ? t("ws.hub.open") : t("ws.hub.locked")}</span>
-                    {active ? <CheckCircleIcon sx={{ fontSize: 17 }} /> : enabled && <ArrowForwardIcon sx={{ fontSize: 16 }} />}
-                  </Stack>
+                    <span>{active ? "ΕΝΕΡΓΟ ΠΑΚΕΤΟ ✓" : enabled ? t("ws.hub.open") : t("ws.hub.locked")}</span>
+                    {!active && enabled && (
+                      <Box className="workspace-package-arrow" sx={{
+                        width: 30,
+                        height: 30,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderRadius: "50%",
+                        color: pkg.accent,
+                        bgcolor: "#fff",
+                        transition: "transform 180ms ease",
+                      }}>
+                        <ArrowForwardIcon sx={{ fontSize: 17 }} />
+                      </Box>
+                    )}
+                    {active && <CheckCircleIcon sx={{ fontSize: 20 }} />}
+                  </Box>
                 </CardContent>
               </CardActionArea>
             </Card>
@@ -528,10 +556,10 @@ function DashboardSummary() {
     <Box sx={{ mb: { xs: 4, md: 5 } }}>
       {!showAnalytics ? (
         <Card variant="outlined" sx={{
-          borderRadius: 2.5,
-          border: "1.5px solid",
-          borderColor: "rgba(11,37,69,0.28)",
-          bgcolor: "background.paper",
+          borderRadius: "20px",
+          border: "1px solid",
+          borderColor: "#cfe2f3",
+          background: "linear-gradient(100deg, #f3faff 0%, #ffffff 72%, #edf7ff 100%)",
           overflow: "hidden",
           animation: "summaryPanelIn 260ms ease both",
           "@keyframes summaryPanelIn": { from: { opacity: 0, transform: "scale(.985)" }, to: { opacity: 1, transform: "scale(1)" } },
@@ -555,10 +583,10 @@ function DashboardSummary() {
         </Card>
       ) : (
         <Card variant="outlined" sx={{
-          borderRadius: 2.5,
-          border: "1.5px solid",
-          borderColor: "rgba(11,37,69,0.28)",
-          bgcolor: "background.paper",
+          borderRadius: "20px",
+          border: "1px solid",
+          borderColor: "#cfe2f3",
+          background: "linear-gradient(100deg, #f3faff 0%, #ffffff 72%, #edf7ff 100%)",
           overflow: "hidden",
           animation: "summaryPanelIn 260ms ease both",
           "@keyframes summaryPanelIn": { from: { opacity: 0, transform: "scale(.985)" }, to: { opacity: 1, transform: "scale(1)" } },
