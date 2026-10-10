@@ -257,16 +257,29 @@ function StandalonePluginFooter() {
 const standaloneDropdowns: { key: string; label: string; views: { label: string; view: ViewKey }[] }[] = [
   { key: "production", label: "Παραγωγή", views: [
     { label: "Λίστες παραγωγής", view: "history" },
+    { label: "Συμβόλαια", view: "history" },
+    { label: "Πελάτες", view: "dashboard" },
+    { label: "Αναφορές", view: "history" },
+    { label: "Έντυπα", view: "requests" },
     { label: "Προσφορές", view: "quotes" },
     { label: "Αιτήματα ασφάλισης", view: "requests" },
   ] },
   { key: "quoting", label: "Τιμολόγηση", views: [
-    { label: "Νέα τιμολόγηση", view: "dashboard" },
-    { label: "Σύγκριση προσφορών", view: "quotes" },
+    { label: "Οχημάτων", view: "dashboard" },
+    { label: "Περιουσίας", view: "dashboard" },
+    { label: "Υγείας", view: "dashboard" },
+    { label: "Σκαφών", view: "dashboard" },
+    { label: "Προσφορές", view: "quotes" },
+    { label: "Αιτήσεις", view: "requests" },
+    { label: "Οδικής", view: "dashboard" },
+    { label: "Πράσινη Κάρτα", view: "dashboard" },
+    { label: "Ποδηλάτων-Πατινιών", view: "dashboard" },
+    { label: "Προσωπικού Ατυχήματος", view: "dashboard" },
+    { label: "Νομική Προστασία", view: "dashboard" },
   ] },
   { key: "print-pay", label: "Τυπώνω-Πληρώνω", views: [
-    { label: "Προς εκτύπωση", view: "print-pay" },
-    { label: "Έτοιμα για παράδοση", view: "print-pay" },
+    { label: "Εκτύπωση Συμβολαίων", view: "print-pay" },
+    { label: "Παραγγελίες Συμβολαίων", view: "print-pay" },
   ] },
 ];
 
