@@ -256,7 +256,7 @@ function StandalonePluginHeader({ view, onNavigate }: { view: ViewKey; onNavigat
         <Box component="img" src="/assets/insureone-plugin-logo.png" alt="InsureOne Kalypsis Plugin" sx={{ width: { xs: 240, sm: 340, md: 390 }, height: { xs: 82, sm: 108, md: 124 }, objectFit: "contain", objectPosition: "left center" }} />
         <Box sx={{ display: { xs: "none", md: "block" }, pl: 1.5, borderLeft: "1px solid #d9e3ec" }}>
           <Typography sx={{ color: "#123a64", fontWeight: 900, fontSize: 14, letterSpacing: .5 }}>ΠΟΛΥΤΙΜΟΛΟΓΗΣΗ</Typography>
-          <Typography variant="caption" color="text.secondary">Σύγκριση ασφαλιστικών προγραμμάτων</Typography>
+          <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block", maxWidth: { md: 360 }, fontSize: { md: 12 } }}>Πολυτιμολόγηση μέσω του InsureOne, ενός προϊόντος της KALYPSIS</Typography>
         </Box>
       </Stack>
     </Box>
