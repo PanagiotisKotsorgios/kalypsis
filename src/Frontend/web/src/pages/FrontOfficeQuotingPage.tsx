@@ -81,7 +81,7 @@ import RemoveRoundedIcon from "@mui/icons-material/RemoveRounded";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { KalypsisLogo } from "../components/KalypsisLogo";
-import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 
 type ViewKey = "dashboard" | "quotes" | "print-pay" | "pay-print" | "requests";
 type BranchKey = "Αυτοκίνητο" | "Κατοικία" | "Υγεία" | "Ζωή" | "Επιχείρηση";
@@ -399,7 +399,7 @@ function StandalonePluginHeader({ view, onNavigate }: { view: ViewKey; onNavigat
   </Box>;
 }
 
-type HomeWidgetId = "pricing" | "announcements" | "production" | "blog";
+type HomeWidgetId = "pricing" | "announcements" | "production";
 
 function DashboardWidget({
   id,
@@ -417,6 +417,7 @@ function DashboardWidget({
   onDragStart,
   onDragOver,
   onDrop,
+  prominentHeader = false,
   children,
 }: {
   id: HomeWidgetId;
@@ -434,6 +435,7 @@ function DashboardWidget({
   onDragStart: () => void;
   onDragOver: (event: React.DragEvent<HTMLDivElement>) => void;
   onDrop: (event: React.DragEvent<HTMLDivElement>) => void;
+  prominentHeader?: boolean;
   children: ReactNode;
 }) {
   const [refreshing, setRefreshing] = useState(false);
@@ -462,6 +464,7 @@ function DashboardWidget({
     onRefresh();
     window.setTimeout(() => setRefreshing(false), 550);
   };
+  const headerHeight = prominentHeader ? 74 : 38;
   return <Box
     id={`insureone-widget-${id}`}
     onDragEnter={event => { event.preventDefault(); setDragOver(true); }}
@@ -486,16 +489,16 @@ function DashboardWidget({
       <Box
         draggable
         onDragStart={onDragStart}
-        sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 1.25, py: .5, minHeight: 38, bgcolor: "rgba(18,58,100,.025)", borderBottom: "1px solid #e1e9f0", cursor: "grab", userSelect: "none" }}
+        sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: prominentHeader ? { xs: 1.5, md: 2.5 } : 1.25, py: prominentHeader ? 1.25 : .5, minHeight: headerHeight, bgcolor: prominentHeader ? "#edf6ff" : "rgba(18,58,100,.025)", borderBottom: "1px solid #dce9f4", cursor: "grab", userSelect: "none" }}
       >
-        <Stack direction="row" spacing={.5} alignItems="center" minWidth={0}><DragIndicatorRoundedIcon sx={{ color: "#7990a4", fontSize: 18 }} /><Typography fontWeight={850} noWrap sx={{ color: "#515960", fontSize: 13 }}>{title}</Typography></Stack>
+        <Stack direction="row" spacing={prominentHeader ? 1.5 : .5} alignItems="center" minWidth={0}>{prominentHeader ? <GridViewOutlinedIcon sx={{ color: "#28548a", fontSize: 28 }} /> : <DragIndicatorRoundedIcon sx={{ color: "#7990a4", fontSize: 18 }} />}<Typography fontWeight={prominentHeader ? 900 : 850} noWrap sx={{ color: prominentHeader ? "#28548a" : "#515960", fontSize: prominentHeader ? { xs: 20, sm: 24 } : 13 }}>{title}</Typography></Stack>
         <Stack direction="row" spacing={0} alignItems="center" flexShrink={0}>
           <Tooltip title="Ανανέωση"><IconButton size="small" aria-label={`Ανανέωση ${title}`} onMouseDown={event => event.stopPropagation()} onClick={refresh} sx={{ color: "#52728e" }}><RefreshRoundedIcon fontSize="small" sx={{ animation: refreshing ? "insureone-spin .55s linear" : "none", "@keyframes insureone-spin": { from: { transform: "rotate(0deg)" }, to: { transform: "rotate(360deg)" } } }} /></IconButton></Tooltip>
           <Tooltip title={minimized ? "Επαναφορά" : "Ελαχιστοποίηση"}><IconButton size="small" aria-label={minimized ? `Επαναφορά ${title}` : `Ελαχιστοποίηση ${title}`} onMouseDown={event => event.stopPropagation()} onClick={onMinimize} sx={{ color: "#52728e" }}><RemoveRoundedIcon fontSize="small" /></IconButton></Tooltip>
           <Tooltip title={maximized ? "Επαναφορά μεγέθους" : "Μεγιστοποίηση"}><IconButton size="small" aria-label={maximized ? `Επαναφορά ${title}` : `Μεγιστοποίηση ${title}`} onMouseDown={event => event.stopPropagation()} onClick={onMaximize} sx={{ color: "#52728e" }}>{maximized ? <FullscreenExitRoundedIcon fontSize="small" /> : <FullscreenRoundedIcon fontSize="small" />}</IconButton></Tooltip>
         </Stack>
       </Box>
-      {!minimized && <Box sx={{ height: "calc(100% - 38px)", minHeight: 0 }}>{children}</Box>}
+      {!minimized && <Box sx={{ height: `calc(100% - ${headerHeight}px)`, minHeight: 0 }}>{children}</Box>}
     </Card>
     {!maximized && !minimized && <Box onMouseDown={beginResize} role="separator" aria-label={`Αλλαγή μεγέθους ${title}`} sx={{ position: "absolute", right: 2, bottom: 2, width: 18, height: 18, cursor: "nwse-resize", zIndex: 2, "&::after": { content: '""', position: "absolute", right: 2, bottom: 2, width: 10, height: 10, borderRight: "2px solid #7191a8", borderBottom: "2px solid #7191a8", opacity: .8 } }} />}
   </Box>;
@@ -509,6 +512,8 @@ interface PricingCardConfig {
   colour: string;
   darkColour: string;
   gradient: string;
+  contentColour: string;
+  visualColour: string;
 }
 
 function PricingCategoryCard({ card, selected, onSelect }: { card: PricingCardConfig; selected: boolean; onSelect: () => void }) {
@@ -530,25 +535,26 @@ function PricingCategoryCard({ card, selected, onSelect }: { card: PricingCardCo
       textTransform: "none",
       color: "#fff",
       background: card.gradient,
+      backgroundImage: `linear-gradient(135deg, rgba(255,255,255,.12) 0%, transparent 42%), ${card.gradient}`,
       border: selected ? "2px solid #fff" : `1px solid ${card.colour}99`,
       boxShadow: selected ? `0 0 0 3px ${card.darkColour}66` : "0 5px 14px rgba(24,52,73,.12)",
       transition: "filter .18s ease, transform .18s ease, box-shadow .18s ease",
       "&:hover": { filter: "brightness(1.05)", transform: "translateY(-2px)", boxShadow: `0 8px 18px ${card.darkColour}45` },
       "&:focus-visible": { outline: `3px solid ${card.colour}`, outlineOffset: 2 },
       "&:hover .pricing-card-arrow": { transform: "translateX(4px)" },
-      "&::before": { content: '""', position: "absolute", width: 150, height: 150, borderRadius: "50%", right: -46, top: -62, background: "rgba(255,255,255,.11)", border: "1px solid rgba(255,255,255,.15)" },
-      "&::after": { content: '""', position: "absolute", width: 110, height: 110, borderRadius: "50%", right: 13, top: -30, border: "1px solid rgba(255,255,255,.12)" },
+      "&::before": { content: '""', position: "absolute", inset: 0, background: "linear-gradient(135deg, transparent 0 48%, rgba(255,255,255,.10) 49% 59%, transparent 60%)", pointerEvents: "none" },
+      "&::after": { content: '""', position: "absolute", width: 150, height: 150, borderRadius: "50%", right: -50, top: -64, background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.14)", pointerEvents: "none" },
     }}
   >
     <Box sx={{ p: { xs: 1.25, md: 1.5 }, display: "flex", alignItems: "center", gap: 1.25, position: "relative", zIndex: 1, minWidth: 0 }}>
       <Box sx={{ width: 48, height: 48, flexShrink: 0, borderRadius: "50%", display: "grid", placeItems: "center", bgcolor: "rgba(255,255,255,.18)", border: "1px solid rgba(255,255,255,.28)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.2)", "& svg": { fontSize: 27 } }}>{card.icon}</Box>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography fontWeight={900} sx={{ fontSize: { xs: 13.5, sm: 14.5 }, lineHeight: 1.15, whiteSpace: "normal" }}>{card.title}</Typography>
-        <Typography sx={{ mt: .55, fontSize: { xs: 11, sm: 11.5 }, color: "rgba(255,255,255,.9)", lineHeight: 1.25 }}>{card.count}</Typography>
+      <Box sx={{ minWidth: 0, color: card.contentColour }}>
+        <Typography fontWeight={900} sx={{ fontSize: { xs: 13.5, sm: 17 }, lineHeight: 1.15, whiteSpace: "normal" }}>{card.title}</Typography>
+        <Typography sx={{ mt: .7, fontSize: { xs: 11, sm: 12.5 }, color: card.contentColour === "#fff" ? "rgba(255,255,255,.92)" : "rgba(16,47,77,.9)", lineHeight: 1.25 }}>{card.count}</Typography>
       </Box>
     </Box>
-    <Box sx={{ position: "absolute", right: { xs: 10, sm: 12 }, top: { xs: 26, sm: 24 }, color: "rgba(255,255,255,.16)", transform: "rotate(-10deg)", pointerEvents: "none", "& svg": { fontSize: { xs: 82, sm: 96 } } }}>{card.icon}</Box>
-    <Box className="pricing-card-cta" sx={{ px: { xs: 1.25, md: 1.5 }, py: .85, bgcolor: `${card.darkColour}e6`, borderTop: "1px solid rgba(255,255,255,.2)", fontSize: { xs: 11, sm: 11.5 }, fontWeight: 850, letterSpacing: ".01em", display: "flex", justifyContent: "space-between", alignItems: "center", position: "relative", zIndex: 1 }}>
+    <Box sx={{ position: "absolute", right: { xs: 10, sm: 14 }, top: { xs: 26, sm: 26 }, color: card.visualColour, transform: "rotate(-10deg)", pointerEvents: "none", "& svg": { fontSize: { xs: 82, sm: 112 } } }}>{card.icon}</Box>
+    <Box className="pricing-card-cta" sx={{ mx: { xs: 1, sm: 1.25 }, mb: { xs: 1, sm: 1.25 }, px: { xs: 1.25, md: 1.5 }, py: { xs: .8, sm: 1.05 }, borderRadius: 1.5, bgcolor: `${card.darkColour}e6`, border: "1px solid rgba(255,255,255,.35)", fontSize: { xs: 11.5, sm: 13 }, fontWeight: 900, letterSpacing: ".01em", display: "flex", justifyContent: "space-between", alignItems: "center", position: "relative", zIndex: 1, color: "#fff" }}>
       <span>Τιμολογήστε τώρα</span>
       <Box component="span" className="pricing-card-arrow" sx={{ fontSize: 18, lineHeight: 1, ml: 1, transition: "transform .18s ease" }}>→</Box>
     </Box>
@@ -556,26 +562,24 @@ function PricingCategoryCard({ card, selected, onSelect }: { card: PricingCardCo
 }
 
 function StandaloneHomeSections({ branch, setBranch }: { branch: BranchKey; setBranch: (value: BranchKey) => void }) {
+  const pricingMobile = useMediaQuery("(max-width:599px)");
+  const pricingTablet = useMediaQuery("(min-width:600px) and (max-width:899px)");
+  const pricingHeight = pricingMobile ? 1360 : pricingTablet ? 860 : 710;
   const pricingCards: PricingCardConfig[] = [
-    { key: branchLabels[0], title: "Οχημάτων", count: "19 ασφαλιστικά προγράμματα", icon: <DirectionsCarFilledOutlinedIcon />, colour: "#2fb8ad", darkColour: "#08736f", gradient: "linear-gradient(135deg, #157f7b 0%, #28a99f 58%, #57c9bf 100%)" },
-    { key: branchLabels[0], title: "Σύγκριση Οχημάτων", count: "19 ασφαλιστικά προγράμματα", icon: <CompareArrowsRoundedIcon />, colour: "#398fc7", darkColour: "#155a91", gradient: "linear-gradient(135deg, #1c5f9b 0%, #2d7fba 58%, #53a7d2 100%)" },
-    { key: branchLabels[1], title: "Περιουσίας", count: "14 ασφαλιστικά προγράμματα", icon: <HomeWorkOutlinedIcon />, colour: "#e46659", darkColour: "#a93231", gradient: "linear-gradient(135deg, #af3635 0%, #d6534b 58%, #ed7b69 100%)" },
-    { key: branchLabels[2], title: "Υγείας", count: "12 ασφαλιστικά προγράμματα", icon: <HealthAndSafetyOutlinedIcon />, colour: "#86b7b5", darkColour: "#467b80", gradient: "linear-gradient(135deg, #4d878a 0%, #73a9a8 58%, #a2ccca 100%)" },
-    { key: branchLabels[0], title: "Σκαφών", count: "5 ασφαλιστικά προγράμματα", icon: <SailingOutlinedIcon />, colour: "#16b5d7", darkColour: "#076786", gradient: "linear-gradient(135deg, #087598 0%, #0ca6c5 58%, #35c9e0 100%)" },
-    { key: branchLabels[0], title: "Προσωπικού Ατυχήματος", count: "6 ασφαλιστικά προγράμματα", icon: <ShieldOutlinedIcon />, colour: "#c5bd00", darkColour: "#817b00", gradient: "linear-gradient(135deg, #8d8800 0%, #b6b000 58%, #d7d15b 100%)" },
-    { key: branchLabels[4], title: "Επαγγελματικής Ευθύνης", count: "9 ασφαλιστικά προγράμματα", icon: <BusinessCenterOutlinedIcon />, colour: "#7865be", darkColour: "#493786", gradient: "linear-gradient(135deg, #4f3c8f 0%, #6854aa 58%, #897bc9 100%)" },
-    { key: branchLabels[3], title: "Ζωής", count: "8 ασφαλιστικά προγράμματα", icon: <FavoriteBorderRoundedIcon />, colour: "#e5a14b", darkColour: "#9f5f1b", gradient: "linear-gradient(135deg, #a96723 0%, #d68b36 58%, #ebb568 100%)" },
+    { key: branchLabels[0], title: "Οχημάτων", count: "19 ασφαλιστικά προγράμματα", icon: <DirectionsCarFilledOutlinedIcon />, colour: "#2fb8ad", darkColour: "#0873a6", gradient: "linear-gradient(135deg, #20b9ee 0%, #168ddd 60%, #41c4f2 100%)", contentColour: "#fff", visualColour: "rgba(10,77,145,.28)" },
+    { key: branchLabels[0], title: "Σύγκριση Οχημάτων", count: "19 ασφαλιστικά προγράμματα", icon: <CompareArrowsRoundedIcon />, colour: "#398fc7", darkColour: "#173daf", gradient: "linear-gradient(135deg, #4765f1 0%, #2d4fd7 60%, #6178ff 100%)", contentColour: "#fff", visualColour: "rgba(14,45,138,.32)" },
+    { key: branchLabels[1], title: "Περιουσίας", count: "14 ασφαλιστικά προγράμματα", icon: <HomeWorkOutlinedIcon />, colour: "#e46659", darkColour: "#b52323", gradient: "linear-gradient(135deg, #ff827d 0%, #e94747 60%, #ff9b85 100%)", contentColour: "#fff", visualColour: "rgba(135,30,31,.3)" },
+    { key: branchLabels[2], title: "Υγείας", count: "12 ασφαλιστικά προγράμματα", icon: <HealthAndSafetyOutlinedIcon />, colour: "#86b7b5", darkColour: "#006c64", gradient: "linear-gradient(135deg, #32c9b7 0%, #1ba997 60%, #64d7c4 100%)", contentColour: "#fff", visualColour: "rgba(0,91,82,.28)" },
+    { key: branchLabels[0], title: "Σκαφών", count: "5 ασφαλιστικά προγράμματα", icon: <SailingOutlinedIcon />, colour: "#16b5d7", darkColour: "#0874b7", gradient: "linear-gradient(135deg, #6bd0f2 0%, #31a8e2 60%, #9be4f4 100%)", contentColour: "#092d57", visualColour: "rgba(20,108,185,.3)" },
+    { key: branchLabels[0], title: "Προσωπικού Ατυχήματος", count: "6 ασφαλιστικά προγράμματα", icon: <ShieldOutlinedIcon />, colour: "#c5bd00", darkColour: "#c47600", gradient: "linear-gradient(135deg, #ffd866 0%, #ffc13c 60%, #ffe08a 100%)", contentColour: "#17365a", visualColour: "rgba(191,126,0,.25)" },
+    { key: branchLabels[4], title: "Επαγγελματικής Ευθύνης", count: "9 ασφαλιστικά προγράμματα", icon: <BusinessCenterOutlinedIcon />, colour: "#7865be", darkColour: "#3d1ca5", gradient: "linear-gradient(135deg, #9373f4 0%, #6843d3 60%, #a78bf8 100%)", contentColour: "#fff", visualColour: "rgba(47,20,133,.3)" },
+    { key: branchLabels[3], title: "Ζωής", count: "8 ασφαλιστικά προγράμματα", icon: <FavoriteBorderRoundedIcon />, colour: "#e5a14b", darkColour: "#e54805", gradient: "linear-gradient(135deg, #ffb36f 0%, #ff8a38 60%, #ffd078 100%)", contentColour: "#17365a", visualColour: "rgba(217,79,16,.25)" },
   ];
   const announcements = [
     ["202/2024 · Ενημέρωση ασφαλιστικής αγοράς", "18/04/2024 · Εγκύκλιος"],
     ["96/2024 · Αλλαγή διαδικασίας υποβολής", "26/01/2024 · Εγκύκλιος"],
     ["14/2024 · Τεχνική ενημέρωση ηλεκτρονικού ταχυδρομείου", "09/11/2023 · Εγκύκλιος"],
     ["206/2023 · Επικαιροποίηση διαδικασίας", "09/11/2023 · Εγκύκλιος"],
-  ];
-  const blogPosts = [
-    ["Πώς επιλέγουμε το κατάλληλο πρόγραμμα", "Οδηγός για γρήγορη και τεκμηριωμένη σύγκριση προσφορών."],
-    ["Οι νέες δυνατότητες του InsureOne", "Νέα εργαλεία για πιο απλή καθημερινή εργασία του γραφείου."],
-    ["Υπενθυμίσεις πριν από τη λήξη", "Πρακτικές συμβουλές για καλύτερη εξυπηρέτηση και ανανεώσεις."],
   ];
   const production = [
     { month: "Μάι", contracts: 22, premium: 2840 },
@@ -585,19 +589,21 @@ function StandaloneHomeSections({ branch, setBranch }: { branch: BranchKey; setB
     { month: "Σεπ", contracts: 36, premium: 4920 },
     { month: "Οκτ", contracts: 41, premium: 5680 },
   ];
-  const defaultOrder: HomeWidgetId[] = ["pricing", "announcements", "production", "blog"];
+  const defaultOrder: HomeWidgetId[] = ["pricing", "announcements", "production"];
   const defaultSizes: Record<HomeWidgetId, { span: number; height: number; minimized: boolean }> = {
-    pricing: { span: 7, height: 365, minimized: false },
+    pricing: { span: 12, height: pricingHeight, minimized: false },
     announcements: { span: 5, height: 365, minimized: false },
     production: { span: 7, height: 365, minimized: false },
-    blog: { span: 5, height: 365, minimized: false },
   };
   const loadLayout = () => {
     if (typeof window === "undefined") return { order: defaultOrder, sizes: defaultSizes };
     try {
       const saved = JSON.parse(window.localStorage.getItem("insureone-dashboard-layout") ?? "null") as { order?: HomeWidgetId[]; sizes?: typeof defaultSizes } | null;
       const order = saved?.order?.filter(id => defaultOrder.includes(id));
-      return { order: order?.length === defaultOrder.length ? order : defaultOrder, sizes: { ...defaultSizes, ...(saved?.sizes ?? {}) } };
+      const sizes = { ...defaultSizes, ...(saved?.sizes ?? {}) };
+      const hadRemovedBlog = (saved?.order as string[] | undefined)?.includes("blog");
+      if (hadRemovedBlog) sizes.pricing = { ...sizes.pricing, span: 12, height: pricingHeight };
+      return { order: order?.length === defaultOrder.length ? order : defaultOrder, sizes };
     } catch { return { order: defaultOrder, sizes: defaultSizes }; }
   };
   const initialLayout = loadLayout();
@@ -618,7 +624,7 @@ function StandaloneHomeSections({ branch, setBranch }: { branch: BranchKey; setB
   };
   const widgetControls = (id: HomeWidgetId) => ({
     span: widgetSizes[id].span,
-    height: widgetSizes[id].height,
+    height: id === "pricing" ? Math.max(widgetSizes[id].height, pricingHeight) : widgetSizes[id].height,
     order: widgetOrder.indexOf(id),
     minimized: minimized[id],
     maximized: maximized === id,
@@ -638,8 +644,8 @@ function StandaloneHomeSections({ branch, setBranch }: { branch: BranchKey; setB
     setWidgetOrder(current => [...current.filter(id => id !== source), source]);
   };
   return <Box onDragOver={event => event.preventDefault()} onDrop={dropWidgetAtEnd} sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(12, minmax(0, 1fr))" }, gridAutoFlow: "dense", gap: { xs: 2, md: 2.5 }, alignItems: "start" }}>
-    <DashboardWidget id="pricing" title="Τιμολόγηση" accent="#df4d3d" {...widgetControls("pricing")}>
-      <Card variant="outlined" sx={{ height: "100%", borderRadius: 1.5, overflow: "hidden", borderTop: "3px solid #df4d3d", bgcolor: "#fff", borderColor: "#dce5ec" }}>
+    <DashboardWidget id="pricing" title="Τιμολόγηση" accent="#c9e2f6" prominentHeader {...widgetControls("pricing")}>
+      <Card variant="outlined" sx={{ height: "100%", borderRadius: 1.5, overflow: "hidden", borderTop: 0, bgcolor: "#fff", borderColor: "#dce5ec" }}>
         <CardContent sx={{ p: { xs: 1.5, md: 2 }, height: "100%" }}>
           <Box sx={{ borderLeft: "4px solid #16b8cc", pl: 1.25, mb: { xs: 1.75, md: 2.25 } }}>
             <Typography fontWeight={900} sx={{ color: "#102f4d", fontSize: { xs: 16, sm: 18 } }}>Τιμολόγηση</Typography>
@@ -665,15 +671,6 @@ function StandaloneHomeSections({ branch, setBranch }: { branch: BranchKey; setB
           <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.25 }}><Typography fontWeight={850} sx={{ color: "#515960" }}>Παραγωγή</Typography><Chip size="small" label="Τελευταίοι 6 μήνες" sx={{ bgcolor: "#e4f4ed", color: "#1b6848", fontWeight: 750 }} /></Stack>
           <Grid container spacing={1} sx={{ mb: 1 }}>{[["Νέα συμβόλαια", "41", "#147f8d"], ["Μικτά ασφάλιστρα", "5.680 €", "#1b7f55"], ["Μέση αξία", "138 €", "#3457a6"]].map(([label, value, colour]) => <Grid item xs={4} key={label}><Box sx={{ p: 1, bgcolor: `${colour}12`, border: `1px solid ${colour}32`, borderRadius: 1.25 }}><Typography variant="caption" color="text.secondary" noWrap>{label}</Typography><Typography fontWeight={900} sx={{ color: colour, fontSize: { xs: 15, sm: 18 } }}>{value}</Typography></Box></Grid>)}</Grid>
           <Box sx={{ height: 210 }}><ResponsiveContainer width="100%" height="100%"><LineChart data={production} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke="#dce6ee" /><XAxis dataKey="month" tick={{ fontSize: 11 }} /><YAxis yAxisId="left" tick={{ fontSize: 10 }} /><YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} /><ChartTooltip formatter={(value, name) => { const key = String(name); const numeric = Number(value ?? 0); return [key === "premium" ? `${numeric.toLocaleString("el-GR")} €` : numeric, key === "premium" ? "Μικτά ασφάλιστρα" : "Συμβόλαια"]; }} /><Line yAxisId="left" type="monotone" dataKey="contracts" stroke="#147f8d" strokeWidth={3} dot={{ r: 3 }} /><Line yAxisId="right" type="monotone" dataKey="premium" stroke="#1b7f55" strokeWidth={3} dot={{ r: 3 }} /></LineChart></ResponsiveContainer></Box>
-        </CardContent>
-      </Card>
-    </DashboardWidget>
-    <DashboardWidget id="blog" title="BLOG NEWS" accent="#2759a5" {...widgetControls("blog")}>
-      <Card variant="outlined" sx={{ borderRadius: 1.5, borderTop: "3px solid #2759a5", bgcolor: "#fff", height: "100%" }}>
-        <CardContent sx={{ p: 1.5 }}>
-          <Typography fontWeight={850} sx={{ color: "#515960", mb: 1.25 }}>BLOG NEWS</Typography>
-          <Stack divider={<Divider flexItem />} spacing={0}>{blogPosts.map(([title, text]) => <Box key={title} sx={{ py: 1 }}><Typography variant="body2" sx={{ color: "#216285", fontWeight: 850 }}>{title}</Typography><Typography variant="caption" color="text.secondary">{text}</Typography></Box>)}</Stack>
-          <Box sx={{ height: 100, mt: .75 }}><ResponsiveContainer width="100%" height="100%"><BarChart data={production.slice(-4)} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}><XAxis dataKey="month" tick={{ fontSize: 10 }} /><YAxis hide /><Bar dataKey="contracts" fill="#53c6d3" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer></Box>
         </CardContent>
       </Card>
     </DashboardWidget>
