@@ -9,11 +9,13 @@ import {
   CardContent,
   Checkbox,
   Chip,
+  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
+  Drawer,
   FormControl,
   FormControlLabel,
   Grid,
@@ -22,6 +24,9 @@ import {
   InputAdornment,
   MenuItem,
   Menu,
+  List,
+  ListItemButton,
+  ListItemText,
   Paper,
   Select,
   Stack,
@@ -36,6 +41,7 @@ import {
   TextField,
   Tooltip,
   Typography,
+  useMediaQuery,
 } from "@mui/material";
 import CalculateOutlinedIcon from "@mui/icons-material/CalculateOutlined";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
@@ -66,6 +72,8 @@ import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import WalletOutlinedIcon from "@mui/icons-material/WalletOutlined";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
+import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { KalypsisLogo } from "../components/KalypsisLogo";
@@ -248,8 +256,8 @@ export function FrontOfficeQuotingPage({ standalone = false }: { standalone?: bo
 function StandalonePluginFooter() {
   return <Box component="footer" sx={{ borderTop: "1px solid #cbd9e6", bgcolor: "#fff", mt: 3 }}>
     <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: 1.5, sm: 2.5, lg: 4 }, py: 1.25, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "flex-end", gap: .5 }}>
-      <Typography variant="caption" sx={{ color: "#526578", fontWeight: 750, letterSpacing: ".02em" }}>Powered by Kalypsis</Typography>
-      <KalypsisLogo size={52} crop />
+      <Typography variant="body2" sx={{ color: "#526578", fontWeight: 850, fontSize: { xs: 14, sm: 15 }, letterSpacing: ".02em" }}>Powered by Kalypsis</Typography>
+      <KalypsisLogo size={64} crop />
     </Box>
   </Box>;
 }
@@ -286,6 +294,9 @@ const standaloneDropdowns: { key: string; label: string; views: { label: string;
 function StandalonePluginHeader({ view, onNavigate }: { view: ViewKey; onNavigate: (value: ViewKey) => void }) {
   const { signOut } = useAuth();
   const [menu, setMenu] = useState<{ key: string; anchor: HTMLElement } | null>(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [mobileExpanded, setMobileExpanded] = useState<string | null>(null);
+  const compactNav = useMediaQuery("(max-width:1120px)");
   const activeNav = view === "dashboard" ? "home" : view === "quotes" ? "offers" : view === "history" || view === "requests" ? "production" : view === "print-pay" ? "print-pay" : "pay-print";
   const navButtonSx = {
     minHeight: 58,
@@ -313,7 +324,7 @@ function StandalonePluginHeader({ view, onNavigate }: { view: ViewKey; onNavigat
   return <Box sx={{ bgcolor: "#fff", borderBottom: "1px solid #ccd8e3", boxShadow: "0 3px 16px rgba(18,58,100,.08)" }}>
     <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: 1.5, sm: 2.5, lg: 4 }, py: { xs: 1.25, md: 1.5 }, display: "flex", alignItems: "center", justifyContent: "space-between", gap: { xs: 1, md: 2 } }}>
       <Stack direction="row" spacing={1.5} alignItems="center" minWidth={0} sx={{ flex: 1 }}>
-        <Box component="img" src="/assets/insureone-plugin-logo.png" alt="InsureOne Kalypsis Plugin" sx={{ width: { xs: 240, sm: 340, md: 390 }, height: { xs: 82, sm: 108, md: 124 }, objectFit: "contain", objectPosition: "left center" }} />
+        <Box component="img" src="/assets/insureone-plugin-logo.png" alt="InsureOne Kalypsis Plugin" sx={{ width: { xs: 180, sm: 290, md: 390 }, height: { xs: 64, sm: 92, md: 124 }, objectFit: "contain", objectPosition: "left center" }} />
         <Box sx={{ display: { xs: "none", md: "block" }, pl: 1.5, borderLeft: "1px solid #d9e3ec", minWidth: 0 }}>
           <Typography sx={{ color: "#123a64", fontWeight: 900, fontSize: 14, letterSpacing: .5 }}>ΠΟΛΥΤΙΜΟΛΟΓΗΣΗ</Typography>
           <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block", maxWidth: { md: 720 }, fontSize: { md: 12 } }}>Πολυτιμολόγηση μέσω του InsureOne, ενός προϊόντος της KALYPSIS</Typography>
@@ -328,7 +339,7 @@ function StandalonePluginHeader({ view, onNavigate }: { view: ViewKey; onNavigat
     </Box>
     <Box sx={{ bgcolor: "#123a64", borderTop: "1px solid rgba(255,255,255,.12)" }}>
       <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: .5, sm: 2.5, lg: 4 }, display: "flex", alignItems: "center", gap: { xs: .5, sm: 1 } }}>
-        <Box sx={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", overflowX: "auto", scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}>
+        {!compactNav && <Box sx={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", overflowX: "auto", scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}>
           <Button onClick={() => onNavigate("dashboard")} sx={{ ...navButtonSx, bgcolor: activeNav === "home" ? "#2e75b6" : "transparent", borderBottomColor: activeNav === "home" ? "#53c6d3" : "transparent" }}>Αρχική</Button>
           <Button onClick={() => onNavigate("quotes")} sx={{ ...navButtonSx, bgcolor: activeNav === "offers" ? "#2e75b6" : "transparent", borderBottomColor: activeNav === "offers" ? "#53c6d3" : "transparent" }}>Προσφορές</Button>
           {standaloneDropdowns.map((item) => {
@@ -341,12 +352,42 @@ function StandalonePluginHeader({ view, onNavigate }: { view: ViewKey; onNavigat
             </Fragment>;
           })}
           <Button onClick={() => onNavigate("pay-print")} sx={{ ...navButtonSx, bgcolor: activeNav === "pay-print" ? "#2e75b6" : "transparent", borderBottomColor: activeNav === "pay-print" ? "#53c6d3" : "transparent" }}>Πληρώνω-Τυπώνω</Button>
-        </Box>
+        </Box>}
+        {compactNav && <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 1, minWidth: 0 }}>
+          <IconButton aria-label="Άνοιγμα μενού" onClick={() => setMobileNavOpen(true)} sx={{ color: "#fff", width: 48, height: 48, borderRadius: 1.25, bgcolor: "rgba(83,198,211,.18)", "&:hover": { bgcolor: "rgba(83,198,211,.35)" } }}>
+            <MenuRoundedIcon />
+          </IconButton>
+          <Typography sx={{ color: "#fff", fontWeight: 850, fontSize: { xs: 14, sm: 16 }, whiteSpace: "nowrap" }}>Μενού InsureOne</Typography>
+        </Stack>}
         <Tooltip title="Αποσύνδεση">
           <Button aria-label="Αποσύνδεση" variant="contained" color="error" size="small" onClick={() => { signOut(); window.location.assign("/login"); }} startIcon={<LogoutRoundedIcon />} sx={{ flexShrink: 0, minWidth: { xs: 38, sm: 40 }, px: { xs: 1, sm: 1.25 }, color: "#fff", fontWeight: 850, borderRadius: 1.25, bgcolor: "#c62828", "&:hover": { bgcolor: "#9f1f1f" }, "& .MuiButton-startIcon": { mr: { xs: 0, sm: .75 } } }}>
             <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>Αποσύνδεση</Box>
           </Button>
         </Tooltip>
+        <Drawer anchor="left" open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} ModalProps={{ keepMounted: true }}>
+          <Box role="presentation" sx={{ width: { xs: "min(88vw, 340px)", sm: 380 }, height: "100%", bgcolor: "#f7fbfd" }}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 2, py: 1.75, bgcolor: "#123a64", color: "#fff" }}>
+              <Box><Typography sx={{ fontWeight: 900, fontSize: 17 }}>Μενού InsureOne</Typography><Typography variant="caption" sx={{ color: "rgba(255,255,255,.78)" }}>{officeName}</Typography></Box>
+              <IconButton aria-label="Κλείσιμο μενού" onClick={() => setMobileNavOpen(false)} sx={{ color: "#fff" }}><CloseRoundedIcon /></IconButton>
+            </Stack>
+            <List sx={{ px: 1, py: 1 }}>
+              <ListItemButton selected={activeNav === "home"} onClick={() => { setMobileNavOpen(false); onNavigate("dashboard"); }} sx={{ borderRadius: 1, mb: .5, "&.Mui-selected": { bgcolor: "#dceff5", color: "#123a64" } }}><ListItemText primary="Αρχική" primaryTypographyProps={{ fontWeight: 800 }} /></ListItemButton>
+              <ListItemButton selected={activeNav === "offers"} onClick={() => { setMobileNavOpen(false); onNavigate("quotes"); }} sx={{ borderRadius: 1, mb: .5, "&.Mui-selected": { bgcolor: "#dceff5", color: "#123a64" } }}><ListItemText primary="Προσφορές" primaryTypographyProps={{ fontWeight: 800 }} /></ListItemButton>
+              {standaloneDropdowns.map(item => {
+                const expanded = mobileExpanded === item.key;
+                return <Fragment key={`mobile-${item.key}`}>
+                  <ListItemButton selected={activeNav === item.key} onClick={() => setMobileExpanded(current => current === item.key ? null : item.key)} sx={{ borderRadius: 1, mb: .5, "&.Mui-selected": { bgcolor: "#dceff5", color: "#123a64" } }}>
+                    <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: 800 }} /><KeyboardArrowDownRoundedIcon sx={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform .16s ease" }} />
+                  </ListItemButton>
+                  <Collapse in={expanded} timeout="auto" unmountOnExit>
+                    <List disablePadding>{item.views.map(option => <ListItemButton key={`mobile-${item.key}-${option.label}`} onClick={() => { setMobileNavOpen(false); setMobileExpanded(null); onNavigate(option.view); }} sx={{ pl: 4, borderRadius: 1, color: "#31516b", "&:hover": { bgcolor: "#e6f4f7", color: "#0b6d84" } }}><ListItemText primary={option.label} primaryTypographyProps={{ fontSize: 14, fontWeight: 650 }} /></ListItemButton>)}</List>
+                  </Collapse>
+                </Fragment>;
+              })}
+              <ListItemButton selected={activeNav === "pay-print"} onClick={() => { setMobileNavOpen(false); onNavigate("pay-print"); }} sx={{ borderRadius: 1, mt: .5, "&.Mui-selected": { bgcolor: "#dceff5", color: "#123a64" } }}><ListItemText primary="Πληρώνω-Τυπώνω" primaryTypographyProps={{ fontWeight: 800 }} /></ListItemButton>
+            </List>
+          </Box>
+        </Drawer>
       </Box>
     </Box>
   </Box>;
