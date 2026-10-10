@@ -79,12 +79,19 @@ import DragIndicatorRoundedIcon from "@mui/icons-material/DragIndicatorRounded";
 import FullscreenRoundedIcon from "@mui/icons-material/FullscreenRounded";
 import FullscreenExitRoundedIcon from "@mui/icons-material/FullscreenExitRounded";
 import RemoveRoundedIcon from "@mui/icons-material/RemoveRounded";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import PedalBikeOutlinedIcon from "@mui/icons-material/PedalBikeOutlined";
+import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
+import GavelOutlinedIcon from "@mui/icons-material/GavelOutlined";
+import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
+import ClearAllOutlinedIcon from "@mui/icons-material/ClearAllOutlined";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { KalypsisLogo } from "../components/KalypsisLogo";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 
-type ViewKey = "dashboard" | "quotes" | "contracts" | "customers" | "reports" | "forms" | "print-pay" | "pay-print" | "requests";
+type ViewKey = "dashboard" | "quotes" | "contracts" | "customers" | "reports" | "forms" | "print-pay" | "pay-print" | "requests" | QuotingViewKey;
+type QuotingViewKey = "quoting-vehicles" | "quoting-vehicle-compare" | "quoting-property" | "quoting-health" | "quoting-marine" | "quoting-requests" | "quoting-roadside" | "quoting-green-card" | "quoting-bicycles" | "quoting-accident" | "quoting-legal";
 type BranchKey = "Αυτοκίνητο" | "Κατοικία" | "Υγεία" | "Ζωή" | "Επιχείρηση";
 
 interface QuoteRow {
@@ -125,6 +132,20 @@ const quotingBranchOptions: { label: string; branch: BranchKey }[] = [
   { label: "Επαγγελματικής Ευθύνης", branch: branchLabels[4] },
   { label: "Ζωής", branch: branchLabels[3] },
 ];
+
+const quotingViewByLabel: Record<string, QuotingViewKey> = {
+  "Οχημάτων": "quoting-vehicles",
+  "Σύγκριση Οχημάτων": "quoting-vehicle-compare",
+  "Περιουσίας": "quoting-property",
+  "Υγείας": "quoting-health",
+  "Σκαφών": "quoting-marine",
+  "Αιτήσεις": "quoting-requests",
+  "Οδικής": "quoting-roadside",
+  "Πράσινη Κάρτα": "quoting-green-card",
+  "Ποδηλάτων-Πατινιών": "quoting-bicycles",
+  "Προσωπικού Ατυχήματος": "quoting-accident",
+  "Νομική Προστασία": "quoting-legal",
+};
 
 const branchPresets: Record<BranchKey, { customer: string; title: string; fields: [string, string][]; quotes: QuoteRow[] }> = {
   Αυτοκίνητο: {
@@ -196,8 +217,11 @@ const statusColour: Record<OfferRow["status"], "success" | "info" | "warning" | 
 function viewFromQuery(value: string | null): ViewKey {
   // Το παλιό ιστορικό προσφορών δεν αποτελεί πλέον ξεχωριστή προβολή·
   // παλιές διευθύνσεις ανοίγουν με ασφάλεια την αρχική σελίδα.
-  return value === "quotes" || value === "contracts" || value === "customers" || value === "reports" || value === "forms" || value === "print-pay" || value === "pay-print" || value === "requests" ? value : "dashboard";
+  const quotingViews = Object.values(quotingViewByLabel) as string[];
+  return value === "quotes" || value === "contracts" || value === "customers" || value === "reports" || value === "forms" || value === "print-pay" || value === "pay-print" || value === "requests" || quotingViews.includes(value ?? "") ? value as ViewKey : "dashboard";
 }
+
+const isQuotingView = (value: ViewKey): value is QuotingViewKey => value.startsWith("quoting-");
 
 export function FrontOfficeQuotingPage({ standalone = false }: { standalone?: boolean }) {
   const [params, setParams] = useSearchParams();
@@ -262,7 +286,7 @@ export function FrontOfficeQuotingPage({ standalone = false }: { standalone?: bo
 
       {((!standalone && view === "dashboard") || (standalone && view === "dashboard" && quoteMode)) ? (
         <QuoteWorkspace branch={branch} setBranch={(value) => { setBranch(value); setQuoteBranchLabel(value); }} preset={preset} quotes={quotes} search={search} setSearch={setSearch} onlyRecommended={onlyRecommended} setOnlyRecommended={setOnlyRecommended} sortBy={sortBy} setSortBy={setSortBy} onOpen={setSelectedQuote} onGoOffers={() => go("quotes")} />
-      ) : view === "quotes" ? <OffersHistoryView onStartQuoting={startQuote} /> : view === "contracts" ? <ProductionContractsView /> : view === "customers" ? <ProductionCustomersView /> : view === "reports" ? <ProductionReportsView /> : view === "forms" ? <ProductionFormsView /> : view === "print-pay" ? <PrintPayView /> : view === "pay-print" ? <PayPrintView /> : view === "requests" ? <RequestsTableView /> : <HistoryView />}
+      ) : view === "quotes" ? <OffersHistoryView onStartQuoting={startQuote} /> : view === "contracts" ? <ProductionContractsView /> : view === "customers" ? <ProductionCustomersView /> : view === "reports" ? <ProductionReportsView /> : view === "forms" ? <ProductionFormsView /> : view === "print-pay" ? <PrintPayView /> : view === "pay-print" ? <PayPrintView /> : view === "requests" ? <RequestsTableView /> : isQuotingView(view) ? (view === "quoting-requests" ? <QuotingRequestsWorkspace onBack={() => go("dashboard")} /> : view === "quoting-green-card" ? <GreenCardWorkspace onBack={() => go("dashboard")} /> : <QuotingBranchWorkspace key={view} config={quotingBranchConfigs[view as Exclude<QuotingViewKey, "quoting-requests" | "quoting-green-card">]} onBack={() => go("dashboard")} />) : <HistoryView />}
 
       <Dialog open={!!selectedQuote} onClose={() => setSelectedQuote(null)} fullWidth maxWidth="sm">
         {selectedQuote && <>
@@ -305,17 +329,17 @@ const standaloneDropdowns: { key: string; label: string; views: { label: string;
     { label: "Αιτήματα ασφάλισης", view: "requests" },
   ] },
   { key: "quoting", label: "Τιμολόγηση", views: [
-    { label: "Οχημάτων", view: "dashboard" },
-    { label: "Περιουσίας", view: "dashboard" },
-    { label: "Υγείας", view: "dashboard" },
-    { label: "Σκαφών", view: "dashboard" },
-    { label: "Προσφορές", view: "quotes" },
-    { label: "Αιτήσεις", view: "requests" },
-    { label: "Οδικής", view: "dashboard" },
-    { label: "Πράσινη Κάρτα", view: "dashboard" },
-    { label: "Ποδηλάτων-Πατινιών", view: "dashboard" },
-    { label: "Προσωπικού Ατυχήματος", view: "dashboard" },
-    { label: "Νομική Προστασία", view: "dashboard" },
+    { label: "Οχημάτων", view: quotingViewByLabel["Οχημάτων"] },
+    { label: "Σύγκριση Οχημάτων", view: quotingViewByLabel["Σύγκριση Οχημάτων"] },
+    { label: "Περιουσίας", view: quotingViewByLabel["Περιουσίας"] },
+    { label: "Υγείας", view: quotingViewByLabel["Υγείας"] },
+    { label: "Σκαφών", view: quotingViewByLabel["Σκαφών"] },
+    { label: "Αιτήσεις", view: quotingViewByLabel["Αιτήσεις"] },
+    { label: "Οδικής", view: quotingViewByLabel["Οδικής"] },
+    { label: "Πράσινη Κάρτα", view: quotingViewByLabel["Πράσινη Κάρτα"] },
+    { label: "Ποδηλάτων-Πατινιών", view: quotingViewByLabel["Ποδηλάτων-Πατινιών"] },
+    { label: "Προσωπικού Ατυχήματος", view: quotingViewByLabel["Προσωπικού Ατυχήματος"] },
+    { label: "Νομική Προστασία", view: quotingViewByLabel["Νομική Προστασία"] },
   ] },
   { key: "print-pay", label: "Τυπώνω-Πληρώνω", views: [
     { label: "Εκτύπωση Συμβολαίων", view: "print-pay" },
@@ -339,7 +363,7 @@ function StandalonePluginHeader({ view, onNavigate }: { view: ViewKey; onNavigat
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState<string | null>(null);
   const compactNav = useMediaQuery("(max-width:1120px)");
-  const activeNav = view === "dashboard" ? "home" : view === "quotes" ? "offers" : ["contracts", "customers", "reports", "forms", "requests"].includes(view) ? "production" : view === "print-pay" ? "print-pay" : "pay-print";
+  const activeNav = view === "dashboard" ? "home" : view === "quotes" ? "offers" : (view.startsWith("quoting-") ? "quoting" : ["contracts", "customers", "reports", "forms", "requests"].includes(view) ? "production" : view === "print-pay" ? "print-pay" : "pay-print");
   const navButtonSx = {
     minHeight: 58,
     minWidth: "auto",
@@ -850,6 +874,143 @@ function QuoteComparisonTable({ quotes, onOpen }: { quotes: QuoteRow[]; onOpen: 
 
 function QuoteCard({ quote, onOpen }: { quote: QuoteRow; onOpen: () => void }) {
   return <Card variant="outlined" sx={{ borderRadius: 2.5, borderColor: quote.recommended ? "success.light" : "divider", boxShadow: quote.recommended ? "0 4px 18px rgba(33,125,83,.11)" : "none" }}><CardContent sx={{ p: 2.25 }}><Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ md: "center" }}><Box sx={{ minWidth: 195 }}><Stack direction="row" spacing={1.25} alignItems="center"><Box sx={{ width: 42, height: 42, borderRadius: 2, bgcolor: quote.colour, color: "#fff", display: "grid", placeItems: "center", fontWeight: 850 }}>{quote.initials}</Box><Box><Typography fontWeight={850}>{quote.carrier}</Typography><Typography variant="body2" color="text.secondary">{quote.product}</Typography></Box></Stack>{quote.recommended && <Chip size="small" color="success" label="Προτεινόμενο" sx={{ mt: 1 }} />}</Box><Box sx={{ flex: 1 }}><Typography variant="caption" color="text.secondary">Καλύψεις</Typography><Stack direction="row" flexWrap="wrap" useFlexGap gap={0.6} mt={0.5}>{quote.coverages.map((coverage) => <Chip key={coverage} size="small" label={coverage} variant="outlined" />)}</Stack><Typography variant="caption" color="text.secondary" display="block" mt={1}>Βαθμολογία {quote.score.toFixed(1)} / 5 · {quote.availability}</Typography></Box><Box sx={{ minWidth: 145, textAlign: { md: "right" } }}><Typography variant="caption" color="text.secondary">Ετήσιο ασφάλιστρο</Typography><Typography variant="h5" fontWeight={900} color="primary.main">{currency(quote.premium)}</Typography><Typography variant="body2" color="text.secondary">ή {currency(quote.monthly)} / μήνα</Typography><Typography variant="caption" color="success.main">Προμήθεια {currency(quote.commission)}</Typography></Box><Stack direction={{ xs: "row", md: "column" }} spacing={1}><Button size="small" variant="outlined" startIcon={<VisibilityOutlinedIcon />} onClick={onOpen}>Καλύψεις</Button><Button size="small" variant="contained" color="success" endIcon={<KeyboardArrowRightRoundedIcon />} onClick={onOpen}>Επιλογή</Button></Stack></Stack></CardContent></Card>;
+}
+
+type QuotingField = { key: string; label: string; value?: string; kind?: "text" | "number" | "date" | "select"; options?: string[] };
+type QuotingMode = "calculator" | "requests" | "green-card";
+interface QuotingBranchConfig {
+  title: string;
+  subtitle: string;
+  icon: ReactNode;
+  accent: string;
+  mode?: QuotingMode;
+  carriers: { name: string; short: string; price: string }[];
+  fields: QuotingField[];
+  packages: string[];
+  info: string[];
+  results?: QuoteRow[];
+}
+
+const carrierNames = ["Νέος Ποσειδώνας", "Interlife", "Ατλαντική Ένωση", "Ευρώπη Ασφαλιστική", "Eurolife FFH", "Generali", "ERGO", "Μινέττα"];
+const carrierCards = (prices: string[] = ["0 €", "0 €", "0 €", "0 €"]) => carrierNames.slice(0, prices.length).map((name, index) => ({ name, short: name.split(" ").map(part => part[0]).join("").slice(0, 3), price: prices[index] ?? "0 €" }));
+const demoQuote = (prefix: string, carrier: string, premium: number, coverages: string[], colour: string, recommended = false): QuoteRow => ({ id: `${prefix}-${carrier}`, carrier, initials: carrier.split(" ").map(part => part[0]).join("").slice(0, 3), colour, product: "Πρόγραμμα προστασίας", premium, monthly: premium / 12, commission: premium * .14, score: recommended ? 4.9 : 4.6, coverages, availability: "Ισχύει έως 31/12/2026", recommended });
+
+const quotingBranchConfigs: Record<Exclude<QuotingViewKey, "quoting-requests" | "quoting-green-card">, QuotingBranchConfig> = {
+  "quoting-vehicles": {
+    title: "Τιμολόγηση Οχημάτων", subtitle: "Συμπληρώστε τα στοιχεία του οχήματος και συγκρίνετε πακέτα από τις διαθέσιμες ασφαλιστικές.", icon: <DirectionsCarFilledOutlinedIcon />, accent: "#1479d1", carriers: carrierCards(["118,71 €", "121,04 €", "126,50 €", "132,90 €"]),
+    fields: [{ key: "plate", label: "Αρ. κυκλοφορίας", value: "ΜΕΒ8677" }, { key: "start", label: "Ημ. έναρξης", value: "2026-10-11", kind: "date" }, { key: "duration", label: "Διάρκεια", value: "ΕΤΗΣΙΑ", kind: "select", options: ["ΕΤΗΣΙΑ", "ΕΞΑΜΗΝΗ", "ΤΡΙΜΗΝΗ"] }, { key: "use", label: "Χρήση", value: "Ι.Χ.", kind: "select", options: ["Ι.Χ.", "Επαγγελματική", "Ενοικιαζόμενο"] }, { key: "make", label: "Εργοστάσιο / Μοντέλο", value: "Toyota Yaris 1.2", kind: "text" }, { key: "year", label: "Έτος πρώτης κυκλοφορίας", value: "2020", kind: "number" }, { key: "value", label: "Αξία οχήματος (€)", value: "14.800", kind: "number" }, { key: "driverAge", label: "Ηλικία οδηγού", value: "38", kind: "number" }],
+    packages: ["Βασικό", "Πυρός / Κλοπής", "Μικτή"], info: ["Η τιμή υπολογίζεται από τα στοιχεία οχήματος και οδηγού.", "Οι καλύψεις μπορούν να προσαρμοστούν πριν από την έκδοση.", "Τα αποτελέσματα είναι ενδεικτικά μέχρι την ενεργοποίηση των γεφυρών."],
+    results: [demoQuote("auto", "Νέος Ποσειδώνας", 118.71, ["Αστική ευθύνη", "Θραύση κρυστάλλων", "Οδική βοήθεια"], "#087f8c", true), demoQuote("auto", "Μινέττα", 121.04, ["Αστική ευθύνη", "Οδική βοήθεια", "Νομική προστασία"], "#2759a5"), demoQuote("auto", "Εθνική Ασφαλιστική", 126.5, ["Αστική ευθύνη", "Πυρός / κλοπής"], "#4c6fff")],
+  },
+  "quoting-vehicle-compare": {
+    title: "Συγκριτική Τιμολόγηση Οχημάτων", subtitle: "Συγκρίνετε πακέτα και καλύψεις από κορυφαίες ασφαλιστικές εταιρείες.", icon: <CompareArrowsRoundedIcon />, accent: "#2f64d6", carriers: carrierCards(["118,71 €", "121,04 €", "126,50 €", "132,90 €", "138,20 €", "142,00 €"]),
+    fields: [{ key: "plate", label: "Αρ. κυκλοφορίας", value: "ΜΕΒ8677" }, { key: "expiry", label: "Ημ. λήξης", value: "2026-12-26", kind: "date" }, { key: "duration", label: "Διάρκεια", value: "ΕΞΑΜΗΝΗ", kind: "select", options: ["ΕΤΗΣΙΑ", "ΕΞΑΜΗΝΗ", "ΤΡΙΜΗΝΗ"] }, { key: "licence", label: "Ημ. 1ης άδειας", kind: "date" }, { key: "use", label: "Χρήση", value: "ΕΙΧ", kind: "select", options: ["ΕΙΧ", "ΦΙΧ", "Επαγγελματική"] }, { key: "fuel", label: "Καύσιμο", value: "Βενζίνη", kind: "select", options: ["Βενζίνη", "Πετρέλαιο", "Υβριδικό", "Ηλεκτρικό"] }, { key: "make", label: "Εργοστάσιο", value: "Toyota", kind: "select", options: ["Toyota", "Ford", "Volkswagen", "Άλλο"] }, { key: "model", label: "Μοντέλο", value: "Yaris", kind: "select", options: ["Yaris", "Corolla", "Focus", "Άλλο"] }, { key: "horsepower", label: "Κυβισμός / Ίπποι", value: "1197 / 6", kind: "text" }, { key: "owner", label: "ΑΦΜ ιδιοκτήτη", value: "094512367", kind: "text" }],
+    packages: ["Βασικό", "Πυρός/Κλοπής", "Μικτή"], info: ["Επιλέξτε καλύψεις ανά εταιρεία για άμεση σύγκριση.", "Οι μπλε ενδείξεις δείχνουν την προτεινόμενη επιλογή.", "Τα ειδικά στοιχεία κάθε πακέτου ανοίγουν από την ενέργεια της γραμμής."],
+    results: [demoQuote("compare", "AIG", 118.71, ["Αστική ευθύνη", "Ζημιές από ανασφάλιστο"], "#0e8fc9", true), demoQuote("compare", "Eurolife FFH", 121.04, ["Αστική ευθύνη", "Οδική βοήθεια"], "#e35d6a"), demoQuote("compare", "Groupama", 126.5, ["Αστική ευθύνη", "Προσωπικό ατύχημα"], "#168d83"), demoQuote("compare", "Allianz", 132.9, ["Αστική ευθύνη", "Πυρός / κλοπής", "Θραύση"], "#2856a5")],
+  },
+  "quoting-property": {
+    title: "Τιμολόγηση Περιουσίας", subtitle: "Ασφαλίστε κατοικία ή επαγγελματικό χώρο με καθαρή εικόνα καλύψεων και κόστους.", icon: <HomeWorkOutlinedIcon />, accent: "#d3544b", carriers: carrierCards(["154,20 €", "168,40 €", "181,70 €"]),
+    fields: [{ key: "propertyType", label: "Τύπος περιουσίας", value: "Διαμέρισμα", kind: "select", options: ["Διαμέρισμα", "Μονοκατοικία", "Επαγγελματικός χώρος"] }, { key: "area", label: "Επιφάνεια (τ.μ.)", value: "92", kind: "number" }, { key: "year", label: "Έτος κατασκευής", value: "2008", kind: "number" }, { key: "value", label: "Ασφαλιζόμενη αξία (€)", value: "165000", kind: "number" }, { key: "postal", label: "Τ.Κ. κινδύνου", value: "11528" }, { key: "alarm", label: "Συναγερμός", value: "Όχι", kind: "select", options: ["Όχι", "Ναι"] }],
+    packages: ["Βασική προστασία", "Πυρός / Σεισμού", "Πλήρης κατοικία"], info: ["Δηλώστε την πραγματική αξία ανακατασκευής ή περιεχομένου.", "Οι καλύψεις φυσικών φαινομένων εμφανίζονται αναλυτικά.", "Η τιμή μεταβάλλεται ανάλογα με την περιοχή και τα μέτρα προστασίας."],
+    results: [demoQuote("home", "ERGO", 154.2, ["Πυρκαγιά", "Σεισμός", "Πλημμύρα", "Κλοπή"], "#e35d6a", true), demoQuote("home", "Generali", 168.4, ["Πυρκαγιά", "Σεισμός", "Αστική ευθύνη"], "#f1a32b"), demoQuote("home", "Interamerican", 181.7, ["Πυρκαγιά", "Κλοπή", "Θραύση σωληνώσεων"], "#1c9b8f")],
+  },
+  "quoting-health": {
+    title: "Συγκριτική Τιμολόγηση Υγείας", subtitle: "Επιλέξτε ασφαλιστική και συμπληρώστε τα στοιχεία για άμεση συγκριτική τιμολόγηση.", icon: <HealthAndSafetyOutlinedIcon />, accent: "#158d87", carriers: carrierCards(["742,00 €", "684,00 €", "805,00 €"]),
+    fields: [{ key: "birth", label: "Ημ. γέννησης", kind: "date" }, { key: "gender", label: "Φύλο", value: "Άντρας", kind: "select", options: ["Άντρας", "Γυναίκα", "Δεν επιθυμώ να δηλώσω"] }, { key: "profession", label: "Επάγγελμα", value: "Ελεύθερος επαγγελματίας", kind: "select", options: ["Μισθωτός", "Ελεύθερος επαγγελματίας", "Συνταξιούχος"] }, { key: "tax", label: "ΑΦΜ", value: "094512367" }, { key: "deductible", label: "Απαλλαγή (€)", value: "500", kind: "number" }],
+    packages: ["ECONOMY", "MY HOSPITAL CARE", "PREMIUM"], info: ["Η δυνατότητα δημιουργίας αίτησης ενεργοποιείται μετά τον υπολογισμό.", "Μπορείτε να προσθέσετε εξαρτώμενα μέλη πριν την τελική επιλογή.", "Οι καλύψεις και τα όρια εμφανίζονται στην καρτέλα αποτελεσμάτων."],
+    results: [demoQuote("health", "Interamerican", 742, ["Νοσηλεία", "Διαγνωστικές εξετάσεις", "Επείγοντα"], "#168d83", true), demoQuote("health", "Eurolife FFH", 684, ["Νοσηλεία", "Ιατρικές επισκέψεις"], "#536dfe"), demoQuote("health", "NN Hellas", 805, ["Νοσηλεία", "Επείγοντα", "Δεύτερη γνώμη"], "#df5a64")],
+  },
+  "quoting-marine": {
+    title: "Τιμολόγηση Σκαφών", subtitle: "Συμπληρώστε τα στοιχεία για την τιμολόγηση του σκάφους.", icon: <SailingOutlinedIcon />, accent: "#168ed0", carriers: carrierCards(["0 €", "0 €", "0 €", "0 €", "0 €"]),
+    fields: [{ key: "duration", label: "Διάρκεια", value: "ΕΞΑΜΗΝΗ", kind: "select", options: ["ΕΤΗΣΙΑ", "ΕΞΑΜΗΝΗ"] }, { key: "start", label: "Έναρξη", value: "2026-10-11", kind: "date" }, { key: "vat", label: "ΑΦΜ", value: "094512367" }, { key: "type", label: "Είδος", value: "Μηχανοκίνητο", kind: "select", options: ["Μηχανοκίνητο", "Ιστιοπλοϊκό", "Ταχύπλοο"] }, { key: "length", label: "Μήκος (m)", value: "8.20", kind: "number" }, { key: "use", label: "Χρήση", value: "Ιδιωτικό", kind: "select", options: ["Ιδιωτικό", "Επαγγελματικό"] }, { key: "engines", label: "Ίπποι 1ης / 2ης", value: "150 / —" }, { key: "fuel", label: "Καύσιμο", value: "Βενζίνη", kind: "select", options: ["Βενζίνη", "Πετρέλαιο"] }],
+    packages: ["BASIC", "PLUS", "PREMIUM"], info: ["Η τιμολόγηση βασίζεται στα στοιχεία σκάφους, κινητήρα και χρήσης.", "Επιλέξτε προαιρετικές καλύψεις από την καρτέλα Καλύψεις.", "Η τελική τιμή εμφανίζεται μετά τον υπολογισμό."],
+    results: [demoQuote("marine", "Ατλαντική Ένωση", 218, ["Αστική ευθύνη", "Ίδιες ζημιές", "Κλοπή"], "#164e93", true), demoQuote("marine", "Interlife", 246, ["Αστική ευθύνη", "Θραύση"], "#e35d6a"), demoQuote("marine", "Ευρώπη Ασφαλιστική", 274, ["Αστική ευθύνη", "Νομική προστασία"], "#2f68b6")],
+  },
+  "quoting-roadside": {
+    title: "Τιμολόγηση Οδικής Βοήθειας", subtitle: "Συμπληρώστε τα στοιχεία για την τιμολόγηση της οδικής βοήθειας.", icon: <DirectionsCarFilledOutlinedIcon />, accent: "#168d83", carriers: carrierCards(["35,00 €", "39,00 €", "42,00 €", "45,00 €"]),
+    fields: [{ key: "duration", label: "Διάρκεια", value: "ΕΤΗΣΙΑ", kind: "select", options: ["ΕΤΗΣΙΑ", "ΕΞΑΜΗΝΗ"] }, { key: "start", label: "Έναρξη", value: "2026-10-11", kind: "date" }, { key: "age", label: "Ηλικία οδηγού", value: "38", kind: "number" }, { key: "vehicle", label: "Είδος οχήματος", value: "Επιβατικό", kind: "select", options: ["Επιβατικό", "Μοτοσικλέτα", "Φορτηγό"] }, { key: "package", label: "Πακέτο", value: "BASIC", kind: "select", options: ["BASIC", "PLUS", "PREMIUM"] }],
+    packages: ["BASIC", "PLUS", "PREMIUM"], info: ["Η τιμή υπολογίζεται βάσει των στοιχείων που θα συμπληρώσετε.", "Επιλέξτε το κατάλληλο πακέτο κάλυψης.", "Η τελική τιμή εμφανίζεται μετά τον υπολογισμό."],
+    results: [demoQuote("road", "Interlife", 35, ["24ωρη βοήθεια", "Ρυμούλκηση"], "#168d83", true), demoQuote("road", "Ευρώπη Ασφαλιστική", 39, ["24ωρη βοήθεια", "Επισκευή επί τόπου"], "#2f68b6"), demoQuote("road", "Ατλαντική Ένωση", 42, ["24ωρη βοήθεια", "Ρυμούλκηση", "Όχημα αντικατάστασης"], "#174993")],
+  },
+  "quoting-bicycles": {
+    title: "Τιμολόγηση Ποδηλάτων – Πατινιών", subtitle: "Συμπληρώστε τα στοιχεία για την τιμολόγηση ποδηλάτου ή πατινιού.", icon: <PedalBikeOutlinedIcon />, accent: "#2875d7", carriers: carrierCards(["0 €"]),
+    fields: [{ key: "duration", label: "Διάρκεια", value: "ΕΤΗΣΙΑ", kind: "select", options: ["ΕΤΗΣΙΑ", "ΕΞΑΜΗΝΗ"] }, { key: "start", label: "Ημ. έναρξης", value: "2026-10-11", kind: "date" }, { key: "birth", label: "Ημ. γέννησης", kind: "date" }, { key: "category", label: "Κατηγορία", value: "Ποδήλατο δρόμου", kind: "select", options: ["Ποδήλατο δρόμου", "Ηλεκτρικό ποδήλατο", "Πατίνι"] }, { key: "speed", label: "Ταχύτητα (Km/h)", value: "25", kind: "number" }, { key: "power", label: "Μέγιστη ισχύς (Watt)", value: "250", kind: "number" }, { key: "value", label: "Τιμή αγοράς (€)", value: "300", kind: "number" }],
+    packages: ["Bike Simple", "Bike Plus"], info: ["Συμπληρώστε τα βασικά στοιχεία του ποδηλάτου ή πατινιού.", "Μπορείτε να δηλώσετε διαφορετικό οδηγό στην ενότητα προσώπου.", "Οι προαιρετικές καλύψεις εμφανίζονται μετά τον υπολογισμό."],
+    results: [demoQuote("bike", "Interlife", 32, ["Κλοπή", "Αστική ευθύνη"], "#2875d7", true)],
+  },
+  "quoting-accident": {
+    title: "Τιμολόγηση Προσωπικού Ατυχήματος", subtitle: "Συμπληρώστε τα στοιχεία για την τιμολόγηση του προσωπικού ατυχήματος.", icon: <LocalHospitalOutlinedIcon />, accent: "#19876f", carriers: carrierCards(["48,00 €", "55,00 €", "62,00 €", "68,00 €", "75,00 €", "81,00 €"]),
+    fields: [{ key: "start", label: "Ημ. έναρξης", value: "2026-10-11", kind: "date" }, { key: "age", label: "Ηλικία", value: "38", kind: "number" }, { key: "gender", label: "Φύλο", value: "Άντρας", kind: "select", options: ["Άντρας", "Γυναίκα"] }, { key: "profession", label: "Επάγγελμα", value: "Μηχανικός", kind: "select", options: ["Μηχανικός", "Υπάλληλος", "Ελεύθερος επαγγελματίας"] }, { key: "package", label: "Πακέτο", value: "BASIC", kind: "select", options: ["BASIC", "PLUS", "PREMIUM"] }],
+    packages: ["BASIC", "PLUS", "PREMIUM"], info: ["Η τιμή διαμορφώνεται από την ηλικία, το επάγγελμα και το πακέτο.", "Τα όρια αποζημίωσης παρουσιάζονται στα αποτελέσματα.", "Τα στοιχεία μπορούν να αποθηκευτούν ως πρότυπο τιμολόγησης."],
+    results: [demoQuote("accident", "Ατλαντική Ένωση", 48, ["Ατύχημα", "Νοσοκομειακή περίθαλψη"], "#207e6d", true), demoQuote("accident", "Interlife", 55, ["Ατύχημα", "Μόνιμη ανικανότητα"], "#2875d7"), demoQuote("accident", "Μινέττα", 62, ["Ατύχημα", "Ημερήσιο επίδομα"], "#e58a26")],
+  },
+  "quoting-legal": {
+    title: "Τιμολόγηση Νομικής Προστασίας", subtitle: "Συμπληρώστε τα στοιχεία για την τιμολόγηση της Νομικής Προστασίας.", icon: <GavelOutlinedIcon />, accent: "#19876f", carriers: carrierCards(["28,00 €"]),
+    fields: [{ key: "start", label: "Έναρξη", value: "2026-10-11", kind: "date" }, { key: "duration", label: "Διάρκεια", value: "ΕΤΗΣΙΑ", kind: "select", options: ["ΕΤΗΣΙΑ", "ΕΞΑΜΗΝΗ"] }, { key: "object", label: "Αντικείμενο", value: "Νομική οχημάτων", kind: "select", options: ["Νομική οχημάτων", "Νομική κατοικίας", "Επαγγελματική νομική"] }, { key: "package", label: "Πακέτο", value: "ΝΟΜΙΚΗ ΟΧΗΜΑΤΩΝ STANDARD", kind: "select", options: ["ΝΟΜΙΚΗ ΟΧΗΜΑΤΩΝ STANDARD", "ΝΟΜΙΚΗ ΟΧΗΜΑΤΩΝ PLUS"] }, { key: "use", label: "Χρήση", value: "ΕΙΧ", kind: "select", options: ["ΕΙΧ", "Επαγγελματική"] }],
+    packages: ["STANDARD", "PLUS"], info: ["Επιλέξτε το αντικείμενο της Νομικής Προστασίας.", "Διαλέξτε το πακέτο που ταιριάζει στις ανάγκες του πελάτη.", "Η τελική τιμή θα υπολογιστεί μετά τον υπολογισμό."],
+    results: [demoQuote("legal", "Mediterrania", 28, ["Νομική οχημάτων", "Δικαστική προστασία"], "#e58a26", true)],
+  },
+};
+
+function PricingInput({ field, value, onChange }: { field: QuotingField; value: string; onChange: (value: string) => void }) {
+  if (field.kind === "select") return <TextField select fullWidth size="small" label={field.label} value={value} onChange={event => onChange(event.target.value)}>{(field.options ?? []).map(option => <MenuItem key={option} value={option}>{option}</MenuItem>)}</TextField>;
+  return <TextField fullWidth size="small" label={field.label} type={field.kind === "number" || field.kind === "date" ? field.kind : "text"} value={value} onChange={event => onChange(event.target.value)} InputLabelProps={field.kind === "date" ? { shrink: true } : undefined} />;
+}
+
+function QuotingBranchWorkspace({ config, onBack }: { config: QuotingBranchConfig; onBack: () => void }) {
+  const initial = useMemo(() => Object.fromEntries(config.fields.map(field => [field.key, field.value ?? ""])), [config.fields]);
+  const [values, setValues] = useState<Record<string, string>>(initial);
+  const [activeTab, setActiveTab] = useState<"details" | "coverages" | "results">("details");
+  const [selectedCarrier, setSelectedCarrier] = useState(config.carriers[0]?.name ?? "");
+  const [calculated, setCalculated] = useState(false);
+  const [selectedCoverages, setSelectedCoverages] = useState<string[]>([]);
+  const resultRows = config.results ?? [];
+  const coverages = [...new Set(resultRows.flatMap(row => row.coverages))];
+  const setValue = (key: string, value: string) => setValues(current => ({ ...current, [key]: value }));
+  const reset = () => { setValues(initial); setCalculated(false); setActiveTab("details"); setSelectedCoverages([]); };
+  return <Stack spacing={2.25}>
+    <Paper variant="outlined" sx={{ p: { xs: 1.75, md: 2.25 }, borderRadius: 2.5, borderColor: "#c7ddec", background: "linear-gradient(135deg,#fafdff,#eef7ff)", boxShadow: "0 10px 28px rgba(31,93,143,.07)" }}>
+      <Stack direction={{ xs: "column", md: "row" }} alignItems={{ md: "center" }} spacing={1.5} justifyContent="space-between">
+        <Stack direction="row" spacing={1.5} alignItems="center"><IconButton onClick={onBack} aria-label="Πίσω" sx={{ bgcolor: "#e6f2ff", color: "#125fa9", border: "1px solid #bfdbf5" }}><KeyboardArrowRightRoundedIcon sx={{ transform: "rotate(180deg)" }} /></IconButton><Box sx={{ width: 46, height: 46, borderRadius: 2, display: "grid", placeItems: "center", color: "#0e68bc", bgcolor: "#e2f0ff" }}>{config.icon}</Box><Box><Typography variant="h5" fontWeight={900} sx={{ color: "#123a64", letterSpacing: "-.02em" }}>{config.title}</Typography><Typography variant="body2" color="text.secondary">{config.subtitle}</Typography></Box></Stack>
+        <Stack direction="row" spacing={.75} flexWrap="wrap" useFlexGap><Button variant="outlined" size="small" startIcon={<ArticleOutlinedIcon />}>Πρότυπα</Button><Button variant="outlined" size="small" startIcon={<RefreshRoundedIcon />}>Ιστορικό</Button><Button variant="contained" size="small" startIcon={<CalculateOutlinedIcon />} onClick={reset} sx={{ bgcolor: "#1278d4" }}>Νέα τιμολόγηση</Button></Stack>
+      </Stack>
+    </Paper>
+    <Box sx={{ display: "flex", gap: 1.25, overflowX: "auto", pb: .5, scrollbarWidth: "thin" }}>{config.carriers.map(carrier => <Card key={carrier.name} variant="outlined" onClick={() => setSelectedCarrier(carrier.name)} sx={{ minWidth: { xs: 155, md: 205 }, cursor: "pointer", borderRadius: 2, borderColor: selectedCarrier === carrier.name ? "#2186e2" : "#d6e5f3", borderWidth: selectedCarrier === carrier.name ? 2 : 1, background: selectedCarrier === carrier.name ? "linear-gradient(135deg,#eff8ff,#e2f1ff)" : "#fff", transition: "border-color .18s ease, transform .18s ease", "&:hover": { transform: "translateY(-2px)", borderColor: "#2186e2" } }}><CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}><Stack direction="row" spacing={1} alignItems="center"><Box sx={{ width: 36, height: 36, borderRadius: 1.25, display: "grid", placeItems: "center", bgcolor: `${config.accent}16`, color: config.accent, fontWeight: 900, fontSize: 11 }}>{carrier.short}</Box><Box><Typography fontWeight={850} noWrap>{carrier.name}</Typography><Typography fontWeight={900} color="primary.main">{carrier.price}</Typography></Box></Stack></CardContent></Card>)}</Box>
+    <Alert severity="info" icon={<InfoOutlinedIcon />} sx={{ borderRadius: 2, border: "1px solid #b6d8f5", bgcolor: "#eaf5ff", color: "#1c5689" }}>Η τιμολόγηση εμφανίζεται ως προεπισκόπηση. Τα πραγματικά αποτελέσματα θα ενεργοποιηθούν όταν συνδεθούν οι αντίστοιχες γέφυρες του γραφείου.</Alert>
+    <Tabs value={activeTab} onChange={(_, value) => setActiveTab(value)} sx={{ borderBottom: "1px solid #cbddec", minHeight: 46, "& .MuiTab-root": { textTransform: "none", minHeight: 46, fontWeight: 850, color: "#5d7187" }, "& .Mui-selected": { color: `${config.accent} !important` }, "& .MuiTabs-indicator": { height: 3, bgcolor: config.accent } }}><Tab value="details" icon={<DescriptionOutlinedIcon fontSize="small" />} iconPosition="start" label="Στοιχεία τιμολόγησης" /><Tab value="coverages" icon={<ShieldOutlinedIcon fontSize="small" />} iconPosition="start" label="Καλύψεις" /><Tab value="results" icon={<EuroRoundedIcon fontSize="small" />} iconPosition="start" label={`Αποτελέσματα${calculated ? " · έτοιμα" : ""}`} /></Tabs>
+    {activeTab === "details" && <Grid container spacing={2}>
+      <Grid item xs={12} lg={8}><Card variant="outlined" sx={{ borderRadius: 2.5, borderColor: "#cfe0ed", overflow: "hidden" }}><CardContent sx={{ p: { xs: 1.75, md: 2.5 } }}><Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}><Box sx={{ width: 38, height: 38, borderRadius: 1.75, display: "grid", placeItems: "center", bgcolor: `${config.accent}15`, color: config.accent }}>{config.icon}</Box><Box><Typography variant="h6" fontWeight={900} color="#123a64">Βασικά στοιχεία</Typography><Typography variant="caption" color="text.secondary">Συμπληρώστε τα στοιχεία του κινδύνου για να υπολογιστεί η τιμή.</Typography></Box></Stack><Grid container spacing={1.5}>{config.fields.map(field => <Grid item xs={12} sm={6} key={field.key}><PricingInput field={field} value={values[field.key] ?? ""} onChange={value => setValue(field.key, value)} /></Grid>)}</Grid></CardContent></Card></Grid>
+      <Grid item xs={12} lg={4}><Card variant="outlined" sx={{ height: "100%", borderRadius: 2.5, borderColor: "#cfe0ed", bgcolor: "#f5faff" }}><CardContent sx={{ p: 2.25 }}><Typography variant="h6" fontWeight={900} color="#123a64" sx={{ mb: 1.25 }}>Πακέτα κάλυψης</Typography><Stack spacing={1}>{config.packages.map((pkg, index) => <Button key={pkg} variant={index === 0 ? "contained" : "outlined"} fullWidth onClick={() => setValue("package", pkg)} sx={{ justifyContent: "space-between", textTransform: "none", borderRadius: 1.5, color: index === 0 ? "#fff" : "#214d73", bgcolor: index === 0 ? config.accent : "#fff", borderColor: "#c3dceb", fontWeight: 800 }}>{pkg}<KeyboardArrowRightRoundedIcon fontSize="small" /></Button>)}</Stack><Divider sx={{ my: 2 }} /><Typography variant="subtitle2" fontWeight={900} color="#315979" sx={{ mb: .75 }}>Σημαντικές πληροφορίες</Typography><Stack spacing={.8}>{config.info.map(item => <Stack key={item} direction="row" spacing={.75} alignItems="flex-start"><CheckCircleRoundedIcon sx={{ color: "#2a8a70", fontSize: 17, mt: .15 }} /><Typography variant="body2" color="text.secondary">{item}</Typography></Stack>)}</Stack></CardContent></Card></Grid>
+    </Grid>}
+    {activeTab === "coverages" && <Card variant="outlined" sx={{ borderRadius: 2.5, borderColor: "#cfe0ed" }}><CardContent sx={{ p: { xs: 1.75, md: 2.5 } }}><Typography variant="h6" fontWeight={900} color="#123a64" sx={{ mb: 1 }}>Καλύψεις και επιλογές</Typography><Typography variant="body2" color="text.secondary" sx={{ mb: 1.75 }}>Επιλέξτε τις καλύψεις που πρέπει να περιλαμβάνονται στην τιμολόγηση.</Typography><Grid container spacing={1.25}>{coverages.map(coverage => <Grid item xs={12} sm={6} md={4} key={coverage}><FormControlLabel control={<Checkbox checked={selectedCoverages.includes(coverage)} onChange={event => setSelectedCoverages(current => event.target.checked ? [...current, coverage] : current.filter(item => item !== coverage))} />} label={coverage} sx={{ width: "100%", m: 0, p: 1, border: "1px solid #d5e4ee", borderRadius: 1.5, bgcolor: selectedCoverages.includes(coverage) ? "#eaf6ff" : "#fff" }} /></Grid>)}</Grid></CardContent></Card>}
+    {activeTab === "results" && <PricingResultsPanel rows={resultRows} calculated={calculated} onCalculate={() => setCalculated(true)} />}
+    <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 2, borderColor: "#c7ddec", bgcolor: "#f8fbfe" }}><Stack direction={{ xs: "column", sm: "row" }} spacing={1} justifyContent="space-between"><Stack direction="row" spacing={1}><Button variant="outlined" startIcon={<KeyboardArrowRightRoundedIcon sx={{ transform: "rotate(180deg)" }} />} onClick={onBack}>Πίσω</Button><Button variant="outlined" color="inherit" startIcon={<ClearAllOutlinedIcon />} onClick={reset}>Καθαρισμός</Button></Stack><Button variant="contained" startIcon={<CalculateOutlinedIcon />} onClick={() => { setCalculated(true); setActiveTab("results"); }} sx={{ bgcolor: "#1478d1", minWidth: 160 }}>Υπολογισμός</Button></Stack></Paper>
+  </Stack>;
+}
+
+function PricingResultsPanel({ rows, calculated, onCalculate }: { rows: QuoteRow[]; calculated: boolean; onCalculate: () => void }) {
+  if (!calculated) return <Card variant="outlined" sx={{ borderRadius: 2.5, borderColor: "#cfe0ed", minHeight: 210, display: "grid", placeItems: "center" }}><CardContent sx={{ textAlign: "center" }}><EuroRoundedIcon sx={{ fontSize: 42, color: "#78a4c8" }} /><Typography variant="h6" fontWeight={850} color="#123a64">Δεν υπάρχουν αποτελέσματα ακόμη</Typography><Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>Συμπληρώστε τα στοιχεία και πατήστε «Υπολογισμός».</Typography><Button variant="contained" onClick={onCalculate} startIcon={<CalculateOutlinedIcon />}>Υπολογισμός</Button></CardContent></Card>;
+  return <Card variant="outlined" sx={{ borderRadius: 2.5, borderColor: "#cfe0ed", overflow: "hidden" }}><CardContent sx={{ p: 2 }}><Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} spacing={1} sx={{ mb: 1.25 }}><Box><Typography variant="h6" fontWeight={900} color="#123a64">Αποτελέσματα τιμολόγησης</Typography><Typography variant="body2" color="text.secondary">Συγκριτική εικόνα πακέτων και καλύψεων.</Typography></Box><Chip label={`${rows.length} διαθέσιμες επιλογές`} color="info" variant="outlined" /></Stack><TableContainer sx={{ maxHeight: 480 }}><Table stickyHeader size="small"><TableHead><TableRow>{["Ασφαλιστική / Πακέτο", "Καλύψεις", "Ετήσιο", "Μήνας", "Ενέργειες"].map(label => <TableCell key={label} sx={{ bgcolor: "#e9f2fa", color: "#315979", fontWeight: 900 }}>{label}</TableCell>)}</TableRow></TableHead><TableBody>{rows.map((row, index) => <TableRow key={row.id} hover sx={{ bgcolor: row.recommended ? "#effaf5" : undefined }}><TableCell><Stack direction="row" spacing={1} alignItems="center"><Box sx={{ width: 34, height: 34, borderRadius: 1.25, bgcolor: row.colour, color: "#fff", display: "grid", placeItems: "center", fontWeight: 900, fontSize: 11 }}>{row.initials}</Box><Box><Typography fontWeight={850}>{row.carrier}</Typography><Typography variant="caption" color="text.secondary">{row.product}{row.recommended ? " · Προτεινόμενο" : ""}</Typography></Box></Stack></TableCell><TableCell><Stack direction="row" flexWrap="wrap" useFlexGap gap={.4}>{row.coverages.map(coverage => <Chip key={coverage} size="small" label={coverage} variant="outlined" sx={{ fontSize: 10 }} />)}</Stack></TableCell><TableCell sx={{ fontWeight: 900, color: "#1478d1", whiteSpace: "nowrap" }}>{currency(row.premium)}</TableCell><TableCell sx={{ whiteSpace: "nowrap" }}>{currency(row.monthly)}</TableCell><TableCell><Button size="small" variant={index === 0 ? "contained" : "outlined"} color={index === 0 ? "success" : "primary"}>Επιλογή</Button></TableCell></TableRow>)}</TableBody></Table></TableContainer></CardContent></Card>;
+}
+
+const requestRows = [
+  { code: "ΑΙΤ-2026-0012", customer: "Χάρης Μπερτσιάς", branch: "Αυτοκίνητο", date: "11/10/2026", status: "Νέα", amount: "—" },
+  { code: "ΑΙΤ-2026-0009", customer: "Μαρία Παπαδοπούλου", branch: "Κατοικία", date: "09/10/2026", status: "Σε επεξεργασία", amount: "154,20 €" },
+  { code: "ΑΙΤ-2026-0004", customer: "Γιώργος Αντωνίου", branch: "Υγεία", date: "08/10/2026", status: "Έτοιμη προσφορά", amount: "684,00 €" },
+];
+
+function QuotingRequestsWorkspace({ onBack }: { onBack: () => void }) {
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("Όλες");
+  const visible = requestRows.filter(row => (!query || `${row.code} ${row.customer} ${row.branch}`.toLowerCase().includes(query.toLowerCase())) && (status === "Όλες" || row.status === status));
+  return <Stack spacing={2.25}><Paper variant="outlined" sx={{ p: { xs: 1.75, md: 2.25 }, borderRadius: 2.5, borderColor: "#c7ddec", background: "linear-gradient(135deg,#fafdff,#eef7ff)" }}><Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ md: "center" }} spacing={1.5}><Stack direction="row" spacing={1.5} alignItems="center"><IconButton onClick={onBack} sx={{ bgcolor: "#e6f2ff", color: "#125fa9" }}><KeyboardArrowRightRoundedIcon sx={{ transform: "rotate(180deg)" }} /></IconButton><Box sx={{ width: 46, height: 46, borderRadius: 2, display: "grid", placeItems: "center", bgcolor: "#e2f0ff", color: "#0e68bc" }}><ArticleOutlinedIcon /></Box><Box><Typography variant="h5" fontWeight={900} color="#123a64">Διαχείριση Αιτήσεων</Typography><Typography variant="body2" color="text.secondary">Διαχειριστείτε τις υποβληθείσες αιτήσεις ασφάλισης και παρακολουθήστε την πορεία τους.</Typography></Box></Stack><Button variant="contained" startIcon={<ArticleOutlinedIcon />} sx={{ bgcolor: "#1478d1" }}>Νέα Αίτηση</Button></Stack></Paper><Tabs value="submitted" sx={{ borderBottom: "1px solid #cbddec", "& .MuiTab-root": { textTransform: "none", fontWeight: 850 }, "& .Mui-selected": { color: "#1478d1 !important" }, "& .MuiTabs-indicator": { bgcolor: "#1478d1", height: 3 } }}><Tab value="submitted" label="Καταχωρημένες" /><Tab value="contracted" label="Συμβολαιοποιημένες" /><Tab value="rejected" label="Απορριφθείσες" /></Tabs><Card variant="outlined" sx={{ borderRadius: 2.5, borderColor: "#cfe0ed" }}><CardContent sx={{ p: { xs: 1.5, md: 2 } }}><Stack direction={{ xs: "column", md: "row" }} spacing={1}><TextField size="small" fullWidth value={query} onChange={event => setQuery(event.target.value)} placeholder="Αναζήτηση κωδικού, πελάτη ή κλάδου" InputProps={{ startAdornment: <InputAdornment position="start"><SearchRoundedIcon fontSize="small" /></InputAdornment> }} /><TextField select size="small" label="Κατάσταση" value={status} onChange={event => setStatus(event.target.value)} sx={{ minWidth: { md: 190 } }}>{["Όλες", "Νέα", "Σε επεξεργασία", "Έτοιμη προσφορά"].map(option => <MenuItem key={option} value={option}>{option}</MenuItem>)}</TextField><Button variant="outlined" startIcon={<DownloadOutlinedIcon />}>Εξαγωγή</Button></Stack></CardContent></Card><Card variant="outlined" sx={{ borderRadius: 2.5, overflow: "hidden", borderColor: "#cfe0ed" }}><TableContainer sx={{ overflowX: "auto" }}><Table stickyHeader size="small" sx={{ minWidth: 850 }}><TableHead><TableRow>{["Κωδικός", "Πελάτης", "Κλάδος", "Ημ. υποβολής", "Ασφάλιστρο", "Κατάσταση", "Ενέργειες"].map(label => <TableCell key={label} sx={{ bgcolor: "#e9f2fa", color: "#315979", fontWeight: 900, whiteSpace: "nowrap" }}>{label}</TableCell>)}</TableRow></TableHead><TableBody>{visible.map(row => <TableRow key={row.code} hover><TableCell sx={{ fontFamily: "monospace", fontWeight: 900, color: "#164e79" }}>{row.code}</TableCell><TableCell sx={{ fontWeight: 800 }}>{row.customer}</TableCell><TableCell>{row.branch}</TableCell><TableCell>{row.date}</TableCell><TableCell sx={{ color: "#1478d1", fontWeight: 900 }}>{row.amount}</TableCell><TableCell><Chip size="small" label={row.status} color={row.status === "Νέα" ? "info" : row.status === "Έτοιμη προσφορά" ? "success" : "warning"} /></TableCell><TableCell><Button size="small" variant="outlined" startIcon={<VisibilityOutlinedIcon />}>Προβολή</Button></TableCell></TableRow>)}</TableBody></Table></TableContainer><Box sx={{ p: 1.25, bgcolor: "#f7fafc", borderTop: "1px solid #d9e5ed" }}><Typography variant="caption" color="text.secondary">{visible.length} αιτήσεις εμφανίζονται</Typography></Box></Card></Stack>;
+}
+
+function GreenCardWorkspace({ onBack }: { onBack: () => void }) {
+  const [query, setQuery] = useState("");
+  const rows = [{ plate: "ΜΕΒ8677", customer: "Χάρης Μπερτσιάς", policy: "2191081355", company: "Νέος Ποσειδώνας", expiry: "26/12/2026", status: "Ενεργή" }, { plate: "ΙΡΑ2045", customer: "Μαρία Παπαδοπούλου", policy: "ER-204821", company: "ERGO", expiry: "09/10/2027", status: "Ενεργή" }];
+  const visible = rows.filter(row => !query || `${row.plate} ${row.customer} ${row.policy}`.toLowerCase().includes(query.toLowerCase()));
+  return <Stack spacing={2.25}><Paper variant="outlined" sx={{ p: { xs: 1.75, md: 2.25 }, borderRadius: 2.5, borderColor: "#c7ddec", background: "linear-gradient(135deg,#fafdff,#eef7ff)" }}><Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ md: "center" }} spacing={1.5}><Stack direction="row" spacing={1.5} alignItems="center"><IconButton onClick={onBack} sx={{ bgcolor: "#e6f7ee", color: "#168253" }}><KeyboardArrowRightRoundedIcon sx={{ transform: "rotate(180deg)" }} /></IconButton><Box sx={{ width: 46, height: 46, borderRadius: 2, display: "grid", placeItems: "center", bgcolor: "#e7f8ef", color: "#168253" }}><ArticleOutlinedIcon /></Box><Box><Typography variant="h5" fontWeight={900} color="#123a64">Πράσινη Κάρτα</Typography><Typography variant="body2" color="text.secondary">Αναζητήστε συμβόλαια και διαχειριστείτε αιτήματα πράσινης κάρτας.</Typography></Box></Stack><Button variant="contained" startIcon={<ArticleOutlinedIcon />} sx={{ bgcolor: "#168253" }}>Νέα Πράσινη Κάρτα</Button></Stack></Paper><Alert severity="info" sx={{ borderRadius: 2 }}>Η διάρκεια της Πράσινης Κάρτας πρέπει να είναι εντός της ισχύος του ασφαλιστηρίου συμβολαίου.</Alert><Card variant="outlined" sx={{ borderRadius: 2.5, borderColor: "#cfe0ed" }}><CardContent sx={{ p: { xs: 1.5, md: 2 } }}><Stack direction={{ xs: "column", md: "row" }} spacing={1}><TextField size="small" fullWidth value={query} onChange={event => setQuery(event.target.value)} placeholder="Αρ. συμβολαίου, πινακίδα ή ασφαλισμένος" InputProps={{ startAdornment: <InputAdornment position="start"><SearchRoundedIcon fontSize="small" /></InputAdornment> }} /><Button variant="contained" startIcon={<SearchRoundedIcon />} sx={{ bgcolor: "#1478d1", minWidth: 140 }}>Αναζήτηση</Button></Stack></CardContent></Card><Card variant="outlined" sx={{ borderRadius: 2.5, overflow: "hidden", borderColor: "#cfe0ed" }}><TableContainer sx={{ overflowX: "auto" }}><Table stickyHeader size="small" sx={{ minWidth: 880 }}><TableHead><TableRow>{["Αρ. κυκλοφορίας", "Πελάτης", "Συμβόλαιο", "Ασφαλιστική", "Λήξη", "Κατάσταση", "Ενέργειες"].map(label => <TableCell key={label} sx={{ bgcolor: "#e9f2fa", color: "#315979", fontWeight: 900, whiteSpace: "nowrap" }}>{label}</TableCell>)}</TableRow></TableHead><TableBody>{visible.map(row => <TableRow key={row.policy} hover><TableCell sx={{ fontWeight: 900, color: "#164e79" }}>{row.plate}</TableCell><TableCell>{row.customer}</TableCell><TableCell sx={{ fontFamily: "monospace" }}>{row.policy}</TableCell><TableCell>{row.company}</TableCell><TableCell>{row.expiry}</TableCell><TableCell><Chip size="small" label={row.status} color="success" /></TableCell><TableCell><Button size="small" variant="outlined">Προβολή</Button></TableCell></TableRow>)}</TableBody></Table></TableContainer></Card></Stack>;
 }
 
 function PrintPayWorkspace() {
