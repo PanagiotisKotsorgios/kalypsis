@@ -721,20 +721,49 @@ function StandaloneHomeSections({ branch, setBranch }: { branch: BranchKey; setB
       </Card>
     </DashboardWidget>
     <DashboardWidget id="announcements" title="Ανακοινώσεις-Εγκύκλιοι" accent="#17b8d1" {...widgetControls("announcements")}>
-      <Card variant="outlined" sx={{ borderRadius: 1.5, overflow: "hidden", borderTop: "3px solid #17b8d1", bgcolor: "#fff", height: "100%" }}>
-        <CardContent sx={{ p: 1.5 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}><Typography fontWeight={850} sx={{ color: "#515960" }}>Ανακοινώσεις-Εγκύκλιοι</Typography><Stack direction="row" spacing={.25}><IconButton size="small" aria-label="Ανανέωση"><RefreshRoundedIcon fontSize="small" /></IconButton><IconButton size="small" aria-label="Σύμπτυξη"><Typography fontWeight={900}>−</Typography></IconButton></Stack></Stack>
-          <Divider />
-          <Stack divider={<Divider flexItem />} spacing={0}>{announcements.map(([title, meta]) => <Box key={title} sx={{ py: 1 }}><Typography variant="body2" sx={{ color: "#216285", fontWeight: 850, fontSize: 12.5 }}>{title}</Typography><Typography variant="caption" color="text.secondary"><Chip size="small" label="ΣΗΜΑΝΤΙΚΟ" sx={{ height: 18, mr: .75, bgcolor: "#f18b24", color: "#fff", borderRadius: .5, fontSize: 9, fontWeight: 900 }} />{meta}</Typography></Box>)}</Stack>
+      <Card variant="outlined" sx={{
+        borderRadius: "18px",
+        overflow: "hidden",
+        border: "1px solid #bfe5f1",
+        background: "linear-gradient(145deg, #e9f9ff 0%, #f9fdff 64%, #dff3fa 100%)",
+        boxShadow: "0 8px 24px rgba(18,108,139,.09)",
+        height: "100%",
+        position: "relative",
+        "&::before": { content: '""', position: "absolute", width: 170, height: 170, right: -66, top: -74, borderRadius: "50%", background: "radial-gradient(circle, rgba(23,184,209,.16), transparent 68%)", pointerEvents: "none" },
+      }}>
+        <CardContent sx={{ p: { xs: 1.5, md: 2 }, position: "relative", zIndex: 1 }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+            <Stack direction="row" spacing={1} alignItems="center" minWidth={0}>
+              <Box sx={{ width: 40, height: 40, borderRadius: 1.75, display: "grid", placeItems: "center", bgcolor: "rgba(23,184,209,.14)", color: "#087b9d", border: "1px solid rgba(23,184,209,.22)" }}><DescriptionOutlinedIcon fontSize="small" /></Box>
+              <Typography fontWeight={900} sx={{ color: "#123a64", fontSize: { xs: 15, md: 17 }, minWidth: 0 }}>Ανακοινώσεις-Εγκύκλιοι</Typography>
+            </Stack>
+            <Stack direction="row" spacing={.25} flexShrink={0}><IconButton size="small" aria-label="Ανανέωση" sx={{ color: "#287b9c" }}><RefreshRoundedIcon fontSize="small" /></IconButton><IconButton size="small" aria-label="Σύμπτυξη" sx={{ color: "#287b9c" }}><Typography fontWeight={900}>−</Typography></IconButton></Stack>
+          </Stack>
+          <Divider sx={{ borderColor: "rgba(23,184,209,.2)", mb: .75 }} />
+          <Stack spacing={.8}>{announcements.map(([title, meta]) => <Box key={title} sx={{ p: { xs: 1, md: 1.15 }, borderRadius: 1.5, border: "1px solid rgba(82,170,202,.2)", bgcolor: "rgba(255,255,255,.68)", transition: "transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease", "&:hover": { transform: "translateX(2px)", borderColor: "rgba(23,184,209,.48)", boxShadow: "0 5px 14px rgba(24,109,139,.09)" } }}><Typography variant="body2" sx={{ color: "#216285", fontWeight: 850, fontSize: { xs: 12, md: 12.5 }, lineHeight: 1.35 }}>{title}</Typography><Typography variant="caption" color="text.secondary"><Chip size="small" label="ΣΗΜΑΝΤΙΚΟ" sx={{ height: 18, mr: .75, bgcolor: "#ed8b2e", color: "#fff", borderRadius: .7, fontSize: 9, fontWeight: 900 }} />{meta}</Typography></Box>)}</Stack>
         </CardContent>
       </Card>
     </DashboardWidget>
     <DashboardWidget id="production" title="Παραγωγή" accent="#1b7f55" {...widgetControls("production")}>
-      <Card variant="outlined" sx={{ borderRadius: 1.5, borderTop: "3px solid #1b7f55", bgcolor: "#fff" }}>
-        <CardContent sx={{ p: 1.5 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.25 }}><Typography fontWeight={850} sx={{ color: "#515960" }}>Παραγωγή</Typography><Chip size="small" label="Τελευταίοι 6 μήνες" sx={{ bgcolor: "#e4f4ed", color: "#1b6848", fontWeight: 750 }} /></Stack>
-          <Grid container spacing={1} sx={{ mb: 1 }}>{[["Νέα συμβόλαια", "41", "#147f8d"], ["Μικτά ασφάλιστρα", "5.680 €", "#1b7f55"], ["Μέση αξία", "138 €", "#3457a6"]].map(([label, value, colour]) => <Grid item xs={4} key={label}><Box sx={{ p: 1, bgcolor: `${colour}12`, border: `1px solid ${colour}32`, borderRadius: 1.25 }}><Typography variant="caption" color="text.secondary" noWrap>{label}</Typography><Typography fontWeight={900} sx={{ color: colour, fontSize: { xs: 15, sm: 18 } }}>{value}</Typography></Box></Grid>)}</Grid>
-          <Box sx={{ height: 210 }}><ResponsiveContainer width="100%" height="100%"><LineChart data={production} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke="#dce6ee" /><XAxis dataKey="month" tick={{ fontSize: 11 }} /><YAxis yAxisId="left" tick={{ fontSize: 10 }} /><YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} /><ChartTooltip formatter={(value, name) => { const key = String(name); const numeric = Number(value ?? 0); return [key === "premium" ? `${numeric.toLocaleString("el-GR")} €` : numeric, key === "premium" ? "Μικτά ασφάλιστρα" : "Συμβόλαια"]; }} /><Line yAxisId="left" type="monotone" dataKey="contracts" stroke="#147f8d" strokeWidth={3} dot={{ r: 3 }} /><Line yAxisId="right" type="monotone" dataKey="premium" stroke="#1b7f55" strokeWidth={3} dot={{ r: 3 }} /></LineChart></ResponsiveContainer></Box>
+      <Card variant="outlined" sx={{
+        borderRadius: "18px",
+        overflow: "hidden",
+        border: "1px solid #c6e4d5",
+        background: "linear-gradient(145deg, #eaf8f1 0%, #fbfefd 62%, #e1f4e9 100%)",
+        boxShadow: "0 8px 24px rgba(27,127,85,.09)",
+        position: "relative",
+        "&::before": { content: '""', position: "absolute", width: 190, height: 150, right: -72, top: -68, borderRadius: "50%", background: "radial-gradient(circle, rgba(27,127,85,.14), transparent 70%)", pointerEvents: "none" },
+      }}>
+        <CardContent sx={{ p: { xs: 1.5, md: 2 }, position: "relative", zIndex: 1 }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+            <Stack direction="row" spacing={1} alignItems="center" minWidth={0}>
+              <Box sx={{ width: 40, height: 40, borderRadius: 1.75, display: "grid", placeItems: "center", bgcolor: "rgba(27,127,85,.14)", color: "#1b7f55", border: "1px solid rgba(27,127,85,.22)" }}><TableRowsOutlinedIcon fontSize="small" /></Box>
+              <Typography fontWeight={900} sx={{ color: "#123a64", fontSize: { xs: 15, md: 17 } }}>Παραγωγή</Typography>
+            </Stack>
+            <Chip size="small" label="Τελευταίοι 6 μήνες" sx={{ bgcolor: "rgba(27,127,85,.14)", color: "#1b6848", fontWeight: 800, border: "1px solid rgba(27,127,85,.2)" }} />
+          </Stack>
+          <Grid container spacing={1} sx={{ mb: 1.25 }}>{[["Νέα συμβόλαια", "41", "#147f8d"], ["Μικτά ασφάλιστρα", "5.680 €", "#1b7f55"], ["Μέση αξία", "138 €", "#3457a6"]].map(([label, value, colour]) => <Grid item xs={4} key={label}><Box sx={{ p: 1, bgcolor: "rgba(255,255,255,.72)", border: `1px solid ${colour}38`, borderRadius: 1.5, boxShadow: "0 3px 10px rgba(26,95,71,.05)" }}><Typography variant="caption" color="text.secondary" noWrap>{label}</Typography><Typography fontWeight={900} sx={{ color: colour, fontSize: { xs: 15, sm: 18 } }}>{value}</Typography></Box></Grid>)}</Grid>
+          <Box sx={{ height: 210, p: { xs: .5, md: 1 }, borderRadius: 1.75, bgcolor: "rgba(255,255,255,.58)", border: "1px solid rgba(27,127,85,.16)" }}><ResponsiveContainer width="100%" height="100%"><LineChart data={production} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke="#cfe4d9" /><XAxis dataKey="month" tick={{ fontSize: 11 }} /><YAxis yAxisId="left" tick={{ fontSize: 10 }} /><YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} /><ChartTooltip formatter={(value, name) => { const key = String(name); const numeric = Number(value ?? 0); return [key === "premium" ? `${numeric.toLocaleString("el-GR")} €` : numeric, key === "premium" ? "Μικτά ασφάλιστρα" : "Συμβόλαια"]; }} /><Line yAxisId="left" type="monotone" dataKey="contracts" stroke="#147f8d" strokeWidth={3} dot={{ r: 3 }} /><Line yAxisId="right" type="monotone" dataKey="premium" stroke="#1b7f55" strokeWidth={3} dot={{ r: 3 }} /></LineChart></ResponsiveContainer></Box>
         </CardContent>
       </Card>
     </DashboardWidget>
