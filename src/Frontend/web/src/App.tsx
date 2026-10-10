@@ -240,8 +240,6 @@ import HubIcon from "@mui/icons-material/Hub";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import LanguageIcon from "@mui/icons-material/Language";
 import CalculateIcon from "@mui/icons-material/Calculate";
-import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
-import PrintIcon from "@mui/icons-material/Print";
 import { AllToolsPage } from "./pages/AllToolsPage";
 import { ErmesPage } from "./pages/ErmesPage";
 import { ErmesStandalonePage } from "./pages/ErmesStandalonePage";
@@ -423,12 +421,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/office-website", labelKey: "nav.officeWebsite", icon: <LanguageIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website/requests", labelKey: "nav.officeWebsiteRequests", icon: <AssignmentIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website/analytics", labelKey: "nav.officeWebsiteAnalytics", icon: <AnalyticsIcon />, package: "FrontOffice", group: "website" },
-    { to: "/frontoffice-quoting?view=dashboard", labelKey: "nav.quotingDashboard", icon: <CalculateIcon />, package: "FrontOffice", group: "quoting", openInNewTab: true },
-    { to: "/frontoffice-quoting?view=quotes", labelKey: "nav.quotes", icon: <CompareArrowsIcon />, package: "FrontOffice", group: "quoting", openInNewTab: true },
-    { to: "/frontoffice-quoting?view=print-pay", labelKey: "nav.printPay", icon: <PrintIcon />, package: "FrontOffice", group: "quoting", openInNewTab: true },
-    { to: "/frontoffice-quoting?view=pay-print", labelKey: "nav.payPrint", icon: <PaymentsIcon />, package: "FrontOffice", group: "quoting", openInNewTab: true },
-    { to: "/frontoffice-quoting?view=requests", labelKey: "nav.quoteRequests", icon: <AssignmentIcon />, package: "FrontOffice", group: "quoting", openInNewTab: true },
-    { to: "/frontoffice-quoting?view=history", labelKey: "nav.quoteHistory", icon: <ScheduleIcon />, package: "FrontOffice", group: "quoting", openInNewTab: true },
+    { to: "/frontoffice-quoting?view=dashboard", labelKey: "nav.quotingDashboard", icon: <CalculateIcon />, package: "FrontOffice", openInNewTab: true },
 
     // ===== Intelligence =====
     // persistency hidden — analytics shell exists but not wired to data yet.
@@ -499,12 +492,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/office-website", labelKey: "nav.officeWebsite", icon: <LanguageIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website/requests", labelKey: "nav.officeWebsiteRequests", icon: <AssignmentIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website/analytics", labelKey: "nav.officeWebsiteAnalytics", icon: <AnalyticsIcon />, package: "FrontOffice", group: "website" },
-    { to: "/frontoffice-quoting?view=dashboard", labelKey: "nav.quotingDashboard", icon: <CalculateIcon />, package: "FrontOffice", group: "quoting", openInNewTab: true },
-    { to: "/frontoffice-quoting?view=quotes", labelKey: "nav.quotes", icon: <CompareArrowsIcon />, package: "FrontOffice", group: "quoting", openInNewTab: true },
-    { to: "/frontoffice-quoting?view=print-pay", labelKey: "nav.printPay", icon: <PrintIcon />, package: "FrontOffice", group: "quoting", openInNewTab: true },
-    { to: "/frontoffice-quoting?view=pay-print", labelKey: "nav.payPrint", icon: <PaymentsIcon />, package: "FrontOffice", group: "quoting", openInNewTab: true },
-    { to: "/frontoffice-quoting?view=requests", labelKey: "nav.quoteRequests", icon: <AssignmentIcon />, package: "FrontOffice", group: "quoting", openInNewTab: true },
-    { to: "/frontoffice-quoting?view=history", labelKey: "nav.quoteHistory", icon: <ScheduleIcon />, package: "FrontOffice", group: "quoting", openInNewTab: true },
+    { to: "/frontoffice-quoting?view=dashboard", labelKey: "nav.quotingDashboard", icon: <CalculateIcon />, package: "FrontOffice", openInNewTab: true },
     // CRM
     { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
@@ -542,12 +530,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/office-website", labelKey: "nav.officeWebsite", icon: <LanguageIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website/requests", labelKey: "nav.officeWebsiteRequests", icon: <AssignmentIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website/analytics", labelKey: "nav.officeWebsiteAnalytics", icon: <AnalyticsIcon />, package: "FrontOffice", group: "website" },
-    { to: "/frontoffice-quoting?view=dashboard", labelKey: "nav.quotingDashboard", icon: <CalculateIcon />, package: "FrontOffice", group: "quoting", openInNewTab: true },
-    { to: "/frontoffice-quoting?view=quotes", labelKey: "nav.quotes", icon: <CompareArrowsIcon />, package: "FrontOffice", group: "quoting", openInNewTab: true },
-    { to: "/frontoffice-quoting?view=print-pay", labelKey: "nav.printPay", icon: <PrintIcon />, package: "FrontOffice", group: "quoting", openInNewTab: true },
-    { to: "/frontoffice-quoting?view=pay-print", labelKey: "nav.payPrint", icon: <PaymentsIcon />, package: "FrontOffice", group: "quoting", openInNewTab: true },
-    { to: "/frontoffice-quoting?view=requests", labelKey: "nav.quoteRequests", icon: <AssignmentIcon />, package: "FrontOffice", group: "quoting", openInNewTab: true },
-    { to: "/frontoffice-quoting?view=history", labelKey: "nav.quoteHistory", icon: <ScheduleIcon />, package: "FrontOffice", group: "quoting", openInNewTab: true },
+    { to: "/frontoffice-quoting?view=dashboard", labelKey: "nav.quotingDashboard", icon: <CalculateIcon />, package: "FrontOffice", openInNewTab: true },
     { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/crm-groups", labelKey: "nav.crmGroups", icon: <GroupWorkIconRC />, package: "Crm", permission: "marketing.read" },
