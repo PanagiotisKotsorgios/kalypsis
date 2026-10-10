@@ -2391,7 +2391,7 @@ function KalypsisOperatingModelSection() {
     LeaderboardOutlinedIcon,
   ];
   return (
-    <Box component="section" sx={{ py: { xs: 7, md: 10 }, bgcolor: "#fff" }}>
+    <Box component="section" sx={{ py: { xs: 7, md: 10 }, bgcolor: "#f3f8fd", borderTop: "1px solid #dceaf5", borderBottom: "1px solid #dceaf5" }}>
       <Container maxWidth="lg">
         <Reveal>
           <Box sx={{ maxWidth: 820, mb: { xs: 4, md: 6 } }}>
@@ -2449,14 +2449,30 @@ function KalypsisOperatingModelSection() {
                   sx={{
                     height: "100%",
                     p: { xs: 2.5, md: 3 },
-                    border: `1px solid ${RULE}`,
-                    borderRadius: 2,
-                    bgcolor: index === 0 ? "#f4f9fc" : "#fff",
+                    position: "relative",
+                    overflow: "hidden",
+                    border: `1px solid ${index === 0 ? "#9cc9ec" : "#c8dceb"}`,
+                    borderRadius: 2.5,
+                    background: [
+                      "linear-gradient(145deg, #e4f2ff 0%, #f5fbff 100%)",
+                      "linear-gradient(145deg, #eef8ff 0%, #fbfdff 100%)",
+                      "linear-gradient(145deg, #e7f7f4 0%, #f8fcfb 100%)",
+                      "linear-gradient(145deg, #edf2ff 0%, #fafbff 100%)",
+                    ][index],
+                    boxShadow: "0 8px 24px rgba(24,83,132,.08)",
                     transition:
-                      "border-color 180ms ease, box-shadow 180ms ease",
+                      "border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease",
                     "&:hover": {
-                      borderColor: ACCENT,
-                      boxShadow: "0 14px 28px rgba(11,37,69,.09)",
+                      borderColor: index === 2 ? "#168d83" : ACCENT,
+                      boxShadow: "0 16px 32px rgba(11,37,69,.14)",
+                      transform: "translateY(-3px)",
+                    },
+                    "&::before": {
+                      content: '""',
+                      position: "absolute",
+                      inset: "0 0 auto",
+                      height: 4,
+                      bgcolor: index === 2 ? "#168d83" : ACCENT,
                     },
                   }}
                 >
@@ -2471,8 +2487,8 @@ function KalypsisOperatingModelSection() {
                         width: 42,
                         height: 42,
                         borderRadius: 1.5,
-                        bgcolor: "rgba(31,123,179,.1)",
-                        color: ACCENT,
+                        bgcolor: index === 2 ? "rgba(22,141,131,.14)" : "rgba(18,101,216,.13)",
+                        color: index === 2 ? "#168d83" : ACCENT,
                         display: "grid",
                         placeItems: "center",
                       }}
