@@ -182,7 +182,9 @@ const statusColour: Record<OfferRow["status"], "success" | "info" | "warning" | 
 };
 
 function viewFromQuery(value: string | null): ViewKey {
-  return value === "quotes" || value === "print-pay" || value === "pay-print" || value === "requests" || value === "history" ? value : "dashboard";
+  // Το παλιό ιστορικό προσφορών δεν αποτελεί πλέον ξεχωριστή προβολή·
+  // παλιές διευθύνσεις ανοίγουν με ασφάλεια την αρχική σελίδα.
+  return value === "quotes" || value === "print-pay" || value === "pay-print" || value === "requests" ? value : "dashboard";
 }
 
 export function FrontOfficeQuotingPage({ standalone = false }: { standalone?: boolean }) {
