@@ -262,6 +262,22 @@ const standaloneDropdowns: { key: string; label: string; views: { label: string;
 function StandalonePluginHeader({ view, onNavigate }: { view: ViewKey; onNavigate: (value: ViewKey) => void }) {
   const { signOut } = useAuth();
   const [menu, setMenu] = useState<{ key: string; anchor: HTMLElement } | null>(null);
+  const activeNav = view === "dashboard" ? "home" : view === "quotes" ? "offers" : view === "history" || view === "requests" ? "production" : view === "print-pay" ? "print-pay" : "pay-print";
+  const navButtonSx = {
+    minHeight: 58,
+    minWidth: "auto",
+    px: { xs: 1.5, sm: 2.25, md: 2.75 },
+    borderRadius: 0,
+    color: "#fff",
+    fontWeight: 850,
+    fontSize: { xs: 13, sm: 14, md: 15 },
+    letterSpacing: ".01em",
+    textTransform: "none",
+    whiteSpace: "nowrap",
+    borderBottom: "3px solid transparent",
+    transition: "background-color .16s ease, color .16s ease, border-color .16s ease",
+    "&:hover": { bgcolor: "rgba(83,198,211,.2)", color: "#fff", borderBottomColor: "#53c6d3" },
+  } as const;
   const officeProfile = useQuery({
     queryKey: ["agency-profile", "insureone-header"],
     queryFn: async () => (await api.get<{ name?: string | null; logoUrl?: string | null }>("/agency-profile")).data,
@@ -289,17 +305,18 @@ function StandalonePluginHeader({ view, onNavigate }: { view: ViewKey; onNavigat
     <Box sx={{ bgcolor: "#123a64", borderTop: "1px solid rgba(255,255,255,.12)" }}>
       <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: .5, sm: 2.5, lg: 4 }, display: "flex", alignItems: "center", gap: { xs: .5, sm: 1 } }}>
         <Box sx={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", overflowX: "auto", scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}>
-          <Button onClick={() => onNavigate("dashboard")} sx={{ minHeight: 52, minWidth: "auto", px: { xs: 1.25, sm: 2 }, borderRadius: 0, color: "#fff", fontWeight: 800, textTransform: "none", whiteSpace: "nowrap", bgcolor: view === "dashboard" ? "#2e75b6" : "transparent", "&:hover": { bgcolor: "rgba(255,255,255,.12)" } }}>Αρχική</Button>
+          <Button onClick={() => onNavigate("dashboard")} sx={{ ...navButtonSx, bgcolor: activeNav === "home" ? "#2e75b6" : "transparent", borderBottomColor: activeNav === "home" ? "#53c6d3" : "transparent" }}>ΑΡΧΙΚΗ</Button>
+          <Button onClick={() => onNavigate("quotes")} sx={{ ...navButtonSx, bgcolor: activeNav === "offers" ? "#2e75b6" : "transparent", borderBottomColor: activeNav === "offers" ? "#53c6d3" : "transparent" }}>ΠΡΟΣΦΟΡΕΣ</Button>
           {standaloneDropdowns.map((item) => {
-            const active = item.views.some(option => option.view === view);
+            const active = activeNav === item.key;
             return <Fragment key={item.key}>
-              <Button onClick={(event) => setMenu({ key: item.key, anchor: event.currentTarget })} endIcon={<KeyboardArrowDownRoundedIcon fontSize="small" />} sx={{ minHeight: 52, minWidth: "auto", px: { xs: 1.25, sm: 2 }, borderRadius: 0, color: "#fff", fontWeight: 800, textTransform: "none", whiteSpace: "nowrap", bgcolor: active ? "#2e75b6" : "transparent", "&:hover": { bgcolor: "rgba(255,255,255,.12)" }, "& .MuiButton-endIcon": { ml: .35 } }}>{item.label}</Button>
-              <Menu anchorEl={menu?.key === item.key ? menu.anchor : null} open={menu?.key === item.key} onClose={() => setMenu(null)} MenuListProps={{ dense: true }}>
+              <Button onClick={(event) => setMenu({ key: item.key, anchor: event.currentTarget })} endIcon={<KeyboardArrowDownRoundedIcon fontSize="small" />} sx={{ ...navButtonSx, bgcolor: active ? "#2e75b6" : "transparent", borderBottomColor: active ? "#53c6d3" : "transparent", "& .MuiButton-endIcon": { ml: .45, transition: "transform .16s ease", transform: menu?.key === item.key ? "rotate(180deg)" : "none" } }}>{item.label}</Button>
+              <Menu anchorEl={menu?.key === item.key ? menu.anchor : null} open={menu?.key === item.key} onClose={() => setMenu(null)} PaperProps={{ sx: { mt: .75, minWidth: 210, border: "1px solid #cbd9e6", boxShadow: "0 10px 28px rgba(18,58,100,.2)", borderRadius: 1.5 } }} MenuListProps={{ dense: true, sx: { py: .5, "& .MuiMenuItem-root": { px: 1.75, py: 1, fontSize: 14, fontWeight: 700, color: "#173b5d", borderRadius: .75, mx: .5, "&:hover": { bgcolor: "#e6f4f7", color: "#0b6d84" } } } }}>
                 {item.views.map(option => <MenuItem key={`${item.key}-${option.label}`} onClick={() => { setMenu(null); onNavigate(option.view); }}>{option.label}</MenuItem>)}
               </Menu>
             </Fragment>;
           })}
-          <Button onClick={() => onNavigate("pay-print")} sx={{ minHeight: 52, minWidth: "auto", px: { xs: 1.25, sm: 2 }, borderRadius: 0, color: "#fff", fontWeight: 800, textTransform: "none", whiteSpace: "nowrap", bgcolor: view === "pay-print" ? "#2e75b6" : "transparent", "&:hover": { bgcolor: "rgba(255,255,255,.12)" } }}>Πληρώνω-Τυπώνω</Button>
+          <Button onClick={() => onNavigate("pay-print")} sx={{ ...navButtonSx, bgcolor: activeNav === "pay-print" ? "#2e75b6" : "transparent", borderBottomColor: activeNav === "pay-print" ? "#53c6d3" : "transparent" }}>Πληρώνω-Τυπώνω</Button>
         </Box>
         <Tooltip title="Αποσύνδεση">
           <Button aria-label="Αποσύνδεση" variant="contained" color="error" size="small" onClick={() => { signOut(); window.location.assign("/login"); }} startIcon={<LogoutRoundedIcon />} sx={{ flexShrink: 0, minWidth: { xs: 38, sm: 40 }, px: { xs: 1, sm: 1.25 }, color: "#fff", fontWeight: 850, borderRadius: 1.25, bgcolor: "#c62828", "&:hover": { bgcolor: "#9f1f1f" }, "& .MuiButton-startIcon": { mr: { xs: 0, sm: .75 } } }}>
