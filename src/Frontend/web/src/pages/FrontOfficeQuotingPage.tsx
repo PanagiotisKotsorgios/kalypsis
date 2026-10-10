@@ -229,7 +229,7 @@ export function FrontOfficeQuotingPage({ standalone = false }: { standalone?: bo
         </Tabs>
       </Paper>}
 
-      {view === "dashboard" || view === "quotes" ? (
+      {((!standalone && view === "dashboard") || view === "quotes") ? (
         <QuoteWorkspace branch={branch} setBranch={setBranch} preset={preset} quotes={quotes} search={search} setSearch={setSearch} onlyRecommended={onlyRecommended} setOnlyRecommended={setOnlyRecommended} sortBy={sortBy} setSortBy={setSortBy} onOpen={setSelectedQuote} onGoOffers={() => go("quotes")} />
       ) : view === "print-pay" ? <PrintPayView /> : view === "pay-print" ? <PayPrintView /> : view === "requests" ? <RequestsView /> : <HistoryView />}
 
