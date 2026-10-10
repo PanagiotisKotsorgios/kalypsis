@@ -91,12 +91,23 @@ interface PlanDef {
   extraUserPerYear: number;
   packages: string[];
   isComingSoon?: boolean;
+  pricePeriodLabel?: string;
+  extraOfficeLabel?: string;
+  extraUserLabel?: string;
+  extraPricePeriodLabel?: string;
 }
-interface AddonDef { code: string; description: string; pricePerYear: number }
-interface ServiceDef { code: string; description: string; unitLabel: string; unitPrice: number }
-interface PricingCatalog { version: number; plans: PlanDef[]; addons: AddonDef[]; services: ServiceDef[] }
+interface AddonDef { code: string; description: string; pricePerYear: number; priceUnitLabel?: string }
+interface ServiceDef { code: string; description: string; unitLabel: string; unitPrice: number | null; pricingType?: string }
+interface PricingCatalog { version: number; plans: PlanDef[]; addons: AddonDef[]; services: ServiceDef[]; settings?: { currency?: string } }
 
-const moneyFmt = new Intl.NumberFormat("el-GR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+const money = (amount: number | null | undefined, currency = "EUR") => {
+  if (amount == null) return "Κατά περίπτωση";
+  try {
+    return new Intl.NumberFormat("el-GR", { style: "currency", currency: currency.trim().toUpperCase() || "EUR", maximumFractionDigits: 0 }).format(amount);
+  } catch {
+    return new Intl.NumberFormat("el-GR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(amount);
+  }
+};
 const intFmt = new Intl.NumberFormat("el-GR");
 const PLAN_LABEL: Record<string, string> = {
   Trial: "Trial", Starter: "Starter", Professional: "Professional", Enterprise: "Enterprise"
@@ -206,14 +217,14 @@ export function PlatformDashboard() {
                 }}>
                   <Typography variant="overline" color="text.secondary">{p.code}</Typography>
                   <Typography variant="h5" fontWeight={800}>
-                    {p.isComingSoon ? "Σύντομα διαθέσιμο" : <>{moneyFmt.format(p.pricePerYear)}<Typography component="span" variant="caption" color="text.secondary"> /έτος</Typography></>}
+                    {p.isComingSoon ? "Σύντομα διαθέσιμο" : <>{money(p.pricePerYear, pricing.data?.settings?.currency)}<Typography component="span" variant="caption" color="text.secondary"> /{p.pricePeriodLabel || "έτος"}</Typography></>}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">{p.tagline}</Typography>
                   <Typography variant="caption" color="text.secondary">
                     Περιλαμβάνει {p.includedOffices} γραφεία · {p.includedUsers} χρήστες
                   </Typography>
                   {!p.isComingSoon && <Typography variant="caption" color="text.secondary">
-                    Extra γραφείο {moneyFmt.format(p.extraOfficePerYear)}/έτος · extra χρήστης {moneyFmt.format(p.extraUserPerYear)}/έτος
+                    {p.extraOfficeLabel || "Επιπλέον γραφείο"} {money(p.extraOfficePerYear, pricing.data?.settings?.currency)}/{p.extraPricePeriodLabel || "έτος"} · {p.extraUserLabel || "Επιπλέον χρήστης"} {money(p.extraUserPerYear, pricing.data?.settings?.currency)}/{p.extraPricePeriodLabel || "έτος"}
                   </Typography>}
                 </Box>
               ))}
@@ -225,7 +236,7 @@ export function PlatformDashboard() {
               <Typography variant="overline" color="text.secondary">Έκτακτες υπηρεσίες</Typography>
               <Stack direction="row" spacing={1} flexWrap="wrap" gap={1} mt={1}>
                 {pricing.data.services.map(s => (
-                  <Chip key={s.code} label={`${s.description}: ${moneyFmt.format(s.unitPrice)} / ${s.unitLabel}`}
+                  <Chip key={s.code} label={`${s.description}: ${s.pricingType === "custom_quote" || s.unitPrice == null ? "Κατά περίπτωση" : `${money(s.unitPrice, pricing.data?.settings?.currency)} / ${s.unitLabel}`}`}
                         variant="outlined" size="small" />
                 ))}
               </Stack>

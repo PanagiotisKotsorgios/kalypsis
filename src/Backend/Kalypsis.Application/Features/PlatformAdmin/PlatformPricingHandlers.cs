@@ -37,7 +37,11 @@ public record PlanDefinitionDto(
     string? Badge = null,
     int IncludedPackages = 0,
     string[]? FeatureKeys = null,
-    bool IsComingSoon = false);
+    bool IsComingSoon = false,
+    string PricePeriodLabel = "έτος",
+    string ExtraOfficeLabel = "Επιπλέον γραφείο",
+    string ExtraUserLabel = "Επιπλέον χρήστης",
+    string ExtraPricePeriodLabel = "έτος");
 
 public record AddonDefinitionDto(
     string Code,
@@ -46,7 +50,8 @@ public record AddonDefinitionDto(
     string Name = "",
     bool IsActive = true,
     int SortOrder = 0,
-    string? IconKey = null);
+    string? IconKey = null,
+    string PriceUnitLabel = "έτος");
 
 public record ServiceDefinitionDto(
     string Code,
@@ -178,13 +183,23 @@ public static class PricingDefaults
                 ButtonText = string.IsNullOrWhiteSpace(p.ButtonText) ? "Επιλογή Πακέτου →" : p.ButtonText,
                 ButtonUrl = string.IsNullOrWhiteSpace(p.ButtonUrl) ? "/register" : p.ButtonUrl,
                 IncludedPackages = p.IncludedPackages > 0 ? p.IncludedPackages : featureKeys.Length,
-                FeatureKeys = featureKeys
+                FeatureKeys = featureKeys,
+                PricePeriodLabel = string.IsNullOrWhiteSpace(p.PricePeriodLabel) ? d?.PricePeriodLabel ?? "έτος" : p.PricePeriodLabel,
+                ExtraOfficeLabel = string.IsNullOrWhiteSpace(p.ExtraOfficeLabel) ? d?.ExtraOfficeLabel ?? "Επιπλέον γραφείο" : p.ExtraOfficeLabel,
+                ExtraUserLabel = string.IsNullOrWhiteSpace(p.ExtraUserLabel) ? d?.ExtraUserLabel ?? "Επιπλέον χρήστης" : p.ExtraUserLabel,
+                ExtraPricePeriodLabel = string.IsNullOrWhiteSpace(p.ExtraPricePeriodLabel) ? d?.ExtraPricePeriodLabel ?? "έτος" : p.ExtraPricePeriodLabel
             };
         }).ToArray();
         var addons = parsed.Addons.Select((a, i) =>
         {
             var d = defaults.Addons.FirstOrDefault(x => x.Code.Equals(a.Code, StringComparison.OrdinalIgnoreCase));
-            return a with { Name = string.IsNullOrWhiteSpace(a.Name) ? d?.Name ?? a.Code : a.Name, IsActive = a.IsActive, SortOrder = a.SortOrder == 0 ? (d?.SortOrder ?? (i + 1) * 10) : a.SortOrder };
+            return a with
+            {
+                Name = string.IsNullOrWhiteSpace(a.Name) ? d?.Name ?? a.Code : a.Name,
+                IsActive = a.IsActive,
+                SortOrder = a.SortOrder == 0 ? (d?.SortOrder ?? (i + 1) * 10) : a.SortOrder,
+                PriceUnitLabel = string.IsNullOrWhiteSpace(a.PriceUnitLabel) ? d?.PriceUnitLabel ?? "έτος" : a.PriceUnitLabel
+            };
         }).ToArray();
         var services = parsed.Services.Select((s, i) =>
         {
@@ -304,8 +319,8 @@ public sealed class CalculatePricingHandler : IRequestHandler<CalculatePricingQu
         var offices = Math.Max(0, request.Request.ExtraOffices); var users = Math.Max(0, request.Request.ExtraUsers);
         var lines = new List<PricingCalculationLine> { new("base", p.Name, p.PricePerYear) };
         var officeAmount = offices * p.ExtraOfficePerYear; var userAmount = users * p.ExtraUserPerYear;
-        if (offices > 0) lines.Add(new("extra_offices", $"{offices} επιπλέον γραφεία", officeAmount));
-        if (users > 0) lines.Add(new("extra_users", $"{users} επιπλέον χρήστες", userAmount));
+        if (offices > 0) lines.Add(new("extra_offices", $"{offices} {p.ExtraOfficeLabel}", officeAmount));
+        if (users > 0) lines.Add(new("extra_users", $"{users} {p.ExtraUserLabel}", userAmount));
         var requestedAddons = request.Request.AddonCodes ?? Array.Empty<string>();
         var addonAmount = catalog.Addons.Where(a => a.IsActive && requestedAddons.Contains(a.Code, StringComparer.OrdinalIgnoreCase)).Sum(a => { lines.Add(new(a.Code, a.Name, a.PricePerYear)); return a.PricePerYear; });
         var requestedServices = request.Request.ServiceCodes ?? Array.Empty<string>();

@@ -26,8 +26,8 @@ import { PublicShell } from "../components/PublicShell";
 import { PresentationRequestDialog } from "../components/PresentationRequestDialog";
 
 interface PricingFeature { key: string; label: string; description?: string; sortOrder: number; isActive: boolean; iconKey?: string | null }
-interface Plan { code: string; name: string; tagline: string; description: string; pricePerYear: number; includedOffices: number; includedUsers: number; extraOfficePerYear: number; extraUserPerYear: number; includedPackages: number; packages: string[]; featureKeys?: string[]; isFeatured: boolean; isActive: boolean; sortOrder: number; buttonText: string; buttonUrl: string; badge?: string | null; iconKey?: string | null; isComingSoon?: boolean }
-interface Addon { code: string; name: string; description: string; pricePerYear: number; isActive: boolean; sortOrder: number; iconKey?: string | null }
+interface Plan { code: string; name: string; tagline: string; description: string; pricePerYear: number; includedOffices: number; includedUsers: number; extraOfficePerYear: number; extraUserPerYear: number; includedPackages: number; packages: string[]; featureKeys?: string[]; isFeatured: boolean; isActive: boolean; sortOrder: number; buttonText: string; buttonUrl: string; badge?: string | null; iconKey?: string | null; isComingSoon?: boolean; pricePeriodLabel?: string; extraOfficeLabel?: string; extraUserLabel?: string; extraPricePeriodLabel?: string }
+interface Addon { code: string; name: string; description: string; pricePerYear: number; isActive: boolean; sortOrder: number; iconKey?: string | null; priceUnitLabel?: string }
 interface Service { code: string; name: string; description: string; unitLabel: string; unitPrice: number | null; pricingType: string; isActive: boolean; sortOrder: number; iconKey?: string | null }
 interface PricingSettings { pricesIncludeVat: boolean; vatRate: number; currency: string; publicTitle: string; publicSubtitle: string; vatLabel: string }
 interface Catalog { version: number; plans: Plan[]; addons: Addon[]; services: Service[]; features: PricingFeature[]; settings: PricingSettings }
@@ -37,8 +37,14 @@ const BLUE = "#1265d8";
 const NAVY = "#0a2b67";
 const RULE = "#d7e7f5";
 const RED = "#c62828";
-const EUR = new Intl.NumberFormat("el-GR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
-const money = (amount: number | null | undefined) => amount == null ? "Κατά περίπτωση" : EUR.format(amount);
+const money = (amount: number | null | undefined, currency = "EUR") => {
+  if (amount == null) return "Κατά περίπτωση";
+  try {
+    return new Intl.NumberFormat("el-GR", { style: "currency", currency: currency.trim().toUpperCase() || "EUR", maximumFractionDigits: 0 }).format(amount);
+  } catch {
+    return new Intl.NumberFormat("el-GR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(amount);
+  }
+};
 
 function iconFor(key?: string | null, color = BLUE) {
   const props = { sx: { color, fontSize: 28 } };
@@ -66,7 +72,7 @@ function SectionHeading({ number, title, subtitle }: { number: string; title: st
   );
 }
 
-function PlanCard({ plan, features }: { plan: Plan; features: PricingFeature[] }) {
+function PlanCard({ plan, features, currency }: { plan: Plan; features: PricingFeature[]; currency: string }) {
   const included = plan.featureKeys ?? plan.packages ?? [];
   const actionUrl = plan.buttonUrl || "/register";
   const action: "contained" | "outlined" = plan.isFeatured ? "contained" : "outlined";
@@ -86,7 +92,7 @@ function PlanCard({ plan, features }: { plan: Plan; features: PricingFeature[] }
           <Box><Typography variant="h5" sx={{ color: NAVY, fontWeight: 950 }}>{plan.name}</Typography><Typography variant="body2" color="text.secondary">{plan.description || plan.tagline}</Typography></Box>
           {iconFor(plan.iconKey)}
         </Stack>
-        {comingSoon ? <Typography sx={{ color: BLUE, fontWeight: 950, fontSize: { xs: 25, md: 30 }, lineHeight: 1.1, minHeight: 38 }}>ΣΥΝΤΟΜΑ ΔΙΑΘΕΣΙΜΟ</Typography> : <Typography sx={{ color: BLUE, fontWeight: 950, fontSize: { xs: 32, md: 38 }, lineHeight: 1 }}>{money(plan.pricePerYear)}<Typography component="span" sx={{ color: "text.secondary", fontSize: 13, fontWeight: 700 }}> / έτος</Typography></Typography>}
+        {comingSoon ? <Typography sx={{ color: BLUE, fontWeight: 950, fontSize: { xs: 25, md: 30 }, lineHeight: 1.1, minHeight: 38 }}>ΣΥΝΤΟΜΑ ΔΙΑΘΕΣΙΜΟ</Typography> : <Typography sx={{ color: BLUE, fontWeight: 950, fontSize: { xs: 32, md: 38 }, lineHeight: 1 }}>{money(plan.pricePerYear, currency)}<Typography component="span" sx={{ color: "text.secondary", fontSize: 13, fontWeight: 700 }}> / {plan.pricePeriodLabel || "έτος"}</Typography></Typography>}
         <Divider />
         <Stack spacing={.45} sx={{ color: NAVY, fontSize: 13 }}>
           {plan.includedOffices > 0 && <Typography><b>{plan.includedOffices}</b> {plan.includedOffices === 1 ? "γραφείο" : "γραφεία"}</Typography>}
@@ -97,7 +103,7 @@ function PlanCard({ plan, features }: { plan: Plan; features: PricingFeature[] }
           {features.filter(f => included.includes(f.key)).map(f => <Stack direction="row" alignItems="flex-start" gap={.65} key={f.key}><CheckCircleIcon sx={{ color: "#16803c", fontSize: 18, mt: .1 }} /><Typography variant="body2">{f.label}</Typography></Stack>)}
         </Stack>
         <Box sx={{ flex: 1 }} />
-        {!comingSoon && <Typography variant="caption" color="text.secondary">Επιπλέον γραφείο: {money(plan.extraOfficePerYear)} / έτος · χρήστης: {money(plan.extraUserPerYear)} / έτος</Typography>}
+        {!comingSoon && <Typography variant="caption" color="text.secondary">{plan.extraOfficeLabel || "Επιπλέον γραφείο"}: {money(plan.extraOfficePerYear, currency)} / {plan.extraPricePeriodLabel || "έτος"} · {plan.extraUserLabel || "Επιπλέον χρήστης"}: {money(plan.extraUserPerYear, currency)} / {plan.extraPricePeriodLabel || "έτος"}</Typography>}
         {comingSoon ? <Button component={RouterLink} to={actionUrl || "/contact"} variant="contained" endIcon={<ArrowForwardIcon />} sx={{ mt: .5, borderRadius: 2, fontWeight: 900, bgcolor: BLUE }}>{plan.buttonText || "Εκδήλωση Ενδιαφέροντος →"}</Button> : actionUrl.startsWith("http") ? <Button component="a" href={actionUrl} variant={action} endIcon={<ArrowForwardIcon />} sx={{ mt: .5, borderRadius: 2, fontWeight: 900, ...(plan.isFeatured ? { bgcolor: BLUE } : { color: BLUE, borderColor: BLUE }) }}>{plan.buttonText || "Επιλογή Πακέτου →"}</Button> : <Button component={RouterLink} to={actionUrl} variant={action} endIcon={<ArrowForwardIcon />} sx={{ mt: .5, borderRadius: 2, fontWeight: 900, ...(plan.isFeatured ? { bgcolor: BLUE } : { color: BLUE, borderColor: BLUE }) }}>{plan.buttonText || "Επιλογή Πακέτου →"}</Button>}
       </Stack>
     </Card>
@@ -211,21 +217,21 @@ export function PricingPage() {
           </Alert>
 
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2,1fr)", lg: "repeat(3,1fr)" }, gap: { xs: 2, lg: 2.5 }, alignItems: "stretch" }}>
-            {activePlans.map(plan => <PlanCard key={plan.code} plan={plan} features={activeFeatures} />)}
+            {activePlans.map(plan => <PlanCard key={plan.code} plan={plan} features={activeFeatures} currency={settings.currency} />)}
           </Box>
           <Typography sx={{ color: RED, fontWeight: 800, fontSize: 13, textAlign: "right", mt: 1 }}>{settings.pricesIncludeVat ? settings.vatLabel : `Οι τιμές δεν περιλαμβάνουν ΦΠΑ (${settings.vatRate}%)`}</Typography>
 
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }, gap: 2.5, mt: 3 }}>
             <Paper sx={{ p: { xs: 2, md: 2.5 }, border: `1px solid ${RULE}`, borderRadius: 3, bgcolor: "rgba(255,255,255,.93)", boxShadow: "0 14px 38px rgba(19,84,146,.08)" }}>
               <SectionHeading number="01" title="Πρόσθετα Πακέτα" subtitle="Επεκτείνετε τη λειτουργικότητα του KALYPSIS με επιπλέον δυνατότητες." />
-              <Table size="small"><TableHead><TableRow sx={{ bgcolor: "#e6f4ff" }}><TableCell sx={{ fontWeight: 900, color: NAVY }}>Πρόσθετο</TableCell><TableCell sx={{ fontWeight: 900, color: NAVY }}>Περιγραφή</TableCell><TableCell align="right" sx={{ fontWeight: 900, color: NAVY }}>Τιμή / έτος</TableCell></TableRow></TableHead><TableBody>
-                {activeAddons.map(a => <TableRow key={a.code} hover><TableCell sx={{ fontWeight: 800, color: NAVY }}>{a.name}</TableCell><TableCell>{a.description}</TableCell><TableCell align="right" sx={{ color: BLUE, fontWeight: 950 }}>{money(a.pricePerYear)}</TableCell></TableRow>)}
+              <Table size="small"><TableHead><TableRow sx={{ bgcolor: "#e6f4ff" }}><TableCell sx={{ fontWeight: 900, color: NAVY }}>Πρόσθετο</TableCell><TableCell sx={{ fontWeight: 900, color: NAVY }}>Περιγραφή</TableCell><TableCell align="right" sx={{ fontWeight: 900, color: NAVY }}>Τιμή</TableCell></TableRow></TableHead><TableBody>
+                {activeAddons.map(a => <TableRow key={a.code} hover><TableCell sx={{ fontWeight: 800, color: NAVY }}>{a.name}</TableCell><TableCell>{a.description}</TableCell><TableCell align="right" sx={{ color: BLUE, fontWeight: 950, whiteSpace: "nowrap" }}>{money(a.pricePerYear, settings.currency)} / {a.priceUnitLabel || "έτος"}</TableCell></TableRow>)}
               </TableBody></Table>
             </Paper>
             <Paper sx={{ p: { xs: 2, md: 2.5 }, border: `1px solid ${RULE}`, borderRadius: 3, bgcolor: "rgba(255,255,255,.93)", boxShadow: "0 14px 38px rgba(19,84,146,.08)" }}>
               <SectionHeading number="02" title="Υπηρεσίες με Χρέωση" subtitle="Εξειδικευμένες υπηρεσίες για να αξιοποιήσετε πλήρως την πλατφόρμα." />
               <Table size="small"><TableHead><TableRow sx={{ bgcolor: "#e6f4ff" }}><TableCell sx={{ fontWeight: 900, color: NAVY }}>Υπηρεσία</TableCell><TableCell sx={{ fontWeight: 900, color: NAVY }}>Περιγραφή</TableCell><TableCell align="right" sx={{ fontWeight: 900, color: NAVY }}>Τιμή</TableCell></TableRow></TableHead><TableBody>
-                {activeServices.map(s => <TableRow key={s.code} hover><TableCell sx={{ fontWeight: 800, color: NAVY }}>{s.name}</TableCell><TableCell>{s.description}<Typography variant="caption" display="block" color="text.secondary">{s.unitLabel}</Typography></TableCell><TableCell align="right" sx={{ color: BLUE, fontWeight: 950, whiteSpace: "nowrap" }}>{s.pricingType === "custom_quote" ? "Κατά περίπτωση" : `${money(s.unitPrice)} / ${s.unitLabel}`}</TableCell></TableRow>)}
+                {activeServices.map(s => <TableRow key={s.code} hover><TableCell sx={{ fontWeight: 800, color: NAVY }}>{s.name}</TableCell><TableCell>{s.description}<Typography variant="caption" display="block" color="text.secondary">{s.unitLabel}</Typography></TableCell><TableCell align="right" sx={{ color: BLUE, fontWeight: 950, whiteSpace: "nowrap" }}>{s.pricingType === "custom_quote" ? "Κατά περίπτωση" : `${money(s.unitPrice, settings.currency)} / ${s.unitLabel}`}</TableCell></TableRow>)}
               </TableBody></Table>
             </Paper>
           </Box>
@@ -234,9 +240,9 @@ export function PricingPage() {
             <SectionHeading number="03" title="Υπολόγισε το δικό σου σύνολο" subtitle="Επίλεξε πλάνο, πρόσθετα γραφεία/χρήστες και πρόσθετα για ζωντανή εκτίμηση." />
             <Stack direction={{ xs: "column", md: "row" }} gap={2} alignItems="stretch">
               <Stack direction={{ xs: "column", sm: "row" }} gap={1.5} sx={{ flex: 1 }}>
-                <TextField select label="Βασικό πλάνο" value={planCode} onChange={e => setPlanCode(e.target.value)} fullWidth>{activePlans.map(p => <MenuItem value={p.code} key={p.code}>{p.name} · {p.isComingSoon ? "Σύντομα διαθέσιμο" : `${money(p.pricePerYear)} / έτος`}</MenuItem>)}</TextField>
-                <TextField type="number" label="Επιπλέον γραφεία" value={extraOffices} onChange={e => setExtraOffices(Math.max(0, Number(e.target.value)))} inputProps={{ min: 0 }} />
-                <TextField type="number" label="Επιπλέον χρήστες" value={extraUsers} onChange={e => setExtraUsers(Math.max(0, Number(e.target.value)))} inputProps={{ min: 0 }} />
+                <TextField select label="Βασικό πλάνο" value={planCode} onChange={e => setPlanCode(e.target.value)} fullWidth>{activePlans.map(p => <MenuItem value={p.code} key={p.code}>{p.name} · {p.isComingSoon ? "Σύντομα διαθέσιμο" : `${money(p.pricePerYear, settings.currency)} / ${p.pricePeriodLabel || "έτος"}`}</MenuItem>)}</TextField>
+                <TextField type="number" label={`${selectedPlan?.extraOfficeLabel || "Επιπλέον γραφεία"} · πλήθος`} value={extraOffices} onChange={e => setExtraOffices(Math.max(0, Number(e.target.value)))} inputProps={{ min: 0 }} />
+                <TextField type="number" label={`${selectedPlan?.extraUserLabel || "Επιπλέον χρήστες"} · πλήθος`} value={extraUsers} onChange={e => setExtraUsers(Math.max(0, Number(e.target.value)))} inputProps={{ min: 0 }} />
               </Stack>
               <Stack direction="row" gap={.5} flexWrap="wrap" alignItems="center" sx={{ maxWidth: { md: 420 } }}>
                 {activeAddons.map(a => <FormControlLabel key={a.code} control={<Checkbox size="small" checked={!!selectedAddons[a.code]} onChange={e => setSelectedAddons(v => ({ ...v, [a.code]: e.target.checked }))} />} label={<Typography variant="caption">{a.name}</Typography>} />)}
@@ -244,8 +250,8 @@ export function PricingPage() {
               </Stack>
               <Card sx={{ minWidth: { md: 250 }, p: 2, bgcolor: "#eef7ff", border: `1px solid ${BLUE}44` }}>
                 <Stack direction="row" gap={1} alignItems="center"><CalculateIcon sx={{ color: BLUE }} /><Typography fontWeight={950} color={NAVY}>Ετήσιο σύνολο</Typography></Stack>
-                <Typography sx={{ color: BLUE, fontWeight: 950, fontSize: selectedPlan?.isComingSoon ? 20 : 30, mt: .5 }}>{selectedPlan?.isComingSoon ? "Σύντομα διαθέσιμο" : calculation.data ? money(calculation.data.totalAmount) : <CircularProgress size={22} />}</Typography>
-                {calculation.data && <Typography variant="caption" color="text.secondary">Καθαρά {money(calculation.data.netAmount)} · ΦΠΑ {money(calculation.data.vatAmount)}{calculation.data.requiresQuote ? " · περιλαμβάνει υπηρεσία κατόπιν προσφοράς" : ""}</Typography>}
+                <Typography sx={{ color: BLUE, fontWeight: 950, fontSize: selectedPlan?.isComingSoon ? 20 : 30, mt: .5 }}>{selectedPlan?.isComingSoon ? "Σύντομα διαθέσιμο" : calculation.data ? money(calculation.data.totalAmount, calculation.data.currency || settings.currency) : <CircularProgress size={22} />}</Typography>
+                {calculation.data && <Typography variant="caption" color="text.secondary">Καθαρά {money(calculation.data.netAmount, calculation.data.currency || settings.currency)} · ΦΠΑ {money(calculation.data.vatAmount, calculation.data.currency || settings.currency)}{calculation.data.requiresQuote ? " · περιλαμβάνει υπηρεσία κατόπιν προσφοράς" : ""}</Typography>}
               </Card>
             </Stack>
           </Paper>
