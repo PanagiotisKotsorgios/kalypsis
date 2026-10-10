@@ -84,7 +84,7 @@ import { useAuth } from "../auth/AuthContext";
 import { KalypsisLogo } from "../components/KalypsisLogo";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 
-type ViewKey = "dashboard" | "quotes" | "print-pay" | "pay-print" | "requests";
+type ViewKey = "dashboard" | "quotes" | "contracts" | "customers" | "reports" | "forms" | "print-pay" | "pay-print" | "requests";
 type BranchKey = "Αυτοκίνητο" | "Κατοικία" | "Υγεία" | "Ζωή" | "Επιχείρηση";
 
 interface QuoteRow {
@@ -196,7 +196,7 @@ const statusColour: Record<OfferRow["status"], "success" | "info" | "warning" | 
 function viewFromQuery(value: string | null): ViewKey {
   // Το παλιό ιστορικό προσφορών δεν αποτελεί πλέον ξεχωριστή προβολή·
   // παλιές διευθύνσεις ανοίγουν με ασφάλεια την αρχική σελίδα.
-  return value === "quotes" || value === "print-pay" || value === "pay-print" || value === "requests" ? value : "dashboard";
+  return value === "quotes" || value === "contracts" || value === "customers" || value === "reports" || value === "forms" || value === "print-pay" || value === "pay-print" || value === "requests" ? value : "dashboard";
 }
 
 export function FrontOfficeQuotingPage({ standalone = false }: { standalone?: boolean }) {
@@ -262,7 +262,7 @@ export function FrontOfficeQuotingPage({ standalone = false }: { standalone?: bo
 
       {((!standalone && view === "dashboard") || (standalone && view === "dashboard" && quoteMode)) ? (
         <QuoteWorkspace branch={branch} setBranch={(value) => { setBranch(value); setQuoteBranchLabel(value); }} preset={preset} quotes={quotes} search={search} setSearch={setSearch} onlyRecommended={onlyRecommended} setOnlyRecommended={setOnlyRecommended} sortBy={sortBy} setSortBy={setSortBy} onOpen={setSelectedQuote} onGoOffers={() => go("quotes")} />
-      ) : view === "quotes" ? <OffersHistoryView onStartQuoting={startQuote} /> : view === "print-pay" ? <PrintPayView /> : view === "pay-print" ? <PayPrintView /> : view === "requests" ? <RequestsView /> : <HistoryView />}
+      ) : view === "quotes" ? <OffersHistoryView onStartQuoting={startQuote} /> : view === "contracts" ? <ProductionContractsView /> : view === "customers" ? <ProductionCustomersView /> : view === "reports" ? <ProductionReportsView /> : view === "forms" ? <ProductionFormsView /> : view === "print-pay" ? <PrintPayView /> : view === "pay-print" ? <PayPrintView /> : view === "requests" ? <RequestsView /> : <HistoryView />}
 
       <Dialog open={!!selectedQuote} onClose={() => setSelectedQuote(null)} fullWidth maxWidth="sm">
         {selectedQuote && <>
@@ -323,13 +323,23 @@ const standaloneDropdowns: { key: string; label: string; views: { label: string;
   ] },
 ];
 
+const productionDropdownViews: { label: string; view: ViewKey }[] = [
+  { label: "Συμβόλαια", view: "contracts" },
+  { label: "Πελάτες", view: "customers" },
+  { label: "Αναφορές", view: "reports" },
+  { label: "Έντυπα", view: "forms" },
+  { label: "Αιτήματα ασφάλισης", view: "requests" },
+];
+
+const visibleStandaloneDropdowns = standaloneDropdowns.map((item) => item.key === "production" ? { ...item, views: productionDropdownViews } : item);
+
 function StandalonePluginHeader({ view, onNavigate }: { view: ViewKey; onNavigate: (value: ViewKey) => void }) {
   const { signOut } = useAuth();
   const [menu, setMenu] = useState<{ key: string; anchor: HTMLElement } | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState<string | null>(null);
   const compactNav = useMediaQuery("(max-width:1120px)");
-  const activeNav = view === "dashboard" ? "home" : view === "quotes" ? "offers" : view === "requests" ? "production" : view === "print-pay" ? "print-pay" : "pay-print";
+  const activeNav = view === "dashboard" ? "home" : view === "quotes" ? "offers" : ["contracts", "customers", "reports", "forms", "requests"].includes(view) ? "production" : view === "print-pay" ? "print-pay" : "pay-print";
   const navButtonSx = {
     minHeight: 58,
     minWidth: "auto",
@@ -374,7 +384,7 @@ function StandalonePluginHeader({ view, onNavigate }: { view: ViewKey; onNavigat
         {!compactNav && <Box sx={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", overflowX: "auto", scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}>
           <Button onClick={() => onNavigate("dashboard")} sx={{ ...navButtonSx, bgcolor: activeNav === "home" ? "#2e75b6" : "transparent", borderBottomColor: activeNav === "home" ? "#53c6d3" : "transparent" }}>Αρχική</Button>
           <Button onClick={() => onNavigate("quotes")} sx={{ ...navButtonSx, bgcolor: activeNav === "offers" ? "#2e75b6" : "transparent", borderBottomColor: activeNav === "offers" ? "#53c6d3" : "transparent" }}>Προσφορές</Button>
-          {standaloneDropdowns.map((item) => {
+          {visibleStandaloneDropdowns.map((item) => {
             const active = activeNav === item.key;
             return <Fragment key={item.key}>
               <Button onClick={(event) => setMenu({ key: item.key, anchor: event.currentTarget })} endIcon={<KeyboardArrowDownRoundedIcon fontSize="small" />} sx={{ ...navButtonSx, bgcolor: active ? "#2e75b6" : "transparent", borderBottomColor: active ? "#53c6d3" : "transparent", "& .MuiButton-endIcon": { ml: .45, transition: "transform .16s ease", transform: menu?.key === item.key ? "rotate(180deg)" : "none" } }}>{item.label}</Button>
@@ -405,7 +415,7 @@ function StandalonePluginHeader({ view, onNavigate }: { view: ViewKey; onNavigat
             <List sx={{ px: 1, py: 1 }}>
               <ListItemButton selected={activeNav === "home"} onClick={() => { setMobileNavOpen(false); onNavigate("dashboard"); }} sx={{ borderRadius: 1, mb: .5, "&.Mui-selected": { bgcolor: "#dceff5", color: "#123a64" } }}><ListItemText primary="Αρχική" primaryTypographyProps={{ fontWeight: 800 }} /></ListItemButton>
               <ListItemButton selected={activeNav === "offers"} onClick={() => { setMobileNavOpen(false); onNavigate("quotes"); }} sx={{ borderRadius: 1, mb: .5, "&.Mui-selected": { bgcolor: "#dceff5", color: "#123a64" } }}><ListItemText primary="Προσφορές" primaryTypographyProps={{ fontWeight: 800 }} /></ListItemButton>
-              {standaloneDropdowns.map(item => {
+              {visibleStandaloneDropdowns.map(item => {
                 const expanded = mobileExpanded === item.key;
                 return <Fragment key={`mobile-${item.key}`}>
                   <ListItemButton selected={activeNav === item.key} onClick={() => setMobileExpanded(current => current === item.key ? null : item.key)} sx={{ borderRadius: 1, mb: .5, "&.Mui-selected": { bgcolor: "#dceff5", color: "#123a64" } }}>
@@ -829,6 +839,47 @@ function WorkflowView({ title, subtitle, icon, rows, primary }: { title: string;
 
 function RequestsView() {
   return <Stack spacing={2.5}><Card variant="outlined" sx={{ borderRadius: 2.5 }}><CardContent sx={{ p: 3 }}><Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} spacing={1}><Box><Typography variant="h5" fontWeight={850}>Αιτήσεις ασφάλισης</Typography><Typography color="text.secondary">Νέα αιτήματα από την ιστοσελίδα ή τον ασφαλιστή, έτοιμα για σύγκριση.</Typography></Box><Button variant="contained" startIcon={<DescriptionOutlinedIcon />}>Νέα αίτηση</Button></Stack></CardContent></Card><Grid container spacing={2}>{[{ name: "Χάρης Μπερτσιάς", branch: "Αυτοκίνητο", received: "Μόλις τώρα", state: "Νέα" }, { name: "Μαρία Παπαδοπούλου", branch: "Κατοικία", received: "09/10/2026 16:18", state: "Σε επεξεργασία" }, { name: "Τεχνική Δομή Α.Ε.", branch: "Επιχείρηση", received: "08/10/2026 11:05", state: "Έτοιμη προσφορά" }].map((request) => <Grid item xs={12} md={4} key={request.name}><Card variant="outlined" sx={{ borderRadius: 2.5, height: "100%" }}><CardContent><Stack direction="row" justifyContent="space-between"><Chip size="small" label={request.branch} color="primary" variant="outlined" /><Chip size="small" label={request.state} color={request.state === "Νέα" ? "info" : "success"} /></Stack><Typography fontWeight={800} mt={2}>{request.name}</Typography><Typography variant="body2" color="text.secondary">Παραλήφθηκε {request.received}</Typography><Button fullWidth sx={{ mt: 2 }} variant="outlined" endIcon={<KeyboardArrowRightRoundedIcon />}>Άνοιγμα αιτήματος</Button></CardContent></Card></Grid>)}</Grid></Stack>;
+}
+
+function ProductionContractsView() {
+  const [query, setQuery] = useState("");
+  const rows = mockOffers.map((offer, index) => ({ ...offer, category: index % 2 === 0 ? "Αυτοκίνητο" : "Κατοικία", issue: "Έκδοση", start: `24/${10 + index}/2026`, end: `24/${10 + index}/2027`, net: offer.premium * .78, commission: offer.premium * .12, balance: offer.premium * .1 }));
+  const visible = rows.filter((row) => !query || `${row.code} ${row.customer} ${row.carrier} ${row.category}`.toLowerCase().includes(query.toLowerCase()));
+  return <Stack spacing={2}><Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }}><Box><Typography variant="h5" fontWeight={900} sx={{ color: "#123a64" }}>Συμβόλαια</Typography><Typography variant="body2" color="text.secondary">Πλήρης πίνακας συμβολαίων παραγωγής με φίλτρα και οικονομικά στοιχεία.</Typography></Box><Button variant="outlined" startIcon={<DownloadOutlinedIcon />} sx={{ color: "#147f55", borderColor: "#9bcdb8", fontWeight: 800 }}>Εξαγωγή</Button></Stack><Card variant="outlined" sx={{ borderRadius: 1.5, overflow: "hidden", borderColor: "#cbd9e6" }}><CardContent sx={{ p: 1.5 }}><Stack direction={{ xs: "column", md: "row" }} spacing={1}><TextField size="small" fullWidth placeholder="Αναζήτηση συμβολαίου, πελάτη ή ασφαλιστικής" value={query} onChange={(event) => setQuery(event.target.value)} InputProps={{ startAdornment: <InputAdornment position="start"><SearchRoundedIcon fontSize="small" /></InputAdornment> }} /><Button variant="outlined" startIcon={<FilterListOutlinedIcon />} sx={{ whiteSpace: "nowrap" }}>Φίλτρα</Button></Stack></CardContent><Divider /><TableContainer sx={{ overflowX: "auto" }}><Table stickyHeader size="small" sx={{ minWidth: 1250 }}><TableHead><TableRow>{["Κωδικός", "Πελάτης", "Κατηγορία", "Κλάδος", "Εταιρεία", "Έκδοση", "Έναρξη", "Λήξη", "Μικτά", "Καθαρά", "Προμ. συνεργάτη", "Υπόλοιπο"].map((heading) => <TableCell key={heading} sx={{ bgcolor: "#e9eef3", fontWeight: 900, color: "#3f5261", whiteSpace: "nowrap", fontSize: 12 }}>{heading}<FilterListOutlinedIcon sx={{ ml: .45, fontSize: 13, color: "#80909c", verticalAlign: "middle" }} /></TableCell>)}</TableRow></TableHead><TableBody>{visible.map((row) => <TableRow key={row.id} hover><TableCell sx={{ fontFamily: "monospace", fontWeight: 850, color: "#164e79" }}>{row.code}</TableCell><TableCell sx={{ fontWeight: 750, whiteSpace: "nowrap" }}>{row.customer}</TableCell><TableCell>{row.category}</TableCell><TableCell>{row.branch}</TableCell><TableCell>{row.carrier}</TableCell><TableCell>{row.issue}</TableCell><TableCell>{row.start}</TableCell><TableCell>{row.end}</TableCell><TableCell sx={{ fontWeight: 850, color: "#147f55" }}>{currency(row.premium)}</TableCell><TableCell>{currency(row.net)}</TableCell><TableCell>{currency(row.commission)}</TableCell><TableCell>{currency(row.balance)}</TableCell></TableRow>)}{visible.length === 0 && <TableRow><TableCell colSpan={12} align="center" sx={{ py: 5, color: "text.secondary" }}>Δεν βρέθηκαν συμβόλαια.</TableCell></TableRow>}</TableBody></Table></TableContainer><Box sx={{ p: 1, bgcolor: "#f7f9fb", borderTop: "1px solid #d9e2e9" }}><Typography variant="caption" color="text.secondary">{visible.length} συμβόλαια εμφανίζονται</Typography></Box></Card></Stack>;
+}
+
+function ProductionCustomersView() {
+  const [query, setQuery] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const customers = [
+    { code: "Π-000001", type: "Φυσικό πρόσωπο", name: "Χάρης Μπερτσιάς", tax: "094512367", city: "Αθήνα", address: "Λεωφ. Αθηνών 24", mobile: "6986788178", phone: "2105551200", birth: "14/05/1987", email: "charis@example.gr" },
+    { code: "Π-000002", type: "Φυσικό πρόσωπο", name: "Μαρία Παπαδοπούλου", tax: "118743920", city: "Πάτρα", address: "Κορίνθου 118", mobile: "6971234567", phone: "2610451200", birth: "22/09/1982", email: "maria@example.gr" },
+    { code: "Π-000003", type: "Επιχείρηση", name: "Τεχνική Δομή Α.Ε.", tax: "099883210", city: "Αθήνα", address: "Λ. Κηφισίας 88", mobile: "", phone: "2108801020", birth: "—", email: "info@techniki-domi.gr" },
+  ];
+  const visible = customers.filter((customer) => !query || `${customer.code} ${customer.name} ${customer.tax} ${customer.email}`.toLowerCase().includes(query.toLowerCase()));
+  return <Stack spacing={2}><Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }}><Box><Typography variant="h5" fontWeight={900} sx={{ color: "#123a64" }}>Πελάτες</Typography><Typography variant="body2" color="text.secondary">Ενοποιημένο πελατολόγιο με αναζήτηση και σύνθετα κριτήρια.</Typography></Box><Button variant="outlined" startIcon={<DownloadOutlinedIcon />} sx={{ color: "#147f55", borderColor: "#9bcdb8", fontWeight: 800 }}>Εξαγωγή</Button></Stack><Grid container spacing={1.75} alignItems="flex-start"><Grid item xs={12} lg={3}><Card variant="outlined" sx={{ borderRadius: 1.5, bgcolor: "#f7f9fb", borderColor: "#d7e0e7" }}><CardContent sx={{ p: 1.5 }}><Typography fontWeight={900} sx={{ color: "#315b7e", mb: 1.25 }}>Κριτήρια αναζήτησης</Typography><Stack spacing={1}><TextField size="small" label="Ονοματεπώνυμο / Επωνυμία" value={query} onChange={(event) => setQuery(event.target.value)} /><TextField size="small" label="ΑΦΜ" /><TextField size="small" label="Πόλη" select defaultValue=""><MenuItem value="">Όλες</MenuItem><MenuItem value="Αθήνα">Αθήνα</MenuItem><MenuItem value="Πάτρα">Πάτρα</MenuItem></TextField><TextField size="small" label="Ημ. γέννησης από" type="date" InputLabelProps={{ shrink: true }} /><TextField size="small" label="Ημ. γέννησης έως" type="date" InputLabelProps={{ shrink: true }} /><Button variant="contained" startIcon={<SearchRoundedIcon />} onClick={() => setFiltersOpen(false)} sx={{ bgcolor: "#2878b7", fontWeight: 850 }}>Αναζήτηση</Button><Button size="small" color="error" onClick={() => setQuery("")}>Καθαρισμός όλων</Button></Stack></CardContent></Card></Grid><Grid item xs={12} lg={9}><Card variant="outlined" sx={{ borderRadius: 1.5, overflow: "hidden", borderColor: "#cbd9e6" }}><CardContent sx={{ p: 1.5 }}><Stack direction={{ xs: "column", sm: "row" }} spacing={1}><TextField fullWidth size="small" placeholder="Γρήγορη αναζήτηση πελατών" value={query} onChange={(event) => setQuery(event.target.value)} InputProps={{ startAdornment: <InputAdornment position="start"><SearchRoundedIcon fontSize="small" /></InputAdornment> }} /><Button variant="outlined" startIcon={<FilterListOutlinedIcon />} onClick={() => setFiltersOpen(!filtersOpen)}>Φίλτρα</Button></Stack></CardContent><Divider /><TableContainer sx={{ overflowX: "auto" }}><Table stickyHeader size="small" sx={{ minWidth: 1200 }}><TableHead><TableRow>{["Κωδικός", "Τύπος", "Επωνυμία", "ΑΦΜ", "Πόλη", "Διεύθυνση", "Κινητό", "Τηλέφωνο", "Ημ. γέννησης", "Email"].map((heading) => <TableCell key={heading} sx={{ bgcolor: "#e9eef3", fontWeight: 900, color: "#3f5261", whiteSpace: "nowrap", fontSize: 12 }}>{heading}<FilterListOutlinedIcon sx={{ ml: .45, fontSize: 13, color: "#80909c", verticalAlign: "middle" }} /></TableCell>)}</TableRow></TableHead><TableBody>{visible.map((customer) => <TableRow key={customer.code} hover><TableCell sx={{ fontFamily: "monospace", fontWeight: 850, color: "#164e79" }}>{customer.code}</TableCell><TableCell>{customer.type}</TableCell><TableCell sx={{ fontWeight: 800, whiteSpace: "nowrap" }}>{customer.name}</TableCell><TableCell>{customer.tax}</TableCell><TableCell>{customer.city}</TableCell><TableCell>{customer.address}</TableCell><TableCell>{customer.mobile || "—"}</TableCell><TableCell>{customer.phone}</TableCell><TableCell>{customer.birth}</TableCell><TableCell>{customer.email}</TableCell></TableRow>)}{visible.length === 0 && <TableRow><TableCell colSpan={10} align="center" sx={{ py: 5, color: "text.secondary" }}>Δεν βρέθηκαν πελάτες.</TableCell></TableRow>}</TableBody></Table></TableContainer></Card></Grid></Grid></Stack>;
+}
+
+function ProductionReportsView() {
+  const groups = [
+    { title: "Παραγωγή", icon: <TableRowsOutlinedIcon />, items: ["Παραγωγή (Συγκεντρωτικά)", "Ληξίπροθεσμα", "Ετήσια ασφάλιστρα", "Εξαγωγή ειδοποιητηρίων"] },
+    { title: "Οικονομικών", icon: <EuroRoundedIcon />, items: ["Ανεξόφλητα πελατών", "Εισπράξεις πελατών (Αναλυτικά)", "Εισπράξεις πελατών (Συγκεντρωτικά)", "Προμήθειες πελατών-συνεργατών"] },
+    { title: "Τυπώνω-Πληρώνω", icon: <PrintOutlinedIcon />, items: ["Πλαφόν", "Παραδόσεις συμβολαίων", "Εκκρεμείς εισπράξεις"] },
+  ];
+  return <Stack spacing={2}><Box><Typography variant="h5" fontWeight={900} sx={{ color: "#123a64" }}>Αναφορές</Typography><Typography variant="body2" color="text.secondary">Συγκεντρωτικές αναφορές παραγωγής, οικονομικών και λειτουργίας γραφείου.</Typography></Box><Grid container spacing={2}>{groups.map((group) => <Grid item xs={12} md={4} key={group.title}><Card variant="outlined" sx={{ borderRadius: 1.5, height: "100%", borderColor: "#d2dce5" }}><CardContent sx={{ p: 1.75 }}><Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5, color: "#315b7e" }}><Box sx={{ display: "grid", placeItems: "center", width: 34, height: 34, bgcolor: "#e6f1f8", borderRadius: 1.25 }}>{group.icon}</Box><Typography fontWeight={900}>{group.title}</Typography></Stack><Stack spacing={.75}>{group.items.map((item) => <Button key={item} fullWidth variant="text" endIcon={<KeyboardArrowRightRoundedIcon />} sx={{ justifyContent: "space-between", bgcolor: "#f2f4f6", color: "#315f80", fontWeight: 800, textTransform: "none", px: 1.25, py: 1.1, "&:hover": { bgcolor: "#e3f2f4" } }}>{item}</Button>)}</Stack></CardContent></Card></Grid>)}</Grid></Stack>;
+}
+
+function ProductionFormsView() {
+  const [query, setQuery] = useState("");
+  const forms = [
+    { insurer: "ΥΔΡΟΓΕΙΟΣ", branch: "ΖΩΗΣ", title: "Εγκύκλιος Νο 395 Αναπροσαρμογή Ασφαλίστρων Προγραμμάτων Υγείας", date: "01/07/2026 15:14" },
+    { insurer: "ΥΔΡΟΓΕΙΟΣ", branch: "ΑΥΤΟΚΙΝΗΤΟ", title: "Εγκύκλιος Νο 388 Νέοι Όροι Προγραμμάτων Οδικής Βοήθειας", date: "30/10/2025 15:40" },
+    { insurer: "ΜΙΝΕΤΤΑ", branch: "ΠΥΡΟΣ", title: "Εγκύκλιος 1071 Αναβάθμιση Υπηρεσιών Τιμολόγησης", date: "19/06/2025 12:38" },
+    { insurer: "ΜΙΝΕΤΤΑ", branch: "ΖΩΗΣ", title: "Εγκύκλιος Ε_ΠΩΛ 1070 Αναπροσαρμογή Ασφαλίστρων", date: "05/06/2025 14:21" },
+    { insurer: "ΜΙΝΕΤΤΑ", branch: "ΑΥΤΟΚΙΝΗΤΟ", title: "Νέα προαιρετική κάλυψη έναντι φυσικών καταστροφών", date: "16/01/2025 15:34" },
+  ];
+  const visible = forms.filter((form) => !query || `${form.insurer} ${form.branch} ${form.title}`.toLowerCase().includes(query.toLowerCase()));
+  return <Stack spacing={2}><Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }}><Box><Typography variant="h5" fontWeight={900} sx={{ color: "#123a64" }}>Έντυπα</Typography><Typography variant="body2" color="text.secondary">Εγκύκλιοι, ενημερώσεις και έγγραφα ασφαλιστικών εταιρειών.</Typography></Box><Button variant="outlined" startIcon={<DownloadOutlinedIcon />} sx={{ color: "#147f55", borderColor: "#9bcdb8", fontWeight: 800 }}>Εξαγωγή</Button></Stack><Card variant="outlined" sx={{ borderRadius: 1.5, overflow: "hidden", borderColor: "#cbd9e6" }}><CardContent sx={{ p: 1.5 }}><Stack direction={{ xs: "column", sm: "row" }} spacing={1}><TextField size="small" fullWidth placeholder="Αναζήτηση τίτλου, ασφαλιστικής ή κλάδου" value={query} onChange={(event) => setQuery(event.target.value)} InputProps={{ startAdornment: <InputAdornment position="start"><SearchRoundedIcon fontSize="small" /></InputAdornment> }} /><Button variant="outlined" startIcon={<FilterListOutlinedIcon />}>Φίλτρα</Button></Stack></CardContent><Divider /><TableContainer sx={{ maxHeight: 620, overflowX: "auto" }}><Table stickyHeader size="small" sx={{ minWidth: 950 }}><TableHead><TableRow>{["Κατηγορία", "Ασφαλιστική", "Κλάδος", "Τίτλος", "Ημ. καταχώρησης", "Ενέργειες"].map((heading) => <TableCell key={heading} sx={{ bgcolor: "#e9eef3", fontWeight: 900, color: "#3f5261", whiteSpace: "nowrap", fontSize: 12 }}>{heading}<FilterListOutlinedIcon sx={{ ml: .45, fontSize: 13, color: "#80909c", verticalAlign: "middle" }} /></TableCell>)}</TableRow></TableHead><TableBody>{visible.map((form, index) => <Fragment key={`${form.insurer}-${index}`}>{(index === 0 || visible[index - 1].insurer !== form.insurer) && <TableRow><TableCell colSpan={6} sx={{ bgcolor: "#edf1f4", color: "#53687a", fontWeight: 900 }}>Κατηγορία · {form.insurer}</TableCell></TableRow>}<TableRow hover><TableCell sx={{ color: "#315b7e", fontWeight: 700 }}>Εγκύκλιος</TableCell><TableCell sx={{ fontWeight: 800 }}>{form.insurer}</TableCell><TableCell>{form.branch}</TableCell><TableCell sx={{ minWidth: 420 }}>{form.title}</TableCell><TableCell sx={{ whiteSpace: "nowrap" }}>{form.date}</TableCell><TableCell><Tooltip title="Προβολή"><IconButton size="small" sx={{ color: "#2878b7" }}><VisibilityOutlinedIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Λήψη"><IconButton size="small" sx={{ color: "#6b7f8f" }}><DownloadOutlinedIcon fontSize="small" /></IconButton></Tooltip></TableCell></TableRow></Fragment>)}{visible.length === 0 && <TableRow><TableCell colSpan={6} align="center" sx={{ py: 5, color: "text.secondary" }}>Δεν βρέθηκαν έντυπα.</TableCell></TableRow>}</TableBody></Table></TableContainer><Box sx={{ p: 1, bgcolor: "#f7f9fb", borderTop: "1px solid #d9e2e9" }}><Typography variant="caption" color="text.secondary">{visible.length} έντυπα εμφανίζονται</Typography></Box></Card></Stack>;
 }
 
 function OffersHistoryView({ onStartQuoting }: { onStartQuoting: (branch: string) => void }) {
