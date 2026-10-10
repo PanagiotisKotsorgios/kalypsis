@@ -77,6 +77,7 @@ import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { KalypsisLogo } from "../components/KalypsisLogo";
+import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 
 type ViewKey = "dashboard" | "quotes" | "print-pay" | "pay-print" | "requests" | "history";
 type BranchKey = "Αυτοκίνητο" | "Κατοικία" | "Υγεία" | "Ζωή" | "Επιχείρηση";
@@ -393,7 +394,78 @@ function StandalonePluginHeader({ view, onNavigate }: { view: ViewKey; onNavigat
   </Box>;
 }
 
+function StandaloneHomeSections({ branch, setBranch }: { branch: BranchKey; setBranch: (value: BranchKey) => void }) {
+  const pricingCards: { key: BranchKey; title: string; count: string; icon: ReactNode; colour: string }[] = [
+    { key: branchLabels[0], title: "Οχημάτων", count: "19 ασφαλιστικά προγράμματα", icon: <DirectionsCarFilledOutlinedIcon />, colour: "#26a69a" },
+    { key: branchLabels[0], title: "Σύγκριση Οχημάτων", count: "19 ασφαλιστικά προγράμματα", icon: <CompareArrowsRoundedIcon />, colour: "#337db8" },
+    { key: branchLabels[1], title: "Περιουσίας", count: "14 ασφαλιστικά προγράμματα", icon: <HomeWorkOutlinedIcon />, colour: "#df4d3d" },
+    { key: branchLabels[2], title: "Υγείας", count: "12 ασφαλιστικά προγράμματα", icon: <HealthAndSafetyOutlinedIcon />, colour: "#8bb7b7" },
+    { key: branchLabels[0], title: "Σκαφών", count: "5 ασφαλιστικά προγράμματα", icon: <SailingOutlinedIcon />, colour: "#08a7dc" },
+    { key: branchLabels[0], title: "Προσωπικού Ατυχήματος", count: "6 ασφαλιστικά προγράμματα", icon: <ShieldOutlinedIcon />, colour: "#c5bd00" },
+    { key: branchLabels[4], title: "Επαγγελματικής Ευθύνης", count: "9 ασφαλιστικά προγράμματα", icon: <BusinessCenterOutlinedIcon />, colour: "#6f5aaf" },
+    { key: branchLabels[3], title: "Ζωής", count: "8 ασφαλιστικά προγράμματα", icon: <LuggageOutlinedIcon />, colour: "#db8b37" },
+  ];
+  const announcements = [
+    ["202/2024 · Ενημέρωση ασφαλιστικής αγοράς", "18/04/2024 · Εγκύκλιος"],
+    ["96/2024 · Αλλαγή διαδικασίας υποβολής", "26/01/2024 · Εγκύκλιος"],
+    ["14/2024 · Τεχνική ενημέρωση ηλεκτρονικού ταχυδρομείου", "09/11/2023 · Εγκύκλιος"],
+    ["206/2023 · Επικαιροποίηση διαδικασίας", "09/11/2023 · Εγκύκλιος"],
+  ];
+  const blogPosts = [
+    ["Πώς επιλέγουμε το κατάλληλο πρόγραμμα", "Οδηγός για γρήγορη και τεκμηριωμένη σύγκριση προσφορών."],
+    ["Οι νέες δυνατότητες του InsureOne", "Νέα εργαλεία για πιο απλή καθημερινή εργασία του γραφείου."],
+    ["Υπενθυμίσεις πριν από τη λήξη", "Πρακτικές συμβουλές για καλύτερη εξυπηρέτηση και ανανεώσεις."],
+  ];
+  const production = [
+    { month: "Μάι", contracts: 22, premium: 2840 },
+    { month: "Ιούν", contracts: 27, premium: 3520 },
+    { month: "Ιούλ", contracts: 31, premium: 4180 },
+    { month: "Αύγ", contracts: 25, premium: 3310 },
+    { month: "Σεπ", contracts: 36, premium: 4920 },
+    { month: "Οκτ", contracts: 41, premium: 5680 },
+  ];
+  return <Grid container spacing={{ xs: 2, md: 2.5 }} alignItems="flex-start">
+    <Grid item xs={12} lg={7}>
+      <Card variant="outlined" sx={{ borderRadius: 1.5, overflow: "hidden", borderTop: "3px solid #df4d3d", bgcolor: "#fff" }}>
+        <CardContent sx={{ p: 1.5 }}>
+          <Typography fontWeight={850} sx={{ color: "#515960", mb: 1.25 }}>Τιμολόγηση</Typography>
+          <Grid container spacing={1.25}>{pricingCards.map((card, index) => <Grid item xs={6} sm={4} key={`${card.title}-${index}`}><Button onClick={() => setBranch(card.key)} fullWidth sx={{ p: 0, minHeight: 118, display: "flex", flexDirection: "column", alignItems: "stretch", borderRadius: 1.25, overflow: "hidden", textAlign: "left", color: "#fff", bgcolor: card.colour, border: branch === card.key && index < 5 ? "3px solid #123a64" : "2px solid transparent", boxShadow: branch === card.key && index < 5 ? "0 0 0 2px #fff inset" : "none", "&:hover": { filter: "brightness(1.05)", transform: "translateY(-1px)" }, transition: "filter .15s ease, transform .15s ease" }}><Box sx={{ p: 1.25, flex: 1, position: "relative" }}><Typography fontWeight={900} sx={{ fontSize: { xs: 13, sm: 14 } }}>{card.title}</Typography><Typography variant="caption" sx={{ opacity: .9 }}>{card.count}</Typography><Box sx={{ position: "absolute", right: 8, bottom: 6, opacity: .22, fontSize: 42 }}>{card.icon}</Box></Box><Box sx={{ px: 1.25, py: .7, bgcolor: "rgba(0,0,0,.13)", fontSize: 11, fontWeight: 800, display: "flex", justifyContent: "space-between" }}>Τιμολογήστε τώρα <span>→</span></Box></Button></Grid>)}</Grid>
+        </CardContent>
+      </Card>
+    </Grid>
+    <Grid item xs={12} lg={5}>
+      <Card variant="outlined" sx={{ borderRadius: 1.5, overflow: "hidden", borderTop: "3px solid #17b8d1", bgcolor: "#fff", height: "100%" }}>
+        <CardContent sx={{ p: 1.5 }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}><Typography fontWeight={850} sx={{ color: "#515960" }}>Ανακοινώσεις-Εγκύκλιοι</Typography><Stack direction="row" spacing={.25}><IconButton size="small" aria-label="Ανανέωση"><RefreshRoundedIcon fontSize="small" /></IconButton><IconButton size="small" aria-label="Σύμπτυξη"><Typography fontWeight={900}>−</Typography></IconButton></Stack></Stack>
+          <Divider />
+          <Stack divider={<Divider flexItem />} spacing={0}>{announcements.map(([title, meta]) => <Box key={title} sx={{ py: 1 }}><Typography variant="body2" sx={{ color: "#216285", fontWeight: 850, fontSize: 12.5 }}>{title}</Typography><Typography variant="caption" color="text.secondary"><Chip size="small" label="ΣΗΜΑΝΤΙΚΟ" sx={{ height: 18, mr: .75, bgcolor: "#f18b24", color: "#fff", borderRadius: .5, fontSize: 9, fontWeight: 900 }} />{meta}</Typography></Box>)}</Stack>
+        </CardContent>
+      </Card>
+    </Grid>
+    <Grid item xs={12} lg={7}>
+      <Card variant="outlined" sx={{ borderRadius: 1.5, borderTop: "3px solid #1b7f55", bgcolor: "#fff" }}>
+        <CardContent sx={{ p: 1.5 }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.25 }}><Typography fontWeight={850} sx={{ color: "#515960" }}>Παραγωγή</Typography><Chip size="small" label="Τελευταίοι 6 μήνες" sx={{ bgcolor: "#e4f4ed", color: "#1b6848", fontWeight: 750 }} /></Stack>
+          <Grid container spacing={1} sx={{ mb: 1 }}>{[["Νέα συμβόλαια", "41", "#147f8d"], ["Μικτά ασφάλιστρα", "5.680 €", "#1b7f55"], ["Μέση αξία", "138 €", "#3457a6"]].map(([label, value, colour]) => <Grid item xs={4} key={label}><Box sx={{ p: 1, bgcolor: `${colour}12`, border: `1px solid ${colour}32`, borderRadius: 1.25 }}><Typography variant="caption" color="text.secondary" noWrap>{label}</Typography><Typography fontWeight={900} sx={{ color: colour, fontSize: { xs: 15, sm: 18 } }}>{value}</Typography></Box></Grid>)}</Grid>
+          <Box sx={{ height: 210 }}><ResponsiveContainer width="100%" height="100%"><LineChart data={production} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke="#dce6ee" /><XAxis dataKey="month" tick={{ fontSize: 11 }} /><YAxis yAxisId="left" tick={{ fontSize: 10 }} /><YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} /><ChartTooltip formatter={(value, name) => { const key = String(name); const numeric = Number(value ?? 0); return [key === "premium" ? `${numeric.toLocaleString("el-GR")} €` : numeric, key === "premium" ? "Μικτά ασφάλιστρα" : "Συμβόλαια"]; }} /><Line yAxisId="left" type="monotone" dataKey="contracts" stroke="#147f8d" strokeWidth={3} dot={{ r: 3 }} /><Line yAxisId="right" type="monotone" dataKey="premium" stroke="#1b7f55" strokeWidth={3} dot={{ r: 3 }} /></LineChart></ResponsiveContainer></Box>
+        </CardContent>
+      </Card>
+    </Grid>
+    <Grid item xs={12} lg={5}>
+      <Card variant="outlined" sx={{ borderRadius: 1.5, borderTop: "3px solid #2759a5", bgcolor: "#fff", height: "100%" }}>
+        <CardContent sx={{ p: 1.5 }}>
+          <Typography fontWeight={850} sx={{ color: "#515960", mb: 1.25 }}>BLOG NEWS</Typography>
+          <Stack divider={<Divider flexItem />} spacing={0}>{blogPosts.map(([title, text]) => <Box key={title} sx={{ py: 1 }}><Typography variant="body2" sx={{ color: "#216285", fontWeight: 850 }}>{title}</Typography><Typography variant="caption" color="text.secondary">{text}</Typography></Box>)}</Stack>
+          <Box sx={{ height: 100, mt: .75 }}><ResponsiveContainer width="100%" height="100%"><BarChart data={production.slice(-4)} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}><XAxis dataKey="month" tick={{ fontSize: 10 }} /><YAxis hide /><Bar dataKey="contracts" fill="#53c6d3" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer></Box>
+        </CardContent>
+      </Card>
+    </Grid>
+  </Grid>;
+}
+
 function StandaloneBranchPanel({ branch, setBranch }: { branch: BranchKey; setBranch: (value: BranchKey) => void }) {
+  return <StandaloneHomeSections branch={branch} setBranch={setBranch} />;
+  /* Legacy layout retained below for source compatibility; the standalone home now uses the compact four-section dashboard. */
   const cards: { key: BranchKey; title: string; count: string; icon: ReactNode; colour: string }[] = [
     { key: branchLabels[0], title: "Οχημάτων", count: "19 Ασφαλιστικές", icon: <DirectionsCarFilledOutlinedIcon />, colour: "#26a69a" },
     { key: branchLabels[0], title: "Συγκριτική Οχημάτων", count: "19 Ασφαλιστικές", icon: <CompareArrowsRoundedIcon />, colour: "#337db8" },
