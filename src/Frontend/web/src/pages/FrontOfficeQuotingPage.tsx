@@ -305,8 +305,8 @@ function StandalonePluginHeader({ view, onNavigate }: { view: ViewKey; onNavigat
     <Box sx={{ bgcolor: "#123a64", borderTop: "1px solid rgba(255,255,255,.12)" }}>
       <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: .5, sm: 2.5, lg: 4 }, display: "flex", alignItems: "center", gap: { xs: .5, sm: 1 } }}>
         <Box sx={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", overflowX: "auto", scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}>
-          <Button onClick={() => onNavigate("dashboard")} sx={{ ...navButtonSx, bgcolor: activeNav === "home" ? "#2e75b6" : "transparent", borderBottomColor: activeNav === "home" ? "#53c6d3" : "transparent" }}>ΑΡΧΙΚΗ</Button>
-          <Button onClick={() => onNavigate("quotes")} sx={{ ...navButtonSx, bgcolor: activeNav === "offers" ? "#2e75b6" : "transparent", borderBottomColor: activeNav === "offers" ? "#53c6d3" : "transparent" }}>ΠΡΟΣΦΟΡΕΣ</Button>
+          <Button onClick={() => onNavigate("dashboard")} sx={{ ...navButtonSx, bgcolor: activeNav === "home" ? "#2e75b6" : "transparent", borderBottomColor: activeNav === "home" ? "#53c6d3" : "transparent" }}>Αρχική</Button>
+          <Button onClick={() => onNavigate("quotes")} sx={{ ...navButtonSx, bgcolor: activeNav === "offers" ? "#2e75b6" : "transparent", borderBottomColor: activeNav === "offers" ? "#53c6d3" : "transparent" }}>Προσφορές</Button>
           {standaloneDropdowns.map((item) => {
             const active = activeNav === item.key;
             return <Fragment key={item.key}>
