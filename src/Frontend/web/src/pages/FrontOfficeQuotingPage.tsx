@@ -115,6 +115,17 @@ interface OfferRow {
 
 const branchLabels: BranchKey[] = ["Αυτοκίνητο", "Κατοικία", "Υγεία", "Ζωή", "Επιχείρηση"];
 
+const quotingBranchOptions: { label: string; branch: BranchKey }[] = [
+  { label: "Οχημάτων", branch: branchLabels[0] },
+  { label: "Σύγκριση Οχημάτων", branch: branchLabels[0] },
+  { label: "Περιουσίας", branch: branchLabels[1] },
+  { label: "Υγείας", branch: branchLabels[2] },
+  { label: "Σκαφών", branch: branchLabels[0] },
+  { label: "Προσωπικού Ατυχήματος", branch: branchLabels[0] },
+  { label: "Επαγγελματικής Ευθύνης", branch: branchLabels[4] },
+  { label: "Ζωής", branch: branchLabels[3] },
+];
+
 const branchPresets: Record<BranchKey, { customer: string; title: string; fields: [string, string][]; quotes: QuoteRow[] }> = {
   Αυτοκίνητο: {
     customer: "Χάρης Μπερτσιάς",
@@ -197,7 +208,9 @@ export function FrontOfficeQuotingPage({ standalone = false }: { standalone?: bo
   const [sortBy, setSortBy] = useState<"premium" | "score">("premium");
   const [selectedQuote, setSelectedQuote] = useState<QuoteRow | null>(null);
   const [quoteMode, setQuoteMode] = useState(false);
-  const preset = branchPresets[branch];
+  const [quoteBranchLabel, setQuoteBranchLabel] = useState<string | null>(null);
+  const basePreset = branchPresets[branch];
+  const preset = quoteMode && quoteBranchLabel ? { ...basePreset, title: `${quoteBranchLabel} · Νέα προσφορά` } : basePreset;
 
   const quotes = useMemo(() => {
     const filtered = preset.quotes.filter((q) => (!search || `${q.carrier} ${q.product}`.toLowerCase().includes(search.toLowerCase())) && (!onlyRecommended || q.recommended));
@@ -209,8 +222,10 @@ export function FrontOfficeQuotingPage({ standalone = false }: { standalone?: bo
     setParams({ view: next });
   };
 
-  const startQuote = (selectedBranch: BranchKey) => {
-    setBranch(selectedBranch);
+  const startQuote = (selectedBranchLabel: string) => {
+    const selectedOption = quotingBranchOptions.find((option) => option.label === selectedBranchLabel) ?? quotingBranchOptions[0];
+    setQuoteBranchLabel(selectedBranchLabel);
+    setBranch(selectedOption.branch);
     setQuoteMode(true);
     go("dashboard");
   };
@@ -246,7 +261,7 @@ export function FrontOfficeQuotingPage({ standalone = false }: { standalone?: bo
       </Paper>}
 
       {((!standalone && view === "dashboard") || (standalone && view === "dashboard" && quoteMode)) ? (
-        <QuoteWorkspace branch={branch} setBranch={setBranch} preset={preset} quotes={quotes} search={search} setSearch={setSearch} onlyRecommended={onlyRecommended} setOnlyRecommended={setOnlyRecommended} sortBy={sortBy} setSortBy={setSortBy} onOpen={setSelectedQuote} onGoOffers={() => go("quotes")} />
+        <QuoteWorkspace branch={branch} setBranch={(value) => { setBranch(value); setQuoteBranchLabel(value); }} preset={preset} quotes={quotes} search={search} setSearch={setSearch} onlyRecommended={onlyRecommended} setOnlyRecommended={setOnlyRecommended} sortBy={sortBy} setSortBy={setSortBy} onOpen={setSelectedQuote} onGoOffers={() => go("quotes")} />
       ) : view === "quotes" ? <OffersHistoryView onStartQuoting={startQuote} /> : view === "print-pay" ? <PrintPayView /> : view === "pay-print" ? <PayPrintView /> : view === "requests" ? <RequestsView /> : <HistoryView />}
 
       <Dialog open={!!selectedQuote} onClose={() => setSelectedQuote(null)} fullWidth maxWidth="sm">
@@ -271,7 +286,7 @@ export function FrontOfficeQuotingPage({ standalone = false }: { standalone?: bo
 }
 
 function StandalonePluginFooter() {
-  return <Box component="footer" sx={{ borderTop: "1px solid #cbd9e6", bgcolor: "#fff", mt: 3 }}>
+  return <Box component="footer" sx={{ borderTop: "1px solid #cbd9e6", bgcolor: "#eef2f5", mt: 3 }}>
     <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: 1.5, sm: 2.5, lg: 4 }, py: 1.25, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "flex-end", gap: .5 }}>
       <Typography variant="body2" sx={{ color: "#526578", fontWeight: 850, fontSize: { xs: 14, sm: 15 }, letterSpacing: ".02em" }}>Powered by Kalypsis</Typography>
       <KalypsisLogo size={64} crop />
@@ -816,12 +831,18 @@ function RequestsView() {
   return <Stack spacing={2.5}><Card variant="outlined" sx={{ borderRadius: 2.5 }}><CardContent sx={{ p: 3 }}><Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} spacing={1}><Box><Typography variant="h5" fontWeight={850}>Αιτήσεις ασφάλισης</Typography><Typography color="text.secondary">Νέα αιτήματα από την ιστοσελίδα ή τον ασφαλιστή, έτοιμα για σύγκριση.</Typography></Box><Button variant="contained" startIcon={<DescriptionOutlinedIcon />}>Νέα αίτηση</Button></Stack></CardContent></Card><Grid container spacing={2}>{[{ name: "Χάρης Μπερτσιάς", branch: "Αυτοκίνητο", received: "Μόλις τώρα", state: "Νέα" }, { name: "Μαρία Παπαδοπούλου", branch: "Κατοικία", received: "09/10/2026 16:18", state: "Σε επεξεργασία" }, { name: "Τεχνική Δομή Α.Ε.", branch: "Επιχείρηση", received: "08/10/2026 11:05", state: "Έτοιμη προσφορά" }].map((request) => <Grid item xs={12} md={4} key={request.name}><Card variant="outlined" sx={{ borderRadius: 2.5, height: "100%" }}><CardContent><Stack direction="row" justifyContent="space-between"><Chip size="small" label={request.branch} color="primary" variant="outlined" /><Chip size="small" label={request.state} color={request.state === "Νέα" ? "info" : "success"} /></Stack><Typography fontWeight={800} mt={2}>{request.name}</Typography><Typography variant="body2" color="text.secondary">Παραλήφθηκε {request.received}</Typography><Button fullWidth sx={{ mt: 2 }} variant="outlined" endIcon={<KeyboardArrowRightRoundedIcon />}>Άνοιγμα αιτήματος</Button></CardContent></Card></Grid>)}</Grid></Stack>;
 }
 
-function OffersHistoryView({ onStartQuoting }: { onStartQuoting: (branch: BranchKey) => void }) {
+function OffersHistoryView({ onStartQuoting }: { onStartQuoting: (branch: string) => void }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [branch, setBranch] = useState<BranchKey>(branchLabels[0]);
+  const [offerTab, setOfferTab] = useState<"offers" | "multi" | "ready">("offers");
+  const [branch, setBranch] = useState(quotingBranchOptions[0].label);
   const [selectorOpen, setSelectorOpen] = useState(false);
-  const visible = mockOffers.filter((offer) => {
+  const tabOffers = useMemo(() => {
+    if (offerTab === "ready") return mockOffers.filter((_, index) => index === 0 || index === 1 || index === 2);
+    if (offerTab === "multi") return [...mockOffers, ...mockOffers.slice(0, 3).map((offer, index) => ({ ...offer, id: `multi-${offer.id}`, code: `ΠΠ-${String(482 - index).padStart(5, "0")}`, carrier: "Σύγκριση ασφαλιστικών", status: mockOffers[0].status }))];
+    return mockOffers;
+  }, [offerTab]);
+  const visible = tabOffers.filter((offer) => {
     const matchesQuery = !query || `${offer.code} ${offer.customer} ${offer.branch} ${offer.carrier}`.toLowerCase().includes(query.toLowerCase());
     const matchesStatus = statusFilter === "all" || offer.status === statusFilter;
     return matchesQuery && matchesStatus;
@@ -833,7 +854,7 @@ function OffersHistoryView({ onStartQuoting }: { onStartQuoting: (branch: Branch
       <Button variant="contained" size="large" startIcon={<CalculateOutlinedIcon />} onClick={() => setSelectorOpen(true)} sx={{ alignSelf: { xs: "stretch", sm: "auto" }, bgcolor: "#148a63", fontWeight: 900, borderRadius: 1.5, px: 2.25, "&:hover": { bgcolor: "#0d6d4e" } }}>Έκδοση προσφοράς</Button>
     </Stack>
     <Paper variant="outlined" sx={{ overflow: "hidden", borderRadius: 1.5, borderColor: "#cbd9e6", bgcolor: "#fff" }}>
-      <Tabs value={0} variant="scrollable" scrollButtons="auto" sx={{ minHeight: 48, borderBottom: "3px solid #148a63", bgcolor: "#f1f5f8", "& .MuiTab-root": { minHeight: 48, textTransform: "none", fontWeight: 850, color: "#53687a", px: { xs: 1.5, sm: 2.25 } }, "& .Mui-selected": { color: "#fff !important", bgcolor: "#148a63", borderRadius: "6px 6px 0 0" } }}><Tab label="Προσφορές" /><Tab label="Πολυτιμολογήσεις" /><Tab label="Προσφορές προς έκδοση" /></Tabs>
+      <Tabs value={offerTab} onChange={(_, value: "offers" | "multi" | "ready") => setOfferTab(value)} variant="scrollable" scrollButtons="auto" sx={{ minHeight: 48, borderBottom: "3px solid #148a63", bgcolor: "#f1f5f8", "& .MuiTab-root": { minHeight: 48, textTransform: "none", fontWeight: 850, color: "#53687a", px: { xs: 1.5, sm: 2.25 } }, "& .Mui-selected": { color: "#fff !important", bgcolor: "#148a63", borderRadius: "6px 6px 0 0" } }}><Tab value="offers" label="Προσφορές" /><Tab value="multi" label="Πολυπροσφορές" /><Tab value="ready" label="Προσφορές προς έκδοση" /></Tabs>
     </Paper>
     <Card variant="outlined" sx={{ borderRadius: 1.5, borderColor: "#cbd9e6", overflow: "hidden", bgcolor: "#fff" }}>
       <CardContent sx={{ p: { xs: 1.25, sm: 1.75 }, "&:last-child": { pb: { xs: 1.25, sm: 1.75 } } }}><Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }}>
@@ -846,7 +867,7 @@ function OffersHistoryView({ onStartQuoting }: { onStartQuoting: (branch: Branch
         {visible.length === 0 && <TableRow><TableCell colSpan={8} align="center" sx={{ py: 6, color: "text.secondary" }}>Δεν βρέθηκαν προσφορές με τα συγκεκριμένα φίλτρα.</TableCell></TableRow>}
       </TableBody></Table></TableContainer><Box sx={{ px: 1.75, py: 1, bgcolor: "#f7f9fb", borderTop: "1px solid #d9e2e9" }}><Typography variant="caption" color="text.secondary">{visible.length} προσφορές εμφανίζονται</Typography></Box>
     </Card>
-    <Dialog open={selectorOpen} onClose={() => setSelectorOpen(false)} fullWidth maxWidth="sm"><DialogTitle sx={{ color: "#123a64", fontWeight: 900 }}>Έκδοση προσφοράς</DialogTitle><DialogContent dividers><Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Επιλέξτε τον κλάδο για να συνεχίσετε στην πολυτιμολόγηση.</Typography><FormControl fullWidth size="small"><InputLabel>Κλάδος ασφάλισης</InputLabel><Select label="Κλάδος ασφάλισης" value={branch} onChange={(event) => setBranch(event.target.value as BranchKey)}>{branchLabels.map((item) => <MenuItem value={item} key={item}>{item}</MenuItem>)}</Select></FormControl></DialogContent><DialogActions sx={{ px: 2, py: 1.5 }}><Button color="error" onClick={() => setSelectorOpen(false)}>Ακύρωση</Button><Button variant="contained" startIcon={<CalculateOutlinedIcon />} onClick={() => { setSelectorOpen(false); onStartQuoting(branch); }} sx={{ bgcolor: "#147f55", "&:hover": { bgcolor: "#0d6d4e" } }}>Συνέχεια στην τιμολόγηση</Button></DialogActions></Dialog>
+    <Dialog open={selectorOpen} onClose={() => setSelectorOpen(false)} fullWidth maxWidth="sm"><DialogTitle sx={{ color: "#123a64", fontWeight: 900 }}>Έκδοση προσφοράς</DialogTitle><DialogContent dividers><Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Επιλέξτε έναν από τους διαθέσιμους κλάδους για να συνεχίσετε στην πολυτιμολόγηση.</Typography><FormControl fullWidth size="small"><InputLabel>Κλάδος ασφάλισης</InputLabel><Select label="Κλάδος ασφάλισης" value={branch} onChange={(event) => setBranch(event.target.value)}>{quotingBranchOptions.map((item) => <MenuItem value={item.label} key={item.label}>{item.label}</MenuItem>)}</Select></FormControl></DialogContent><DialogActions sx={{ px: 2, py: 1.5 }}><Button color="error" onClick={() => setSelectorOpen(false)}>Ακύρωση</Button><Button variant="contained" startIcon={<CalculateOutlinedIcon />} onClick={() => { setSelectorOpen(false); onStartQuoting(branch); }} sx={{ bgcolor: "#147f55", "&:hover": { bgcolor: "#0d6d4e" } }}>Συνέχεια στην τιμολόγηση</Button></DialogActions></Dialog>
   </Stack>;
 }
 
