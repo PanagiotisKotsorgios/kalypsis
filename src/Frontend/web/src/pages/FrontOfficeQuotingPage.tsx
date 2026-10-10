@@ -74,6 +74,7 @@ import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
 import DragIndicatorRoundedIcon from "@mui/icons-material/DragIndicatorRounded";
 import FullscreenRoundedIcon from "@mui/icons-material/FullscreenRounded";
 import FullscreenExitRoundedIcon from "@mui/icons-material/FullscreenExitRounded";
@@ -491,7 +492,7 @@ function DashboardWidget({
         onDragStart={onDragStart}
         sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: prominentHeader ? { xs: 1.5, md: 2.5 } : 1.25, py: prominentHeader ? 1.25 : .5, minHeight: headerHeight, bgcolor: prominentHeader ? "#edf6ff" : "rgba(18,58,100,.025)", borderBottom: "1px solid #dce9f4", cursor: "grab", userSelect: "none" }}
       >
-        <Stack direction="row" spacing={prominentHeader ? 1.5 : .5} alignItems="center" minWidth={0}>{prominentHeader ? <GridViewOutlinedIcon sx={{ color: "#28548a", fontSize: 28 }} /> : <DragIndicatorRoundedIcon sx={{ color: "#7990a4", fontSize: 18 }} />}<Typography fontWeight={prominentHeader ? 900 : 850} noWrap sx={{ color: prominentHeader ? "#28548a" : "#515960", fontSize: prominentHeader ? { xs: 20, sm: 24 } : 13 }}>{title}</Typography></Stack>
+        <Stack direction="row" spacing={prominentHeader ? 1.5 : .5} alignItems="center" minWidth={0}>{prominentHeader ? <GridViewOutlinedIcon sx={{ color: "#28548a", fontSize: 28 }} /> : <DragIndicatorRoundedIcon sx={{ color: "#7990a4", fontSize: 18 }} />}<Typography fontWeight={prominentHeader ? 900 : 850} noWrap sx={{ color: prominentHeader ? "#28548a" : "#515960", fontSize: prominentHeader ? { xs: 20, sm: 24, md: 28 } : 13 }}>{title}</Typography></Stack>
         <Stack direction="row" spacing={0} alignItems="center" flexShrink={0}>
           <Tooltip title="Ανανέωση"><IconButton size="small" aria-label={`Ανανέωση ${title}`} onMouseDown={event => event.stopPropagation()} onClick={refresh} sx={{ color: "#52728e" }}><RefreshRoundedIcon fontSize="small" sx={{ animation: refreshing ? "insureone-spin .55s linear" : "none", "@keyframes insureone-spin": { from: { transform: "rotate(0deg)" }, to: { transform: "rotate(360deg)" } } }} /></IconButton></Tooltip>
           <Tooltip title={minimized ? "Επαναφορά" : "Ελαχιστοποίηση"}><IconButton size="small" aria-label={minimized ? `Επαναφορά ${title}` : `Ελαχιστοποίηση ${title}`} onMouseDown={event => event.stopPropagation()} onClick={onMinimize} sx={{ color: "#52728e" }}><RemoveRoundedIcon fontSize="small" /></IconButton></Tooltip>
@@ -514,6 +515,21 @@ interface PricingCardConfig {
   gradient: string;
   contentColour: string;
   visualColour: string;
+  illustration: PricingIllustrationKind;
+}
+
+type PricingIllustrationKind = "vehicle" | "vehicle-compare" | "property" | "health" | "marine" | "accident" | "liability" | "life";
+
+function PricingIllustration({ kind }: { kind: PricingIllustrationKind }) {
+  const stroke = "rgba(255,255,255,.72)";
+  if (kind === "vehicle") return <Box aria-hidden sx={{ position: "absolute", right: 0, top: 0, width: "49%", height: "100%", opacity: { xs: .38, sm: .58, md: .76 }, pointerEvents: "none" }}><svg viewBox="0 0 260 150" width="100%" height="100%" preserveAspectRatio="none"><path d="M22 124 C67 104 112 111 148 91 C178 74 210 57 263 51 L263 150 L20 150Z" fill="rgba(255,255,255,.12)" /><path d="M84 121 L101 86 C106 76 116 71 132 70 L169 70 C179 71 190 78 197 88 L221 121Z" fill="rgba(13,87,151,.86)" stroke={stroke} strokeWidth="2" /><path d="M113 87 L131 77 L164 77 L182 88Z" fill="rgba(166,226,250,.72)" /><circle cx="117" cy="122" r="13" fill="#f5fbff" /><circle cx="117" cy="122" r="6" fill="#1b6da9" /><circle cx="192" cy="122" r="13" fill="#f5fbff" /><circle cx="192" cy="122" r="6" fill="#1b6da9" /><path d="M43 139 C102 120 168 119 246 132" fill="none" stroke="rgba(255,255,255,.26)" strokeWidth="3" /></svg></Box>;
+  if (kind === "vehicle-compare") return <Box aria-hidden sx={{ position: "absolute", right: 0, top: 0, width: "51%", height: "100%", opacity: { xs: .34, sm: .54, md: .72 }, pointerEvents: "none" }}><svg viewBox="0 0 270 150" width="100%" height="100%" preserveAspectRatio="none"><path d="M75 150 L158 0 L223 0 L143 150Z" fill="rgba(23,40,168,.32)" /><path d="M162 150 L225 0 L270 0 L270 150Z" fill="rgba(118,137,255,.22)" /><path d="M178 135 L209 74" stroke="rgba(255,255,255,.68)" strokeWidth="4" strokeDasharray="13 10" /><path d="M220 145 L247 99" stroke="rgba(255,255,255,.68)" strokeWidth="4" strokeDasharray="13 10" /><path d="M119 117 L139 88 L180 88 L197 117Z" fill="rgba(20,31,128,.72)" stroke={stroke} strokeWidth="1.5" /><circle cx="139" cy="117" r="9" fill="#f5fbff" /><circle cx="178" cy="117" r="9" fill="#f5fbff" /><path d="M181 78 L193 60 L219 60 L232 78Z" fill="rgba(27,50,165,.65)" stroke={stroke} strokeWidth="1.5" /><circle cx="195" cy="78" r="6" fill="#f5fbff" /><circle cx="220" cy="78" r="6" fill="#f5fbff" /></svg></Box>;
+  if (kind === "property") return <Box aria-hidden sx={{ position: "absolute", right: 0, top: 0, width: "48%", height: "100%", opacity: { xs: .4, sm: .58, md: .8 }, pointerEvents: "none" }}><svg viewBox="0 0 250 150" width="100%" height="100%" preserveAspectRatio="none"><circle cx="197" cy="39" r="30" fill="rgba(255,219,184,.42)" /><path d="M116 150 L116 76 L170 34 L227 76 L227 150Z" fill="rgba(255,224,196,.56)" /><path d="M103 79 L170 27 L241 79" fill="rgba(183,52,48,.65)" stroke="rgba(255,245,233,.8)" strokeWidth="3" /><rect x="143" y="94" width="24" height="56" rx="2" fill="rgba(177,70,61,.82)" /><rect x="184" y="91" width="23" height="20" fill="rgba(255,250,229,.76)" /><rect x="184" y="118" width="23" height="20" fill="rgba(255,250,229,.76)" /><path d="M54 150 C85 118 106 116 135 150Z" fill="rgba(255,255,255,.15)" /></svg></Box>;
+  if (kind === "health") return <Box aria-hidden sx={{ position: "absolute", right: 0, top: 0, width: "45%", height: "100%", opacity: { xs: .34, sm: .52, md: .7 }, pointerEvents: "none" }}><svg viewBox="0 0 230 150" width="100%" height="100%" preserveAspectRatio="none"><path d="M104 18 H128 V60 H171 V84 H128 V127 H104 V84 H61 V60 H104Z" fill="rgba(230,255,250,.8)" /><path d="M184 24 C203 33 215 47 215 68 C215 96 197 118 176 130 C155 118 138 96 138 68 C138 47 150 33 169 24 C174 21 179 21 184 24Z" fill="rgba(0,99,92,.22)" stroke="rgba(228,255,250,.64)" strokeWidth="2" /></svg></Box>;
+  if (kind === "marine") return <Box aria-hidden sx={{ position: "absolute", right: 0, top: 0, width: "53%", height: "100%", opacity: { xs: .42, sm: .62, md: .84 }, pointerEvents: "none" }}><svg viewBox="0 0 290 150" width="100%" height="100%" preserveAspectRatio="none"><path d="M0 104 C38 78 66 77 98 96 C128 113 163 109 196 82 C226 58 257 61 290 79 V150 H0Z" fill="rgba(64,157,219,.4)" /><path d="M179 125 L216 125 L198 137Z" fill="rgba(17,89,157,.78)" /><path d="M198 125 L198 31 L151 125Z" fill="rgba(245,254,255,.85)" /><path d="M201 40 L232 125 H201Z" fill="rgba(27,121,192,.74)" /><path d="M15 132 C69 118 113 140 173 126 C220 115 251 118 290 132" fill="none" stroke="rgba(255,255,255,.62)" strokeWidth="3" /><path d="M0 143 C65 130 115 151 182 138 C228 130 260 133 290 143" fill="none" stroke="rgba(22,115,194,.6)" strokeWidth="3" /></svg></Box>;
+  if (kind === "accident") return <Box aria-hidden sx={{ position: "absolute", right: 0, top: 0, width: "46%", height: "100%", opacity: { xs: .38, sm: .58, md: .76 }, pointerEvents: "none" }}><svg viewBox="0 0 240 150" width="100%" height="100%" preserveAspectRatio="none"><path d="M153 20 L192 34 L191 74 C190 101 174 120 153 131 C131 120 115 101 115 74 L114 34Z" fill="rgba(255,247,194,.34)" stroke="rgba(255,255,255,.72)" strokeWidth="2" /><circle cx="203" cy="64" r="11" fill="rgba(220,137,16,.78)" /><path d="M204 79 C193 82 190 96 183 108 L169 132 H205 L225 106 C234 93 226 81 214 80Z" fill="rgba(210,118,12,.74)" /><path d="M183 108 L163 96 M202 113 L216 132" stroke="rgba(181,103,9,.78)" strokeWidth="8" strokeLinecap="round" /><path d="M26 143 C69 123 103 127 137 145" fill="none" stroke="rgba(255,255,255,.28)" strokeWidth="3" /></svg></Box>;
+  if (kind === "liability") return <Box aria-hidden sx={{ position: "absolute", right: 0, top: 0, width: "49%", height: "100%", opacity: { xs: .38, sm: .58, md: .8 }, pointerEvents: "none" }}><svg viewBox="0 0 255 150" width="100%" height="100%" preserveAspectRatio="none"><path d="M106 150 V42 L147 21 V150Z" fill="rgba(36,20,128,.58)" /><path d="M153 150 V59 L186 42 V150Z" fill="rgba(46,30,145,.74)" /><path d="M192 150 V25 L236 7 V150Z" fill="rgba(53,35,155,.64)" /><g fill="rgba(235,229,255,.62)"><rect x="119" y="58" width="10" height="10" /><rect x="119" y="78" width="10" height="10" /><rect x="165" y="74" width="9" height="10" /><rect x="165" y="95" width="9" height="10" /><rect x="205" y="43" width="10" height="12" /><rect x="205" y="67" width="10" height="12" /><rect x="205" y="91" width="10" height="12" /></g></svg></Box>;
+  return <Box aria-hidden sx={{ position: "absolute", right: 0, top: 0, width: "52%", height: "100%", opacity: { xs: .4, sm: .6, md: .82 }, pointerEvents: "none" }}><svg viewBox="0 0 280 150" width="100%" height="100%" preserveAspectRatio="none"><circle cx="166" cy="58" r="11" fill="rgba(234,74,16,.84)" /><circle cx="204" cy="48" r="13" fill="rgba(234,74,16,.84)" /><circle cx="244" cy="68" r="9" fill="rgba(234,74,16,.84)" /><path d="M157 73 C145 78 141 96 151 113 L159 140 H183 L176 105 L188 90 L194 140 H219 L214 104 C210 88 200 74 188 72Z" fill="rgba(232,77,18,.78)" /><path d="M201 67 C188 75 185 93 195 105 L204 126 H225 L221 99 L234 81 C242 72 230 65 220 68Z" fill="rgba(232,77,18,.72)" /><path d="M233 82 C227 91 228 106 236 116 L242 135 H259 L255 111 L264 96 C270 86 260 79 252 82Z" fill="rgba(232,77,18,.64)" /><path d="M103 126 C149 107 204 109 270 128" fill="none" stroke="rgba(255,255,255,.38)" strokeWidth="3" /></svg></Box>;
 }
 
 function PricingCategoryCard({ card, selected, onSelect }: { card: PricingCardConfig; selected: boolean; onSelect: () => void }) {
@@ -522,7 +538,7 @@ function PricingCategoryCard({ card, selected, onSelect }: { card: PricingCardCo
     fullWidth
     sx={{
       p: 0,
-      minHeight: { xs: 124, sm: 132, md: 142 },
+      minHeight: { xs: 160, sm: 190, md: 220 },
       height: "100%",
       display: "flex",
       flexDirection: "column",
@@ -546,17 +562,17 @@ function PricingCategoryCard({ card, selected, onSelect }: { card: PricingCardCo
       "&::after": { content: '""', position: "absolute", width: 150, height: 150, borderRadius: "50%", right: -50, top: -64, background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.14)", pointerEvents: "none" },
     }}
   >
-    <Box sx={{ p: { xs: 1.25, md: 1.5 }, display: "flex", alignItems: "center", gap: 1.25, position: "relative", zIndex: 1, minWidth: 0 }}>
-      <Box sx={{ width: 48, height: 48, flexShrink: 0, borderRadius: "50%", display: "grid", placeItems: "center", bgcolor: "rgba(255,255,255,.18)", border: "1px solid rgba(255,255,255,.28)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.2)", "& svg": { fontSize: 27 } }}>{card.icon}</Box>
+    <Box sx={{ p: { xs: 1.5, sm: 2, md: 2.25 }, display: "flex", alignItems: "center", gap: { xs: 1.25, sm: 1.75, md: 2.25 }, position: "relative", zIndex: 1, minWidth: 0 }}>
+      <Box sx={{ width: { xs: 58, sm: 78, md: 94 }, height: { xs: 58, sm: 78, md: 94 }, flexShrink: 0, borderRadius: "50%", display: "grid", placeItems: "center", bgcolor: "rgba(255,255,255,.18)", border: "2px solid rgba(255,255,255,.35)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.22), 0 0 0 3px rgba(255,255,255,.08)", "& svg": { fontSize: { xs: 32, sm: 45, md: 58 } } }}>{card.icon}</Box>
       <Box sx={{ minWidth: 0, color: card.contentColour }}>
-        <Typography fontWeight={900} sx={{ fontSize: { xs: 13.5, sm: 17 }, lineHeight: 1.15, whiteSpace: "normal" }}>{card.title}</Typography>
-        <Typography sx={{ mt: .7, fontSize: { xs: 11, sm: 12.5 }, color: card.contentColour === "#fff" ? "rgba(255,255,255,.92)" : "rgba(16,47,77,.9)", lineHeight: 1.25 }}>{card.count}</Typography>
+        <Typography fontWeight={900} sx={{ fontSize: { xs: 16, sm: 21, md: 29 }, lineHeight: 1.12, whiteSpace: "normal" }}>{card.title}</Typography>
+        <Typography sx={{ mt: { xs: .65, md: .95 }, fontSize: { xs: 12, sm: 14, md: 18 }, color: card.contentColour === "#fff" ? "rgba(255,255,255,.94)" : "rgba(16,47,77,.92)", lineHeight: 1.25 }}>{card.count}</Typography>
       </Box>
     </Box>
-    <Box sx={{ position: "absolute", right: { xs: 10, sm: 14 }, top: { xs: 26, sm: 26 }, color: card.visualColour, transform: "rotate(-10deg)", pointerEvents: "none", "& svg": { fontSize: { xs: 82, sm: 112 } } }}>{card.icon}</Box>
-    <Box className="pricing-card-cta" sx={{ mx: { xs: 1, sm: 1.25 }, mb: { xs: 1, sm: 1.25 }, px: { xs: 1.25, md: 1.5 }, py: { xs: .8, sm: 1.05 }, borderRadius: 1.5, bgcolor: `${card.darkColour}e6`, border: "1px solid rgba(255,255,255,.35)", fontSize: { xs: 11.5, sm: 13 }, fontWeight: 900, letterSpacing: ".01em", display: "flex", justifyContent: "space-between", alignItems: "center", position: "relative", zIndex: 1, color: "#fff" }}>
+    <PricingIllustration kind={card.illustration} />
+    <Box className="pricing-card-cta" sx={{ mx: { xs: 1, sm: 1.25 }, mb: { xs: 1, sm: 1.25 }, px: { xs: 1.25, md: 1.5 }, py: { xs: .8, sm: 1.05 }, borderRadius: 1.5, bgcolor: `${card.darkColour}e6`, border: "1px solid rgba(255,255,255,.35)", fontSize: { xs: 14, sm: 17, md: 21 }, lineHeight: 1, fontWeight: 900, letterSpacing: ".01em", display: "flex", justifyContent: "space-between", alignItems: "center", position: "relative", zIndex: 1, color: "#fff" }}>
       <span>Τιμολογήστε τώρα</span>
-      <Box component="span" className="pricing-card-arrow" sx={{ fontSize: 18, lineHeight: 1, ml: 1, transition: "transform .18s ease" }}>→</Box>
+      <Box component="span" className="pricing-card-arrow" sx={{ fontSize: { xs: 21, sm: 25, md: 30 }, lineHeight: 1, ml: 1, transition: "transform .18s ease" }}>→</Box>
     </Box>
   </Button>;
 }
@@ -564,16 +580,16 @@ function PricingCategoryCard({ card, selected, onSelect }: { card: PricingCardCo
 function StandaloneHomeSections({ branch, setBranch }: { branch: BranchKey; setBranch: (value: BranchKey) => void }) {
   const pricingMobile = useMediaQuery("(max-width:599px)");
   const pricingTablet = useMediaQuery("(min-width:600px) and (max-width:899px)");
-  const pricingHeight = pricingMobile ? 1360 : pricingTablet ? 860 : 710;
+  const pricingHeight = pricingMobile ? 1520 : pricingTablet ? 980 : 870;
   const pricingCards: PricingCardConfig[] = [
-    { key: branchLabels[0], title: "Οχημάτων", count: "19 ασφαλιστικά προγράμματα", icon: <DirectionsCarFilledOutlinedIcon />, colour: "#2fb8ad", darkColour: "#0873a6", gradient: "linear-gradient(135deg, #20b9ee 0%, #168ddd 60%, #41c4f2 100%)", contentColour: "#fff", visualColour: "rgba(10,77,145,.28)" },
-    { key: branchLabels[0], title: "Σύγκριση Οχημάτων", count: "19 ασφαλιστικά προγράμματα", icon: <CompareArrowsRoundedIcon />, colour: "#398fc7", darkColour: "#173daf", gradient: "linear-gradient(135deg, #4765f1 0%, #2d4fd7 60%, #6178ff 100%)", contentColour: "#fff", visualColour: "rgba(14,45,138,.32)" },
-    { key: branchLabels[1], title: "Περιουσίας", count: "14 ασφαλιστικά προγράμματα", icon: <HomeWorkOutlinedIcon />, colour: "#e46659", darkColour: "#b52323", gradient: "linear-gradient(135deg, #ff827d 0%, #e94747 60%, #ff9b85 100%)", contentColour: "#fff", visualColour: "rgba(135,30,31,.3)" },
-    { key: branchLabels[2], title: "Υγείας", count: "12 ασφαλιστικά προγράμματα", icon: <HealthAndSafetyOutlinedIcon />, colour: "#86b7b5", darkColour: "#006c64", gradient: "linear-gradient(135deg, #32c9b7 0%, #1ba997 60%, #64d7c4 100%)", contentColour: "#fff", visualColour: "rgba(0,91,82,.28)" },
-    { key: branchLabels[0], title: "Σκαφών", count: "5 ασφαλιστικά προγράμματα", icon: <SailingOutlinedIcon />, colour: "#16b5d7", darkColour: "#0874b7", gradient: "linear-gradient(135deg, #6bd0f2 0%, #31a8e2 60%, #9be4f4 100%)", contentColour: "#092d57", visualColour: "rgba(20,108,185,.3)" },
-    { key: branchLabels[0], title: "Προσωπικού Ατυχήματος", count: "6 ασφαλιστικά προγράμματα", icon: <ShieldOutlinedIcon />, colour: "#c5bd00", darkColour: "#c47600", gradient: "linear-gradient(135deg, #ffd866 0%, #ffc13c 60%, #ffe08a 100%)", contentColour: "#17365a", visualColour: "rgba(191,126,0,.25)" },
-    { key: branchLabels[4], title: "Επαγγελματικής Ευθύνης", count: "9 ασφαλιστικά προγράμματα", icon: <BusinessCenterOutlinedIcon />, colour: "#7865be", darkColour: "#3d1ca5", gradient: "linear-gradient(135deg, #9373f4 0%, #6843d3 60%, #a78bf8 100%)", contentColour: "#fff", visualColour: "rgba(47,20,133,.3)" },
-    { key: branchLabels[3], title: "Ζωής", count: "8 ασφαλιστικά προγράμματα", icon: <FavoriteBorderRoundedIcon />, colour: "#e5a14b", darkColour: "#e54805", gradient: "linear-gradient(135deg, #ffb36f 0%, #ff8a38 60%, #ffd078 100%)", contentColour: "#17365a", visualColour: "rgba(217,79,16,.25)" },
+    { key: branchLabels[0], title: "Οχημάτων", count: "19 ασφαλιστικά προγράμματα", icon: <DirectionsCarFilledOutlinedIcon />, colour: "#2fb8ad", darkColour: "#0873a6", gradient: "linear-gradient(135deg, #20b9ee 0%, #168ddd 60%, #41c4f2 100%)", contentColour: "#fff", visualColour: "rgba(10,77,145,.28)", illustration: "vehicle" },
+    { key: branchLabels[0], title: "Σύγκριση Οχημάτων", count: "19 ασφαλιστικά προγράμματα", icon: <Box sx={{ display: "flex", alignItems: "center", "& svg": { fontSize: { xs: 22, sm: 32, md: 39 } }, "& svg + svg": { ml: -1.1, transform: "translateY(5px)" } }}><DirectionsCarFilledOutlinedIcon /><DirectionsCarFilledOutlinedIcon /></Box>, colour: "#398fc7", darkColour: "#173daf", gradient: "linear-gradient(135deg, #4765f1 0%, #2d4fd7 60%, #6178ff 100%)", contentColour: "#fff", visualColour: "rgba(14,45,138,.32)", illustration: "vehicle-compare" },
+    { key: branchLabels[1], title: "Περιουσίας", count: "14 ασφαλιστικά προγράμματα", icon: <HomeWorkOutlinedIcon />, colour: "#e46659", darkColour: "#b52323", gradient: "linear-gradient(135deg, #ff827d 0%, #e94747 60%, #ff9b85 100%)", contentColour: "#fff", visualColour: "rgba(135,30,31,.3)", illustration: "property" },
+    { key: branchLabels[2], title: "Υγείας", count: "12 ασφαλιστικά προγράμματα", icon: <HealthAndSafetyOutlinedIcon />, colour: "#86b7b5", darkColour: "#006c64", gradient: "linear-gradient(135deg, #32c9b7 0%, #1ba997 60%, #64d7c4 100%)", contentColour: "#fff", visualColour: "rgba(0,91,82,.28)", illustration: "health" },
+    { key: branchLabels[0], title: "Σκαφών", count: "5 ασφαλιστικά προγράμματα", icon: <SailingOutlinedIcon />, colour: "#16b5d7", darkColour: "#0874b7", gradient: "linear-gradient(135deg, #6bd0f2 0%, #31a8e2 60%, #9be4f4 100%)", contentColour: "#092d57", visualColour: "rgba(20,108,185,.3)", illustration: "marine" },
+    { key: branchLabels[0], title: "Προσωπικού Ατυχήματος", count: "6 ασφαλιστικά προγράμματα", icon: <Box sx={{ display: "flex", alignItems: "center", "& svg": { fontSize: { xs: 22, sm: 32, md: 39 } }, "& svg + svg": { ml: -1.35, transform: "translateY(5px)" } }}><PersonOutlineRoundedIcon /><ShieldOutlinedIcon /></Box>, colour: "#c5bd00", darkColour: "#c47600", gradient: "linear-gradient(135deg, #ffd866 0%, #ffc13c 60%, #ffe08a 100%)", contentColour: "#17365a", visualColour: "rgba(191,126,0,.25)", illustration: "accident" },
+    { key: branchLabels[4], title: "Επαγγελματικής Ευθύνης", count: "9 ασφαλιστικά προγράμματα", icon: <BusinessCenterOutlinedIcon />, colour: "#7865be", darkColour: "#3d1ca5", gradient: "linear-gradient(135deg, #9373f4 0%, #6843d3 60%, #a78bf8 100%)", contentColour: "#fff", visualColour: "rgba(47,20,133,.3)", illustration: "liability" },
+    { key: branchLabels[3], title: "Ζωής", count: "8 ασφαλιστικά προγράμματα", icon: <FavoriteBorderRoundedIcon />, colour: "#e5a14b", darkColour: "#e54805", gradient: "linear-gradient(135deg, #ffb36f 0%, #ff8a38 60%, #ffd078 100%)", contentColour: "#17365a", visualColour: "rgba(217,79,16,.25)", illustration: "life" },
   ];
   const announcements = [
     ["202/2024 · Ενημέρωση ασφαλιστικής αγοράς", "18/04/2024 · Εγκύκλιος"],
@@ -645,10 +661,10 @@ function StandaloneHomeSections({ branch, setBranch }: { branch: BranchKey; setB
   };
   return <Box onDragOver={event => event.preventDefault()} onDrop={dropWidgetAtEnd} sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(12, minmax(0, 1fr))" }, gridAutoFlow: "dense", gap: { xs: 2, md: 2.5 }, alignItems: "start" }}>
     <DashboardWidget id="pricing" title="Τιμολόγηση" accent="#c9e2f6" prominentHeader {...widgetControls("pricing")}>
-      <Card variant="outlined" sx={{ height: "100%", borderRadius: 1.5, overflow: "hidden", borderTop: 0, bgcolor: "#fff", borderColor: "#dce5ec" }}>
-        <CardContent sx={{ p: { xs: 1.5, md: 2 }, height: "100%" }}>
-          <Box sx={{ borderLeft: "4px solid #16b8cc", pl: 1.25, mb: { xs: 1.75, md: 2.25 } }}>
-            <Typography fontWeight={900} sx={{ color: "#102f4d", fontSize: { xs: 16, sm: 18 } }}>Τιμολόγηση</Typography>
+      <Card variant="outlined" sx={{ position: "relative", height: "100%", borderRadius: 1.5, overflow: "hidden", borderTop: 0, bgcolor: "#f8fcff", borderColor: "#dce5ec", "&::after": { content: '""', position: "absolute", right: -170, bottom: -210, width: 560, height: 430, borderRadius: "50% 0 0 0", border: "2px solid rgba(104,170,221,.13)", boxShadow: "0 -18px 0 rgba(104,170,221,.07), 0 -36px 0 rgba(104,170,221,.045)", pointerEvents: "none" } }}>
+        <CardContent sx={{ position: "relative", zIndex: 1, p: { xs: 1.5, md: 2.5 }, height: "100%" }}>
+          <Box sx={{ borderLeft: "6px solid #15bde0", pl: { xs: 1.25, md: 1.75 }, mb: { xs: 2, md: 2.75 }, py: .25 }}>
+            <Typography fontWeight={900} sx={{ color: "#102f4d", fontSize: { xs: 22, sm: 30, md: 38 }, lineHeight: 1.05 }}>Τιμολόγηση</Typography>
           </Box>
           <Grid container spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }}>
             {pricingCards.map((card, index) => <Grid item xs={12} sm={6} md={4} key={`${card.title}-${index}`}><PricingCategoryCard card={card} selected={branch === card.key && index < 5} onSelect={() => setBranch(card.key)} /></Grid>)}
