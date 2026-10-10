@@ -253,13 +253,12 @@ function StandalonePluginHeader({ view, onNavigate }: { view: ViewKey; onNavigat
   return <Box sx={{ bgcolor: "#fff", borderBottom: "1px solid #ccd8e3", boxShadow: "0 3px 16px rgba(18,58,100,.08)" }}>
     <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: 1.5, sm: 2.5, lg: 4 }, py: { xs: 1.25, md: 1.5 }, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
       <Stack direction="row" spacing={1.5} alignItems="center" minWidth={0}>
-        <Box component="img" src="/assets/insureone-plugin-logo.png" alt="InsureOne Kalypsis Plugin" sx={{ width: { xs: 165, sm: 215 }, height: { xs: 54, sm: 68 }, objectFit: "contain", objectPosition: "left center" }} />
+        <Box component="img" src="/assets/insureone-plugin-logo.png" alt="InsureOne Kalypsis Plugin" sx={{ width: { xs: 240, sm: 340, md: 390 }, height: { xs: 82, sm: 108, md: 124 }, objectFit: "contain", objectPosition: "left center" }} />
         <Box sx={{ display: { xs: "none", md: "block" }, pl: 1.5, borderLeft: "1px solid #d9e3ec" }}>
           <Typography sx={{ color: "#123a64", fontWeight: 900, fontSize: 14, letterSpacing: .5 }}>ΠΟΛΥΤΙΜΟΛΟΓΗΣΗ</Typography>
           <Typography variant="caption" color="text.secondary">Σύγκριση ασφαλιστικών προγραμμάτων</Typography>
         </Box>
       </Stack>
-      <Chip size="small" icon={<ShieldOutlinedIcon />} label="Ασφαλές περιβάλλον" sx={{ display: { xs: "none", sm: "inline-flex" }, bgcolor: "#e9f6f5", color: "#147f8d", fontWeight: 800 }} />
     </Box>
     <Box sx={{ bgcolor: "#123a64", borderTop: "1px solid rgba(255,255,255,.12)" }}>
       <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: .5, sm: 2.5, lg: 4 } }}>

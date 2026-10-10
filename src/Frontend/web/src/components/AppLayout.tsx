@@ -59,7 +59,7 @@ export interface NavItem {
   labelKey: string;
   icon: ReactNode;
   /** Optional visual accent for a special office programme entry. */
-  accent?: "affiliate";
+  accent?: "affiliate" | "quoting";
   /** Show a "Coming soon" chip and route to ComingSoonPage. */
   comingSoon?: boolean;
   /**
@@ -372,10 +372,17 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
                     boxShadow: "0 3px 9px rgba(5, 24, 44, 0.24)",
                     "&:hover": { bgcolor: "#17466f", borderColor: "#347bb2" },
                     "&.Mui-selected": { bgcolor: "#0a213a", color: "#ffffff", borderColor: "#58a9e5" }
+                  } : item.accent === "quoting" ? {
+                    bgcolor: "#0b6f9c",
+                    color: "#ffffff",
+                    border: "1px solid #38b9d1",
+                    boxShadow: "0 3px 12px rgba(11, 111, 156, 0.28)",
+                    "&:hover": { bgcolor: "#0a5e86", borderColor: "#6cdeeb" },
+                    "&.Mui-selected": { bgcolor: "#084c70", color: "#ffffff", borderColor: "#79e2ec" }
                   } : {})
                 }}
               >
-                <ListItemIcon sx={{ minWidth: collapsed ? 0 : 34, justifyContent: "center", color: item.accent === "affiliate" ? "#ffffff" : undefined }}>{item.icon}</ListItemIcon>
+                <ListItemIcon sx={{ minWidth: collapsed ? 0 : 34, justifyContent: "center", color: item.accent === "affiliate" || item.accent === "quoting" ? "#ffffff" : undefined }}>{item.icon}</ListItemIcon>
                 {!collapsed && (
                   <ListItemText
                     primary={t(item.labelKey)}

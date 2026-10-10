@@ -421,7 +421,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/office-website", labelKey: "nav.officeWebsite", icon: <LanguageIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website/requests", labelKey: "nav.officeWebsiteRequests", icon: <AssignmentIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website/analytics", labelKey: "nav.officeWebsiteAnalytics", icon: <AnalyticsIcon />, package: "FrontOffice", group: "website" },
-    { to: "/frontoffice-quoting?view=dashboard", labelKey: "nav.quotingDashboard", icon: <CalculateIcon />, package: "FrontOffice", openInNewTab: true },
+    { to: "/frontoffice-quoting?view=dashboard", labelKey: "nav.quotingDashboard", icon: <CalculateIcon />, package: "FrontOffice", openInNewTab: true, accent: "quoting" },
 
     // ===== Intelligence =====
     // persistency hidden — analytics shell exists but not wired to data yet.
@@ -492,7 +492,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/office-website", labelKey: "nav.officeWebsite", icon: <LanguageIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website/requests", labelKey: "nav.officeWebsiteRequests", icon: <AssignmentIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website/analytics", labelKey: "nav.officeWebsiteAnalytics", icon: <AnalyticsIcon />, package: "FrontOffice", group: "website" },
-    { to: "/frontoffice-quoting?view=dashboard", labelKey: "nav.quotingDashboard", icon: <CalculateIcon />, package: "FrontOffice", openInNewTab: true },
+    { to: "/frontoffice-quoting?view=dashboard", labelKey: "nav.quotingDashboard", icon: <CalculateIcon />, package: "FrontOffice", openInNewTab: true, accent: "quoting" },
     // CRM
     { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
@@ -530,7 +530,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/office-website", labelKey: "nav.officeWebsite", icon: <LanguageIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website/requests", labelKey: "nav.officeWebsiteRequests", icon: <AssignmentIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website/analytics", labelKey: "nav.officeWebsiteAnalytics", icon: <AnalyticsIcon />, package: "FrontOffice", group: "website" },
-    { to: "/frontoffice-quoting?view=dashboard", labelKey: "nav.quotingDashboard", icon: <CalculateIcon />, package: "FrontOffice", openInNewTab: true },
+    { to: "/frontoffice-quoting?view=dashboard", labelKey: "nav.quotingDashboard", icon: <CalculateIcon />, package: "FrontOffice", openInNewTab: true, accent: "quoting" },
     { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/crm-groups", labelKey: "nav.crmGroups", icon: <GroupWorkIconRC />, package: "Crm", permission: "marketing.read" },
@@ -757,7 +757,7 @@ export default function App() {
           title={maintenance.maintenanceTitle}
           message={maintenance.maintenanceMessage}
         />
-        <PreloginDesktopDownload />
+        {!location.pathname.startsWith("/frontoffice-quoting") && <PreloginDesktopDownload />}
       </>
     );
   }
@@ -1222,10 +1222,12 @@ export default function App() {
       </Routes>
       {/* Prelogin overlays skip authed app shells: /app/* (main app) AND
           /ermes-app (standalone ΕΡΜΗΣ shell) — no cookie banner or
-          «Download for Windows» pill in either. /download itself hides
+          «Download for Windows» pill in either. The standalone
+          /frontoffice-quoting plugin hides it as well. /download itself hides
           the download pill so it doesn't self-recurse. */}
       {!location.pathname.startsWith("/app")
         && !location.pathname.startsWith("/ermes-app")
+        && !location.pathname.startsWith("/frontoffice-quoting")
         && !location.pathname.startsWith("/download") && <PreloginDesktopDownload />}
       {!location.pathname.startsWith("/app")
         && !location.pathname.startsWith("/ermes-app") && <CookieBanner />}
