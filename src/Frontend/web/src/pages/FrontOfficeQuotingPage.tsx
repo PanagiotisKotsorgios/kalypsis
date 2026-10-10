@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -74,6 +74,10 @@ import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import DragIndicatorRoundedIcon from "@mui/icons-material/DragIndicatorRounded";
+import FullscreenRoundedIcon from "@mui/icons-material/FullscreenRounded";
+import FullscreenExitRoundedIcon from "@mui/icons-material/FullscreenExitRounded";
+import RemoveRoundedIcon from "@mui/icons-material/RemoveRounded";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { KalypsisLogo } from "../components/KalypsisLogo";
@@ -394,6 +398,105 @@ function StandalonePluginHeader({ view, onNavigate }: { view: ViewKey; onNavigat
   </Box>;
 }
 
+type HomeWidgetId = "pricing" | "announcements" | "production" | "blog";
+
+function DashboardWidget({
+  id,
+  title,
+  accent,
+  span,
+  height,
+  order,
+  minimized,
+  maximized,
+  onMinimize,
+  onMaximize,
+  onResize,
+  onRefresh,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  children,
+}: {
+  id: HomeWidgetId;
+  title: string;
+  accent: string;
+  span: number;
+  height: number;
+  order: number;
+  minimized: boolean;
+  maximized: boolean;
+  onMinimize: () => void;
+  onMaximize: () => void;
+  onResize: (span: number, height: number) => void;
+  onRefresh: () => void;
+  onDragStart: () => void;
+  onDragOver: (event: React.DragEvent<HTMLDivElement>) => void;
+  onDrop: () => void;
+  children: ReactNode;
+}) {
+  const [refreshing, setRefreshing] = useState(false);
+  const resizeStart = useRef<{ x: number; y: number; span: number; height: number } | null>(null);
+  const beginResize = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    resizeStart.current = { x: event.clientX, y: event.clientY, span, height };
+    const move = (moveEvent: MouseEvent) => {
+      if (!resizeStart.current) return;
+      const nextSpan = Math.max(4, Math.min(12, resizeStart.current.span + Math.round((moveEvent.clientX - resizeStart.current.x) / 120)));
+      const nextHeight = Math.max(150, Math.min(900, resizeStart.current.height + moveEvent.clientY - resizeStart.current.y));
+      onResize(nextSpan, nextHeight);
+    };
+    const end = () => {
+      resizeStart.current = null;
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", end);
+    };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", end);
+  };
+  const refresh = () => {
+    setRefreshing(true);
+    onRefresh();
+    window.setTimeout(() => setRefreshing(false), 550);
+  };
+  return <Box
+    id={`insureone-widget-${id}`}
+    onDragOver={onDragOver}
+    onDrop={onDrop}
+    sx={{
+      gridColumn: { xs: "1 / -1", md: `span ${span}` },
+      order,
+      minWidth: 0,
+      minHeight: minimized ? "auto" : height,
+      position: maximized ? "fixed" : "relative",
+      inset: maximized ? { xs: 8, md: 24 } : undefined,
+      zIndex: maximized ? 1400 : 1,
+      bgcolor: maximized ? "#edf3f8" : undefined,
+      borderRadius: 1.5,
+      boxShadow: maximized ? "0 18px 50px rgba(12,39,68,.34)" : undefined,
+      overflow: maximized ? "auto" : "visible",
+    }}
+  >
+    <Card variant="outlined" sx={{ height: minimized ? "auto" : "100%", borderRadius: 1.5, overflow: "hidden", borderTop: `3px solid ${accent}`, bgcolor: "#fff" }}>
+      <Box
+        draggable
+        onDragStart={onDragStart}
+        sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 1.25, py: .5, minHeight: 38, bgcolor: "rgba(18,58,100,.025)", borderBottom: "1px solid #e1e9f0", cursor: "grab", userSelect: "none" }}
+      >
+        <Stack direction="row" spacing={.5} alignItems="center" minWidth={0}><DragIndicatorRoundedIcon sx={{ color: "#7990a4", fontSize: 18 }} /><Typography fontWeight={850} noWrap sx={{ color: "#515960", fontSize: 13 }}>{title}</Typography></Stack>
+        <Stack direction="row" spacing={0} alignItems="center" flexShrink={0}>
+          <Tooltip title="Ανανέωση"><IconButton size="small" aria-label={`Ανανέωση ${title}`} onMouseDown={event => event.stopPropagation()} onClick={refresh} sx={{ color: "#52728e" }}><RefreshRoundedIcon fontSize="small" sx={{ animation: refreshing ? "insureone-spin .55s linear" : "none", "@keyframes insureone-spin": { from: { transform: "rotate(0deg)" }, to: { transform: "rotate(360deg)" } } }} /></IconButton></Tooltip>
+          <Tooltip title={minimized ? "Επαναφορά" : "Ελαχιστοποίηση"}><IconButton size="small" aria-label={minimized ? `Επαναφορά ${title}` : `Ελαχιστοποίηση ${title}`} onMouseDown={event => event.stopPropagation()} onClick={onMinimize} sx={{ color: "#52728e" }}><RemoveRoundedIcon fontSize="small" /></IconButton></Tooltip>
+          <Tooltip title={maximized ? "Επαναφορά μεγέθους" : "Μεγιστοποίηση"}><IconButton size="small" aria-label={maximized ? `Επαναφορά ${title}` : `Μεγιστοποίηση ${title}`} onMouseDown={event => event.stopPropagation()} onClick={onMaximize} sx={{ color: "#52728e" }}>{maximized ? <FullscreenExitRoundedIcon fontSize="small" /> : <FullscreenRoundedIcon fontSize="small" />}</IconButton></Tooltip>
+        </Stack>
+      </Box>
+      {!minimized && <Box sx={{ height: "calc(100% - 38px)", minHeight: 0 }}>{children}</Box>}
+    </Card>
+    {!maximized && !minimized && <Box onMouseDown={beginResize} role="separator" aria-label={`Αλλαγή μεγέθους ${title}`} sx={{ position: "absolute", right: 2, bottom: 2, width: 18, height: 18, cursor: "nwse-resize", zIndex: 2, "&::after": { content: '""', position: "absolute", right: 2, bottom: 2, width: 10, height: 10, borderRight: "2px solid #7191a8", borderBottom: "2px solid #7191a8", opacity: .8 } }} />}
+  </Box>;
+}
+
 function StandaloneHomeSections({ branch, setBranch }: { branch: BranchKey; setBranch: (value: BranchKey) => void }) {
   const pricingCards: { key: BranchKey; title: string; count: string; icon: ReactNode; colour: string }[] = [
     { key: branchLabels[0], title: "Οχημάτων", count: "19 ασφαλιστικά προγράμματα", icon: <DirectionsCarFilledOutlinedIcon />, colour: "#26a69a" },
@@ -424,16 +527,61 @@ function StandaloneHomeSections({ branch, setBranch }: { branch: BranchKey; setB
     { month: "Σεπ", contracts: 36, premium: 4920 },
     { month: "Οκτ", contracts: 41, premium: 5680 },
   ];
-  return <Grid container spacing={{ xs: 2, md: 2.5 }} alignItems="flex-start">
-    <Grid item xs={12} lg={7}>
+  const defaultOrder: HomeWidgetId[] = ["pricing", "announcements", "production", "blog"];
+  const defaultSizes: Record<HomeWidgetId, { span: number; height: number; minimized: boolean }> = {
+    pricing: { span: 7, height: 365, minimized: false },
+    announcements: { span: 5, height: 365, minimized: false },
+    production: { span: 7, height: 365, minimized: false },
+    blog: { span: 5, height: 365, minimized: false },
+  };
+  const loadLayout = () => {
+    if (typeof window === "undefined") return { order: defaultOrder, sizes: defaultSizes };
+    try {
+      const saved = JSON.parse(window.localStorage.getItem("insureone-dashboard-layout") ?? "null") as { order?: HomeWidgetId[]; sizes?: typeof defaultSizes } | null;
+      const order = saved?.order?.filter(id => defaultOrder.includes(id));
+      return { order: order?.length === defaultOrder.length ? order : defaultOrder, sizes: { ...defaultSizes, ...(saved?.sizes ?? {}) } };
+    } catch { return { order: defaultOrder, sizes: defaultSizes }; }
+  };
+  const initialLayout = loadLayout();
+  const [widgetOrder, setWidgetOrder] = useState<HomeWidgetId[]>(initialLayout.order);
+  const [widgetSizes, setWidgetSizes] = useState(initialLayout.sizes);
+  const [minimized, setMinimized] = useState<Record<HomeWidgetId, boolean>>(() => Object.fromEntries(defaultOrder.map(id => [id, initialLayout.sizes[id].minimized])) as Record<HomeWidgetId, boolean>);
+  const [maximized, setMaximized] = useState<HomeWidgetId | null>(null);
+  const dragWidget = useRef<HomeWidgetId | null>(null);
+  useEffect(() => {
+    window.localStorage.setItem("insureone-dashboard-layout", JSON.stringify({ order: widgetOrder, sizes: widgetSizes }));
+  }, [widgetOrder, widgetSizes]);
+  const resizeWidget = (id: HomeWidgetId, span: number, height: number) => setWidgetSizes(current => ({ ...current, [id]: { ...current[id], span, height } }));
+  const dropWidget = (id: HomeWidgetId) => {
+    const source = dragWidget.current;
+    dragWidget.current = null;
+    if (!source || source === id) return;
+    setWidgetOrder(current => { const next = [...current]; const from = next.indexOf(source); const to = next.indexOf(id); next.splice(from, 1); next.splice(to, 0, source); return next; });
+  };
+  const widgetControls = (id: HomeWidgetId) => ({
+    span: widgetSizes[id].span,
+    height: widgetSizes[id].height,
+    order: widgetOrder.indexOf(id),
+    minimized: minimized[id],
+    maximized: maximized === id,
+    onMinimize: () => setMinimized(current => ({ ...current, [id]: !current[id] })),
+    onMaximize: () => setMaximized(current => current === id ? null : id),
+    onResize: (span: number, height: number) => resizeWidget(id, span, height),
+    onRefresh: () => setWidgetSizes(current => ({ ...current })),
+    onDragStart: () => { dragWidget.current = id; },
+    onDragOver: (event: React.DragEvent<HTMLDivElement>) => event.preventDefault(),
+    onDrop: () => dropWidget(id),
+  });
+  return <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(12, minmax(0, 1fr))" }, gap: { xs: 2, md: 2.5 }, alignItems: "start" }}>
+    <DashboardWidget id="pricing" title="Τιμολόγηση" accent="#df4d3d" {...widgetControls("pricing")}>
       <Card variant="outlined" sx={{ borderRadius: 1.5, overflow: "hidden", borderTop: "3px solid #df4d3d", bgcolor: "#fff" }}>
         <CardContent sx={{ p: 1.5 }}>
           <Typography fontWeight={850} sx={{ color: "#515960", mb: 1.25 }}>Τιμολόγηση</Typography>
           <Grid container spacing={1.25}>{pricingCards.map((card, index) => <Grid item xs={6} sm={4} key={`${card.title}-${index}`}><Button onClick={() => setBranch(card.key)} fullWidth sx={{ p: 0, minHeight: 118, display: "flex", flexDirection: "column", alignItems: "stretch", borderRadius: 1.25, overflow: "hidden", textAlign: "left", color: "#fff", bgcolor: card.colour, border: branch === card.key && index < 5 ? "3px solid #123a64" : "2px solid transparent", boxShadow: branch === card.key && index < 5 ? "0 0 0 2px #fff inset" : "none", "&:hover": { filter: "brightness(1.05)", transform: "translateY(-1px)" }, transition: "filter .15s ease, transform .15s ease" }}><Box sx={{ p: 1.25, flex: 1, position: "relative" }}><Typography fontWeight={900} sx={{ fontSize: { xs: 13, sm: 14 } }}>{card.title}</Typography><Typography variant="caption" sx={{ opacity: .9 }}>{card.count}</Typography><Box sx={{ position: "absolute", right: 8, bottom: 6, opacity: .22, fontSize: 42 }}>{card.icon}</Box></Box><Box sx={{ px: 1.25, py: .7, bgcolor: "rgba(0,0,0,.13)", fontSize: 11, fontWeight: 800, display: "flex", justifyContent: "space-between" }}>Τιμολογήστε τώρα <span>→</span></Box></Button></Grid>)}</Grid>
         </CardContent>
       </Card>
-    </Grid>
-    <Grid item xs={12} lg={5}>
+    </DashboardWidget>
+    <DashboardWidget id="announcements" title="Ανακοινώσεις-Εγκύκλιοι" accent="#17b8d1" {...widgetControls("announcements")}>
       <Card variant="outlined" sx={{ borderRadius: 1.5, overflow: "hidden", borderTop: "3px solid #17b8d1", bgcolor: "#fff", height: "100%" }}>
         <CardContent sx={{ p: 1.5 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}><Typography fontWeight={850} sx={{ color: "#515960" }}>Ανακοινώσεις-Εγκύκλιοι</Typography><Stack direction="row" spacing={.25}><IconButton size="small" aria-label="Ανανέωση"><RefreshRoundedIcon fontSize="small" /></IconButton><IconButton size="small" aria-label="Σύμπτυξη"><Typography fontWeight={900}>−</Typography></IconButton></Stack></Stack>
@@ -441,8 +589,8 @@ function StandaloneHomeSections({ branch, setBranch }: { branch: BranchKey; setB
           <Stack divider={<Divider flexItem />} spacing={0}>{announcements.map(([title, meta]) => <Box key={title} sx={{ py: 1 }}><Typography variant="body2" sx={{ color: "#216285", fontWeight: 850, fontSize: 12.5 }}>{title}</Typography><Typography variant="caption" color="text.secondary"><Chip size="small" label="ΣΗΜΑΝΤΙΚΟ" sx={{ height: 18, mr: .75, bgcolor: "#f18b24", color: "#fff", borderRadius: .5, fontSize: 9, fontWeight: 900 }} />{meta}</Typography></Box>)}</Stack>
         </CardContent>
       </Card>
-    </Grid>
-    <Grid item xs={12} lg={7}>
+    </DashboardWidget>
+    <DashboardWidget id="production" title="Παραγωγή" accent="#1b7f55" {...widgetControls("production")}>
       <Card variant="outlined" sx={{ borderRadius: 1.5, borderTop: "3px solid #1b7f55", bgcolor: "#fff" }}>
         <CardContent sx={{ p: 1.5 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.25 }}><Typography fontWeight={850} sx={{ color: "#515960" }}>Παραγωγή</Typography><Chip size="small" label="Τελευταίοι 6 μήνες" sx={{ bgcolor: "#e4f4ed", color: "#1b6848", fontWeight: 750 }} /></Stack>
@@ -450,8 +598,8 @@ function StandaloneHomeSections({ branch, setBranch }: { branch: BranchKey; setB
           <Box sx={{ height: 210 }}><ResponsiveContainer width="100%" height="100%"><LineChart data={production} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke="#dce6ee" /><XAxis dataKey="month" tick={{ fontSize: 11 }} /><YAxis yAxisId="left" tick={{ fontSize: 10 }} /><YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} /><ChartTooltip formatter={(value, name) => { const key = String(name); const numeric = Number(value ?? 0); return [key === "premium" ? `${numeric.toLocaleString("el-GR")} €` : numeric, key === "premium" ? "Μικτά ασφάλιστρα" : "Συμβόλαια"]; }} /><Line yAxisId="left" type="monotone" dataKey="contracts" stroke="#147f8d" strokeWidth={3} dot={{ r: 3 }} /><Line yAxisId="right" type="monotone" dataKey="premium" stroke="#1b7f55" strokeWidth={3} dot={{ r: 3 }} /></LineChart></ResponsiveContainer></Box>
         </CardContent>
       </Card>
-    </Grid>
-    <Grid item xs={12} lg={5}>
+    </DashboardWidget>
+    <DashboardWidget id="blog" title="BLOG NEWS" accent="#2759a5" {...widgetControls("blog")}>
       <Card variant="outlined" sx={{ borderRadius: 1.5, borderTop: "3px solid #2759a5", bgcolor: "#fff", height: "100%" }}>
         <CardContent sx={{ p: 1.5 }}>
           <Typography fontWeight={850} sx={{ color: "#515960", mb: 1.25 }}>BLOG NEWS</Typography>
@@ -459,8 +607,8 @@ function StandaloneHomeSections({ branch, setBranch }: { branch: BranchKey; setB
           <Box sx={{ height: 100, mt: .75 }}><ResponsiveContainer width="100%" height="100%"><BarChart data={production.slice(-4)} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}><XAxis dataKey="month" tick={{ fontSize: 10 }} /><YAxis hide /><Bar dataKey="contracts" fill="#53c6d3" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer></Box>
         </CardContent>
       </Card>
-    </Grid>
-  </Grid>;
+    </DashboardWidget>
+  </Box>;
 }
 
 function StandaloneBranchPanel({ branch, setBranch }: { branch: BranchKey; setBranch: (value: BranchKey) => void }) {
