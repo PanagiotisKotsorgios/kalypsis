@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactElement, type ReactNode } from "react";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -21,6 +21,7 @@ import {
   InputLabel,
   InputAdornment,
   MenuItem,
+  Menu,
   Paper,
   Select,
   Stack,
@@ -64,6 +65,7 @@ import TableRowsOutlinedIcon from "@mui/icons-material/TableRowsOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import WalletOutlinedIcon from "@mui/icons-material/WalletOutlined";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
+import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 
@@ -241,17 +243,25 @@ export function FrontOfficeQuotingPage({ standalone = false }: { standalone?: bo
   );
 }
 
-const standaloneNav: { value: ViewKey; label: string; icon: ReactElement }[] = [
-  { value: "dashboard", label: "Αρχική", icon: <CalculateOutlinedIcon fontSize="small" /> },
-  { value: "quotes", label: "Προσφορές", icon: <LocalOfferOutlinedIcon fontSize="small" /> },
-  { value: "print-pay", label: "Τυπώνω – Πληρώνω", icon: <PrintOutlinedIcon fontSize="small" /> },
-  { value: "pay-print", label: "Πληρώνω – Τυπώνω", icon: <PaymentsOutlinedIcon fontSize="small" /> },
-  { value: "requests", label: "Αιτήσεις", icon: <DescriptionOutlinedIcon fontSize="small" /> },
-  { value: "history", label: "Ιστορικό", icon: <HistoryOutlinedIcon fontSize="small" /> },
+const standaloneDropdowns: { key: string; label: string; views: { label: string; view: ViewKey }[] }[] = [
+  { key: "production", label: "Παραγωγή", views: [
+    { label: "Λίστες παραγωγής", view: "history" },
+    { label: "Προσφορές", view: "quotes" },
+    { label: "Αιτήματα ασφάλισης", view: "requests" },
+  ] },
+  { key: "quoting", label: "Τιμολόγηση", views: [
+    { label: "Νέα τιμολόγηση", view: "dashboard" },
+    { label: "Σύγκριση προσφορών", view: "quotes" },
+  ] },
+  { key: "print-pay", label: "Τυπώνω-Πληρώνω", views: [
+    { label: "Προς εκτύπωση", view: "print-pay" },
+    { label: "Έτοιμα για παράδοση", view: "print-pay" },
+  ] },
 ];
 
 function StandalonePluginHeader({ view, onNavigate }: { view: ViewKey; onNavigate: (value: ViewKey) => void }) {
   const { signOut } = useAuth();
+  const [menu, setMenu] = useState<{ key: string; anchor: HTMLElement } | null>(null);
   const officeProfile = useQuery({
     queryKey: ["agency-profile", "insureone-header"],
     queryFn: async () => (await api.get<{ name?: string | null; logoUrl?: string | null }>("/agency-profile")).data,
@@ -278,9 +288,19 @@ function StandalonePluginHeader({ view, onNavigate }: { view: ViewKey; onNavigat
     </Box>
     <Box sx={{ bgcolor: "#123a64", borderTop: "1px solid rgba(255,255,255,.12)" }}>
       <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: .5, sm: 2.5, lg: 4 }, display: "flex", alignItems: "center", gap: { xs: .5, sm: 1 } }}>
-        <Tabs value={view} onChange={(_, next: ViewKey) => onNavigate(next)} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile sx={{ minHeight: 52, flex: 1, minWidth: 0, "& .MuiTabs-indicator": { bgcolor: "#53c6d3", height: 3 }, "& .MuiTab-root": { minHeight: 52, color: "rgba(255,255,255,.76)", fontWeight: 750, textTransform: "none", fontSize: { xs: 12, sm: 13 }, px: { xs: 1.25, sm: 2 }, "&.Mui-selected": { color: "#fff", bgcolor: "rgba(83,198,211,.16)" }, "&:hover": { color: "#fff", bgcolor: "rgba(255,255,255,.08)" } } }}>
-          {standaloneNav.map((item) => <Tab key={item.value} value={item.value} icon={item.icon} iconPosition="start" label={item.label} />)}
-        </Tabs>
+        <Box sx={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", overflowX: "auto", scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}>
+          <Button onClick={() => onNavigate("dashboard")} sx={{ minHeight: 52, minWidth: "auto", px: { xs: 1.25, sm: 2 }, borderRadius: 0, color: "#fff", fontWeight: 800, textTransform: "none", whiteSpace: "nowrap", bgcolor: view === "dashboard" ? "#2e75b6" : "transparent", "&:hover": { bgcolor: "rgba(255,255,255,.12)" } }}>Αρχική</Button>
+          {standaloneDropdowns.map((item) => {
+            const active = item.views.some(option => option.view === view);
+            return <Fragment key={item.key}>
+              <Button onClick={(event) => setMenu({ key: item.key, anchor: event.currentTarget })} endIcon={<KeyboardArrowDownRoundedIcon fontSize="small" />} sx={{ minHeight: 52, minWidth: "auto", px: { xs: 1.25, sm: 2 }, borderRadius: 0, color: "#fff", fontWeight: 800, textTransform: "none", whiteSpace: "nowrap", bgcolor: active ? "#2e75b6" : "transparent", "&:hover": { bgcolor: "rgba(255,255,255,.12)" }, "& .MuiButton-endIcon": { ml: .35 } }}>{item.label}</Button>
+              <Menu anchorEl={menu?.key === item.key ? menu.anchor : null} open={menu?.key === item.key} onClose={() => setMenu(null)} MenuListProps={{ dense: true }}>
+                {item.views.map(option => <MenuItem key={`${item.key}-${option.label}`} onClick={() => { setMenu(null); onNavigate(option.view); }}>{option.label}</MenuItem>)}
+              </Menu>
+            </Fragment>;
+          })}
+          <Button onClick={() => onNavigate("pay-print")} sx={{ minHeight: 52, minWidth: "auto", px: { xs: 1.25, sm: 2 }, borderRadius: 0, color: "#fff", fontWeight: 800, textTransform: "none", whiteSpace: "nowrap", bgcolor: view === "pay-print" ? "#2e75b6" : "transparent", "&:hover": { bgcolor: "rgba(255,255,255,.12)" } }}>Πληρώνω-Τυπώνω</Button>
+        </Box>
         <Tooltip title="Αποσύνδεση">
           <Button aria-label="Αποσύνδεση" variant="contained" color="error" size="small" onClick={() => { signOut(); window.location.assign("/login"); }} startIcon={<LogoutRoundedIcon />} sx={{ flexShrink: 0, minWidth: { xs: 38, sm: 40 }, px: { xs: 1, sm: 1.25 }, color: "#fff", fontWeight: 850, borderRadius: 1.25, bgcolor: "#c62828", "&:hover": { bgcolor: "#9f1f1f" }, "& .MuiButton-startIcon": { mr: { xs: 0, sm: .75 } } }}>
             <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>Αποσύνδεση</Box>
