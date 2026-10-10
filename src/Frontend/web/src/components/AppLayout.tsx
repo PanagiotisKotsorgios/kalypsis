@@ -4,6 +4,7 @@ import {
   AppBar,
   Box,
   Button,
+  ButtonBase,
   Chip,
   Collapse,
   Dialog,
@@ -17,6 +18,8 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Menu,
+  MenuItem,
   Stack,
   Toolbar,
   Tooltip,
@@ -198,12 +201,12 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
   }, [openGroups]);
   const toggleGroup = (g: string) => setOpenGroups(s => ({ ...s, [g]: !s[g] }));
 
-  // Desktop-install + mobile-app teasers — pinned at the bottom of every
-  // sidebar for every role. Both open a "Coming soon" dialog for now; the
-  // desktop entry will link to a Windows/macOS installer post 2026-10-20,
-  // the mobile entry to App Store / Play Store links once the RN app ships.
+  // Desktop and mobile installation dialogs are opened from the profile menu
+  // at the bottom of the sidebar, keeping the navigation list focused on work.
   const [desktopOpen, setDesktopOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [profileMenuAnchor, setProfileMenuAnchor] = useState<HTMLElement | null>(null);
+  const profileMenuOpen = Boolean(profileMenuAnchor);
   // Producers use the office-managed portal only; downloads for the desktop
   // and mobile applications are intentionally not part of that experience.
   const showInstallTeasers = user?.role !== "Producer";
@@ -237,6 +240,7 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
   }, [location.pathname, isMobile]);
 
   const handleSignOut = () => {
+    setProfileMenuAnchor(null);
     signOut();
     navigate("/", { replace: true });
   };
@@ -468,101 +472,6 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
                   </Box>
                 );
               })}
-              {/* Desktop + mobile install teasers — sit INSIDE the scrollable
-                  nav list at its very bottom so the operator has to scroll
-                  down to reach them (they're not pinned to the drawer
-                  chrome). Dark-green filled buttons make them clearly a
-                  different kind of action from the rest of the nav. */}
-              {showInstallTeasers && (() => {
-                const green = "#1b5e20";      // material «green 900»
-                const greenHover = "#256b2a"; // slightly brighter for hover
-                const greenGlow = "#4caf50";  // «green 500» for glow ring
-                // Attention-grabbing style: bold green gradient, thick colored
-                // shadow, subtle pulse animation so eyes catch it even when
-                // scrolled into view. Combined with an "@keyframes install-pulse"
-                // that ripples the box-shadow every 2.2s.
-                return (
-                  <Box sx={{ mt: 1.5, px: !isMobile && !open ? 0.5 : 1.5, pb: 1 }}>
-                    <Divider sx={{ mb: 1.5, mx: 1 }} />
-                    <Box sx={{
-                      "@keyframes install-pulse": {
-                        "0%":   { boxShadow: `0 0 0 0 ${alpha(greenGlow, 0.55)}, 0 4px 10px rgba(0,0,0,0.28)` },
-                        "70%":  { boxShadow: `0 0 0 10px ${alpha(greenGlow, 0)}, 0 4px 10px rgba(0,0,0,0.28)` },
-                        "100%": { boxShadow: `0 0 0 0 ${alpha(greenGlow, 0)}, 0 4px 10px rgba(0,0,0,0.28)` }
-                      }
-                    }}>
-                      {[
-                        { key: "desktop" as const, icon: <DownloadForOfflineIcon sx={{ fontSize: 22 }} />,
-                          labelKey: "nav.installDesktop", tipFallback: "Εγκατάσταση σε υπολογιστή",
-                          labelFallback: "ΕΓΚΑΤΑΣΤΑΣΗ ΣΕ ΥΠΟΛΟΓΙΣΤΗ",
-                          onClick: () => setDesktopOpen(true) },
-                        { key: "mobile" as const, icon: <PhoneIphoneIcon sx={{ fontSize: 22 }} />,
-                          labelKey: "nav.installMobile", tipFallback: "Εφαρμογή κινητού",
-                          labelFallback: "ΕΦΑΡΜΟΓΗ ΚΙΝΗΤΟΥ",
-                          onClick: () => setMobileOpen(true) }
-                      ].map((entry, idx) => !isMobile && !open ? (
-                        <Tooltip key={entry.key} title={t(entry.labelKey, entry.tipFallback)} placement="right" arrow>
-                          <ListItemButton
-                            onClick={entry.onClick}
-                            sx={{
-                              mx: 0.5, mb: 0.8, borderRadius: 2, justifyContent: "center",
-                              py: 1.2,
-                              background: `linear-gradient(135deg, ${green} 0%, ${greenHover} 100%)`,
-                              color: "#fff",
-                              border: `2px solid ${alpha(greenGlow, 0.35)}`,
-                              boxShadow: `0 4px 10px rgba(0,0,0,0.28)`,
-                              animation: `install-pulse 2.4s ease-in-out ${idx * 1.1}s infinite`,
-                              "&:hover": {
-                                background: `linear-gradient(135deg, ${greenHover} 0%, ${greenGlow} 100%)`,
-                                transform: "translateY(-1px)"
-                              }
-                            }}
-                          >
-                            <ListItemIcon sx={{ minWidth: 0, color: "#fff", justifyContent: "center" }}>
-                              {entry.icon}
-                            </ListItemIcon>
-                          </ListItemButton>
-                        </Tooltip>
-                      ) : (
-                        <ListItemButton
-                          key={entry.key}
-                          onClick={entry.onClick}
-                          sx={{
-                            mx: 1, mb: 0.8, borderRadius: 2, py: 1.3,
-                            background: `linear-gradient(135deg, ${green} 0%, ${greenHover} 100%)`,
-                            color: "#fff",
-                            border: `2px solid ${alpha(greenGlow, 0.35)}`,
-                            boxShadow: `0 4px 12px rgba(0,0,0,0.30)`,
-                            animation: `install-pulse 2.4s ease-in-out ${idx * 1.1}s infinite`,
-                            "&:hover": {
-                              background: `linear-gradient(135deg, ${greenHover} 0%, ${greenGlow} 100%)`,
-                              transform: "translateY(-1px)"
-                            },
-                            ...(entry.key === "desktop" ? { "& .MuiChip-root": { display: "none" } } : {})
-                          }}
-                        >
-                          <ListItemIcon sx={{ minWidth: 36, color: "#fff" }}>
-                            {entry.icon}
-                          </ListItemIcon>
-                          <ListItemText
-                            primary={t(entry.labelKey, entry.labelFallback)}
-                            primaryTypographyProps={{
-                              fontWeight: 900, noWrap: true, fontSize: 13.5,
-                              letterSpacing: "0.07em", textTransform: "uppercase",
-                              color: "#fff",
-                              sx: { textShadow: "0 1px 2px rgba(0,0,0,0.35)" }
-                            }}
-                          />
-                          <Chip label={t("nav.soon", "σύντομα")} size="small"
-                            sx={{ height: 20, fontSize: 10, fontWeight: 800,
-                              bgcolor: alpha(greenGlow, 0.6), color: "#fff",
-                              border: "1px solid rgba(255,255,255,0.35)", ml: 0.5 }} />
-                        </ListItemButton>
-                      ))}
-                    </Box>
-                  </Box>
-                );
-              })()}
               {affiliateItem && renderItem(affiliateItem)}
             </>
           );
@@ -638,27 +547,102 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
           <Button variant="contained" onClick={() => setMobileOpen(false)}>Κατάλαβα</Button>
         </DialogActions>
       </Dialog>}
+      <Menu
+        anchorEl={profileMenuAnchor}
+        open={profileMenuOpen}
+        onClose={() => setProfileMenuAnchor(null)}
+        anchorOrigin={{ vertical: "top", horizontal: isMobile ? "center" : "left" }}
+        transformOrigin={{ vertical: "bottom", horizontal: isMobile ? "center" : "left" }}
+        PaperProps={{
+          sx: {
+            minWidth: { xs: 250, sm: 292 },
+            mb: 1,
+            p: 0.75,
+            borderRadius: 2.5,
+            border: "1px solid",
+            borderColor: "divider",
+            boxShadow: "0 14px 35px rgba(11,37,69,0.18)",
+          }
+        }}
+      >
+        {showInstallTeasers && (
+          <>
+            <MenuItem
+              onClick={() => { setProfileMenuAnchor(null); setDesktopOpen(true); }}
+              sx={{
+                mb: 0.75,
+                borderRadius: 1.5,
+                color: "#fff",
+                fontWeight: 800,
+                background: "linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%)",
+                "&:hover": { background: "linear-gradient(135deg, #2e7d32 0%, #43a047 100%)" },
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 34, color: "inherit" }}><DownloadForOfflineIcon fontSize="small" /></ListItemIcon>
+              {t("nav.installDesktop", "Εγκατάσταση σε υπολογιστή")}
+            </MenuItem>
+            <MenuItem
+              onClick={() => { setProfileMenuAnchor(null); setMobileOpen(true); }}
+              sx={{
+                mb: 0.75,
+                borderRadius: 1.5,
+                color: "#fff",
+                fontWeight: 800,
+                background: "linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%)",
+                "&:hover": { background: "linear-gradient(135deg, #2e7d32 0%, #43a047 100%)" },
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 34, color: "inherit" }}><PhoneIphoneIcon fontSize="small" /></ListItemIcon>
+              {t("nav.installMobile", "Εφαρμογή κινητού")}
+            </MenuItem>
+            <Divider sx={{ my: 0.75 }} />
+          </>
+        )}
+        <MenuItem
+          onClick={handleSignOut}
+          sx={{ borderRadius: 1.5, color: "error.main", fontWeight: 800 }}
+        >
+          <ListItemIcon sx={{ minWidth: 34, color: "inherit" }}><LogoutIcon fontSize="small" /></ListItemIcon>
+          {t("auth.logout")}
+        </MenuItem>
+      </Menu>
       <Box sx={{ p: !isMobile && !open ? 1 : 2, pb: isMobile ? "max(16px, env(safe-area-inset-bottom))" : undefined }}>
         {!isMobile && !open ? (
           <Tooltip title={`${user?.firstName ?? ""} ${user?.lastName ?? ""}`} placement="right" arrow>
-            <Avatar sx={{ bgcolor: "primary.main", width: 36, height: 36, fontSize: 14, mx: "auto" }}>
-              {initials}
-            </Avatar>
+            <ButtonBase
+              onClick={(event) => setProfileMenuAnchor(event.currentTarget)}
+              aria-label="Προφίλ και επιλογές"
+              aria-haspopup="menu"
+              aria-expanded={profileMenuOpen ? "true" : undefined}
+              sx={{ display: "flex", mx: "auto", borderRadius: "50%" }}
+            >
+              <Avatar sx={{ bgcolor: "primary.main", width: 36, height: 36, fontSize: 14 }}>
+                {initials}
+              </Avatar>
+            </ButtonBase>
           </Tooltip>
         ) : (
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <Avatar sx={{ bgcolor: "primary.main", width: 36, height: 36, fontSize: 14 }}>
-              {initials}
-            </Avatar>
-            <Box sx={{ overflow: "hidden", minWidth: 0 }}>
-              <Typography variant="body2" fontWeight={600} noWrap>
-                {user?.firstName} {user?.lastName}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" noWrap display="block">
-                {user ? t(`roles.${user.role}`) : ""}
-              </Typography>
-            </Box>
-          </Stack>
+          <ButtonBase
+            onClick={(event) => setProfileMenuAnchor(event.currentTarget)}
+            aria-label="Προφίλ και επιλογές"
+            aria-haspopup="menu"
+            aria-expanded={profileMenuOpen ? "true" : undefined}
+            sx={{ display: "flex", width: "100%", justifyContent: "flex-start", borderRadius: 2, p: 0.75, textAlign: "left" }}
+          >
+            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
+              <Avatar sx={{ bgcolor: "primary.main", width: 36, height: 36, fontSize: 14 }}>
+                {initials}
+              </Avatar>
+              <Box sx={{ overflow: "hidden", minWidth: 0 }}>
+                <Typography variant="body2" fontWeight={600} noWrap>
+                  {user?.firstName} {user?.lastName}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" noWrap display="block">
+                  {user ? t(`roles.${user.role}`) : ""}
+                </Typography>
+              </Box>
+            </Stack>
+          </ButtonBase>
         )}
       </Box>
     </Box>
