@@ -516,9 +516,23 @@ interface PricingCardConfig {
   contentColour: string;
   visualColour: string;
   illustration: PricingIllustrationKind;
+  backgroundImage?: string;
+  backgroundPosition?: string;
+  photoOverlay?: string;
 }
 
 type PricingIllustrationKind = "vehicle" | "vehicle-compare" | "property" | "health" | "marine" | "accident" | "liability" | "life";
+
+const pricingCardPhotos: Record<PricingIllustrationKind, { image: string; position: string; overlay: string }> = {
+  vehicle: { image: "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=1200&q=85", position: "center 56%", overlay: "linear-gradient(90deg, rgba(6,105,163,.96) 0%, rgba(13,135,201,.78) 43%, rgba(14,88,151,.18) 100%)" },
+  "vehicle-compare": { image: "https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=1200&q=85", position: "center 48%", overlay: "linear-gradient(90deg, rgba(36,55,166,.97) 0%, rgba(48,73,207,.84) 45%, rgba(36,49,144,.22) 100%)" },
+  property: { image: "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1200&q=85", position: "center 52%", overlay: "linear-gradient(90deg, rgba(188,54,47,.96) 0%, rgba(219,70,64,.82) 46%, rgba(145,35,39,.22) 100%)" },
+  health: { image: "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&w=1200&q=85", position: "center 45%", overlay: "linear-gradient(90deg, rgba(0,111,101,.96) 0%, rgba(21,166,150,.8) 46%, rgba(0,88,82,.2) 100%)" },
+  marine: { image: "https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=1200&q=85", position: "center 56%", overlay: "linear-gradient(90deg, rgba(191,238,250,.92) 0%, rgba(87,187,226,.76) 44%, rgba(11,105,176,.28) 100%)" },
+  accident: { image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=1200&q=85", position: "center 38%", overlay: "linear-gradient(90deg, rgba(255,221,111,.95) 0%, rgba(255,193,58,.82) 46%, rgba(194,111,10,.3) 100%)" },
+  liability: { image: "https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1200&q=85", position: "center 48%", overlay: "linear-gradient(90deg, rgba(70,43,165,.97) 0%, rgba(103,69,211,.82) 46%, rgba(39,24,115,.3) 100%)" },
+  life: { image: "https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=1200&q=85", position: "center 46%", overlay: "linear-gradient(90deg, rgba(255,183,112,.95) 0%, rgba(255,139,57,.82) 46%, rgba(218,72,13,.28) 100%)" },
+};
 
 function PricingIllustration({ kind }: { kind: PricingIllustrationKind }) {
   const stroke = "rgba(255,255,255,.72)";
@@ -533,6 +547,7 @@ function PricingIllustration({ kind }: { kind: PricingIllustrationKind }) {
 }
 
 function PricingCategoryCard({ card, selected, onSelect }: { card: PricingCardConfig; selected: boolean; onSelect: () => void }) {
+  const photo = pricingCardPhotos[card.illustration];
   return <Button
     onClick={onSelect}
     fullWidth
@@ -562,6 +577,7 @@ function PricingCategoryCard({ card, selected, onSelect }: { card: PricingCardCo
       "&::after": { content: '""', position: "absolute", width: 150, height: 150, borderRadius: "50%", right: -50, top: -64, background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.14)", pointerEvents: "none" },
     }}
   >
+    <Box aria-hidden sx={{ position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none", backgroundImage: `${card.photoOverlay ?? photo.overlay}, url("${card.backgroundImage ?? photo.image}")`, backgroundSize: "cover", backgroundPosition: card.backgroundPosition ?? photo.position, backgroundRepeat: "no-repeat", opacity: { xs: .9, sm: .94, md: .97 }, filter: "saturate(.92) contrast(1.02)" }} />
     <Box sx={{ p: { xs: 1.5, sm: 2, md: 2.25 }, display: "flex", alignItems: "center", gap: { xs: 1.25, sm: 1.75, md: 2.25 }, position: "relative", zIndex: 1, minWidth: 0 }}>
       <Box sx={{ width: { xs: 58, sm: 78, md: 94 }, height: { xs: 58, sm: 78, md: 94 }, flexShrink: 0, borderRadius: "50%", display: "grid", placeItems: "center", bgcolor: "rgba(255,255,255,.18)", border: "2px solid rgba(255,255,255,.35)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.22), 0 0 0 3px rgba(255,255,255,.08)", "& svg": { fontSize: { xs: 32, sm: 45, md: 58 } } }}>{card.icon}</Box>
       <Box sx={{ minWidth: 0, color: card.contentColour }}>
@@ -569,7 +585,7 @@ function PricingCategoryCard({ card, selected, onSelect }: { card: PricingCardCo
         <Typography sx={{ mt: { xs: .65, md: .95 }, fontSize: { xs: 12, sm: 14, md: 18 }, color: card.contentColour === "#fff" ? "rgba(255,255,255,.94)" : "rgba(16,47,77,.92)", lineHeight: 1.25 }}>{card.count}</Typography>
       </Box>
     </Box>
-    <PricingIllustration kind={card.illustration} />
+    <Box sx={{ display: "none" }}><PricingIllustration kind={card.illustration} /></Box>
     <Box className="pricing-card-cta" sx={{ mx: { xs: 1, sm: 1.25 }, mb: { xs: 1, sm: 1.25 }, px: { xs: 1.25, md: 1.5 }, py: { xs: .8, sm: 1.05 }, borderRadius: 1.5, bgcolor: `${card.darkColour}e6`, border: "1px solid rgba(255,255,255,.35)", fontSize: { xs: 14, sm: 17, md: 21 }, lineHeight: 1, fontWeight: 900, letterSpacing: ".01em", display: "flex", justifyContent: "space-between", alignItems: "center", position: "relative", zIndex: 1, color: "#fff" }}>
       <span>Τιμολογήστε τώρα</span>
       <Box component="span" className="pricing-card-arrow" sx={{ fontSize: { xs: 21, sm: 25, md: 30 }, lineHeight: 1, ml: 1, transition: "transform .18s ease" }}>→</Box>
