@@ -46,12 +46,12 @@ interface PackageMeta {
 // Workspace cards are available for every operational package and are filtered
 // by the tenant's active packages and the current user's permissions.
 const PACKAGES: PackageMeta[] = [
-  { code: "BackOffice", icon: <AccountBalanceIcon />, image: "/images/kalypsis-backoffice.png", nameKey: "ws.BackOffice.name", bodyKey: "ws.BackOffice.body", accent: "#1678b8", surface: "#edf7ff" },
-  { code: "Crm", icon: <PeopleIcon />, image: "/images/kalypsis-crm-clientportal.png", nameKey: "ws.Crm.name", bodyKey: "ws.Crm.body", accent: "#258bb4", surface: "#edfafa" },
-  { code: "Intelligence", icon: <InsightsIcon />, image: "/images/kalypsis-analytics-intelligence.png", nameKey: "ws.Intelligence.name", bodyKey: "ws.Intelligence.body", accent: "#4268b6", surface: "#f1f4ff" },
-  { code: "FrontOffice", icon: <LanguageIcon />, image: "/images/kalypsis-frontoffice.png", nameKey: "ws.FrontOffice.name", bodyKey: "ws.FrontOffice.body", accent: "#1597c7", surface: "#eefaff" },
-  { code: "Integrations", icon: <HubIcon />, image: "/images/kalypsis-integrations-compliance.png", nameKey: "ws.Integrations.name", bodyKey: "ws.Integrations.body", accent: "#238e99", surface: "#eefaf9" },
-  { code: "Ermes", icon: <MailOutlineIcon />, image: "/images/kalypsis-ermis-secure-messaging.png", nameKey: "ws.Ermes.name", bodyKey: "ws.Ermes.body", accent: "#315d91", surface: "#f0f6ff" }
+  { code: "BackOffice", icon: <AccountBalanceIcon />, image: "/images/kalypsis-backoffice.png", nameKey: "ws.BackOffice.name", bodyKey: "ws.BackOffice.body", accent: "#1678b8", surface: "#dcefff" },
+  { code: "Crm", icon: <PeopleIcon />, image: "/images/kalypsis-crm-clientportal.png", nameKey: "ws.Crm.name", bodyKey: "ws.Crm.body", accent: "#258bb4", surface: "#def6f3" },
+  { code: "Intelligence", icon: <InsightsIcon />, image: "/images/kalypsis-analytics-intelligence.png", nameKey: "ws.Intelligence.name", bodyKey: "ws.Intelligence.body", accent: "#4268b6", surface: "#e8eaff" },
+  { code: "FrontOffice", icon: <LanguageIcon />, image: "/images/kalypsis-frontoffice.png", nameKey: "ws.FrontOffice.name", bodyKey: "ws.FrontOffice.body", accent: "#1597c7", surface: "#def4ff" },
+  { code: "Integrations", icon: <HubIcon />, image: "/images/kalypsis-integrations-compliance.png", nameKey: "ws.Integrations.name", bodyKey: "ws.Integrations.body", accent: "#238e99", surface: "#dff6ef" },
+  { code: "Ermes", icon: <MailOutlineIcon />, image: "/images/kalypsis-ermis-secure-messaging.png", nameKey: "ws.Ermes.name", bodyKey: "ws.Ermes.body", accent: "#315d91", surface: "#e4efff" }
 ];
 // Kept for type safety — this icon is used by the compact sidebar, not by a
 // workspace card.
@@ -213,8 +213,8 @@ export function WorkspaceHubPage() {
                 borderWidth: active ? 2 : 1,
                 borderRadius: "20px",
                 background: active
-                  ? `linear-gradient(145deg, ${pkg.surface} 0%, #ffffff 65%, ${pkg.accent}12 100%)`
-                  : `linear-gradient(145deg, ${pkg.surface} 0%, #ffffff 72%, ${pkg.accent}0c 100%)`,
+                  ? `linear-gradient(145deg, ${pkg.surface} 0%, ${pkg.surface}d9 61%, ${pkg.accent}1c 100%)`
+                  : `linear-gradient(145deg, ${pkg.surface} 0%, ${pkg.surface}c9 64%, ${pkg.accent}17 100%)`,
                 opacity: enabled ? 1 : 0.65,
                 overflow: "hidden",
                 boxShadow: active ? `0 12px 30px ${pkg.accent}25` : "0 8px 22px rgba(11,37,69,0.07)",
@@ -223,7 +223,7 @@ export function WorkspaceHubPage() {
                   transform: "translateY(-3px)",
                   borderColor: pkg.accent,
                   boxShadow: `0 14px 30px ${pkg.accent}2b`,
-                  background: `linear-gradient(145deg, ${pkg.surface} 0%, #ffffff 58%, ${pkg.accent}16 100%)`,
+                  background: `linear-gradient(145deg, ${pkg.surface} 0%, ${pkg.surface}e8 56%, ${pkg.accent}26 100%)`,
                   "& .workspace-package-art": { transform: "scale(1.02) translateY(-2px)" },
                   "& .workspace-package-arrow": { transform: "translateX(3px)" },
                 } : {},
@@ -236,7 +236,7 @@ export function WorkspaceHubPage() {
                   borderRadius: "50%",
                   right: -70,
                   top: -75,
-                  background: `radial-gradient(circle, ${pkg.accent}16 0%, transparent 68%)`,
+                  background: `radial-gradient(circle, ${pkg.accent}22 0%, transparent 68%)`,
                   pointerEvents: "none",
                 },
               }}
@@ -261,7 +261,7 @@ export function WorkspaceHubPage() {
                 left: -72,
                 bottom: 50,
                 borderRadius: "50%",
-                background: `radial-gradient(ellipse, ${pkg.accent}0c 0%, transparent 72%)`,
+                background: `radial-gradient(ellipse, ${pkg.accent}16 0%, transparent 72%)`,
                 pointerEvents: "none",
               }} />
               <CardActionArea
@@ -341,6 +341,7 @@ export function WorkspaceHubPage() {
                     color: enabled ? INK_SOFT : "text.disabled",
                     fontSize: { xs: 13.5, md: 14.25 },
                     lineHeight: 1.6,
+                    maxWidth: { xs: "68%", sm: "70%" },
                     position: "relative",
                     zIndex: 1,
                     flex: 1
@@ -361,7 +362,7 @@ export function WorkspaceHubPage() {
                     position: "relative",
                     zIndex: 1,
                     color: active ? "#fff" : enabled ? INK : "text.disabled",
-                    background: active ? `linear-gradient(100deg, ${pkg.accent}, #145d94)` : `${pkg.accent}0d`,
+                    background: active ? `linear-gradient(100deg, ${pkg.accent}, #145d94)` : `${pkg.accent}1c`,
                     border: "1px solid",
                     borderColor: active ? "transparent" : `${pkg.accent}26`,
                     fontWeight: 800,
