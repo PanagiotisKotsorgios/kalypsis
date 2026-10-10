@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactElement, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   Alert,
   Box,
@@ -36,7 +37,6 @@ import {
   Typography,
 } from "@mui/material";
 import CalculateOutlinedIcon from "@mui/icons-material/CalculateOutlined";
-import AnnouncementOutlinedIcon from "@mui/icons-material/AnnouncementOutlined";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import CompareArrowsRoundedIcon from "@mui/icons-material/CompareArrowsRounded";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
@@ -52,7 +52,6 @@ import GridViewOutlinedIcon from "@mui/icons-material/GridViewOutlined";
 import HealthAndSafetyOutlinedIcon from "@mui/icons-material/HealthAndSafetyOutlined";
 import BusinessCenterOutlinedIcon from "@mui/icons-material/BusinessCenterOutlined";
 import LuggageOutlinedIcon from "@mui/icons-material/LuggageOutlined";
-import GavelOutlinedIcon from "@mui/icons-material/GavelOutlined";
 import SailingOutlinedIcon from "@mui/icons-material/SailingOutlined";
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
 import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
@@ -64,7 +63,9 @@ import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
 import TableRowsOutlinedIcon from "@mui/icons-material/TableRowsOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import WalletOutlinedIcon from "@mui/icons-material/WalletOutlined";
-import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
+import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
+import { api } from "../api/client";
+import { useAuth } from "../auth/AuthContext";
 
 type ViewKey = "dashboard" | "quotes" | "print-pay" | "pay-print" | "requests" | "history";
 type BranchKey = "Αυτοκίνητο" | "Κατοικία" | "Υγεία" | "Ζωή" | "Επιχείρηση";
@@ -250,51 +251,86 @@ const standaloneNav: { value: ViewKey; label: string; icon: ReactElement }[] = [
 ];
 
 function StandalonePluginHeader({ view, onNavigate }: { view: ViewKey; onNavigate: (value: ViewKey) => void }) {
+  const { signOut } = useAuth();
+  const officeProfile = useQuery({
+    queryKey: ["agency-profile", "insureone-header"],
+    queryFn: async () => (await api.get<{ name?: string | null; logoUrl?: string | null }>("/agency-profile")).data,
+    staleTime: 5 * 60 * 1000,
+  });
+  const officeName = officeProfile.data?.name?.trim() || "Το γραφείο σας";
+  const officeLogo = officeProfile.data?.logoUrl ? "/api/agency-profile/logo" : null;
+
   return <Box sx={{ bgcolor: "#fff", borderBottom: "1px solid #ccd8e3", boxShadow: "0 3px 16px rgba(18,58,100,.08)" }}>
-    <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: 1.5, sm: 2.5, lg: 4 }, py: { xs: 1.25, md: 1.5 }, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
-      <Stack direction="row" spacing={1.5} alignItems="center" minWidth={0}>
+    <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: 1.5, sm: 2.5, lg: 4 }, py: { xs: 1.25, md: 1.5 }, display: "flex", alignItems: "center", justifyContent: "space-between", gap: { xs: 1, md: 2 } }}>
+      <Stack direction="row" spacing={1.5} alignItems="center" minWidth={0} sx={{ flex: 1 }}>
         <Box component="img" src="/assets/insureone-plugin-logo.png" alt="InsureOne Kalypsis Plugin" sx={{ width: { xs: 240, sm: 340, md: 390 }, height: { xs: 82, sm: 108, md: 124 }, objectFit: "contain", objectPosition: "left center" }} />
-        <Box sx={{ display: { xs: "none", md: "block" }, pl: 1.5, borderLeft: "1px solid #d9e3ec" }}>
+        <Box sx={{ display: { xs: "none", md: "block" }, pl: 1.5, borderLeft: "1px solid #d9e3ec", minWidth: 0 }}>
           <Typography sx={{ color: "#123a64", fontWeight: 900, fontSize: 14, letterSpacing: .5 }}>ΠΟΛΥΤΙΜΟΛΟΓΗΣΗ</Typography>
-          <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block", maxWidth: { md: 360 }, fontSize: { md: 12 } }}>Πολυτιμολόγηση μέσω του InsureOne, ενός προϊόντος της KALYPSIS</Typography>
+          <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block", maxWidth: { md: 720 }, fontSize: { md: 12 } }}>Πολυτιμολόγηση μέσω του InsureOne, ενός προϊόντος της KALYPSIS</Typography>
         </Box>
       </Stack>
+      <Tooltip title={officeName} placement="bottom">
+        <Stack direction="row" spacing={{ xs: .5, sm: 1 }} alignItems="center" justifyContent="flex-end" sx={{ flexShrink: 0, maxWidth: { xs: 100, sm: 220, md: 300 } }}>
+          {officeLogo ? <Box component="img" src={officeLogo} alt={`Λογότυπο ${officeName}`} sx={{ width: { xs: 48, sm: 68, md: 88 }, height: { xs: 42, sm: 54, md: 64 }, objectFit: "contain", borderRadius: 1.25, p: .5, bgcolor: "#fff", border: "1px solid #d9e3ec" }} /> : <Box sx={{ px: { xs: .75, sm: 1.25 }, py: .75, borderRadius: 1.25, border: "1px solid #cbd9e6", bgcolor: "#f3f7fb", maxWidth: { xs: 100, sm: 160, md: 210 } }}><Typography noWrap sx={{ color: "#123a64", fontWeight: 850, fontSize: { xs: 10, sm: 12, md: 13 } }}>{officeName}</Typography></Box>}
+          {officeLogo && <Typography noWrap sx={{ display: { xs: "none", sm: "block" }, color: "#123a64", fontWeight: 800, fontSize: { sm: 11, md: 12 }, maxWidth: { sm: 120, md: 170 } }}>{officeName}</Typography>}
+        </Stack>
+      </Tooltip>
     </Box>
     <Box sx={{ bgcolor: "#123a64", borderTop: "1px solid rgba(255,255,255,.12)" }}>
-      <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: .5, sm: 2.5, lg: 4 } }}>
-        <Tabs value={view} onChange={(_, next: ViewKey) => onNavigate(next)} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile sx={{ minHeight: 52, "& .MuiTabs-indicator": { bgcolor: "#53c6d3", height: 3 }, "& .MuiTab-root": { minHeight: 52, color: "rgba(255,255,255,.76)", fontWeight: 750, textTransform: "none", fontSize: { xs: 12, sm: 13 }, px: { xs: 1.25, sm: 2 }, "&.Mui-selected": { color: "#fff", bgcolor: "rgba(83,198,211,.16)" }, "&:hover": { color: "#fff", bgcolor: "rgba(255,255,255,.08)" } } }}>
+      <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: .5, sm: 2.5, lg: 4 }, display: "flex", alignItems: "center", gap: { xs: .5, sm: 1 } }}>
+        <Tabs value={view} onChange={(_, next: ViewKey) => onNavigate(next)} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile sx={{ minHeight: 52, flex: 1, minWidth: 0, "& .MuiTabs-indicator": { bgcolor: "#53c6d3", height: 3 }, "& .MuiTab-root": { minHeight: 52, color: "rgba(255,255,255,.76)", fontWeight: 750, textTransform: "none", fontSize: { xs: 12, sm: 13 }, px: { xs: 1.25, sm: 2 }, "&.Mui-selected": { color: "#fff", bgcolor: "rgba(83,198,211,.16)" }, "&:hover": { color: "#fff", bgcolor: "rgba(255,255,255,.08)" } } }}>
           {standaloneNav.map((item) => <Tab key={item.value} value={item.value} icon={item.icon} iconPosition="start" label={item.label} />)}
         </Tabs>
+        <Tooltip title="Αποσύνδεση">
+          <Button aria-label="Αποσύνδεση" variant="contained" color="error" size="small" onClick={() => { signOut(); window.location.assign("/login"); }} startIcon={<LogoutRoundedIcon />} sx={{ flexShrink: 0, minWidth: { xs: 38, sm: 40 }, px: { xs: 1, sm: 1.25 }, color: "#fff", fontWeight: 850, borderRadius: 1.25, bgcolor: "#c62828", "&:hover": { bgcolor: "#9f1f1f" }, "& .MuiButton-startIcon": { mr: { xs: 0, sm: .75 } } }}>
+            <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>Αποσύνδεση</Box>
+          </Button>
+        </Tooltip>
       </Box>
     </Box>
   </Box>;
 }
 
 function StandaloneBranchPanel({ branch, setBranch }: { branch: BranchKey; setBranch: (value: BranchKey) => void }) {
-  const cards: { key: BranchKey; title: string; subtitle: string; icon: ReactNode; colour: string }[] = [
-    { key: branchLabels[0], title: "Οχήματα", subtitle: "Αυτοκίνητο & στόλος", icon: <DirectionsCarFilledOutlinedIcon />, colour: "#148a96" },
-    { key: branchLabels[1], title: "Κατοικία", subtitle: "Περιουσία & κατοικίες", icon: <HomeWorkOutlinedIcon />, colour: "#3567b8" },
-    { key: branchLabels[2], title: "Υγεία", subtitle: "Ατομικά & οικογενειακά", icon: <HealthAndSafetyOutlinedIcon />, colour: "#16876e" },
-    { key: branchLabels[3], title: "Ζωή", subtitle: "Προστασία & αποταμίευση", icon: <ShieldOutlinedIcon />, colour: "#8a5bc2" },
-    { key: branchLabels[4], title: "Επιχείρηση", subtitle: "Επαγγελματικοί κίνδυνοι", icon: <BusinessCenterOutlinedIcon />, colour: "#c26a2c" },
-    { key: branchLabels[0], title: "Ταξίδι & βοήθεια", subtitle: "Ταξιδιωτική κάλυψη", icon: <LuggageOutlinedIcon />, colour: "#247f9e" },
-    { key: branchLabels[1], title: "Νομική προστασία", subtitle: "Νομικές δαπάνες", icon: <GavelOutlinedIcon />, colour: "#5f6d7c" },
-    { key: branchLabels[0], title: "Σκάφος", subtitle: "Σκάφη αναψυχής", icon: <SailingOutlinedIcon />, colour: "#22679b" },
+  const cards: { key: BranchKey; title: string; count: string; icon: ReactNode; colour: string }[] = [
+    { key: branchLabels[0], title: "Οχημάτων", count: "19 Ασφαλιστικές", icon: <DirectionsCarFilledOutlinedIcon />, colour: "#26a69a" },
+    { key: branchLabels[0], title: "Συγκριτική Οχημάτων", count: "19 Ασφαλιστικές", icon: <CompareArrowsRoundedIcon />, colour: "#337db8" },
+    { key: branchLabels[1], title: "Περιουσίας", count: "14 Ασφαλιστικές", icon: <HomeWorkOutlinedIcon />, colour: "#df4d3d" },
+    { key: branchLabels[7] ?? branchLabels[0], title: "Σκαφών", count: "5 Ασφαλιστικές", icon: <SailingOutlinedIcon />, colour: "#08a7dc" },
+    { key: branchLabels[2], title: "Υγείας", count: "12 Ασφαλιστικές", icon: <HealthAndSafetyOutlinedIcon />, colour: "#8bb7b7" },
+    { key: branchLabels[0], title: "Π.Α & Φρ. Αλλοδαπών", count: "6 Ασφαλιστικές", icon: <ShieldOutlinedIcon />, colour: "#c5bd00" },
+    { key: branchLabels[4], title: "Αστικής Ευθύνης", count: "9 Ασφαλιστικές", icon: <BusinessCenterOutlinedIcon />, colour: "#6f5aaf" },
+    { key: branchLabels[3], title: "Ζωής", count: "8 Ασφαλιστικές", icon: <LuggageOutlinedIcon />, colour: "#db8b37" },
   ];
-  return <Card variant="outlined" sx={{ mb: 2.5, borderRadius: 3, borderColor: "#cad8e5", background: "linear-gradient(130deg,#fff 0%,#f5fbfd 66%,#eaf6f7 100%)", overflow: "hidden" }}>
-    <CardContent sx={{ p: { xs: 2, md: 2.75 } }}>
-      <Grid container spacing={{ xs: 2, md: 3 }} alignItems="stretch">
-        <Grid item xs={12} md={8}>
-          <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} spacing={1} sx={{ mb: 1.5 }}>
-            <Box><Typography variant="h5" sx={{ color: "#123a64", fontWeight: 900 }}>Ξεκινήστε νέα σύγκριση</Typography><Typography variant="body2" color="text.secondary">Επιλέξτε κλάδο και συμπληρώστε τα στοιχεία του κινδύνου.</Typography></Box>
-            <Chip icon={<CompareArrowsRoundedIcon />} label="8 διαθέσιμοι κλάδοι" sx={{ bgcolor: "#fff", border: "1px solid #d7e4ed", fontWeight: 750 }} />
-          </Stack>
-          <Grid container spacing={1.25}>{cards.map((card) => <Grid item xs={6} sm={4} key={`${card.title}-${card.subtitle}`}><Button onClick={() => setBranch(card.key)} fullWidth sx={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 1, textAlign: "left", minHeight: 74, p: 1.15, borderRadius: 2, color: "#172a3a", bgcolor: branch === card.key && card.title !== "Ταξίδι & βοήθεια" && card.title !== "Νομική προστασία" && card.title !== "Σκάφος" ? `${card.colour}16` : "#fff", border: branch === card.key && card.title !== "Ταξίδι & βοήθεια" && card.title !== "Νομική προστασία" && card.title !== "Σκάφος" ? `2px solid ${card.colour}` : "1px solid #d8e3eb", "&:hover": { bgcolor: `${card.colour}18`, borderColor: card.colour } }}><Box sx={{ width: 34, height: 34, borderRadius: 1.5, display: "grid", placeItems: "center", color: "#fff", bgcolor: card.colour, flexShrink: 0 }}>{card.icon}</Box><Box sx={{ minWidth: 0 }}><Typography variant="body2" fontWeight={850} noWrap>{card.title}</Typography><Typography variant="caption" color="text.secondary" noWrap>{card.subtitle}</Typography></Box></Button></Grid>)}</Grid>
-        </Grid>
-        <Grid item xs={12} md={4}><Box sx={{ height: "100%", borderRadius: 2.5, bgcolor: "#123a64", color: "#fff", p: { xs: 2, md: 2.25 }, position: "relative", overflow: "hidden" }}><Box sx={{ position: "absolute", width: 180, height: 180, borderRadius: "50%", right: -80, top: -90, bgcolor: "rgba(83,198,211,.2)" }} /><Stack spacing={1.5} sx={{ position: "relative" }}><Stack direction="row" spacing={1} alignItems="center"><AnnouncementOutlinedIcon sx={{ color: "#72d5dc" }} /><Typography fontWeight={900}>Χρήσιμες ενημερώσεις</Typography></Stack><Typography variant="body2" sx={{ color: "rgba(255,255,255,.82)" }}>Συγκρίνετε καλύψεις, ασφάλιστρα και παροχές σε ένα ενιαίο περιβάλλον.</Typography><Divider sx={{ borderColor: "rgba(255,255,255,.18)" }} /><Stack direction="row" justifyContent="space-between"><Box><Typography variant="caption" sx={{ color: "#8ddde1" }}>Ασφαλιστικές</Typography><Typography variant="h5" fontWeight={900}>12+</Typography></Box><Box><Typography variant="caption" sx={{ color: "#8ddde1" }}>Ενδεικτικές προσφορές</Typography><Typography variant="h5" fontWeight={900}>24</Typography></Box><Box><Typography variant="caption" sx={{ color: "#8ddde1" }}>Μέσος χρόνος</Typography><Typography variant="h5" fontWeight={900}>&lt;1′</Typography></Box></Stack><Button variant="contained" endIcon={<OpenInNewRoundedIcon />} onClick={() => document.getElementById("quote-workspace-form")?.scrollIntoView({ behavior: "smooth", block: "start" })} sx={{ alignSelf: "flex-start", bgcolor: "#53c6d3", color: "#123a64", fontWeight: 850, "&:hover": { bgcolor: "#78d9df" } }}>Άνοιγμα φόρμας</Button></Stack></Box></Grid>
+  const announcements = [
+    ["202/2024-AIG-SALES RALLY 2024", "18/04/2024 · Εγκύκλιος"],
+    ["96/2024-ACCELERANT: ΜΕΤΑΒΟΛΗ ΠΡΟΜΗΘΕΙΩΝ", "26/01/2024 · Εγκύκλιος"],
+    ["14/2024-ΤΕΧΝΙΚΟ ΠΡΟΒΛΗΜΑ EMAIL", "09/11/2023 · Εγκύκλιος"],
+    ["206/2023-ΕΠΙΚΑΙΡΟΠΟΙΗΣΗ ΑΡΜΟΔΙΟΤΗΤΩΝ", "09/11/2023 · Εγκύκλιος"],
+    ["204/2023-ΥΠΟΧΡΕΩΤΙΚΗ ΧΡΗΣΗ ΦΡΟΝΤΙΔΑΣ", "23/10/2023 · Εγκύκλιος"],
+  ];
+  return <>
+    <Typography variant="h5" sx={{ mb: 1.25, color: "#4c5358", fontWeight: 850 }}>Dashboard</Typography>
+    <Grid container spacing={{ xs: 2, md: 3 }} alignItems="flex-start" sx={{ mb: 2.5 }}>
+      <Grid item xs={12} lg={7}>
+        <Card variant="outlined" sx={{ borderRadius: 1.5, overflow: "hidden", borderTop: "3px solid #df4d3d", bgcolor: "#fff" }}>
+          <CardContent sx={{ p: 1.5 }}>
+            <Typography fontWeight={850} sx={{ color: "#515960", mb: 1.25 }}>Τιμολόγηση</Typography>
+            <Grid container spacing={1.25}>{cards.map((card, index) => <Grid item xs={6} sm={4} key={`${card.title}-${index}`}><Button onClick={() => setBranch(card.key)} fullWidth sx={{ p: 0, minHeight: 118, display: "flex", flexDirection: "column", alignItems: "stretch", borderRadius: 1.25, overflow: "hidden", textAlign: "left", color: "#fff", bgcolor: card.colour, border: branch === card.key && index < 5 ? "3px solid #123a64" : "2px solid transparent", boxShadow: branch === card.key && index < 5 ? "0 0 0 2px #fff inset" : "none", "&:hover": { filter: "brightness(1.05)", transform: "translateY(-1px)" }, transition: "filter .15s ease, transform .15s ease" }}><Box sx={{ p: 1.25, flex: 1, position: "relative" }}><Typography fontWeight={900} sx={{ fontSize: { xs: 13, sm: 14 } }}>{card.title}</Typography><Typography variant="caption" sx={{ opacity: .9 }}>{card.count}</Typography><Box sx={{ position: "absolute", right: 8, bottom: 6, opacity: .22, fontSize: 42 }}>{card.icon}</Box></Box><Box sx={{ px: 1.25, py: .7, bgcolor: "rgba(0,0,0,.13)", fontSize: 11, fontWeight: 800, display: "flex", justifyContent: "space-between" }}>Τιμολογήστε τώρα <span>➜</span></Box></Button></Grid>)}</Grid>
+          </CardContent>
+        </Card>
       </Grid>
-    </CardContent>
-  </Card>;
+      <Grid item xs={12} lg={5}>
+        <Card variant="outlined" sx={{ borderRadius: 1.5, overflow: "hidden", borderTop: "3px solid #17b8d1", bgcolor: "#fff" }}>
+          <CardContent sx={{ p: 1.5 }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}><Typography fontWeight={850} sx={{ color: "#515960" }}>Ανακοινώσεις-Εγκύκλιοι</Typography><Stack direction="row" spacing={.25}><IconButton size="small" aria-label="Ανανέωση"><RefreshRoundedIcon fontSize="small" /></IconButton><IconButton size="small" aria-label="Σύμπτυξη"><Typography fontWeight={900}>−</Typography></IconButton></Stack></Stack>
+            <Divider />
+            <Stack divider={<Divider flexItem />} spacing={0}>{announcements.map(([title, meta]) => <Box key={title} sx={{ py: 1 }}><Typography variant="body2" sx={{ color: "#216285", fontWeight: 850, fontSize: 12.5 }}>{title}</Typography><Typography variant="caption" color="text.secondary"><Chip size="small" label="ΣΗΜΑΝΤΙΚΟ" sx={{ height: 18, mr: .75, bgcolor: "#f18b24", color: "#fff", borderRadius: .5, fontSize: 9, fontWeight: 900 }} />{meta}</Typography></Box>)}</Stack>
+          </CardContent>
+        </Card>
+      </Grid>
+    </Grid>
+  </>;
 }
 
 function QuoteWorkspace({ branch, setBranch, preset, quotes, search, setSearch, onlyRecommended, setOnlyRecommended, sortBy, setSortBy, onOpen, onGoOffers }: { branch: BranchKey; setBranch: (value: BranchKey) => void; preset: typeof branchPresets[BranchKey]; quotes: QuoteRow[]; search: string; setSearch: (value: string) => void; onlyRecommended: boolean; setOnlyRecommended: (value: boolean) => void; sortBy: "premium" | "score"; setSortBy: (value: "premium" | "score") => void; onOpen: (quote: QuoteRow) => void; onGoOffers: () => void }) {
