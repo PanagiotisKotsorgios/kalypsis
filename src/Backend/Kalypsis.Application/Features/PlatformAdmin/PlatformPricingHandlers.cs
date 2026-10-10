@@ -138,7 +138,7 @@ public static class PricingDefaults
             new PlanDefinitionDto("premium", "Πλήρης σουίτα · όλες οι δυνατότητες", 450m, 3, 10, 500m, 240m, premium,
                 Name: "Πλήρες", Description: "Όλες οι δυνατότητες του KALYPSIS για γραφεία που θέλουν την πλήρη επιχειρηματική σουίτα.", SortOrder: 50, IncludedPackages: 8, FeatureKeys: premium, IconKey: "crown"),
             new PlanDefinitionDto("ultimate", "Πλήρες + Πολυτιμολόγηση", 0m, 3, 10, 0m, 0m, ultimate,
-                Name: "Ultimate", Description: "Η πλήρης σουίτα με Πολυτιμολόγηση. Σύντομα διαθέσιμο.", SortOrder: 60, IncludedPackages: 9, FeatureKeys: ultimate, IconKey: "calculate", Badge: "Σύντομα διαθέσιμο", ButtonText: "Εκδήλωση Ενδιαφέροντος →", ButtonUrl: "/contact", IsComingSoon: true)
+                Name: "Απόλυτο", Description: "Η πλήρης σουίτα με Πολυτιμολόγηση. Σύντομα διαθέσιμο.", SortOrder: 60, IncludedPackages: 9, FeatureKeys: ultimate, IconKey: "calculate", Badge: "Σύντομα διαθέσιμο", ButtonText: "Εκδήλωση Ενδιαφέροντος →", ButtonUrl: "/contact", IsComingSoon: true)
         };
         var addons = new[]
         {
@@ -175,7 +175,7 @@ public static class PricingDefaults
             var featureKeys = p.FeatureKeys is { Length: > 0 } ? p.FeatureKeys : p.Packages;
             return p with
             {
-                Name = string.IsNullOrWhiteSpace(p.Name) ? d?.Name ?? p.Code : p.Name,
+                Name = string.IsNullOrWhiteSpace(p.Name) || (p.Code.Equals("ultimate", StringComparison.OrdinalIgnoreCase) && p.Name.Equals("Ultimate", StringComparison.OrdinalIgnoreCase)) ? d?.Name ?? p.Code : p.Name,
                 Description = string.IsNullOrWhiteSpace(p.Description) ? (string.IsNullOrWhiteSpace(p.Tagline) ? d?.Description ?? "" : p.Tagline) : p.Description,
                 Tagline = string.IsNullOrWhiteSpace(p.Tagline) ? d?.Description ?? "" : p.Tagline,
                 IsActive = p.IsActive,

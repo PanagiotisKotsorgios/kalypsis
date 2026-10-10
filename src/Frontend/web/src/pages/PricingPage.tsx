@@ -100,7 +100,16 @@ function PlanCard({ plan, features, currency }: { plan: Plan; features: PricingF
           {plan.includedPackages > 0 && <Typography><b>{plan.includedPackages}</b> {plan.includedPackages === 1 ? "πακέτο / ενότητα" : "πακέτα / ενότητες"}</Typography>}
         </Stack>
         <Stack spacing={.5} sx={{ mt: .4 }}>
-          {features.filter(f => included.includes(f.key)).map(f => <Stack direction="row" alignItems="flex-start" gap={.65} key={f.key}><CheckCircleIcon sx={{ color: "#16803c", fontSize: 18, mt: .1 }} /><Typography variant="body2">{f.label}</Typography></Stack>)}
+          {features.filter(f => included.includes(f.key)).map(f => {
+            const isUltimateQuoting = plan.code === "ultimate" && f.key === "multi_quoting";
+            return <Stack direction="row" alignItems="center" gap={.8} key={f.key} sx={isUltimateQuoting ? {
+              px: 1, py: .75, borderRadius: 1.5, bgcolor: "#e8f8ee", border: "2px solid #16803c",
+              boxShadow: "0 5px 14px rgba(22,128,60,.2)"
+            } : undefined}>
+              <CheckCircleIcon sx={{ color: "#16803c", fontSize: isUltimateQuoting ? 24 : 18, mt: .1 }} />
+              <Typography variant="body2" sx={isUltimateQuoting ? { color: "#0f6b31", fontWeight: 950, fontSize: { xs: 14, md: 15 } } : undefined}>{f.label}</Typography>
+            </Stack>;
+          })}
         </Stack>
         <Box sx={{ flex: 1 }} />
         {!comingSoon && <Typography variant="caption" color="text.secondary">{plan.extraOfficeLabel || "Επιπλέον γραφείο"}: {money(plan.extraOfficePerYear, currency)} / {plan.extraPricePeriodLabel || "έτος"} · {plan.extraUserLabel || "Επιπλέον χρήστης"}: {money(plan.extraUserPerYear, currency)} / {plan.extraPricePeriodLabel || "έτος"}</Typography>}
@@ -258,7 +267,7 @@ export function PricingPage() {
 
           <Paper sx={{ mt: 3, overflowX: "auto", border: `1px solid ${RULE}`, borderRadius: 3, bgcolor: "rgba(255,255,255,.94)" }}>
             <Box sx={{ p: { xs: 2, md: 2.5 }, pb: 1 }}><SectionHeading number="04" title="Σύγκριση δυνατοτήτων" subtitle="Μια καθαρή εικόνα του τι περιλαμβάνει κάθε ενεργό πακέτο." /></Box>
-            <Table size="small" sx={{ minWidth: 760 }}><TableHead><TableRow sx={{ bgcolor: "#e6f4ff" }}><TableCell sx={{ fontWeight: 900, color: NAVY }}>Δυνατότητα</TableCell>{activePlans.map(p => <TableCell align="center" key={p.code} sx={{ fontWeight: 900, color: NAVY }}>{p.name}</TableCell>)}</TableRow></TableHead><TableBody>{activeFeatures.map(f => <TableRow hover key={f.key}><TableCell sx={{ fontWeight: 800, color: NAVY }}>{f.label}</TableCell>{activePlans.map(p => <TableCell align="center" key={p.code}>{(p.featureKeys ?? p.packages).includes(f.key) ? <CheckCircleIcon sx={{ color: "#16803c" }} /> : "—"}</TableCell>)}</TableRow>)}</TableBody></Table>
+            <Table size="small" sx={{ minWidth: 760 }}><TableHead><TableRow sx={{ bgcolor: "#e6f4ff" }}><TableCell sx={{ fontWeight: 900, color: NAVY }}>Δυνατότητα</TableCell>{activePlans.map(p => <TableCell align="center" key={p.code} sx={{ fontWeight: 900, color: NAVY }}>{p.name}</TableCell>)}</TableRow></TableHead><TableBody>{activeFeatures.map(f => <TableRow hover key={f.key}><TableCell sx={{ fontWeight: f.key === "multi_quoting" ? 950 : 800, color: f.key === "multi_quoting" ? "#0f6b31" : NAVY }}>{f.label}</TableCell>{activePlans.map(p => { const isUltimateQuoting = p.code === "ultimate" && f.key === "multi_quoting"; return <TableCell align="center" key={p.code} sx={isUltimateQuoting ? { bgcolor: "#e8f8ee", border: "2px solid #16803c" } : undefined}>{(p.featureKeys ?? p.packages).includes(f.key) ? <CheckCircleIcon sx={{ color: "#16803c", fontSize: isUltimateQuoting ? 26 : 20 }} /> : "—"}</TableCell>; })}</TableRow>)}</TableBody></Table>
           </Paper>
 
           <Stack alignItems="center" textAlign="center" sx={{ mt: 4 }}><Typography variant="h5" fontWeight={950} color={NAVY}>Θέλεις να το προσαρμόσουμε στο γραφείο σου;</Typography><Typography color="text.secondary" sx={{ mt: .5 }}>Επικοινώνησε μαζί μας για ενεργοποίηση πακέτων ή ειδική τιμολόγηση.</Typography><Button component={RouterLink} to="/contact" variant="contained" endIcon={<ArrowForwardIcon />} sx={{ mt: 1.5, bgcolor: NAVY, fontWeight: 900 }}>Ζήτησε διαμόρφωση</Button></Stack>
