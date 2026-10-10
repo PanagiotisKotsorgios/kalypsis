@@ -432,10 +432,11 @@ function DashboardWidget({
   onRefresh: () => void;
   onDragStart: () => void;
   onDragOver: (event: React.DragEvent<HTMLDivElement>) => void;
-  onDrop: () => void;
+  onDrop: (event: React.DragEvent<HTMLDivElement>) => void;
   children: ReactNode;
 }) {
   const [refreshing, setRefreshing] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const resizeStart = useRef<{ x: number; y: number; span: number; height: number } | null>(null);
   const beginResize = (event: React.MouseEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -462,8 +463,10 @@ function DashboardWidget({
   };
   return <Box
     id={`insureone-widget-${id}`}
+    onDragEnter={event => { event.preventDefault(); setDragOver(true); }}
+    onDragLeave={() => setDragOver(false)}
     onDragOver={onDragOver}
-    onDrop={onDrop}
+    onDrop={event => { setDragOver(false); onDrop(event); }}
     sx={{
       gridColumn: { xs: "1 / -1", md: `span ${span}` },
       order,
@@ -474,7 +477,7 @@ function DashboardWidget({
       zIndex: maximized ? 1400 : 1,
       bgcolor: maximized ? "#edf3f8" : undefined,
       borderRadius: 1.5,
-      boxShadow: maximized ? "0 18px 50px rgba(12,39,68,.34)" : undefined,
+      boxShadow: maximized ? "0 18px 50px rgba(12,39,68,.34)" : dragOver ? "0 0 0 3px rgba(23,184,209,.42)" : undefined,
       overflow: maximized ? "auto" : "visible",
     }}
   >
@@ -570,9 +573,16 @@ function StandaloneHomeSections({ branch, setBranch }: { branch: BranchKey; setB
     onRefresh: () => setWidgetSizes(current => ({ ...current })),
     onDragStart: () => { dragWidget.current = id; },
     onDragOver: (event: React.DragEvent<HTMLDivElement>) => event.preventDefault(),
-    onDrop: () => dropWidget(id),
+    onDrop: (event: React.DragEvent<HTMLDivElement>) => { event.stopPropagation(); dropWidget(id); },
   });
-  return <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(12, minmax(0, 1fr))" }, gap: { xs: 2, md: 2.5 }, alignItems: "start" }}>
+  const dropWidgetAtEnd = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const source = dragWidget.current;
+    dragWidget.current = null;
+    if (!source) return;
+    setWidgetOrder(current => [...current.filter(id => id !== source), source]);
+  };
+  return <Box onDragOver={event => event.preventDefault()} onDrop={dropWidgetAtEnd} sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(12, minmax(0, 1fr))" }, gridAutoFlow: "dense", gap: { xs: 2, md: 2.5 }, alignItems: "start" }}>
     <DashboardWidget id="pricing" title="Τιμολόγηση" accent="#df4d3d" {...widgetControls("pricing")}>
       <Card variant="outlined" sx={{ borderRadius: 1.5, overflow: "hidden", borderTop: "3px solid #df4d3d", bgcolor: "#fff" }}>
         <CardContent sx={{ p: 1.5 }}>
