@@ -27,7 +27,7 @@ import AssignmentLateIcon from "@mui/icons-material/AssignmentLate";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { useAuth } from "../auth/AuthContext";
 import { usePackages, type PackageCode } from "../auth/PackagesContext";
-import { useWorkspace, WORKSPACE_DEFAULT_ROUTE } from "../auth/WorkspaceContext";
+import { useWorkspace } from "../auth/WorkspaceContext";
 import { api } from "../api/client";
 import {
   AnimatedKpiCard, ChartCard, ModernAreaChart, ModernBarChart, ModernDonutChart, ModernDualLineChart,
@@ -269,7 +269,10 @@ export function WorkspaceHubPage() {
                 onClick={() => {
                   if (!enabled) { navigate("/pricing"); return; }
                   enter(pkg.code);
-                  navigate(WORKSPACE_DEFAULT_ROUTE[pkg.code]);
+                  // The hub is the stable landing surface. Selecting a package
+                  // changes only the workspace context, which filters the
+                  // sidebar without moving the user away from /app.
+                  navigate("/app");
                 }}
                 sx={{
                   height: "100%",
