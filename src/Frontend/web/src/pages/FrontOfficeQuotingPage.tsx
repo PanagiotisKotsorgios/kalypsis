@@ -679,9 +679,6 @@ function StandaloneHomeSections({ branch, setBranch }: { branch: BranchKey; setB
     <DashboardWidget id="pricing" title="Τιμολόγηση" accent="#c9e2f6" prominentHeader {...widgetControls("pricing")}>
       <Card variant="outlined" sx={{ position: "relative", height: "100%", borderRadius: 1.5, overflow: "hidden", borderTop: 0, bgcolor: "#f8fcff", borderColor: "#dce5ec", "&::after": { content: '""', position: "absolute", right: -170, bottom: -210, width: 560, height: 430, borderRadius: "50% 0 0 0", border: "2px solid rgba(104,170,221,.13)", boxShadow: "0 -18px 0 rgba(104,170,221,.07), 0 -36px 0 rgba(104,170,221,.045)", pointerEvents: "none" } }}>
         <CardContent sx={{ position: "relative", zIndex: 1, p: { xs: 1.5, md: 2.5 }, height: "100%" }}>
-          <Box sx={{ borderLeft: "6px solid #15bde0", pl: { xs: 1.25, md: 1.75 }, mb: { xs: 2, md: 2.75 }, py: .25 }}>
-            <Typography fontWeight={900} sx={{ color: "#102f4d", fontSize: { xs: 22, sm: 30, md: 38 }, lineHeight: 1.05 }}>Τιμολόγηση</Typography>
-          </Box>
           <Grid container spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }}>
             {pricingCards.map((card, index) => <Grid item xs={12} sm={6} md={4} key={`${card.title}-${index}`}><PricingCategoryCard card={card} selected={branch === card.key && index < 5} onSelect={() => setBranch(card.key)} /></Grid>)}
           </Grid>
