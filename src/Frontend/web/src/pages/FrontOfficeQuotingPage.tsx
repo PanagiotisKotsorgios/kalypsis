@@ -52,7 +52,6 @@ import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import EuroRoundedIcon from "@mui/icons-material/EuroRounded";
 import FilterListOutlinedIcon from "@mui/icons-material/FilterListOutlined";
 import HomeWorkOutlinedIcon from "@mui/icons-material/HomeWorkOutlined";
-import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
 import KeyboardArrowRightRoundedIcon from "@mui/icons-material/KeyboardArrowRightRounded";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import GridViewOutlinedIcon from "@mui/icons-material/GridViewOutlined";
@@ -83,7 +82,7 @@ import { useAuth } from "../auth/AuthContext";
 import { KalypsisLogo } from "../components/KalypsisLogo";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 
-type ViewKey = "dashboard" | "quotes" | "print-pay" | "pay-print" | "requests" | "history";
+type ViewKey = "dashboard" | "quotes" | "print-pay" | "pay-print" | "requests";
 type BranchKey = "Αυτοκίνητο" | "Κατοικία" | "Υγεία" | "Ζωή" | "Επιχείρηση";
 
 interface QuoteRow {
@@ -231,7 +230,6 @@ export function FrontOfficeQuotingPage({ standalone = false }: { standalone?: bo
           <Tab value="print-pay" icon={<PrintOutlinedIcon fontSize="small" />} iconPosition="start" label="Τυπώνω – Πληρώνω" />
           <Tab value="pay-print" icon={<PaymentsOutlinedIcon fontSize="small" />} iconPosition="start" label="Πληρώνω – Τυπώνω" />
           <Tab value="requests" icon={<DescriptionOutlinedIcon fontSize="small" />} iconPosition="start" label="Αιτήσεις ασφάλισης" />
-          <Tab value="history" icon={<HistoryOutlinedIcon fontSize="small" />} iconPosition="start" label="Ιστορικό" />
         </Tabs>
       </Paper>}
 
@@ -271,10 +269,10 @@ function StandalonePluginFooter() {
 
 const standaloneDropdowns: { key: string; label: string; views: { label: string; view: ViewKey }[] }[] = [
   { key: "production", label: "Παραγωγή", views: [
-    { label: "Λίστες παραγωγής", view: "history" },
-    { label: "Συμβόλαια", view: "history" },
+    { label: "Λίστες παραγωγής", view: "dashboard" },
+    { label: "Συμβόλαια", view: "dashboard" },
     { label: "Πελάτες", view: "dashboard" },
-    { label: "Αναφορές", view: "history" },
+    { label: "Αναφορές", view: "dashboard" },
     { label: "Έντυπα", view: "requests" },
     { label: "Προσφορές", view: "quotes" },
     { label: "Αιτήματα ασφάλισης", view: "requests" },
@@ -304,7 +302,7 @@ function StandalonePluginHeader({ view, onNavigate }: { view: ViewKey; onNavigat
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState<string | null>(null);
   const compactNav = useMediaQuery("(max-width:1120px)");
-  const activeNav = view === "dashboard" ? "home" : view === "quotes" ? "offers" : view === "history" || view === "requests" ? "production" : view === "print-pay" ? "print-pay" : "pay-print";
+  const activeNav = view === "dashboard" ? "home" : view === "quotes" ? "offers" : view === "requests" ? "production" : view === "print-pay" ? "print-pay" : "pay-print";
   const navButtonSx = {
     minHeight: 58,
     minWidth: "auto",
@@ -724,6 +722,11 @@ function RequestsView() {
 }
 
 function HistoryView() {
+  // The quote-history screen was retired from the standalone dashboard. Keep
+  // this legacy component as a safe no-op so stale bookmarks/fallbacks cannot
+  // render the old history table.
+  return null;
+
   const [query, setQuery] = useState("");
   const visible = mockOffers.filter((offer) => !query || `${offer.code} ${offer.customer} ${offer.carrier}`.toLowerCase().includes(query.toLowerCase()));
   return <Stack spacing={2.5}><Card variant="outlined" sx={{ borderRadius: 2.5 }}><CardContent sx={{ p: 2.5 }}><Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} spacing={1.5}><Box><Typography variant="h5" fontWeight={850}>Ιστορικό προσφορών</Typography><Typography color="text.secondary">Αποθηκευμένες προσφορές, επιλεγμένα πακέτα και παρακολούθηση κατάστασης.</Typography></Box><Stack direction="row" spacing={1}><TextField size="small" placeholder="Αναζήτηση" value={query} onChange={(e) => setQuery(e.target.value)} InputProps={{ startAdornment: <InputAdornment position="start"><SearchRoundedIcon fontSize="small" /></InputAdornment> }} /><Button variant="outlined" startIcon={<DownloadOutlinedIcon />}>Εξαγωγή</Button></Stack></Stack></CardContent></Card><Card variant="outlined" sx={{ borderRadius: 2.5, overflow: "hidden" }}><TableContainer><Table><TableHead><TableRow sx={{ bgcolor: "#eef2f6" }}><TableCell>Κωδικός</TableCell><TableCell>Πελάτης</TableCell><TableCell>Κλάδος</TableCell><TableCell>Ασφαλιστική</TableCell><TableCell>Ασφάλιστρο</TableCell><TableCell>Κατάσταση</TableCell><TableCell>Τελευταία ενημέρωση</TableCell></TableRow></TableHead><TableBody>{visible.map((offer) => <TableRow key={offer.id} hover><TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{offer.code}</TableCell><TableCell>{offer.customer}</TableCell><TableCell>{offer.branch}</TableCell><TableCell>{offer.carrier}</TableCell><TableCell sx={{ fontWeight: 800 }}>{currency(offer.premium)}</TableCell><TableCell><Chip size="small" label={offer.status} color={statusColour[offer.status]} /></TableCell><TableCell>{offer.updated}</TableCell></TableRow>)}</TableBody></Table></TableContainer></Card></Stack>;
