@@ -57,6 +57,7 @@ import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import GridViewOutlinedIcon from "@mui/icons-material/GridViewOutlined";
 import HealthAndSafetyOutlinedIcon from "@mui/icons-material/HealthAndSafetyOutlined";
 import BusinessCenterOutlinedIcon from "@mui/icons-material/BusinessCenterOutlined";
+import FavoriteBorderRoundedIcon from "@mui/icons-material/FavoriteBorderRounded";
 import LuggageOutlinedIcon from "@mui/icons-material/LuggageOutlined";
 import SailingOutlinedIcon from "@mui/icons-material/SailingOutlined";
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
@@ -500,16 +501,70 @@ function DashboardWidget({
   </Box>;
 }
 
+interface PricingCardConfig {
+  key: BranchKey;
+  title: string;
+  count: string;
+  icon: ReactNode;
+  colour: string;
+  darkColour: string;
+  gradient: string;
+}
+
+function PricingCategoryCard({ card, selected, onSelect }: { card: PricingCardConfig; selected: boolean; onSelect: () => void }) {
+  return <Button
+    onClick={onSelect}
+    fullWidth
+    sx={{
+      p: 0,
+      minHeight: { xs: 124, sm: 132, md: 142 },
+      height: "100%",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "stretch",
+      justifyContent: "space-between",
+      borderRadius: 2,
+      overflow: "hidden",
+      position: "relative",
+      textAlign: "left",
+      textTransform: "none",
+      color: "#fff",
+      background: card.gradient,
+      border: selected ? "2px solid #fff" : `1px solid ${card.colour}99`,
+      boxShadow: selected ? `0 0 0 3px ${card.darkColour}66` : "0 5px 14px rgba(24,52,73,.12)",
+      transition: "filter .18s ease, transform .18s ease, box-shadow .18s ease",
+      "&:hover": { filter: "brightness(1.05)", transform: "translateY(-2px)", boxShadow: `0 8px 18px ${card.darkColour}45` },
+      "&:focus-visible": { outline: `3px solid ${card.colour}`, outlineOffset: 2 },
+      "&:hover .pricing-card-arrow": { transform: "translateX(4px)" },
+      "&::before": { content: '""', position: "absolute", width: 150, height: 150, borderRadius: "50%", right: -46, top: -62, background: "rgba(255,255,255,.11)", border: "1px solid rgba(255,255,255,.15)" },
+      "&::after": { content: '""', position: "absolute", width: 110, height: 110, borderRadius: "50%", right: 13, top: -30, border: "1px solid rgba(255,255,255,.12)" },
+    }}
+  >
+    <Box sx={{ p: { xs: 1.25, md: 1.5 }, display: "flex", alignItems: "center", gap: 1.25, position: "relative", zIndex: 1, minWidth: 0 }}>
+      <Box sx={{ width: 48, height: 48, flexShrink: 0, borderRadius: "50%", display: "grid", placeItems: "center", bgcolor: "rgba(255,255,255,.18)", border: "1px solid rgba(255,255,255,.28)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.2)", "& svg": { fontSize: 27 } }}>{card.icon}</Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography fontWeight={900} sx={{ fontSize: { xs: 13.5, sm: 14.5 }, lineHeight: 1.15, whiteSpace: "normal" }}>{card.title}</Typography>
+        <Typography sx={{ mt: .55, fontSize: { xs: 11, sm: 11.5 }, color: "rgba(255,255,255,.9)", lineHeight: 1.25 }}>{card.count}</Typography>
+      </Box>
+    </Box>
+    <Box sx={{ position: "absolute", right: { xs: 10, sm: 12 }, top: { xs: 26, sm: 24 }, color: "rgba(255,255,255,.16)", transform: "rotate(-10deg)", pointerEvents: "none", "& svg": { fontSize: { xs: 82, sm: 96 } } }}>{card.icon}</Box>
+    <Box className="pricing-card-cta" sx={{ px: { xs: 1.25, md: 1.5 }, py: .85, bgcolor: `${card.darkColour}e6`, borderTop: "1px solid rgba(255,255,255,.2)", fontSize: { xs: 11, sm: 11.5 }, fontWeight: 850, letterSpacing: ".01em", display: "flex", justifyContent: "space-between", alignItems: "center", position: "relative", zIndex: 1 }}>
+      <span>Τιμολογήστε τώρα</span>
+      <Box component="span" className="pricing-card-arrow" sx={{ fontSize: 18, lineHeight: 1, ml: 1, transition: "transform .18s ease" }}>→</Box>
+    </Box>
+  </Button>;
+}
+
 function StandaloneHomeSections({ branch, setBranch }: { branch: BranchKey; setBranch: (value: BranchKey) => void }) {
-  const pricingCards: { key: BranchKey; title: string; count: string; icon: ReactNode; colour: string }[] = [
-    { key: branchLabels[0], title: "Οχημάτων", count: "19 ασφαλιστικά προγράμματα", icon: <DirectionsCarFilledOutlinedIcon />, colour: "#26a69a" },
-    { key: branchLabels[0], title: "Σύγκριση Οχημάτων", count: "19 ασφαλιστικά προγράμματα", icon: <CompareArrowsRoundedIcon />, colour: "#337db8" },
-    { key: branchLabels[1], title: "Περιουσίας", count: "14 ασφαλιστικά προγράμματα", icon: <HomeWorkOutlinedIcon />, colour: "#df4d3d" },
-    { key: branchLabels[2], title: "Υγείας", count: "12 ασφαλιστικά προγράμματα", icon: <HealthAndSafetyOutlinedIcon />, colour: "#8bb7b7" },
-    { key: branchLabels[0], title: "Σκαφών", count: "5 ασφαλιστικά προγράμματα", icon: <SailingOutlinedIcon />, colour: "#08a7dc" },
-    { key: branchLabels[0], title: "Προσωπικού Ατυχήματος", count: "6 ασφαλιστικά προγράμματα", icon: <ShieldOutlinedIcon />, colour: "#c5bd00" },
-    { key: branchLabels[4], title: "Επαγγελματικής Ευθύνης", count: "9 ασφαλιστικά προγράμματα", icon: <BusinessCenterOutlinedIcon />, colour: "#6f5aaf" },
-    { key: branchLabels[3], title: "Ζωής", count: "8 ασφαλιστικά προγράμματα", icon: <LuggageOutlinedIcon />, colour: "#db8b37" },
+  const pricingCards: PricingCardConfig[] = [
+    { key: branchLabels[0], title: "Οχημάτων", count: "19 ασφαλιστικά προγράμματα", icon: <DirectionsCarFilledOutlinedIcon />, colour: "#2fb8ad", darkColour: "#08736f", gradient: "linear-gradient(135deg, #157f7b 0%, #28a99f 58%, #57c9bf 100%)" },
+    { key: branchLabels[0], title: "Σύγκριση Οχημάτων", count: "19 ασφαλιστικά προγράμματα", icon: <CompareArrowsRoundedIcon />, colour: "#398fc7", darkColour: "#155a91", gradient: "linear-gradient(135deg, #1c5f9b 0%, #2d7fba 58%, #53a7d2 100%)" },
+    { key: branchLabels[1], title: "Περιουσίας", count: "14 ασφαλιστικά προγράμματα", icon: <HomeWorkOutlinedIcon />, colour: "#e46659", darkColour: "#a93231", gradient: "linear-gradient(135deg, #af3635 0%, #d6534b 58%, #ed7b69 100%)" },
+    { key: branchLabels[2], title: "Υγείας", count: "12 ασφαλιστικά προγράμματα", icon: <HealthAndSafetyOutlinedIcon />, colour: "#86b7b5", darkColour: "#467b80", gradient: "linear-gradient(135deg, #4d878a 0%, #73a9a8 58%, #a2ccca 100%)" },
+    { key: branchLabels[0], title: "Σκαφών", count: "5 ασφαλιστικά προγράμματα", icon: <SailingOutlinedIcon />, colour: "#16b5d7", darkColour: "#076786", gradient: "linear-gradient(135deg, #087598 0%, #0ca6c5 58%, #35c9e0 100%)" },
+    { key: branchLabels[0], title: "Προσωπικού Ατυχήματος", count: "6 ασφαλιστικά προγράμματα", icon: <ShieldOutlinedIcon />, colour: "#c5bd00", darkColour: "#817b00", gradient: "linear-gradient(135deg, #8d8800 0%, #b6b000 58%, #d7d15b 100%)" },
+    { key: branchLabels[4], title: "Επαγγελματικής Ευθύνης", count: "9 ασφαλιστικά προγράμματα", icon: <BusinessCenterOutlinedIcon />, colour: "#7865be", darkColour: "#493786", gradient: "linear-gradient(135deg, #4f3c8f 0%, #6854aa 58%, #897bc9 100%)" },
+    { key: branchLabels[3], title: "Ζωής", count: "8 ασφαλιστικά προγράμματα", icon: <FavoriteBorderRoundedIcon />, colour: "#e5a14b", darkColour: "#9f5f1b", gradient: "linear-gradient(135deg, #a96723 0%, #d68b36 58%, #ebb568 100%)" },
   ];
   const announcements = [
     ["202/2024 · Ενημέρωση ασφαλιστικής αγοράς", "18/04/2024 · Εγκύκλιος"],
@@ -584,10 +639,14 @@ function StandaloneHomeSections({ branch, setBranch }: { branch: BranchKey; setB
   };
   return <Box onDragOver={event => event.preventDefault()} onDrop={dropWidgetAtEnd} sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(12, minmax(0, 1fr))" }, gridAutoFlow: "dense", gap: { xs: 2, md: 2.5 }, alignItems: "start" }}>
     <DashboardWidget id="pricing" title="Τιμολόγηση" accent="#df4d3d" {...widgetControls("pricing")}>
-      <Card variant="outlined" sx={{ borderRadius: 1.5, overflow: "hidden", borderTop: "3px solid #df4d3d", bgcolor: "#fff" }}>
-        <CardContent sx={{ p: 1.5 }}>
-          <Typography fontWeight={850} sx={{ color: "#515960", mb: 1.25 }}>Τιμολόγηση</Typography>
-          <Grid container spacing={1.25}>{pricingCards.map((card, index) => <Grid item xs={6} sm={4} key={`${card.title}-${index}`}><Button onClick={() => setBranch(card.key)} fullWidth sx={{ p: 0, minHeight: 118, display: "flex", flexDirection: "column", alignItems: "stretch", borderRadius: 1.25, overflow: "hidden", textAlign: "left", color: "#fff", bgcolor: card.colour, border: branch === card.key && index < 5 ? "3px solid #123a64" : "2px solid transparent", boxShadow: branch === card.key && index < 5 ? "0 0 0 2px #fff inset" : "none", "&:hover": { filter: "brightness(1.05)", transform: "translateY(-1px)" }, transition: "filter .15s ease, transform .15s ease" }}><Box sx={{ p: 1.25, flex: 1, position: "relative" }}><Typography fontWeight={900} sx={{ fontSize: { xs: 13, sm: 14 } }}>{card.title}</Typography><Typography variant="caption" sx={{ opacity: .9 }}>{card.count}</Typography><Box sx={{ position: "absolute", right: 8, bottom: 6, opacity: .22, fontSize: 42 }}>{card.icon}</Box></Box><Box sx={{ px: 1.25, py: .7, bgcolor: "rgba(0,0,0,.13)", fontSize: 11, fontWeight: 800, display: "flex", justifyContent: "space-between" }}>Τιμολογήστε τώρα <span>→</span></Box></Button></Grid>)}</Grid>
+      <Card variant="outlined" sx={{ height: "100%", borderRadius: 1.5, overflow: "hidden", borderTop: "3px solid #df4d3d", bgcolor: "#fff", borderColor: "#dce5ec" }}>
+        <CardContent sx={{ p: { xs: 1.5, md: 2 }, height: "100%" }}>
+          <Box sx={{ borderLeft: "4px solid #16b8cc", pl: 1.25, mb: { xs: 1.75, md: 2.25 } }}>
+            <Typography fontWeight={900} sx={{ color: "#102f4d", fontSize: { xs: 16, sm: 18 } }}>Τιμολόγηση</Typography>
+          </Box>
+          <Grid container spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }}>
+            {pricingCards.map((card, index) => <Grid item xs={12} sm={6} md={4} key={`${card.title}-${index}`}><PricingCategoryCard card={card} selected={branch === card.key && index < 5} onSelect={() => setBranch(card.key)} /></Grid>)}
+          </Grid>
         </CardContent>
       </Card>
     </DashboardWidget>
