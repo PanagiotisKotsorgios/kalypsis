@@ -205,7 +205,6 @@ import { BackupsPage } from "./pages/BackupsPage";
 import { ConfigHubPage } from "./pages/ConfigHubPage";
 import { FrontOfficeQuotingPage } from "./pages/FrontOfficeQuotingPage";
 import { InsureOneLoginPage } from "./pages/InsureOneLoginPage";
-import { InsureOnePartnerDashboardPage } from "./pages/InsureOnePartnerDashboardPage";
 import { InsureOnePartnerManagementPage } from "./pages/InsureOnePartnerManagementPage";
 import { RecycleBinPage } from "./pages/RecycleBinPage";
 import { ProducerReconciliationPage } from "./pages/ProducerReconciliationPage";
@@ -424,7 +423,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/office-website/analytics", labelKey: "nav.officeWebsiteAnalytics", icon: <AnalyticsIcon />, package: "FrontOffice", group: "website" },
     { to: "/frontoffice-quoting?view=dashboard", labelKey: "nav.quotingDashboard", icon: <CalculateIcon />, package: "FrontOffice", openInNewTab: true, accent: "quoting" },
 
-    { to: "/insureone/partners", labelKey: "nav.insureonePartners", icon: <GroupIcon />, package: "FrontOffice", group: "website" },
+    { to: "/insureone/partners", labelKey: "nav.insureonePartners", icon: <GroupIcon />, package: "FrontOffice", group: "quoting" },
 
     // ===== Intelligence =====
     // persistency hidden — analytics shell exists but not wired to data yet.
@@ -534,6 +533,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/office-website/requests", labelKey: "nav.officeWebsiteRequests", icon: <AssignmentIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website/analytics", labelKey: "nav.officeWebsiteAnalytics", icon: <AnalyticsIcon />, package: "FrontOffice", group: "website" },
     { to: "/frontoffice-quoting?view=dashboard", labelKey: "nav.quotingDashboard", icon: <CalculateIcon />, package: "FrontOffice", openInNewTab: true, accent: "quoting" },
+    { to: "/insureone/partners", labelKey: "nav.insureonePartners", icon: <GroupIcon />, package: "FrontOffice", group: "quoting" },
     { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/crm-groups", labelKey: "nav.crmGroups", icon: <GroupWorkIconRC />, package: "Crm", permission: "marketing.read" },
@@ -842,7 +842,7 @@ export default function App() {
           </ProtectedRoute>
         } />
         <Route path="/insureone/:slug/login" element={<InsureOneLoginPage />} />
-        <Route path="/insureone/:slug" element={<ProtectedRoute><PackageGate package="FrontOffice"><InsureOnePartnerDashboardPage /></PackageGate></ProtectedRoute>} />
+        <Route path="/insureone/:slug" element={<ProtectedRoute><PackageGate package="FrontOffice"><FrontOfficeQuotingPage standalone /></PackageGate></ProtectedRoute>} />
         <Route path="/data-retention-schedule" element={<DataRetentionPage />} />
         <Route
           path="/app/*"

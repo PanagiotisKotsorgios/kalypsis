@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   Alert,
@@ -25,6 +25,7 @@ import {
   MenuItem,
   Menu,
   List,
+  ListItemIcon,
   ListItemButton,
   ListItemText,
   Paper,
@@ -71,6 +72,7 @@ import TableRowsOutlinedIcon from "@mui/icons-material/TableRowsOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import WalletOutlinedIcon from "@mui/icons-material/WalletOutlined";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
+import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
@@ -226,6 +228,13 @@ const isQuotingView = (value: ViewKey): value is QuotingViewKey => value.startsW
 
 export function FrontOfficeQuotingPage({ standalone = false }: { standalone?: boolean }) {
   const [params, setParams] = useSearchParams();
+  const partnerBranding = useQuery({
+    queryKey: ["insureone-standalone-me"],
+    queryFn: async () => (await api.get<{ officeName?: string | null; branding?: { displayName?: string | null; logoUrl?: string | null; slug?: string | null } }>("/insureone/me")).data,
+    enabled: standalone,
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
   const view = viewFromQuery(params.get("view"));
   const [branch, setBranch] = useState<BranchKey>("Αυτοκίνητο");
   const [search, setSearch] = useState("");
@@ -257,7 +266,7 @@ export function FrontOfficeQuotingPage({ standalone = false }: { standalone?: bo
 
   return (
     <Box sx={standalone ? { minHeight: "100vh", bgcolor: "#edf3f8", pb: 2, color: "#172a3a", display: "flex", flexDirection: "column" } : { maxWidth: 1540, mx: "auto", pb: 5 }}>
-      {standalone && <StandalonePluginHeader view={view} onNavigate={go} />}
+      {standalone && <StandalonePluginHeader view={view} onNavigate={go} partnerBranding={partnerBranding.data} />}
       <Box sx={standalone ? { maxWidth: 1540, mx: "auto", px: { xs: 1.5, sm: 2.5, lg: 4 }, pt: { xs: 2, md: 3 }, flex: 1, width: "100%" } : undefined}>
       {!standalone && <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ md: "center" }} spacing={2} sx={{ mb: 2.5 }}>
         <Stack direction="row" spacing={1.5} alignItems="center">
@@ -358,12 +367,15 @@ const productionDropdownViews: { label: string; view: ViewKey }[] = [
 
 const visibleStandaloneDropdowns = standaloneDropdowns.map((item) => item.key === "production" ? { ...item, views: productionDropdownViews } : item);
 
-function StandalonePluginHeader({ view, onNavigate }: { view: ViewKey; onNavigate: (value: ViewKey) => void }) {
+function StandalonePluginHeader({ view, onNavigate, partnerBranding }: { view: ViewKey; onNavigate: (value: ViewKey) => void; partnerBranding?: { officeName?: string | null; branding?: { displayName?: string | null; logoUrl?: string | null; slug?: string | null } } }) {
   const { signOut } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [menu, setMenu] = useState<{ key: string; anchor: HTMLElement } | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState<string | null>(null);
   const compactNav = useMediaQuery("(max-width:1120px)");
+  const partnerSlug = location.pathname.match(/^\/insureone\/([^/]+)/)?.[1];
   const activeNav = view === "dashboard" ? "home" : view === "quotes" ? "offers" : (view.startsWith("quoting-") ? "quoting" : ["contracts", "customers", "reports", "forms", "requests"].includes(view) ? "production" : view === "print-pay" ? "print-pay" : "pay-print");
   const navButtonSx = {
     minHeight: 58,
@@ -383,10 +395,12 @@ function StandalonePluginHeader({ view, onNavigate }: { view: ViewKey; onNavigat
   const officeProfile = useQuery({
     queryKey: ["agency-profile", "insureone-header"],
     queryFn: async () => (await api.get<{ name?: string | null; logoUrl?: string | null }>("/agency-profile")).data,
+    enabled: !partnerSlug,
     staleTime: 5 * 60 * 1000,
   });
-  const officeName = officeProfile.data?.name?.trim() || "Το γραφείο σας";
-  const officeLogo = officeProfile.data?.logoUrl ? "/api/agency-profile/logo" : null;
+  const officeName = partnerBranding?.branding?.displayName?.trim() || partnerBranding?.officeName?.trim() || officeProfile.data?.name?.trim() || "Το γραφείο σας";
+  const officeLogo = partnerBranding?.branding?.logoUrl ? `/api/insureone/public/${partnerBranding.branding.slug ?? partnerSlug}/logo` : (officeProfile.data?.logoUrl ? "/api/agency-profile/logo" : null);
+  const signOutPath = partnerSlug ? `/insureone/${partnerSlug}/login` : "/login";
 
   return <Box sx={{ bgcolor: "#fff", borderBottom: "1px solid #ccd8e3", boxShadow: "0 3px 16px rgba(18,58,100,.08)" }}>
     <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: 1.5, sm: 2.5, lg: 4 }, py: { xs: 1.25, md: 1.5 }, display: "flex", alignItems: "center", justifyContent: "space-between", gap: { xs: 1, md: 2 } }}>
@@ -415,6 +429,7 @@ function StandalonePluginHeader({ view, onNavigate }: { view: ViewKey; onNavigat
               <Button onClick={(event) => setMenu({ key: item.key, anchor: event.currentTarget })} endIcon={<KeyboardArrowDownRoundedIcon fontSize="small" />} sx={{ ...navButtonSx, bgcolor: active ? "#2e75b6" : "transparent", borderBottomColor: active ? "#53c6d3" : "transparent", "& .MuiButton-endIcon": { ml: .45, transition: "transform .16s ease", transform: menu?.key === item.key ? "rotate(180deg)" : "none" } }}>{item.label}</Button>
               <Menu anchorEl={menu?.key === item.key ? menu.anchor : null} open={menu?.key === item.key} onClose={() => setMenu(null)} PaperProps={{ sx: { mt: .75, minWidth: 210, border: "1px solid #cbd9e6", boxShadow: "0 10px 28px rgba(18,58,100,.2)", borderRadius: 1.5 } }} MenuListProps={{ dense: true, sx: { py: .5, "& .MuiMenuItem-root": { px: 1.75, py: 1, fontSize: 14, fontWeight: 700, color: "#173b5d", borderRadius: .75, mx: .5, "&:hover": { bgcolor: "#e6f4f7", color: "#0b6d84" } } } }}>
                 {item.views.map(option => <MenuItem key={`${item.key}-${option.label}`} onClick={() => { setMenu(null); onNavigate(option.view); }}>{option.label}</MenuItem>)}
+                {item.key === "quoting" && !partnerSlug && <MenuItem onClick={() => { setMenu(null); navigate("/app/insureone/partners"); }}><SettingsRoundedIcon fontSize="small" sx={{ mr: 1 }} />Διαχείριση συνεργατών</MenuItem>}
               </Menu>
             </Fragment>;
           })}
@@ -427,7 +442,7 @@ function StandalonePluginHeader({ view, onNavigate }: { view: ViewKey; onNavigat
           <Typography sx={{ color: "#fff", fontWeight: 850, fontSize: { xs: 14, sm: 16 }, whiteSpace: "nowrap" }}>Μενού InsureOne</Typography>
         </Stack>}
         <Tooltip title="Αποσύνδεση">
-          <Button aria-label="Αποσύνδεση" variant="contained" color="error" size="small" onClick={() => { signOut(); window.location.assign("/login"); }} startIcon={<LogoutRoundedIcon />} sx={{ flexShrink: 0, minWidth: { xs: 38, sm: 40 }, px: { xs: 1, sm: 1.25 }, color: "#fff", fontWeight: 850, borderRadius: 1.25, bgcolor: "#c62828", "&:hover": { bgcolor: "#9f1f1f" }, "& .MuiButton-startIcon": { mr: { xs: 0, sm: .75 } } }}>
+          <Button aria-label="Αποσύνδεση" variant="contained" color="error" size="small" onClick={() => { signOut(); window.location.assign(signOutPath); }} startIcon={<LogoutRoundedIcon />} sx={{ flexShrink: 0, minWidth: { xs: 38, sm: 40 }, px: { xs: 1, sm: 1.25 }, color: "#fff", fontWeight: 850, borderRadius: 1.25, bgcolor: "#c62828", "&:hover": { bgcolor: "#9f1f1f" }, "& .MuiButton-startIcon": { mr: { xs: 0, sm: .75 } } }}>
             <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>Αποσύνδεση</Box>
           </Button>
         </Tooltip>
@@ -447,7 +462,7 @@ function StandalonePluginHeader({ view, onNavigate }: { view: ViewKey; onNavigat
                     <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: 800 }} /><KeyboardArrowDownRoundedIcon sx={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform .16s ease" }} />
                   </ListItemButton>
                   <Collapse in={expanded} timeout="auto" unmountOnExit>
-                    <List disablePadding>{item.views.map(option => <ListItemButton key={`mobile-${item.key}-${option.label}`} onClick={() => { setMobileNavOpen(false); setMobileExpanded(null); onNavigate(option.view); }} sx={{ pl: 4, borderRadius: 1, color: "#31516b", "&:hover": { bgcolor: "#e6f4f7", color: "#0b6d84" } }}><ListItemText primary={option.label} primaryTypographyProps={{ fontSize: 14, fontWeight: 650 }} /></ListItemButton>)}</List>
+                    <List disablePadding>{item.views.map(option => <ListItemButton key={`mobile-${item.key}-${option.label}`} onClick={() => { setMobileNavOpen(false); setMobileExpanded(null); onNavigate(option.view); }} sx={{ pl: 4, borderRadius: 1, color: "#31516b", "&:hover": { bgcolor: "#e6f4f7", color: "#0b6d84" } }}><ListItemText primary={option.label} primaryTypographyProps={{ fontSize: 14, fontWeight: 650 }} /></ListItemButton>)}{item.key === "quoting" && !partnerSlug && <ListItemButton onClick={() => { setMobileNavOpen(false); setMobileExpanded(null); navigate("/app/insureone/partners"); }} sx={{ pl: 4, borderRadius: 1, color: "#0b6fb8", "&:hover": { bgcolor: "#e6f4f7" } }}><ListItemIcon sx={{ minWidth: 28, color: "inherit" }}><SettingsRoundedIcon fontSize="small" /></ListItemIcon><ListItemText primary="Διαχείριση συνεργατών" primaryTypographyProps={{ fontSize: 14, fontWeight: 800 }} /></ListItemButton>}</List>
                   </Collapse>
                 </Fragment>;
               })}

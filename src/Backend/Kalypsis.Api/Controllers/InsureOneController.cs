@@ -389,6 +389,73 @@ public sealed class InsureOneController : ControllerBase
         return File(new UTF8Encoding(true).GetBytes(sb.ToString()), "text/csv; charset=utf-8", $"insureone-quotes-{_clock.UtcNow:yyyyMMdd}.csv");
     }
 
+    /// <summary>
+    /// Office-level management metrics for the InsureOne administration desk.
+    /// This endpoint deliberately aggregates only the selected office and
+    /// never exposes another tenant's partner or quotation activity.
+    /// </summary>
+    [HttpGet("admin/analytics")]
+    [Authorize(Policy = "AgencyAdmin")]
+    [RequiresPackage(PackageCode.FrontOffice)]
+    public async Task<ActionResult<InsureOneAdminAnalyticsDto>> AdminAnalytics([FromQuery] Guid? officeId, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var office = await ResolveOffice(officeId, tenantId, ct);
+        var now = _clock.UtcNow;
+        var monthStart = new DateTime(now.Year, now.Month, 1);
+
+        var accesses = await _db.PartnerPortalAccesses
+            .IgnoreQueryFilters()
+            .Include(x => x.User)
+            .Include(x => x.Producer)
+            .Where(x => x.TenantId == tenantId && x.AgencyOfficeScopeId == office.Id && x.DeletedAt == null)
+            .OrderBy(x => x.Producer.Name)
+            .ToListAsync(ct);
+        var userIds = accesses.Where(x => x.UserId.HasValue).Select(x => x.UserId!.Value).ToArray();
+        var quotes = _db.Quotes.AsNoTracking()
+            .Where(x => x.TenantId == tenantId && x.CreatedByUserId.HasValue && userIds.Contains(x.CreatedByUserId.Value));
+        var totalQuotes = await quotes.CountAsync(ct);
+        var monthQuotes = await quotes.CountAsync(x => x.CreatedAt >= monthStart, ct);
+        var selectedQuotes = await quotes.CountAsync(x => x.SelectedOfferId != null, ct);
+        var expiringQuotes = await quotes.CountAsync(x => x.ExpiresAt != null && x.ExpiresAt >= now && x.ExpiresAt <= now.AddDays(7), ct);
+
+        var byUser = await quotes
+            .GroupBy(x => x.CreatedByUserId!.Value)
+            .Select(g => new { UserId = g.Key, Quotes = g.Count(), Selected = g.Count(x => x.SelectedOfferId != null), ThisMonth = g.Count(x => x.CreatedAt >= monthStart) })
+            .ToListAsync(ct);
+        var statsByUser = byUser.ToDictionary(x => x.UserId);
+
+        var partnerStats = accesses.Select(access =>
+        {
+            var stats = access.UserId.HasValue && statsByUser.TryGetValue(access.UserId.Value, out var value)
+                ? value
+                : null;
+            return new InsureOnePartnerAnalyticsDto(
+                access.Id,
+                access.Producer.Name,
+                access.User?.Email ?? string.Empty,
+                access.IsActive,
+                access.LastLoginAt,
+                stats?.Quotes ?? 0,
+                stats?.ThisMonth ?? 0,
+                stats?.Selected ?? 0,
+                access.CanIssuePolicies,
+                ParsePermissions(access.PermissionsJson));
+        }).ToList();
+
+        return Ok(new InsureOneAdminAnalyticsDto(
+            office.Id,
+            office.Name,
+            accesses.Count,
+            accesses.Count(x => x.IsActive),
+            accesses.Count(x => x.CanIssuePolicies),
+            totalQuotes,
+            monthQuotes,
+            selectedQuotes,
+            expiringQuotes,
+            partnerStats));
+    }
+
     [HttpGet("settings")]
     [Authorize(Policy = "AgencyAdmin")]
     [RequiresPackage(PackageCode.FrontOffice)]
@@ -758,3 +825,5 @@ public record UpdateInsureOneSettingsRequest(Guid? AgencyOfficeId, string Slug, 
 public record CreateInsureOnePartnerRequest(Guid? AgencyOfficeId, Guid? ProducerId, string FirstName, string LastName, string Email, string Password, string? LoginCode, string? Phone, bool CanIssuePolicies, bool CanViewCommissions, bool CanViewCustomers, string[]? Permissions, string? Notes);
 public record UpdateInsureOnePartnerRequest(bool IsActive, bool CanIssuePolicies, bool CanViewCommissions, bool CanViewCustomers, string? LoginCode, string? NewPassword, string[]? Permissions, string? Notes, string? Phone);
 public record InsureOnePartnerDto(Guid Id, Guid? UserId, Guid ProducerId, string ProducerName, string Email, string FirstName, string LastName, string? Phone, string LoginCode, bool IsActive, bool CanIssuePolicies, bool CanViewCommissions, bool CanViewCustomers, DateTime? LastLoginAt, string? Notes, string[] Permissions);
+public record InsureOneAdminAnalyticsDto(Guid AgencyOfficeId, string OfficeName, int TotalPartners, int ActivePartners, int PartnersWithIssuance, int TotalQuotes, int QuotesThisMonth, int SelectedQuotes, int ExpiringQuotes, IReadOnlyList<InsureOnePartnerAnalyticsDto> Partners);
+public record InsureOnePartnerAnalyticsDto(Guid AccessId, string PartnerName, string Email, bool IsActive, DateTime? LastLoginAt, int TotalQuotes, int QuotesThisMonth, int SelectedQuotes, bool CanIssuePolicies, string[] Permissions);

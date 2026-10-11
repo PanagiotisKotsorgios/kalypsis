@@ -176,7 +176,8 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
     packages: ["FrontOffice"],
     groupKey: "quoting",
     items: [
-      { path: "/frontoffice-quoting?view=dashboard", label: "Πολυτιμολόγηση" }
+      { path: "/frontoffice-quoting?view=dashboard", label: "Πολυτιμολόγηση" },
+      { path: "/insureone/partners", label: "Διαχείριση συνεργατών InsureOne" }
     ]
   },
   {
