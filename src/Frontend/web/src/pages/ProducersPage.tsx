@@ -18,9 +18,11 @@ import SettingsSuggestIcon from "@mui/icons-material/SettingsSuggest";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import PersonSearchIcon from "@mui/icons-material/PersonSearch";
 import LinkIcon from "@mui/icons-material/Link";
+import HubIcon from "@mui/icons-material/Hub";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { Link as RouterLink } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
 import { CredentialsDialog } from "./TenantsPage";
 import { ProducerDetailDrawer } from "../components/ProducerDetailDrawer";
@@ -271,6 +273,21 @@ export function ProducersPage() {
           <Typography color="text.secondary">{t("producers.subtitle")}</Typography>
         </Box>
         <Stack direction="row" spacing={1}>
+          <Button
+            component={RouterLink}
+            to="/app/partner-networks"
+            variant="outlined"
+            size="large"
+            startIcon={<HubIcon />}
+            sx={{
+              color: "#0b6f9c",
+              borderColor: "#72c7d6",
+              bgcolor: "#eaf8fb",
+              "&:hover": { bgcolor: "#d6f0f5", borderColor: "#0b6f9c" },
+            }}
+          >
+            {t("nav.partnerNetworks", "Δίκτυα συνεργατών")}
+          </Button>
           <ExcelImportButton size="large" onClick={() => setImportOpen(true)}>
             Εισαγωγή
           </ExcelImportButton>

@@ -319,7 +319,6 @@ export const navByRole: Record<Role, NavItem[]> = {
     // with the URL bookmarked keeps working.
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/producers", labelKey: "nav.producers", icon: <HandshakeIcon />, package: "BackOffice", group: "production" },
-    { to: "/partner-networks", labelKey: "nav.partnerNetworks", icon: <HubIcon />, package: "BackOffice", group: "production" },
     // «Πρόσθετες πράξεις» + «Ακυρώσεις» are reachable as buttons inside
     // /app/policies. Legacy routes still resolve so old bookmarks keep
     // working — see route registrations further down.
@@ -455,13 +454,13 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/api-keys", labelKey: "nav.thirdParty", icon: <ExtensionIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "Integrations" },
 
-    // Always-visible footer.
+    // BackOffice-only footer settings.
     // Merged: previously two separate entries («Ρυθμίσεις γραφείου»
     // + «Προφίλ»). Both live at /agency-and-profile now as tabs to
     // save one row in the sidebar. Old /agency-settings-hub and
     // /profile URLs still work — redirected below into the right tab.
     { to: "/agency-and-profile", labelKey: "nav.agencyAndProfile", icon: <SettingsIcon />,
-      workspaces: ["BackOffice", "Crm", "Intelligence", "Integrations", "Ermes"] },
+      workspaces: ["BackOffice"] },
     // Referral programme is intentionally package-independent: it stays
     // visible while the operator switches between all workspaces.
     { to: "/affiliate-program", labelKey: "nav.affiliateProgram", icon: <CardGiftcardIcon />, accent: "affiliate" }
@@ -474,7 +473,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     // Οδηγίες χρήσης — ενσωματωμένος οδηγός βήμα-προς-βήμα, εκτυπώσιμος
     // σε PDF από κάθε σελίδα.
     { to: "/agency-and-profile?tab=documentation", labelKey: "nav.documentation", icon: <MenuBookIcon />,
-      workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
+      workspaces: ["BackOffice"] },
     // Μηχανογράφιση (tenant surface) — opt in to the service or
     // browse the folder tree the platform team maintains for you.
     { to: "/bookkeeping", labelKey: "nav.bookkeeping", icon: <FolderIcon />,
@@ -489,7 +488,6 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/garages", labelKey: "nav.garages", icon: <EngineeringIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/indemnities", labelKey: "nav.indemnities", icon: <PaymentsIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/friendly-settlements", labelKey: "nav.friendly", icon: <HandshakeIcon />, package: "BackOffice", group: "claimsOps" },
-    { to: "/partner-networks", labelKey: "nav.partnerNetworks", icon: <HubIcon />, package: "BackOffice" },
     { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice" },
     { to: "/office-website/overview", labelKey: "nav.officeWebsiteOverview", icon: <DashboardIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website", labelKey: "nav.officeWebsite", icon: <LanguageIcon />, package: "FrontOffice", group: "website" },
@@ -516,7 +514,7 @@ export const navByRole: Record<Role, NavItem[]> = {
   AgencyOfficeAdmin: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon />, workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations","Ermes"] },
     { to: "/ermes-app", labelKey: "nav.ermes", icon: <MailOutlineIcon />, package: "Ermes", openInNewTab: true, workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations","Ermes"] },
-    { to: "/agency-and-profile?tab=documentation", labelKey: "nav.documentation", icon: <MenuBookIcon />, workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
+    { to: "/agency-and-profile?tab=documentation", labelKey: "nav.documentation", icon: <MenuBookIcon />, workspaces: ["BackOffice"] },
     { to: "/bookkeeping", labelKey: "nav.bookkeeping", icon: <FolderIcon />, workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice" },
     { to: "/vehicles", labelKey: "nav.vehicleRegistry", icon: <DirectionsCarIcon />, package: "BackOffice" },
@@ -527,7 +525,6 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/garages", labelKey: "nav.garages", icon: <EngineeringIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/indemnities", labelKey: "nav.indemnities", icon: <PaymentsIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/friendly-settlements", labelKey: "nav.friendly", icon: <HandshakeIcon />, package: "BackOffice", group: "claimsOps" },
-    { to: "/partner-networks", labelKey: "nav.partnerNetworks", icon: <HubIcon />, package: "BackOffice" },
     { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice" },
     { to: "/office-website/overview", labelKey: "nav.officeWebsiteOverview", icon: <DashboardIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website", labelKey: "nav.officeWebsite", icon: <LanguageIcon />, package: "FrontOffice", group: "website" },
