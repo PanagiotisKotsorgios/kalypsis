@@ -35,6 +35,7 @@ public static class InsureOneSeeder
         try
         {
             await SeedOfficeSettingsAsync(db, logger, cancellationToken);
+            await SeedLancaPartnerPortalAsync(db, logger, cancellationToken);
             await SeedDemoPartnerAsync(db, hasher, logger, cancellationToken);
         }
         catch (Exception ex)
@@ -42,6 +43,81 @@ public static class InsureOneSeeder
             // InsureOne is additive.  A transient optional seed problem must
             // not take the API back into the startup retry loop.
             logger.LogError(ex, "InsureOne bootstrap failed; continuing without optional seed changes.");
+        }
+    }
+
+    /// <summary>
+    /// Installs the first branded partner portal for LANCA without coupling
+    /// the identity of the portal to an email address.  The email is used
+    /// only for the initial discovery of the existing office; after the
+    /// settings row is created, the stable office id and slug own the portal.
+    /// No real partner credentials are created here.
+    /// </summary>
+    private static async Task SeedLancaPartnerPortalAsync(AppDbContext db, ILogger logger, CancellationToken ct)
+    {
+        const string slug = "lanca";
+        const string contactEmail = "info@lanca1.gr";
+        var settings = await db.InsureOneOfficeSettings.IgnoreQueryFilters()
+            .Include(x => x.AgencyOffice)
+            .FirstOrDefaultAsync(x => x.Slug == slug && x.DeletedAt == null, ct);
+
+        AgencyOffice? office = settings?.AgencyOffice;
+        if (office is null)
+        {
+            var user = await db.Users.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(x => x.Email == contactEmail && x.DeletedAt == null, ct);
+            if (user is not null)
+            {
+                office = await db.AgencyOffices.IgnoreQueryFilters()
+                    .Where(x => x.TenantId == user.TenantId && x.IsActive && x.DeletedAt == null)
+                    .OrderByDescending(x => x.IsHeadquarters).ThenBy(x => x.CreatedAt)
+                    .FirstOrDefaultAsync(ct);
+            }
+
+            office ??= await db.AgencyOffices.IgnoreQueryFilters()
+                .Where(x => x.IsActive && x.DeletedAt == null && x.Email != null && x.Email.ToLower() == contactEmail)
+                .OrderByDescending(x => x.IsHeadquarters).ThenBy(x => x.CreatedAt)
+                .FirstOrDefaultAsync(ct);
+
+            if (office is null)
+            {
+                var tenant = await db.Tenants.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(x => x.ContactEmail != null && x.ContactEmail.ToLower() == contactEmail && x.DeletedAt == null, ct);
+                if (tenant is not null)
+                    office = await db.AgencyOffices.IgnoreQueryFilters()
+                        .Where(x => x.TenantId == tenant.Id && x.IsActive && x.DeletedAt == null)
+                        .OrderByDescending(x => x.IsHeadquarters).ThenBy(x => x.CreatedAt)
+                        .FirstOrDefaultAsync(ct);
+            }
+        }
+
+        if (office is null) return;
+        settings ??= await db.InsureOneOfficeSettings.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.TenantId == office.TenantId && x.AgencyOfficeId == office.Id && x.DeletedAt == null, ct);
+        if (settings is null) return;
+
+        var slugTaken = await db.InsureOneOfficeSettings.IgnoreQueryFilters()
+            .AnyAsync(x => x.Slug == slug && x.Id != settings.Id && x.DeletedAt == null, ct);
+        if (slugTaken) return;
+
+        var changed = false;
+        if (!string.Equals(settings.Slug, slug, StringComparison.Ordinal)) { settings.Slug = slug; changed = true; }
+        if (string.IsNullOrWhiteSpace(settings.DisplayName) || string.Equals(settings.DisplayName, office.Name, StringComparison.OrdinalIgnoreCase)) { settings.DisplayName = "LANCA Insurance"; changed = true; }
+        if (string.IsNullOrWhiteSpace(settings.WelcomeMessage)) { settings.WelcomeMessage = "Ασφαλής πρόσβαση στην πύλη συνεργατών της LANCA Insurance."; changed = true; }
+        if (string.IsNullOrWhiteSpace(settings.PrimaryColor) || string.Equals(settings.PrimaryColor, "#0B5CAB", StringComparison.OrdinalIgnoreCase)) { settings.PrimaryColor = "#0877E8"; changed = true; }
+        if (string.IsNullOrWhiteSpace(settings.SecondaryColor) || string.Equals(settings.SecondaryColor, "#16A6C9", StringComparison.OrdinalIgnoreCase)) { settings.SecondaryColor = "#082B5C"; changed = true; }
+        if (string.IsNullOrWhiteSpace(settings.SupportEmail)) { settings.SupportEmail = office.Email ?? contactEmail; changed = true; }
+        if (string.IsNullOrWhiteSpace(settings.LoginTitle)) { settings.LoginTitle = "Πύλη Συνεργατών"; changed = true; }
+        if (string.IsNullOrWhiteSpace(settings.LoginSubtitle) || string.Equals(settings.LoginSubtitle, "Συνδεθείτε για να διαχειριστείτε τις προσφορές και τις εργασίες σας.", StringComparison.Ordinal)) { settings.LoginSubtitle = "Ασφαλής πρόσβαση για συνεργάτες, πρακτορεία και δίκτυο πωλήσεων."; changed = true; }
+        if (string.IsNullOrWhiteSpace(settings.LoginSecurityText) || string.Equals(settings.LoginSecurityText, "Ασφαλής και κρυπτογραφημένη σύνδεση", StringComparison.Ordinal)) { settings.LoginSecurityText = "Ασφαλής σύνδεση"; changed = true; }
+        if (string.IsNullOrWhiteSpace(settings.LoginSupportLabel)) { settings.LoginSupportLabel = "Χρειάζεστε βοήθεια; Επικοινωνήστε με το γραφείο σας."; changed = true; }
+        if (string.IsNullOrWhiteSpace(settings.LogoPath)) { settings.LogoPath = "/assets/lanca-insureone-logo.png"; changed = true; }
+        if (string.IsNullOrWhiteSpace(settings.LoginBackgroundPath)) { settings.LoginBackgroundPath = "/assets/insureone-partner-portal-bg.png"; changed = true; }
+
+        if (changed)
+        {
+            await db.SaveChangesAsync(ct);
+            logger.LogInformation("InsureOne branded portal ready at /insureone/{Slug}/login for office {OfficeId}.", slug, office.Id);
         }
     }
 

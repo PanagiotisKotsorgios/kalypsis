@@ -767,6 +767,7 @@ export default function App() {
         />
         {!location.pathname.startsWith("/frontoffice-quoting")
           && !location.pathname.startsWith("/insureone/partners")
+          && !location.pathname.startsWith("/insureone/")
           && <PreloginDesktopDownload />}
       </>
     );
@@ -1250,6 +1251,7 @@ export default function App() {
         && !location.pathname.startsWith("/ermes-app")
         && !location.pathname.startsWith("/frontoffice-quoting")
         && !location.pathname.startsWith("/insureone/partners")
+        && !location.pathname.startsWith("/insureone/")
         && !location.pathname.startsWith("/download") && <PreloginDesktopDownload />}
     </>
   );

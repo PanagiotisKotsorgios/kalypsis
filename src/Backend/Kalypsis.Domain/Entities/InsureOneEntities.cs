@@ -22,6 +22,12 @@ public class InsureOneOfficeSettings : TenantEntity
     public string? SupportEmail { get; set; }
     public string? SupportPhone { get; set; }
     public string? LogoPath { get; set; }
+    /// <summary>Optional per-office login portal copy and visual assets.</summary>
+    public string? LoginTitle { get; set; }
+    public string? LoginSubtitle { get; set; }
+    public string? LoginBackgroundPath { get; set; }
+    public string? LoginSecurityText { get; set; }
+    public string? LoginSupportLabel { get; set; }
     /// <summary>Stable JSON array of branch keys permitted in this desk.</summary>
     public string AllowedBranchesJson { get; set; } = "[]";
 }

@@ -279,6 +279,11 @@ public class InsureOneOfficeSettingsConfiguration : IEntityTypeConfiguration<Ins
         b.Property(x => x.SupportEmail).HasMaxLength(256);
         b.Property(x => x.SupportPhone).HasMaxLength(60);
         b.Property(x => x.LogoPath).HasMaxLength(500);
+        b.Property(x => x.LoginTitle).HasMaxLength(180);
+        b.Property(x => x.LoginSubtitle).HasMaxLength(500);
+        b.Property(x => x.LoginBackgroundPath).HasMaxLength(500);
+        b.Property(x => x.LoginSecurityText).HasMaxLength(500);
+        b.Property(x => x.LoginSupportLabel).HasMaxLength(180);
         b.Property(x => x.AllowedBranchesJson).HasColumnType("longtext");
         b.HasOne(x => x.AgencyOffice).WithMany().HasForeignKey(x => x.AgencyOfficeId).OnDelete(DeleteBehavior.Cascade);
         b.HasIndex(x => new { x.TenantId, x.AgencyOfficeId }).IsUnique();

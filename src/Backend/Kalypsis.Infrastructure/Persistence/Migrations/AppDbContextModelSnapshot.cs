@@ -7998,6 +7998,26 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsEnabled")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<string>("LoginBackgroundPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("LoginSecurityText")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("LoginSubtitle")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("LoginSupportLabel")
+                        .HasMaxLength(180)
+                        .HasColumnType("varchar(180)");
+
+                    b.Property<string>("LoginTitle")
+                        .HasMaxLength(180)
+                        .HasColumnType("varchar(180)");
+
                     b.Property<string>("LogoPath")
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");

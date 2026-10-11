@@ -80,11 +80,31 @@ public sealed class InsureOneController : ControllerBase
         var settings = await FindSettings(slug, ct);
         if (settings is null || !settings.IsEnabled || string.IsNullOrWhiteSpace(settings.LogoPath))
             return NoContent();
+        if (settings.LogoPath.StartsWith('/')) return Redirect(settings.LogoPath);
 
         try
         {
             var stream = await _storage.DownloadAsync(settings.LogoPath, ct);
             var fileName = Path.GetFileName(settings.LogoPath);
+            return File(stream, GuessMime(fileName), fileName);
+        }
+        catch (FileNotFoundException) { return NoContent(); }
+        catch (DirectoryNotFoundException) { return NoContent(); }
+    }
+
+    [HttpGet("public/{slug}/login-background")]
+    [AllowAnonymous]
+    public async Task<IActionResult> PublicLoginBackground(string slug, CancellationToken ct)
+    {
+        var settings = await FindSettings(slug, ct);
+        if (settings is null || !settings.IsEnabled || string.IsNullOrWhiteSpace(settings.LoginBackgroundPath))
+            return NoContent();
+        if (settings.LoginBackgroundPath.StartsWith('/')) return Redirect(settings.LoginBackgroundPath);
+
+        try
+        {
+            var stream = await _storage.DownloadAsync(settings.LoginBackgroundPath, ct);
+            var fileName = Path.GetFileName(settings.LoginBackgroundPath);
             return File(stream, GuessMime(fileName), fileName);
         }
         catch (FileNotFoundException) { return NoContent(); }
@@ -501,6 +521,17 @@ public sealed class InsureOneController : ControllerBase
         settings.SecondaryColor = NormaliseColor(request.SecondaryColor, "#0B2545");
         settings.SupportEmail = CleanEmail(request.SupportEmail);
         settings.SupportPhone = Clean(request.SupportPhone, 60);
+        settings.LoginTitle = Clean(request.LoginTitle, 180);
+        settings.LoginSubtitle = Clean(request.LoginSubtitle, 500);
+        var requestedBackground = Clean(request.LoginBackgroundPath, 500);
+        // The DTO exposes a generated public URL for uploaded files.  Do not
+        // persist that URL back as the storage key when an admin saves other
+        // branding fields, otherwise the public asset endpoint would recurse.
+        if (requestedBackground is null) settings.LoginBackgroundPath = null;
+        else if (!requestedBackground.StartsWith("/api/insureone/public/", StringComparison.OrdinalIgnoreCase))
+            settings.LoginBackgroundPath = NormalizeLoginBackground(requestedBackground);
+        settings.LoginSecurityText = Clean(request.LoginSecurityText, 500);
+        settings.LoginSupportLabel = Clean(request.LoginSupportLabel, 180);
         settings.AllowedBranchesJson = JsonSerializer.Serialize(
             (request.AllowedBranches ?? Array.Empty<string>()).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct(StringComparer.OrdinalIgnoreCase));
 
@@ -533,6 +564,30 @@ public sealed class InsureOneController : ControllerBase
         AddAudit(settings.TenantId, nameof(InsureOneOfficeSettings), settings.Id, "InsureOne.Settings.LogoUpdated", new { hasLogo = true });
         await _db.SaveChangesAsync(ct);
         if (!string.IsNullOrWhiteSpace(old))
+        {
+            try { await _storage.DeleteAsync(old, ct); } catch { /* best effort */ }
+        }
+        return Ok(ToBranding(settings));
+    }
+
+    [HttpPost("settings/login-background")]
+    [Authorize(Policy = "AgencyAdmin")]
+    [RequiresPackage(PackageCode.FrontOffice)]
+    [RequestSizeLimit(12_000_000)]
+    public async Task<ActionResult<InsureOneBrandingDto>> UploadLoginBackground(
+        [FromForm] IFormFile file,
+        [FromForm] Guid? officeId,
+        CancellationToken ct)
+    {
+        if (file is null || file.Length == 0) throw AppException.Validation("Επιλέξτε ένα αρχείο εικόνας για το φόντο της σύνδεσης.");
+        var settings = await GetOrCreateSettings(officeId, ct);
+        await using var content = file.OpenReadStream();
+        var type = await _uploadGate.InspectAsync(file.FileName, file.ContentType, file.Length, content, FileUploadKind.Image, 10_000_000, ct);
+        var old = settings.LoginBackgroundPath;
+        settings.LoginBackgroundPath = await _storage.UploadAsync($"insureone/{settings.TenantId}/{settings.AgencyOfficeId}/login", file.FileName, type, content, ct);
+        AddAudit(settings.TenantId, nameof(InsureOneOfficeSettings), settings.Id, "InsureOne.Settings.LoginBackgroundUpdated", new { hasBackground = true });
+        await _db.SaveChangesAsync(ct);
+        if (!string.IsNullOrWhiteSpace(old) && !old.StartsWith('/'))
         {
             try { await _storage.DeleteAsync(old, ct); } catch { /* best effort */ }
         }
@@ -772,8 +827,20 @@ public sealed class InsureOneController : ControllerBase
             settings.WelcomeMessage, settings.PrimaryColor, settings.SecondaryColor,
             settings.SupportEmail ?? settings.AgencyOffice.Email,
             settings.SupportPhone ?? settings.AgencyOffice.Phone,
-            string.IsNullOrWhiteSpace(settings.LogoPath) ? null : $"/api/insureone/public/{settings.Slug}/logo",
+            AssetUrl(settings.LogoPath, settings.Slug, "logo"),
+            settings.LoginTitle,
+            settings.LoginSubtitle,
+            AssetUrl(settings.LoginBackgroundPath, settings.Slug, "login-background"),
+            settings.LoginSecurityText,
+            settings.LoginSupportLabel,
             ParseBranches(settings.AllowedBranchesJson));
+
+    private static string? AssetUrl(string? path, string slug, string endpoint)
+        => string.IsNullOrWhiteSpace(path)
+            ? null
+            : path.StartsWith('/') || (Uri.TryCreate(path, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+                ? path
+                : $"/api/insureone/public/{slug}/{endpoint}";
 
     private static InsureOnePartnerDto ToPartner(PartnerPortalAccess access, User? user = null, Producer? producer = null)
     {
@@ -817,6 +884,17 @@ public sealed class InsureOneController : ControllerBase
 
     private static string? Clean(string? value, int max) => string.IsNullOrWhiteSpace(value) ? null : value.Trim()[..Math.Min(value.Trim().Length, max)];
     private static string? CleanEmail(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim().ToLowerInvariant();
+    private static string? NormalizeLoginBackground(string? value)
+    {
+        var cleaned = Clean(value, 500);
+        if (cleaned is null) return null;
+        if (cleaned.IndexOfAny(['\"', '\'', '(', ')', '\r', '\n']) >= 0) return null;
+        if (cleaned.StartsWith("/", StringComparison.Ordinal)) return cleaned;
+        return Uri.TryCreate(cleaned, UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+            ? cleaned
+            : null;
+    }
     private static string GuessMime(string name) => Path.GetExtension(name).ToLowerInvariant() switch { ".png" => "image/png", ".jpg" or ".jpeg" => "image/jpeg", ".webp" => "image/webp", ".svg" => "image/svg+xml", _ => "application/octet-stream" };
 
     private void AddAudit(Guid tenantId, string entityName, Guid entityId, string action, object metadata)
@@ -831,7 +909,7 @@ public sealed class InsureOneController : ControllerBase
 }
 
 public record InsureOneLoginRequest(string Identifier, string Password);
-public record InsureOneBrandingDto(Guid AgencyOfficeId, string Slug, bool IsEnabled, string DisplayName, string? WelcomeMessage, string PrimaryColor, string SecondaryColor, string? SupportEmail, string? SupportPhone, string? LogoUrl, string[] AllowedBranches);
+public record InsureOneBrandingDto(Guid AgencyOfficeId, string Slug, bool IsEnabled, string DisplayName, string? WelcomeMessage, string PrimaryColor, string SecondaryColor, string? SupportEmail, string? SupportPhone, string? LogoUrl, string? LoginTitle, string? LoginSubtitle, string? LoginBackgroundUrl, string? LoginSecurityText, string? LoginSupportLabel, string[] AllowedBranches);
 public record InsureOnePartnerMeDto(Guid AccessId, string LoginCode, string ProducerName, string OfficeName, InsureOneBrandingDto Branding, string[] Permissions);
 public record InsureOneWorkspaceDto(int TotalQuotes, int QuotesThisMonth, int ActiveQuotes, int ExpiringThisWeek, string[] Permissions, bool CanIssuePolicies, bool CanViewCustomers, string Slug, string OfficeName);
 public record InsureOneCustomerDto(Guid Id, string Name, string? Email, string? Phone);
@@ -841,7 +919,7 @@ public record InsureOneQuotePageDto(IReadOnlyList<InsureOneQuoteDto> Items, int 
 public record InsureOneCreateQuoteRequest(string ProductType, string RiskInputsJson, Guid? CustomerId, IReadOnlyList<string>? OnlyCarriers);
 public record InsureOneApplicationRequest(DateOnly? StartDate, DateOnly? EndDate, string? Notes);
 public record InsureOneApplicationDto(Guid Id, string ApplicationNumber, string Status, string QuoteNumber, string CarrierCode);
-public record UpdateInsureOneSettingsRequest(Guid? AgencyOfficeId, string Slug, bool IsEnabled, string? DisplayName, string? WelcomeMessage, string? PrimaryColor, string? SecondaryColor, string? SupportEmail, string? SupportPhone, string[]? AllowedBranches);
+public record UpdateInsureOneSettingsRequest(Guid? AgencyOfficeId, string Slug, bool IsEnabled, string? DisplayName, string? WelcomeMessage, string? PrimaryColor, string? SecondaryColor, string? SupportEmail, string? SupportPhone, string[]? AllowedBranches, string? LoginTitle, string? LoginSubtitle, string? LoginBackgroundPath, string? LoginSecurityText, string? LoginSupportLabel);
 public record CreateInsureOnePartnerRequest(Guid? AgencyOfficeId, Guid? ProducerId, string FirstName, string LastName, string Email, string Password, string? LoginCode, string? Phone, bool CanIssuePolicies, bool CanViewCommissions, bool CanViewCustomers, string[]? Permissions, string? Notes);
 public record UpdateInsureOnePartnerRequest(bool IsActive, bool CanIssuePolicies, bool CanViewCommissions, bool CanViewCustomers, string? LoginCode, string? NewPassword, string[]? Permissions, string? Notes, string? Phone);
 public record InsureOnePartnerDto(Guid Id, Guid? UserId, Guid ProducerId, string ProducerName, string Email, string FirstName, string LastName, string? Phone, string LoginCode, bool IsActive, bool CanIssuePolicies, bool CanViewCommissions, bool CanViewCustomers, DateTime? LastLoginAt, string? Notes, string[] Permissions);
