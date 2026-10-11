@@ -79,6 +79,26 @@ export function PackagesProvider({ children }: { children: ReactNode }) {
   useEffect(() => { void refresh(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ },
     [user?.userId, accessToken, impersonatedTenantId]);
 
+  // Package grants can be changed by a platform administrator while an office
+  // session is already open (often in another tab). Refresh when the user
+  // returns to this tab so a revoked package disappears from the hub/sidebar
+  // without requiring a logout or a hard reload.
+  useEffect(() => {
+    if (!user || !accessToken || typeof window === "undefined") return;
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+    // refresh is intentionally omitted: it is recreated by the provider and
+    // including it would reinstall these listeners on every package update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.userId, accessToken, impersonatedTenantId]);
+
   const value = useMemo<PackagesContextValue>(() => {
     // «Ermes only» means the tenant is licensed for ΕΡΜΗΣ AND nothing
     // else. PlatformAdmin bypass is never Ermes-only — they see the

@@ -75,7 +75,7 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
     description: "Εμφανίζονται ανάλογα με τον ρόλο και τα ενεργά πακέτα του γραφείου.",
     items: [
       { path: "/", label: "Πίνακας ελέγχου" },
-      { path: "/ermes-app", label: "ΕΡΜΗΣ" },
+      { path: "/ermes-app", label: "ΕΡΜΗΣ", packages: ["Ermes"] },
       { path: "/bookkeeping", label: "Μηχανογράφιση" },
       { path: "/agency-and-profile", label: "Ρυθμίσεις γραφείου & προφίλ" },
       { path: "/profile", label: "Προφίλ" },
