@@ -299,7 +299,7 @@ function OverviewSection({ analytics, partners, onNew, onBranding }: { settings?
     partner: partner.partnerName,
     action: partner.quotesThisMonth > 0 ? "Δημιουργία προσφοράς" : "Σύνδεση στο InsureOne",
     details: partner.quotesThisMonth > 0 ? `${partner.quotesThisMonth} προσφορές τον μήνα` : "Πρόσβαση στο portal",
-    value: partner.totalQuotes > 0 ? formatCurrency(Math.round((totalProduction || partner.totalQuotes * 332) / Math.max(1, totalQuotes || partner.totalQuotes))) : "—",
+    value: partner.totalQuotes > 0 && totalProduction > 0 ? formatCurrency(Math.round(totalProduction / Math.max(1, totalQuotes || partner.totalQuotes))) : "—",
     status: partner.isActive ? "Ολοκληρώθηκε" : "Ανενεργός",
     index,
   }));
