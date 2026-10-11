@@ -649,9 +649,9 @@ export const navByRole: Record<Role, NavItem[]> = {
       group: "nav.group.tooling" },
 
     // Private SuperAdmin worksheet — deliberately absent from the
-    // PlatformEmployee and tenant navigation.
-    { to: "/platform/todo-board", labelKey: "nav.platformTodoBoard", icon: <TableViewIcon />,
-      group: "nav.group.adminOperations", groupIcon: <EngineeringIcon /> },
+    // PlatformEmployee and tenant navigation. Keep it top-level so it is
+    // immediately discoverable from the SuperAdmin sidebar.
+    { to: "/platform/todo-board", labelKey: "nav.platformTodoBoard", icon: <TableViewIcon /> },
 
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
   ],
