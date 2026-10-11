@@ -133,7 +133,6 @@ export function InsureOnePartnerManagementPage() {
     <InsureOneManagementHeader section={section} onSectionChange={setSection} officeName={settings.data?.displayName} onLogout={() => { signOut(); window.location.assign("/login"); }} />
     <Box sx={{ p: { xs: 1.5, md: 3 } }}>
     <Stack direction={{ xs: "column", lg: "row" }} justifyContent="space-between" alignItems={{ lg: "center" }} gap={2} mb={2.5}>
-      <Box><Typography variant="h4" fontWeight={900} color="#123a64">InsureOne · Διαχείριση συνεργατών</Typography><Typography color="text.secondary">Κεντρικός έλεγχος πρόσβασης, branding, δικαιωμάτων και χρήσης του quotation desk ανά συνεργάτη.</Typography></Box>
       <Stack direction="row" gap={1} flexWrap="wrap"><Button variant="outlined" startIcon={<PaletteRoundedIcon />} onClick={() => { setSection("branding"); setSettingsOpen(true); }}>Ρυθμίσεις branding</Button><Button variant="contained" startIcon={<AddRoundedIcon />} onClick={openNew}>Νέος συνεργάτης</Button></Stack>
     </Stack>
     {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
