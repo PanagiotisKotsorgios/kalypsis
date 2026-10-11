@@ -616,8 +616,19 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
               aria-expanded={profileMenuOpen ? "true" : undefined}
               sx={{ display: "flex", mx: "auto", borderRadius: "50%" }}
             >
-              <Avatar sx={{ bgcolor: "primary.main", width: 36, height: 36, fontSize: 14 }}>
-                {initials}
+              <Avatar
+                src={tenantLogoUrl ?? undefined}
+                alt={tenantLogoUrl ? `${user?.tenantName ?? "Γραφείο"} logo` : undefined}
+                imgProps={{ referrerPolicy: "no-referrer" }}
+                sx={{
+                  bgcolor: "primary.main",
+                  width: 36,
+                  height: 36,
+                  fontSize: 14,
+                  border: tenantLogoUrl ? "2px solid rgba(30, 167, 225, 0.28)" : undefined,
+                }}
+              >
+                {!tenantLogoUrl && initials}
               </Avatar>
             </ButtonBase>
           </Tooltip>
@@ -649,8 +660,19 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
             }}
           >
             <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0, width: "100%" }}>
-              <Avatar sx={{ bgcolor: "primary.main", width: 36, height: 36, fontSize: 14 }}>
-                {initials}
+              <Avatar
+                src={tenantLogoUrl ?? undefined}
+                alt={tenantLogoUrl ? `${user?.tenantName ?? "Γραφείο"} logo` : undefined}
+                imgProps={{ referrerPolicy: "no-referrer" }}
+                sx={{
+                  bgcolor: "primary.main",
+                  width: 36,
+                  height: 36,
+                  fontSize: 14,
+                  border: tenantLogoUrl ? "2px solid rgba(30, 167, 225, 0.28)" : undefined,
+                }}
+              >
+                {!tenantLogoUrl && initials}
               </Avatar>
               <Box sx={{ overflow: "hidden", minWidth: 0 }}>
                 <Typography variant="body2" fontWeight={600} noWrap>
