@@ -28,6 +28,7 @@ import EuroRoundedIcon from "@mui/icons-material/EuroRounded";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { KalypsisLogo } from "../components/KalypsisLogo";
 import {
   Bar, CartesianGrid, Cell, ComposedChart, Legend, Line, Pie, PieChart,
   ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis,
@@ -138,9 +139,9 @@ export function InsureOnePartnerManagementPage() {
   const selectedRevoke = useMemo(() => (partners.data ?? []).find(p => p.id === revokeId), [partners.data, revokeId]);
   const openNew = () => { setEditing(null); setFormOpen(true); };
 
-  return <Box sx={{ minHeight: "100vh", bgcolor: "#f5f9fc" }}>
+  return <Box sx={{ minHeight: "100vh", bgcolor: "#f5f9fc", display: "flex", flexDirection: "column" }}>
     <InsureOneManagementHeader section={section} onSectionChange={setSection} officeName={settings.data?.displayName} onLogout={() => { signOut(); window.location.assign("/login"); }} />
-    <Box sx={{ p: { xs: 1.5, md: 3 } }}>
+    <Box sx={{ p: { xs: 1.5, md: 3 }, flex: 1, width: "100%", boxSizing: "border-box" }}>
     {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
     <Stack direction="column" spacing={2} alignItems="stretch">
       <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -155,6 +156,16 @@ export function InsureOnePartnerManagementPage() {
     <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} settings={settings.data} onSaved={() => { setSettingsOpen(false); void qc.invalidateQueries({ queryKey: ["insureone-settings"] }); }} onError={setError} />
     <PartnerDialog open={formOpen} onClose={() => setFormOpen(false)} item={editing} onSaved={() => { setFormOpen(false); void qc.invalidateQueries({ queryKey: ["insureone-partners"] }); void qc.invalidateQueries({ queryKey: ["insureone-admin-analytics"] }); }} onError={setError} />
     <Dialog open={!!revokeId} onClose={() => setRevokeId(null)} maxWidth="xs" fullWidth><DialogTitle>Ανάκληση πρόσβασης;</DialogTitle><DialogContent><Typography>Θέλετε να απενεργοποιήσετε την πρόσβαση του/της <strong>{selectedRevoke ? `${selectedRevoke.firstName} ${selectedRevoke.lastName}` : "συνεργάτη"}</strong>; Το ιστορικό του διατηρείται.</Typography></DialogContent><DialogActions><Button onClick={() => setRevokeId(null)} startIcon={<CloseRoundedIcon />}>Ακύρωση</Button><Button color="error" variant="contained" startIcon={<DeleteRoundedIcon />} disabled={revoke.isPending} onClick={() => revokeId && revoke.mutate(revokeId)}>Ανάκληση</Button></DialogActions></Dialog>
+    </Box>
+    <InsureOneManagementFooter />
+  </Box>;
+}
+
+function InsureOneManagementFooter() {
+  return <Box component="footer" sx={{ borderTop: "1px solid #b9c6d1", bgcolor: "#dfe5ea", mt: 3 }}>
+    <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: 1.5, sm: 2.5, lg: 4 }, py: 1.25, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "flex-end", gap: .5 }}>
+      <Typography variant="body2" sx={{ color: "#526578", fontWeight: 850, fontSize: { xs: 14, sm: 15 }, letterSpacing: ".02em" }}>Powered by Kalypsis</Typography>
+      <KalypsisLogo size={64} crop />
     </Box>
   </Box>;
 }
