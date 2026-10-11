@@ -758,7 +758,9 @@ export default function App() {
           title={maintenance.maintenanceTitle}
           message={maintenance.maintenanceMessage}
         />
-        {!location.pathname.startsWith("/frontoffice-quoting") && <PreloginDesktopDownload />}
+        {!location.pathname.startsWith("/frontoffice-quoting")
+          && !location.pathname.startsWith("/insureone/partners")
+          && <PreloginDesktopDownload />}
       </>
     );
   }
@@ -1239,6 +1241,7 @@ export default function App() {
       {!location.pathname.startsWith("/app")
         && !location.pathname.startsWith("/ermes-app")
         && !location.pathname.startsWith("/frontoffice-quoting")
+        && !location.pathname.startsWith("/insureone/partners")
         && !location.pathname.startsWith("/download") && <PreloginDesktopDownload />}
     </>
   );

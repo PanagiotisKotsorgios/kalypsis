@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, Divider, FormControlLabel, Grid, IconButton, LinearProgress,
-  List, ListItemButton, ListItemIcon, ListItemText, Stack, Switch, TextField, Typography,
+  Stack, Switch, TextField, Typography,
 } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import AnalyticsRoundedIcon from "@mui/icons-material/AnalyticsRounded";
@@ -17,8 +17,10 @@ import PaletteRoundedIcon from "@mui/icons-material/PaletteRounded";
 import PreviewRoundedIcon from "@mui/icons-material/PreviewRounded";
 import SecurityRoundedIcon from "@mui/icons-material/SecurityRounded";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
+import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
+import { useAuth } from "../auth/AuthContext";
 
 interface Branding {
   agencyOfficeId: string; slug: string; isEnabled: boolean; displayName: string;
@@ -63,6 +65,7 @@ const menuItems: { key: Section; label: string; icon: JSX.Element }[] = [
 ];
 
 export function InsureOnePartnerManagementPage() {
+  const { signOut } = useAuth();
   const qc = useQueryClient();
   const [section, setSection] = useState<Section>("overview");
   const [error, setError] = useState<string | null>(null);
@@ -77,17 +80,15 @@ export function InsureOnePartnerManagementPage() {
   const selectedRevoke = useMemo(() => (partners.data ?? []).find(p => p.id === revokeId), [partners.data, revokeId]);
   const openNew = () => { setEditing(null); setFormOpen(true); };
 
-  return <Box sx={{ minHeight: "calc(100vh - 96px)", bgcolor: "#f5f9fc", p: { xs: 1.5, md: 3 } }}>
+  return <Box sx={{ minHeight: "100vh", bgcolor: "#f5f9fc" }}>
+    <InsureOneManagementHeader section={section} onSectionChange={setSection} officeName={settings.data?.displayName} onLogout={() => { signOut(); window.location.assign("/login"); }} />
+    <Box sx={{ p: { xs: 1.5, md: 3 } }}>
     <Stack direction={{ xs: "column", lg: "row" }} justifyContent="space-between" alignItems={{ lg: "center" }} gap={2} mb={2.5}>
       <Box><Typography variant="h4" fontWeight={900} color="#123a64">InsureOne · Διαχείριση συνεργατών</Typography><Typography color="text.secondary">Κεντρικός έλεγχος πρόσβασης, branding, δικαιωμάτων και χρήσης του quotation desk ανά συνεργάτη.</Typography></Box>
       <Stack direction="row" gap={1} flexWrap="wrap"><Button variant="outlined" startIcon={<PaletteRoundedIcon />} onClick={() => { setSection("branding"); setSettingsOpen(true); }}>Ρυθμίσεις branding</Button><Button variant="contained" startIcon={<AddRoundedIcon />} onClick={openNew}>Νέος συνεργάτης</Button></Stack>
     </Stack>
     {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
-    <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="stretch">
-      <Card variant="outlined" sx={{ width: { xs: "100%", md: 244 }, flexShrink: 0, borderRadius: 3, alignSelf: "flex-start", position: { md: "sticky" }, top: { md: 16 }, overflow: "hidden" }}>
-        <Box sx={{ p: 2, bgcolor: "#123a64", color: "#fff" }}><Typography fontWeight={900}>InsureOne</Typography><Typography variant="caption" sx={{ opacity: .8 }}>Κέντρο διαχείρισης</Typography></Box>
-        <List sx={{ p: 1 }}>{menuItems.map(item => <ListItemButton key={item.key} selected={section === item.key} onClick={() => setSection(item.key)} sx={{ borderRadius: 1.5, mb: .5, "&.Mui-selected": { bgcolor: "#e2f1f6", color: "#0b6fb8", fontWeight: 800 }, "&:hover": { bgcolor: "#f0f7fb" } }}><ListItemIcon sx={{ minWidth: 36, color: "inherit" }}>{item.icon}</ListItemIcon><ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: section === item.key ? 800 : 650, fontSize: 14 }} /></ListItemButton>)}</List>
-      </Card>
+    <Stack direction="column" spacing={2} alignItems="stretch">
       <Box sx={{ flex: 1, minWidth: 0 }}>
         {section === "overview" && <OverviewSection settings={settings.data} analytics={analytics.data} partners={partners.data ?? []} onNew={openNew} onBranding={() => setSettingsOpen(true)} />}
         {section === "partners" && <PartnersSection loading={partners.isLoading} partners={partners.data ?? []} onNew={openNew} onEdit={p => { setEditing(p); setFormOpen(true); }} onDelete={setRevokeId} />}
@@ -100,7 +101,37 @@ export function InsureOnePartnerManagementPage() {
     <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} settings={settings.data} onSaved={() => { setSettingsOpen(false); void qc.invalidateQueries({ queryKey: ["insureone-settings"] }); }} onError={setError} />
     <PartnerDialog open={formOpen} onClose={() => setFormOpen(false)} item={editing} onSaved={() => { setFormOpen(false); void qc.invalidateQueries({ queryKey: ["insureone-partners"] }); void qc.invalidateQueries({ queryKey: ["insureone-admin-analytics"] }); }} onError={setError} />
     <Dialog open={!!revokeId} onClose={() => setRevokeId(null)} maxWidth="xs" fullWidth><DialogTitle>Ανάκληση πρόσβασης;</DialogTitle><DialogContent><Typography>Θέλετε να απενεργοποιήσετε την πρόσβαση του/της <strong>{selectedRevoke ? `${selectedRevoke.firstName} ${selectedRevoke.lastName}` : "συνεργάτη"}</strong>; Το ιστορικό του διατηρείται.</Typography></DialogContent><DialogActions><Button onClick={() => setRevokeId(null)} startIcon={<CloseRoundedIcon />}>Ακύρωση</Button><Button color="error" variant="contained" startIcon={<DeleteRoundedIcon />} disabled={revoke.isPending} onClick={() => revokeId && revoke.mutate(revokeId)}>Ανάκληση</Button></DialogActions></Dialog>
+    </Box>
   </Box>;
+}
+
+function InsureOneManagementHeader({ section, onSectionChange, officeName, onLogout }: { section: Section; onSectionChange: (section: Section) => void; officeName?: string | null; onLogout: () => void }) {
+  return <>
+    <Box sx={{ bgcolor: "#fff", borderBottom: "1px solid #ccd8e3", boxShadow: "0 3px 16px rgba(18,58,100,.08)" }}>
+      <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: 1.5, sm: 2.5, lg: 4 }, py: { xs: 1, md: 1.25 }, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
+        <Stack direction="row" spacing={1.5} alignItems="center" minWidth={0}>
+          <Box component="img" src="/assets/insureone-plugin-logo.png" alt="InsureOne Kalypsis" sx={{ width: { xs: 175, sm: 250, md: 315 }, height: { xs: 54, sm: 68, md: 82 }, objectFit: "contain", objectPosition: "left center" }} />
+          <Box sx={{ display: { xs: "none", md: "block" }, pl: 1.5, borderLeft: "1px solid #d9e3ec" }}>
+            <Typography sx={{ color: "#123a64", fontWeight: 900, fontSize: 14 }}>ΔΙΑΧΕΙΡΙΣΗ INSUREONE</Typography>
+            <Typography variant="caption" color="text.secondary" noWrap>Χρήστες, δικαιώματα και απόδοση συνεργατών</Typography>
+          </Box>
+        </Stack>
+        <Typography noWrap sx={{ color: "#123a64", fontWeight: 800, fontSize: { xs: 11, sm: 13 }, maxWidth: { xs: 130, sm: 240 }, overflow: "hidden", textOverflow: "ellipsis" }}>
+          {officeName || "Το γραφείο σας"}
+        </Typography>
+      </Box>
+    </Box>
+    <Box sx={{ bgcolor: "#123a64", borderTop: "1px solid rgba(255,255,255,.12)" }}>
+      <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: .5, sm: 2.5, lg: 4 }, display: "flex", alignItems: "center", gap: .75 }}>
+        <Box sx={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", overflowX: "auto", scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}>
+          {menuItems.map(item => <Button key={item.key} onClick={() => onSectionChange(item.key)} startIcon={item.icon} sx={{ minHeight: 58, minWidth: "max-content", px: { xs: 1.25, sm: 1.75, md: 2.25 }, borderRadius: 0, color: "#fff", fontWeight: 850, fontSize: { xs: 12, sm: 13, md: 14 }, textTransform: "none", whiteSpace: "nowrap", borderBottom: "3px solid transparent", bgcolor: section === item.key ? "#2e75b6" : "transparent", borderBottomColor: section === item.key ? "#53c6d3" : "transparent", transition: "background-color .16s ease, color .16s ease, border-color .16s ease", "&:hover": { bgcolor: "rgba(83,198,211,.2)", color: "#fff", borderBottomColor: "#53c6d3" }, "& .MuiButton-startIcon": { color: "inherit", mr: .55 } }}>{item.label}</Button>)}
+        </Box>
+        <Button aria-label="Αποσύνδεση" variant="contained" color="error" size="small" onClick={onLogout} startIcon={<LogoutRoundedIcon />} sx={{ flexShrink: 0, minWidth: { xs: 38, sm: 40 }, px: { xs: 1, sm: 1.25 }, color: "#fff", fontWeight: 850, borderRadius: 1.25, bgcolor: "#c62828", "&:hover": { bgcolor: "#9f1f1f" }, "& .MuiButton-startIcon": { mr: { xs: 0, sm: .65 } } }}>
+          <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>Αποσύνδεση</Box>
+        </Button>
+      </Box>
+    </Box>
+  </>;
 }
 
 function OverviewSection({ settings, analytics, partners, onNew, onBranding }: { settings?: Branding; analytics?: Analytics; partners: Partner[]; onNew: () => void; onBranding: () => void }) {
