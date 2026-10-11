@@ -334,9 +334,15 @@ export function FrontOfficeQuotingPage({ standalone = false }: { standalone?: bo
 
 function StandalonePluginFooter() {
   return <Box component="footer" sx={{ borderTop: "1px solid #b9c6d1", bgcolor: "#dfe5ea", mt: 3 }}>
-    <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: 1.5, sm: 2.5, lg: 4 }, py: 1.25, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "flex-end", gap: .5 }}>
-      <Typography variant="body2" sx={{ color: "#526578", fontWeight: 850, fontSize: { xs: 14, sm: 15 }, letterSpacing: ".02em" }}>Powered by Kalypsis</Typography>
-      <KalypsisLogo size={64} crop />
+    <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: 2, sm: 3, lg: 5 }, py: { xs: 1.3, sm: 1.6 }, display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", alignItems: "center", gap: { xs: 1, sm: 2.5 } }}>
+      <Stack direction="row" alignItems="center" spacing={1.1}>
+        <Box component="img" src="/assets/insureone-plugin-logo.png" alt="InsureOne" sx={{ width: { xs: 78, sm: 96 }, height: { xs: 38, sm: 44 }, objectFit: "contain", bgcolor: "#fff", borderRadius: 1.1, px: .6 }} />
+        <Typography sx={{ color: "#526578", fontWeight: 750, fontSize: { xs: 12, sm: 13.5 } }}>Πύλη συνεργατών InsureOne</Typography>
+      </Stack>
+      <Stack direction="row" alignItems="center" spacing={{ xs: .8, sm: 1.1 }}>
+        <Typography sx={{ color: "#526578", fontWeight: 900, fontSize: { xs: 15, sm: 17 }, letterSpacing: ".02em", whiteSpace: "nowrap" }}>Powered by KALYPSIS</Typography>
+        <KalypsisLogo size={76} crop />
+      </Stack>
     </Box>
   </Box>;
 }
@@ -426,9 +432,9 @@ function StandalonePluginHeader({ view, onNavigate, partnerBranding }: { view: V
         </Box>
       </Stack>
       <Tooltip title={officeName} placement="bottom">
-        <Stack direction="row" spacing={{ xs: .5, sm: 1 }} alignItems="center" justifyContent="flex-end" sx={{ flexShrink: 0, maxWidth: { xs: 100, sm: 220, md: 300 } }}>
-          {officeLogo ? <Box component="img" src={officeLogo} alt={`Λογότυπο ${officeName}`} sx={{ width: { xs: 48, sm: 68, md: 88 }, height: { xs: 42, sm: 54, md: 64 }, objectFit: "contain", borderRadius: 1.25, p: .5, bgcolor: "#fff", border: "1px solid #d9e3ec" }} /> : <Box sx={{ px: { xs: .75, sm: 1.25 }, py: .75, borderRadius: 1.25, border: "1px solid #cbd9e6", bgcolor: "#f3f7fb", maxWidth: { xs: 100, sm: 160, md: 210 } }}><Typography noWrap sx={{ color: "#123a64", fontWeight: 850, fontSize: { xs: 10, sm: 12, md: 13 } }}>{officeName}</Typography></Box>}
-          {officeLogo && <Typography noWrap sx={{ display: { xs: "none", sm: "block" }, color: "#123a64", fontWeight: 800, fontSize: { sm: 11, md: 12 }, maxWidth: { sm: 120, md: 170 } }}>{officeName}</Typography>}
+        <Stack direction="row" spacing={{ xs: .5, sm: 1 }} alignItems="center" justifyContent="flex-end" sx={{ flexShrink: 0, maxWidth: { xs: 145, sm: 300, md: 465 }, minWidth: 0 }}>
+          {officeLogo ? <Box component="img" src={officeLogo} alt={`Λογότυπο ${officeName}`} sx={{ width: { xs: 72, sm: 132, md: 220 }, height: { xs: 52, sm: 72, md: 106 }, objectFit: "contain", borderRadius: 1.25, p: .65, bgcolor: "#fff", border: "1px solid #d9e3ec" }} /> : <Box sx={{ px: { xs: .75, sm: 1.25 }, py: .75, borderRadius: 1.25, border: "1px solid #cbd9e6", bgcolor: "#f3f7fb", maxWidth: { xs: 120, sm: 190, md: 270 } }}><Typography noWrap sx={{ color: "#123a64", fontWeight: 850, fontSize: { xs: 10, sm: 12, md: 13 } }}>{officeName}</Typography></Box>}
+          {officeLogo && <Typography noWrap sx={{ display: { xs: "none", sm: "block" }, color: "#123a64", fontWeight: 800, fontSize: { sm: 11, md: 12 }, maxWidth: { sm: 145, md: 210 } }}>{officeName}</Typography>}
         </Stack>
       </Tooltip>
     </Box>
