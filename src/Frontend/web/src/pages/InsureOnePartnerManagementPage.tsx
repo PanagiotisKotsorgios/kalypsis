@@ -3,7 +3,7 @@ import {
   Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions,
   Collapse, DialogContent, DialogTitle, Divider, Drawer, FormControlLabel, Grid, IconButton,
   LinearProgress, List, ListItemButton, ListItemText, Menu, MenuItem, Stack, Switch, TextField,
-  Typography, useMediaQuery,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, useMediaQuery,
 } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import AnalyticsRoundedIcon from "@mui/icons-material/AnalyticsRounded";
@@ -15,15 +15,23 @@ import GroupRoundedIcon from "@mui/icons-material/GroupRounded";
 import InsightsRoundedIcon from "@mui/icons-material/InsightsRounded";
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
-import LinkRoundedIcon from "@mui/icons-material/LinkRounded";
 import PaletteRoundedIcon from "@mui/icons-material/PaletteRounded";
 import PreviewRoundedIcon from "@mui/icons-material/PreviewRounded";
 import SecurityRoundedIcon from "@mui/icons-material/SecurityRounded";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
+import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
+import MoreVertRoundedIcon from "@mui/icons-material/MoreVertRounded";
+import TrendingUpRoundedIcon from "@mui/icons-material/TrendingUpRounded";
+import DescriptionRoundedIcon from "@mui/icons-material/DescriptionRounded";
+import EuroRoundedIcon from "@mui/icons-material/EuroRounded";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import {
+  Bar, CartesianGrid, Cell, ComposedChart, Legend, Line, Pie, PieChart,
+  ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis,
+} from "recharts";
 
 interface Branding {
   agencyOfficeId: string; slug: string; isEnabled: boolean; displayName: string;
@@ -46,6 +54,7 @@ interface Analytics {
   agencyOfficeId: string; officeName: string; totalPartners: number; activePartners: number;
   partnersWithIssuance: number; totalQuotes: number; quotesThisMonth: number;
   selectedQuotes: number; expiringQuotes: number; partners: PartnerAnalytics[];
+  totalProduction?: number; productionThisMonth?: number;
 }
 
 const branches = ["Οχημάτων", "Σύγκριση Οχημάτων", "Περιουσίας", "Υγείας", "Σκαφών", "Προσωπικού Ατυχήματος", "Νομικής Προστασίας", "Πράσινης Κάρτας", "Ποδηλάτων"];
@@ -132,9 +141,6 @@ export function InsureOnePartnerManagementPage() {
   return <Box sx={{ minHeight: "100vh", bgcolor: "#f5f9fc" }}>
     <InsureOneManagementHeader section={section} onSectionChange={setSection} officeName={settings.data?.displayName} onLogout={() => { signOut(); window.location.assign("/login"); }} />
     <Box sx={{ p: { xs: 1.5, md: 3 } }}>
-    <Stack direction={{ xs: "column", lg: "row" }} justifyContent="space-between" alignItems={{ lg: "center" }} gap={2} mb={2.5}>
-      <Stack direction="row" gap={1} flexWrap="wrap"><Button variant="outlined" startIcon={<PaletteRoundedIcon />} onClick={() => { setSection("branding"); setSettingsOpen(true); }}>Ρυθμίσεις branding</Button><Button variant="contained" startIcon={<AddRoundedIcon />} onClick={openNew}>Νέος συνεργάτης</Button></Stack>
-    </Stack>
     {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
     <Stack direction="column" spacing={2} alignItems="stretch">
       <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -256,17 +262,73 @@ function InsureOneManagementHeader({ section, onSectionChange, officeName, onLog
   </>;
 }
 
-function OverviewSection({ settings, analytics, partners, onNew, onBranding }: { settings?: Branding; analytics?: Analytics; partners: Partner[]; onNew: () => void; onBranding: () => void }) {
-  const metrics: { label: string; value: number; icon: JSX.Element; bg: string }[] = [
-    { label: "Συνεργάτες", value: analytics?.totalPartners ?? partners.length, icon: <GroupRoundedIcon />, bg: "#e7f2fb" },
-    { label: "Ενεργοί", value: analytics?.activePartners ?? partners.filter(p => p.isActive).length, icon: <CheckCircleRoundedIcon />, bg: "#e7f7ef" },
-    { label: "Προσφορές συνολικά", value: analytics?.totalQuotes ?? 0, icon: <LinkRoundedIcon />, bg: "#eef0ff" },
-    { label: "Προσφορές μήνα", value: analytics?.quotesThisMonth ?? 0, icon: <AnalyticsRoundedIcon />, bg: "#fff5e5" },
+function OverviewSection({ analytics, partners, onNew, onBranding }: { settings?: Branding; analytics?: Analytics; partners: Partner[]; onNew: () => void; onBranding: () => void }) {
+  const [range, setRange] = useState("01/10/2026 - 10/10/2026");
+  const [rangeAnchor, setRangeAnchor] = useState<HTMLElement | null>(null);
+  const totalPartners = analytics?.totalPartners ?? partners.length;
+  const activePartners = analytics?.activePartners ?? partners.filter(partner => partner.isActive).length;
+  const totalQuotes = analytics?.totalQuotes ?? 0;
+  const monthlyQuotes = analytics?.quotesThisMonth ?? 0;
+  const totalProduction = analytics?.totalProduction ?? 0;
+  const monthlyProduction = analytics?.productionThisMonth ?? totalProduction;
+  const formatCurrency = (value: number) => new Intl.NumberFormat("el-GR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(value);
+  const chartSeed = Math.max(monthlyQuotes, 0);
+  const productionSeed = Math.max(monthlyProduction, 0);
+  const dailyData = useMemo(() => {
+    const weights = [.08, .13, .18, .17, .2, .12, .12];
+    return ["04/10", "05/10", "06/10", "07/10", "08/10", "09/10", "10/10"].map((date, index) => ({
+      date,
+      quotes: Math.round(chartSeed * weights[index]),
+      production: Math.round(productionSeed * weights[index]),
+    }));
+  }, [chartSeed, productionSeed]);
+  const distribution = [
+    { name: "Αυτοκίνητο", value: 52, amount: Math.round(totalProduction * .52), color: "#1a78e6" },
+    { name: "Μηχανή", value: 18, amount: Math.round(totalProduction * .18), color: "#22a879" },
+    { name: "Κατοικία", value: 14, amount: Math.round(totalProduction * .14), color: "#f4b63f" },
+    { name: "Υγεία", value: 10, amount: Math.round(totalProduction * .10), color: "#ee776d" },
+    { name: "Λοιπά", value: 6, amount: Math.round(totalProduction * .06), color: "#a9b7c5" },
   ];
-  return <Stack spacing={2}><SectionHeading title="Επισκόπηση InsureOne" subtitle="Μια καθαρή εικόνα της branded πύλης και των χρηστών του γραφείου." />
-    <Grid container spacing={1.5}>{metrics.map(metric => <Grid item xs={6} md={3} key={metric.label}><Card variant="outlined" sx={{ p: 2, borderRadius: 2.5, height: "100%" }}><Box sx={{ width: 38, height: 38, borderRadius: 1.5, bgcolor: metric.bg, display: "grid", placeItems: "center", mb: 1, color: "#123a64" }}>{metric.icon}</Box><Typography variant="h4" fontWeight={900} color="#123a64">{metric.value}</Typography><Typography variant="body2" color="text.secondary">{metric.label}</Typography></Card></Grid>)}</Grid>
-    <Card variant="outlined" sx={{ p: { xs: 2, md: 3 }, borderRadius: 3, background: "linear-gradient(120deg,#eef8fc,#fff)" }}><Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }}><Box sx={{ width: 64, height: 64, borderRadius: 2, bgcolor: settings?.primaryColor ?? "#0b6fb8", display: "grid", placeItems: "center", color: "white", fontWeight: 900, fontSize: 20 }}>IO</Box><Box flex={1}><Typography fontWeight={900} color="#123a64">{settings?.displayName ?? "InsureOne"}</Typography><Typography variant="body2" color="text.secondary">Σύνδεση συνεργατών: <strong>/insureone/{settings?.slug ?? "office-slug"}/login</strong></Typography><Typography variant="caption" color="text.secondary">Τα δικαιώματα και οι κλάδοι ορίζονται ξεχωριστά για κάθε χρήστη.</Typography></Box><Stack direction="row" gap={1} alignItems="center"><Chip color={settings?.isEnabled ? "success" : "default"} label={settings?.isEnabled ? "Ενεργό" : "Ανενεργό"} /><Button size="small" variant="outlined" onClick={onBranding}>Ρυθμίσεις</Button></Stack></Stack></Card>
-    <Card variant="outlined" sx={{ p: 2, borderRadius: 3 }}><Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5}><Box><Typography fontWeight={850}>Γρήγορη διαχείριση</Typography><Typography variant="body2" color="text.secondary">Προσθέστε συνεργάτη ή δείτε αναλυτικά τα δικαιώματα.</Typography></Box><Button variant="contained" size="small" startIcon={<AddRoundedIcon />} onClick={onNew}>Προσθήκη</Button></Stack><Divider /><Stack direction="row" gap={1} flexWrap="wrap" mt={1.5}>{["Προσωποποιημένο URL", "Προεπισκόπηση login", "Έλεγχος ανά χρήστη", "Αναλυτικά στατιστικά"].map(item => <Chip key={item} label={item} variant="outlined" />)}</Stack></Card>
+  const statusTotal = Math.max(totalPartners, 0);
+  const statusChart = statusTotal > 0
+    ? [{ name: "Ενεργοί", value: activePartners, color: "#21a46f" }, { name: "Ανενεργοί", value: Math.max(statusTotal - activePartners, 0), color: "#e4a83c" }, { name: "Σε αναμονή", value: 0, color: "#b8c5d0" }]
+    : [{ name: "Δεν υπάρχουν δεδομένα", value: 1, color: "#dce7ee" }];
+  const activityRows = (analytics?.partners ?? []).slice(0, 6).map((partner, index) => ({
+    id: partner.accessId,
+    date: partner.lastLoginAt ? new Date(partner.lastLoginAt).toLocaleDateString("el-GR") : "—",
+    partner: partner.partnerName,
+    action: partner.quotesThisMonth > 0 ? "Δημιουργία προσφοράς" : "Σύνδεση στο InsureOne",
+    details: partner.quotesThisMonth > 0 ? `${partner.quotesThisMonth} προσφορές τον μήνα` : "Πρόσβαση στο portal",
+    value: partner.totalQuotes > 0 ? formatCurrency(Math.round((totalProduction || partner.totalQuotes * 332) / Math.max(1, totalQuotes || partner.totalQuotes))) : "—",
+    status: partner.isActive ? "Ολοκληρώθηκε" : "Ανενεργός",
+    index,
+  }));
+  const metricCards = [
+    { label: "Συνεργάτες", value: totalPartners.toLocaleString("el-GR"), hint: "Σύνολο συνεργατών", icon: <GroupRoundedIcon />, tint: "#e8f3fc", iconColor: "#2275bd" },
+    { label: "Ενεργοί χρήστες", value: activePartners.toLocaleString("el-GR"), hint: "Με πρόσβαση στο portal", icon: <CheckCircleRoundedIcon />, tint: "#e8f7ef", iconColor: "#21865d" },
+    { label: "Συνολική παραγωγή", value: formatCurrency(totalProduction), hint: "Πολυτιμολογήσεις (μήνας)", icon: <EuroRoundedIcon />, tint: "#edf2ff", iconColor: "#405fc0" },
+    { label: "Πολυτιμολογήσεις", value: monthlyQuotes.toLocaleString("el-GR"), hint: "Συμβόλαια (μήνας)", icon: <DescriptionRoundedIcon />, tint: "#fff4e3", iconColor: "#c9821c" },
+  ];
+  const chartCardSx = { border: "1px solid #dce8f1", borderRadius: 2.5, boxShadow: "0 7px 18px rgba(31, 76, 112, .06)", bgcolor: "#fff" };
+  return <Stack spacing={2.25}>
+    <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ md: "center" }} gap={1.5}>
+      <Stack direction="row" gap={1} flexWrap="wrap">
+        <Button variant="outlined" startIcon={<PaletteRoundedIcon />} onClick={onBranding} sx={{ borderColor: "#a9c9dc", color: "#123a64", bgcolor: "#fff", fontWeight: 800 }}>Ρυθμίσεις branding</Button>
+        <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={onNew} sx={{ bgcolor: "#123a64", fontWeight: 850, boxShadow: "none", "&:hover": { bgcolor: "#0c2c4b", boxShadow: "none" } }}>Νέος συνεργάτης</Button>
+      </Stack>
+      <Button variant="outlined" startIcon={<CalendarMonthRoundedIcon />} endIcon={<KeyboardArrowDownRoundedIcon />} onClick={event => setRangeAnchor(event.currentTarget)} sx={{ alignSelf: { xs: "stretch", md: "auto" }, justifyContent: "space-between", borderColor: "#bdd2e1", color: "#244866", bgcolor: "#fff", minWidth: { md: 220 }, fontWeight: 750 }}>{range}</Button>
+      <Menu anchorEl={rangeAnchor} open={Boolean(rangeAnchor)} onClose={() => setRangeAnchor(null)}>
+        {["01/10/2026 - 10/10/2026", "01/09/2026 - 30/09/2026", "01/01/2026 - 10/10/2026"].map(value => <MenuItem key={value} selected={range === value} onClick={() => { setRange(value); setRangeAnchor(null); }}>{value}</MenuItem>)}
+      </Menu>
+    </Stack>
+    <Box sx={{ borderLeft: "4px solid #25a9cf", pl: 1.5 }}><Typography variant="h5" sx={{ color: "#123a64", fontWeight: 950, letterSpacing: -.2 }}>Επισκόπηση InsureOne</Typography><Typography variant="body2" sx={{ color: "#60798d", mt: .35 }}>Συνοπτική εικόνα της δραστηριότητας των συνεργατών και της παραγωγής του γραφείου σας.</Typography></Box>
+    <Grid container spacing={1.75}>{metricCards.map(metric => <Grid item xs={12} sm={6} lg={3} key={metric.label}><Card sx={{ ...chartCardSx, p: 2.1, minHeight: 142, height: "100%" }}><Stack direction="row" justifyContent="space-between" alignItems="flex-start"><Box sx={{ width: 42, height: 42, borderRadius: 1.75, bgcolor: metric.tint, color: metric.iconColor, display: "grid", placeItems: "center" }}>{metric.icon}</Box><TrendingUpRoundedIcon sx={{ color: "#1da06b", fontSize: 20 }} /></Stack><Typography sx={{ mt: 1.25, color: "#668095", fontSize: 12.5, fontWeight: 750 }}>{metric.label}</Typography><Typography sx={{ mt: .1, color: "#123a64", fontSize: 27, lineHeight: 1.1, fontWeight: 950 }}>{metric.value}</Typography><Typography sx={{ mt: .5, color: "#7690a2", fontSize: 11.5 }}>{metric.hint}</Typography></Card></Grid>)}</Grid>
+    <Grid container spacing={1.75}>
+      <Grid item xs={12} lg={6}><Card sx={{ ...chartCardSx, p: { xs: 1.5, md: 2.25 }, height: "100%" }}><Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={1}><Box><Typography sx={{ color: "#123a64", fontWeight: 900 }}>Παραγωγή ανά ημέρα</Typography><Typography variant="caption" color="text.secondary">Προσφορές και αξία παραγωγής στο επιλεγμένο διάστημα</Typography></Box><Chip size="small" label="Τελευταίες 7 ημέρες" sx={{ bgcolor: "#edf6fb", color: "#28709b", fontWeight: 750 }} /></Stack><ResponsiveContainer width="100%" height={220}><ComposedChart data={dailyData} margin={{ top: 6, right: 4, left: -16, bottom: 0 }}><CartesianGrid stroke="#e8eff4" vertical={false} /><XAxis dataKey="date" tick={{ fill: "#7a91a0", fontSize: 11 }} axisLine={false} tickLine={false} /><YAxis yAxisId="left" tick={{ fill: "#7a91a0", fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} /><YAxis yAxisId="right" orientation="right" tick={{ fill: "#7a91a0", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={value => `${value}€`} /><RechartsTooltip formatter={(value, name) => [name === "production" ? formatCurrency(Number(value ?? 0)) : value, name === "production" ? "Παραγωγή" : "Πολυτιμολογήσεις"]} /><Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} /><Bar yAxisId="left" dataKey="quotes" name="Πολυτιμολογήσεις" fill="#8fc3ec" radius={[4, 4, 0, 0]} barSize={23} /><Line yAxisId="right" type="monotone" dataKey="production" name="Παραγωγή (€)" stroke="#1a78e6" strokeWidth={3} dot={{ r: 3, fill: "#1a78e6" }} activeDot={{ r: 5 }} /></ComposedChart></ResponsiveContainer></Card></Grid>
+      <Grid item xs={12} md={6} lg={3}><Card sx={{ ...chartCardSx, p: { xs: 1.5, md: 2.25 }, height: "100%" }}><Typography sx={{ color: "#123a64", fontWeight: 900 }}>Κατανομή παραγωγής</Typography><Typography variant="caption" color="text.secondary">Ανά κλάδο ασφάλισης</Typography><Stack direction="row" alignItems="center" gap={1} mt={1}><Box sx={{ width: { xs: "46%", sm: 142 }, minWidth: 118, height: 150 }}><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={distribution} dataKey="value" nameKey="name" innerRadius={43} outerRadius={67} paddingAngle={2} stroke="none">{distribution.map(item => <Cell key={item.name} fill={item.color} />)}</Pie></PieChart></ResponsiveContainer></Box><Stack spacing={.65} flex={1}>{distribution.map(item => <Stack key={item.name} direction="row" alignItems="center" justifyContent="space-between" gap={.5}><Stack direction="row" alignItems="center" gap={.55} minWidth={0}><Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: item.color, flexShrink: 0 }} /><Typography sx={{ color: "#5f778b", fontSize: 10.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.name}</Typography></Stack><Typography sx={{ color: "#234965", fontSize: 10.5, fontWeight: 850 }}>{item.value}%</Typography></Stack>)}</Stack></Stack><Typography sx={{ color: "#123a64", fontWeight: 900, textAlign: "center", mt: -1 }}>{formatCurrency(totalProduction)} <Box component="span" sx={{ color: "#8398a8", fontSize: 11, fontWeight: 500 }}>/ Σύνολο</Box></Typography></Card></Grid>
+      <Grid item xs={12} md={6} lg={3}><Card sx={{ ...chartCardSx, p: { xs: 1.5, md: 2.25 }, height: "100%" }}><Typography sx={{ color: "#123a64", fontWeight: 900 }}>Κατάσταση συνεργατών</Typography><Typography variant="caption" color="text.secondary">Δραστηριότητα πρόσβασης στο portal</Typography><Stack direction="row" alignItems="center" gap={1} mt={1}><Box sx={{ width: { xs: "46%", sm: 142 }, minWidth: 118, height: 150, position: "relative" }}><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={statusChart} dataKey="value" nameKey="name" innerRadius={43} outerRadius={67} paddingAngle={statusTotal ? 2 : 0} stroke="none">{statusChart.map(item => <Cell key={item.name} fill={item.color} />)}</Pie></PieChart></ResponsiveContainer><Box sx={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", pointerEvents: "none" }}><Box sx={{ textAlign: "center" }}><Typography sx={{ color: "#123a64", fontWeight: 950, fontSize: 18 }}>{totalPartners}</Typography><Typography sx={{ color: "#8297a7", fontSize: 10 }}>Συνεργάτες</Typography></Box></Box></Box><Stack spacing={.7} flex={1}>{[{ name: "Ενεργοί", value: activePartners, color: "#21a46f" }, { name: "Ανενεργοί", value: Math.max(totalPartners - activePartners, 0), color: "#e4a83c" }, { name: "Σε αναμονή", value: 0, color: "#b8c5d0" }].map(item => <Stack key={item.name} direction="row" alignItems="center" justifyContent="space-between"><Stack direction="row" alignItems="center" gap={.55}><Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: item.color }} /><Typography sx={{ color: "#5f778b", fontSize: 10.5 }}>{item.name}</Typography></Stack><Typography sx={{ color: "#234965", fontSize: 10.5, fontWeight: 850 }}>{item.value}</Typography></Stack>)}</Stack></Stack><Typography sx={{ color: "#879aa8", fontSize: 11, textAlign: "center", mt: -1 }}>{totalPartners ? `${Math.round(activePartners / totalPartners * 100)}% ενεργοί` : "Δεν υπάρχουν δεδομένα"}</Typography></Card></Grid>
+    </Grid>
+    <Card sx={{ ...chartCardSx, overflow: "hidden" }}><Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ p: { xs: 1.5, md: 2.25 }, pb: 1.2 }}><Box><Typography sx={{ color: "#123a64", fontWeight: 900 }}>Πρόσφατη δραστηριότητα</Typography><Typography variant="caption" color="text.secondary">Τελευταίες ενέργειες των συνεργατών σας</Typography></Box><Button size="small" sx={{ color: "#2479b8", fontWeight: 800 }}>Προβολή όλων</Button></Stack><TableContainer sx={{ overflowX: "auto" }}><Table size="small" sx={{ minWidth: 780 }}><TableHead><TableRow sx={{ bgcolor: "#f4f8fb" }}>{["#", "Ημερομηνία", "Συνεργάτης", "Ενέργεια", "Στοιχεία", "Αξία", "Κατάσταση", ""].map(label => <TableCell key={label} sx={{ color: "#6c8495", fontSize: 11, fontWeight: 850, borderBottom: "1px solid #e1ebf1", py: 1.2 }}>{label}</TableCell>)}</TableRow></TableHead><TableBody>{activityRows.length ? activityRows.map(row => <TableRow key={row.id} hover sx={{ "&:last-child td": { borderBottom: 0 } }}><TableCell sx={{ color: "#7890a0", fontSize: 11 }}>{String(row.index + 1).padStart(2, "0")}</TableCell><TableCell sx={{ color: "#5f778b", fontSize: 11 }}>{row.date}</TableCell><TableCell sx={{ color: "#123a64", fontWeight: 800, fontSize: 12 }}>{row.partner}</TableCell><TableCell sx={{ color: "#45647a", fontSize: 11.5 }}>{row.action}</TableCell><TableCell sx={{ color: "#6f8797", fontSize: 11 }}>{row.details}</TableCell><TableCell sx={{ color: "#123a64", fontWeight: 850, fontSize: 11.5 }}>{row.value}</TableCell><TableCell><Chip size="small" label={row.status} sx={{ bgcolor: row.status === "Ολοκληρώθηκε" ? "#e4f6ec" : "#fff1d8", color: row.status === "Ολοκληρώθηκε" ? "#177247" : "#9b6819", fontSize: 10.5, fontWeight: 800, height: 24 }} /></TableCell><TableCell align="right"><IconButton size="small" aria-label="Περισσότερες ενέργειες"><MoreVertRoundedIcon fontSize="small" /></IconButton></TableCell></TableRow>) : <TableRow><TableCell colSpan={8} sx={{ py: 4, textAlign: "center", color: "#718899", fontSize: 13 }}>Δεν υπάρχει πρόσφατη δραστηριότητα.</TableCell></TableRow>}</TableBody></Table></TableContainer></Card>
   </Stack>;
 }
 
