@@ -37,6 +37,7 @@ import EngineeringIcon from "@mui/icons-material/Engineering";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import HomeWorkIcon from "@mui/icons-material/HomeWork";
 import CardGiftcardIcon from "@mui/icons-material/CardGiftcard";
+import TableViewIcon from "@mui/icons-material/TableView";
 
 import { useAuth, type Role } from "./auth/AuthContext";
 import { useImpersonation } from "./impersonation/ImpersonationContext";
@@ -278,6 +279,7 @@ import { OfficeWebsiteAnalyticsPage } from "./pages/OfficeWebsiteAnalyticsPage";
 import { OfficePublicSitePage } from "./pages/OfficePublicSitePage";
 import { CustomerPortalPage } from "./pages/CustomerPortalPage";
 import { AffiliateProgramPage } from "./pages/AffiliateProgramPage";
+import { PlatformTodoBoardPage } from "./pages/PlatformTodoBoardPage";
 
 // Exported so Platform Admin can render a read-only, faithful sidebar preview
 // for an office user without starting an impersonation session.
@@ -645,6 +647,11 @@ export const navByRole: Record<Role, NavItem[]> = {
       group: "nav.group.tooling" },
     { to: "/platform/announcements", labelKey: "nav.platformAnnouncements", icon: <CampaignIcon />,
       group: "nav.group.tooling" },
+
+    // Private SuperAdmin worksheet — deliberately absent from the
+    // PlatformEmployee and tenant navigation.
+    { to: "/platform/todo-board", labelKey: "nav.platformTodoBoard", icon: <TableViewIcon />,
+      group: "nav.group.adminOperations", groupIcon: <EngineeringIcon /> },
 
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
   ],
@@ -1089,6 +1096,7 @@ export default function App() {
                   <Route path="platform/email-templates" element={<PlatformEmailTemplatesPage />} />
                   <Route path="platform/maintenance" element={<PlatformMaintenancePage />} />
                   <Route path="platform/announcements" element={<PlatformAnnouncementsPage />} />
+                  <Route path="platform/todo-board" element={<ProtectedRoute allowedRoles={["PlatformAdmin"]}><PlatformTodoBoardPage /></ProtectedRoute>} />
                   <Route path="platform/*" element={<ComingSoonPage />} />
                   <Route path="agency/*" element={<ComingSoonPage />} />
 

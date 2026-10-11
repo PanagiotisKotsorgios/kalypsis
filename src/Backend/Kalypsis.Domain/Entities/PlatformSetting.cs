@@ -59,4 +59,13 @@ public class PlatformSetting : BaseEntity
     /// «I'm about to do something broad, hold the world still» actions.
     /// </summary>
     public bool OutboundEmailsDisabled { get; set; }
+
+    /// <summary>
+    /// Persistent, platform-only worksheet used by the SuperAdmin for personal
+    /// follow-ups and operational TODOs.  It is intentionally JSON so the
+    /// administrator can add arbitrary columns/cell values without a schema
+    /// migration for every new spreadsheet field.  It is never exposed to
+    /// tenant users.
+    /// </summary>
+    public string? SuperAdminTodoBoardJson { get; set; }
 }

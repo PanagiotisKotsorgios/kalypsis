@@ -10830,6 +10830,9 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Property<int?>("SmsMonthlyLimit")
                         .HasColumnType("int");
 
+                    b.Property<string>("SuperAdminTodoBoardJson")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("SupportEmail")
                         .HasMaxLength(256)
                         .HasColumnType("varchar(256)");

@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions,
-  Collapse, DialogContent, DialogTitle, Drawer, FormControlLabel, Grid, IconButton,
+  Collapse, DialogContent, DialogTitle, Divider, Drawer, FormControlLabel, Grid, IconButton,
   LinearProgress, List, ListItemButton, ListItemText, Menu, MenuItem, Stack, Switch, TextField,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, InputAdornment, useMediaQuery,
 } from "@mui/material";
@@ -27,6 +27,7 @@ import DescriptionRoundedIcon from "@mui/icons-material/DescriptionRounded";
 import EuroRoundedIcon from "@mui/icons-material/EuroRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import FilterAltRoundedIcon from "@mui/icons-material/FilterAltRounded";
+import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 import KeyRoundedIcon from "@mui/icons-material/KeyRounded";
 import BusinessRoundedIcon from "@mui/icons-material/BusinessRounded";
@@ -75,7 +76,7 @@ const permissionOptions = [
 type PermissionKey = typeof permissionOptions[number][0];
 const defaultPartnerPermissions: PermissionKey[] = permissionOptions.map(([key]) => key);
 const formatInsureOneCurrency = (value: number) => new Intl.NumberFormat("el-GR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(value);
-type Section = "overview" | "partners" | "permissions" | "analytics" | "branding" | "preview";
+type Section = "overview" | "partners" | "permissions" | "analytics" | "branding" | "preview" | "login-branding" | "quoting-branches" | "access-policies" | "partner-performance";
 
 const menuItems: { key: Section; label: string; icon: JSX.Element }[] = [
   { key: "overview", label: "Επισκόπηση", icon: <InsightsRoundedIcon /> },
@@ -116,9 +117,9 @@ const menuGroups: InsureOneMenuGroup[] = [
     icon: menuItems[4].icon,
     items: [
       { key: "branding", label: menuItems[4].label, icon: menuItems[4].icon, section: "branding" },
-      { key: "login-branding", label: "Branded login & λογότυπο", icon: <PaletteRoundedIcon />, section: "branding" },
-      { key: "quoting-branches", label: "Κλάδοι & πρόσβαση τιμολόγησης", icon: <SettingsRoundedIcon />, section: "branding" },
-      { key: "access-policies", label: "Πολιτικές πρόσβασης συνεργατών", icon: <SecurityRoundedIcon />, section: "permissions" },
+      { key: "login-branding", label: "Branded login & λογότυπο", icon: <PaletteRoundedIcon />, section: "login-branding" },
+      { key: "quoting-branches", label: "Κλάδοι & πρόσβαση τιμολόγησης", icon: <SettingsRoundedIcon />, section: "quoting-branches" },
+      { key: "access-policies", label: "Πολιτικές πρόσβασης συνεργατών", icon: <SecurityRoundedIcon />, section: "access-policies" },
     ],
   },
   {
@@ -127,7 +128,7 @@ const menuGroups: InsureOneMenuGroup[] = [
     icon: menuItems[3].icon,
     items: [
       { key: "analytics", label: menuItems[3].label, icon: menuItems[3].icon, section: "analytics" },
-      { key: "partner-performance", label: "Αποτελεσματικότητα ανά συνεργάτη", icon: <InsightsRoundedIcon />, section: "analytics" },
+      { key: "partner-performance", label: "Αποτελεσματικότητα ανά συνεργάτη", icon: <InsightsRoundedIcon />, section: "partner-performance" },
     ],
   },
 ];
@@ -160,6 +161,10 @@ export function InsureOnePartnerManagementPage() {
         {section === "permissions" && <PermissionsSection partners={partners.data ?? []} onView={setPartnerPreview} />}
         {section === "analytics" && <AnalyticsSection data={analytics.data} loading={analytics.isLoading} />}
         {section === "branding" && <BrandingSection settings={settings.data} onEdit={() => setSettingsOpen(true)} onError={setError} onSaved={() => void qc.invalidateQueries({ queryKey: ["insureone-settings"] })} />}
+        {section === "login-branding" && <LoginBrandingSection settings={settings.data} onEdit={() => setSettingsOpen(true)} />}
+        {section === "quoting-branches" && <QuotingBranchesSection settings={settings.data} onError={setError} onSaved={() => void qc.invalidateQueries({ queryKey: ["insureone-settings"] })} />}
+        {section === "access-policies" && <AccessPoliciesSection partners={partners.data ?? []} onView={setPartnerPreview} />}
+        {section === "partner-performance" && <PartnerPerformanceSection data={analytics.data} loading={analytics.isLoading} partners={partners.data ?? []} onView={setPartnerPreview} />}
         {section === "preview" && <PreviewSection settings={settings.data} partners={partners.data ?? []} analytics={analytics.data} onView={setPartnerPreview} />}
       </Box>
     </Stack>
@@ -192,9 +197,9 @@ function InsureOneManagementHeader({ section, onSectionChange, officeName, onLog
     setMobileExpandedGroup(null);
     setDesktopMenu(null);
   };
-  const activeGroupKey = section === "branding"
+  const activeGroupKey = ["branding", "login-branding", "quoting-branches", "access-policies"].includes(section)
     ? "settings"
-    : section === "analytics"
+    : ["analytics", "partner-performance"].includes(section)
       ? "analytics"
       : section === "partners" || section === "permissions" || section === "preview"
         ? "partners"
@@ -414,6 +419,57 @@ function PermissionsSection({ partners, onView }: { partners: Partner[]; onView:
 function AnalyticsSection({ data, loading }: { data?: Analytics; loading: boolean }) {
   const max = Math.max(1, ...(data?.partners ?? []).map(p => p.totalQuotes));
   return <Stack spacing={2}><SectionHeading title="Στατιστικά & αναλύσεις" subtitle="Χρήση InsureOne ανά συνεργάτη, ενεργοποιήσεις και απόδοση προσφορών." />{loading ? <Box sx={{ display: "grid", placeItems: "center", py: 8 }}><CircularProgress /></Box> : <><Grid container spacing={1.5}>{[["Ενεργοί συνεργάτες", data?.activePartners ?? 0], ["Συνεργάτες με έκδοση", data?.partnersWithIssuance ?? 0], ["Επιλεγμένες προσφορές", data?.selectedQuotes ?? 0], ["Λήγουν σύντομα", data?.expiringQuotes ?? 0]].map(([label, value]) => <Grid item xs={6} md={3} key={String(label)}><Card variant="outlined" sx={{ p: 2, borderRadius: 2.5 }}><Typography variant="h4" fontWeight={900} color="#123a64">{value}</Typography><Typography variant="body2" color="text.secondary">{label}</Typography></Card></Grid>)}</Grid><Card variant="outlined" sx={{ p: 2.5, borderRadius: 3 }}><Typography fontWeight={850} mb={2}>Προσφορές ανά συνεργάτη</Typography><Stack spacing={1.5}>{(data?.partners ?? []).map(p => <Box key={p.accessId}><Stack direction="row" justifyContent="space-between" mb={.45}><Typography fontWeight={700}>{p.partnerName}</Typography><Typography variant="body2" color="text.secondary">{p.totalQuotes} συνολικά · {p.quotesThisMonth} αυτόν τον μήνα</Typography></Stack><LinearProgress variant="determinate" value={Math.round(p.totalQuotes / max * 100)} sx={{ height: 9, borderRadius: 6, bgcolor: "#e9f1f6", "& .MuiLinearProgress-bar": { borderRadius: 6, bgcolor: "#167ca8" } }} /></Box>)}{!data?.partners.length && <Typography color="text.secondary">Δεν υπάρχουν ακόμη δεδομένα χρήσης.</Typography>}</Stack></Card></>}</Stack>;
+}
+
+function LoginBrandingSection({ settings, onEdit }: { settings?: Branding; onEdit: () => void }) {
+  const loginUrl = settings?.slug ? `https://mykalypsis.gr/insureone/${settings.slug}/login` : "Δεν έχει οριστεί URL";
+  return <Stack spacing={2}>
+    <SectionHeading title="Branded login & λογότυπο" subtitle="Η δημόσια σελίδα σύνδεσης που βλέπει κάθε συνεργάτης του γραφείου σας." action={<Button variant="contained" startIcon={<EditRoundedIcon />} onClick={onEdit} sx={{ bgcolor: "#123a64", fontWeight: 850 }}>Επεξεργασία σελίδας</Button>} />
+    <Grid container spacing={1.75}>
+      <Grid item xs={12} md={7}><Card sx={{ minHeight: 300, borderRadius: 3, overflow: "hidden", border: "1px solid #c9dce9", boxShadow: "0 10px 25px rgba(18,58,100,.09)" }}>
+        <Box sx={{ px: { xs: 2, md: 3 }, py: 1.2, bgcolor: "#123a64", color: "#fff", fontSize: 11, fontWeight: 800 }}>ΠΡΟΕΠΙΣΚΟΠΗΣΗ ΣΕΛΙΔΑΣ ΣΥΝΔΕΣΗΣ</Box>
+        <Box sx={{ p: { xs: 2.5, md: 4 }, minHeight: 260, display: "grid", placeItems: "center", background: `linear-gradient(135deg, ${settings?.secondaryColor ?? "#123a64"} 0%, ${settings?.primaryColor ?? "#1474c5"} 100%)` }}>
+          <Card sx={{ width: "min(100%, 410px)", p: { xs: 2, sm: 3 }, borderRadius: 3, textAlign: "center", boxShadow: "0 14px 30px rgba(0,0,0,.18)" }}>
+            <Box sx={{ height: 62, mb: 1.2, display: "grid", placeItems: "center" }}>{settings?.logoUrl ? <Box component="img" src={`/api/insureone/public/${settings.slug}/logo`} alt="Λογότυπο γραφείου" sx={{ maxWidth: "82%", maxHeight: 62, objectFit: "contain" }} /> : <Typography sx={{ fontSize: 26, fontWeight: 950, color: settings?.primaryColor ?? "#1474c5" }}>InsureOne</Typography>}</Box>
+            <Typography sx={{ color: "#123a64", fontWeight: 950, fontSize: 20 }}>{settings?.displayName || "Το γραφείο σας"}</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: .7, mb: 2 }}>{settings?.welcomeMessage || "Καλώς ήρθατε στην πύλη συνεργατών."}</Typography>
+            <Stack spacing={1}><Box sx={{ height: 38, border: "1px solid #d5e0e8", borderRadius: 1.2 }} /><Box sx={{ height: 38, border: "1px solid #d5e0e8", borderRadius: 1.2 }} /><Box sx={{ height: 38, borderRadius: 1.2, bgcolor: settings?.primaryColor ?? "#1474c5" }} /></Stack>
+          </Card>
+        </Box>
+      </Card></Grid>
+      <Grid item xs={12} md={5}><Stack spacing={1.75} height="100%"><Card sx={{ p: 2.25, borderRadius: 3, border: "1px solid #dce8f1", height: "100%" }}><Stack direction="row" alignItems="center" gap={1}><PaletteRoundedIcon sx={{ color: "#247bd0" }} /><Typography fontWeight={900} color="#123a64">Ρυθμίσεις εμφάνισης</Typography></Stack><Divider sx={{ my: 1.5 }} /><Stack spacing={1.25}>{[["Όνομα εμφάνισης", settings?.displayName || "—"], ["URL σύνδεσης", loginUrl], ["Email υποστήριξης", settings?.supportEmail || "—"], ["Τηλέφωνο υποστήριξης", settings?.supportPhone || "—"]].map(([label, value]) => <Box key={label}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography sx={{ color: "#234965", fontWeight: 750, fontSize: 13, wordBreak: "break-word" }}>{value}</Typography></Box>)}</Stack><Button fullWidth variant="outlined" startIcon={<EditRoundedIcon />} onClick={onEdit} sx={{ mt: 2, borderColor: "#9ec5df", color: "#155a91", fontWeight: 800 }}>Άνοιγμα ρυθμίσεων</Button></Card></Stack></Grid>
+    </Grid>
+  </Stack>;
+}
+
+function QuotingBranchesSection({ settings, onError, onSaved }: { settings?: Branding; onError: (message: string) => void; onSaved: () => void }) {
+  const [selected, setSelected] = useState<string[]>(settings?.allowedBranches ?? []);
+  useEffect(() => setSelected(settings?.allowedBranches ?? []), [settings]);
+  const save = useMutation({
+    mutationFn: () => api.put("/insureone/settings", {
+      slug: settings?.slug ?? "", displayName: settings?.displayName ?? "", welcomeMessage: settings?.welcomeMessage ?? "",
+      primaryColor: settings?.primaryColor ?? "#0B6FB8", secondaryColor: settings?.secondaryColor ?? "#0B2545",
+      supportEmail: settings?.supportEmail ?? "", supportPhone: settings?.supportPhone ?? "", isEnabled: settings?.isEnabled !== false,
+      allowedBranches: selected,
+    }),
+    onSuccess: onSaved,
+    onError: e => onError(extractErrorMessage(e)),
+  });
+  return <Stack spacing={2}>
+    <SectionHeading title="Κλάδοι & πρόσβαση τιμολόγησης" subtitle="Ορίστε ποια προϊόντα θα εμφανίζονται στο InsureOne για τους συνεργάτες του γραφείου." action={<Button variant="contained" startIcon={<SaveOutlinedIcon />} onClick={() => save.mutate()} disabled={save.isPending} sx={{ bgcolor: "#16895a", fontWeight: 850 }}>Αποθήκευση κλάδων</Button>} />
+    <Card sx={{ p: { xs: 1.5, md: 2.25 }, borderRadius: 3, border: "1px solid #dce8f1", background: "linear-gradient(135deg,#f8fcff,#eef8fc)" }}><Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" gap={1} alignItems={{ sm: "center" }}><Stack direction="row" gap={1.1} alignItems="center"><SettingsRoundedIcon sx={{ color: "#247bd0" }} /><Box><Typography color="#123a64" fontWeight={900}>Ενεργοί κλάδοι</Typography><Typography variant="caption" color="text.secondary">Οι αλλαγές εφαρμόζονται στη σύνδεση των συνεργατών.</Typography></Box></Stack><Chip label={`${selected.length} από ${branches.length} ενεργοί`} sx={{ bgcolor: "#dff4e9", color: "#16754c", fontWeight: 850 }} /></Stack></Card>
+    <Grid container spacing={1.5}>{branches.map((branch, index) => { const active = selected.includes(branch); return <Grid item xs={12} sm={6} md={4} key={branch}><Card onClick={() => setSelected(current => active ? current.filter(item => item !== branch) : [...current, branch])} sx={{ cursor: "pointer", p: 1.7, borderRadius: 2.5, border: `1px solid ${active ? "#8bcfb0" : "#dce8f1"}`, bgcolor: active ? "#f0fbf5" : "#fff", transition: "all .18s ease", "&:hover": { borderColor: "#65b5cf", transform: "translateY(-2px)" } }}><Stack direction="row" alignItems="center" justifyContent="space-between"><Stack direction="row" alignItems="center" gap={1}><Box sx={{ width: 34, height: 34, borderRadius: 1.5, bgcolor: active ? "#d8f2e4" : "#edf4f8", color: active ? "#16895a" : "#668397", display: "grid", placeItems: "center", fontWeight: 900, fontSize: 13 }}>{String(index + 1).padStart(2, "0")}</Box><Typography color="#234965" fontWeight={800}>{branch}</Typography></Stack><Checkbox checked={active} onChange={() => undefined} onClick={event => event.stopPropagation()} size="small" /></Stack><Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>{active ? "Διαθέσιμο στους συνεργάτες" : "Κρυφό από το portal"}</Typography></Card></Grid>; })}</Grid>
+  </Stack>;
+}
+
+function AccessPoliciesSection({ partners, onView }: { partners: Partner[]; onView: (p: Partner) => void }) {
+  return <Stack spacing={2}><SectionHeading title="Πολιτικές πρόσβασης συνεργατών" subtitle="Κανόνες πρόσβασης για προσφορές, πελάτες, εξαγωγές και έκδοση ασφαλιστηρίων." /><Card sx={{ p: 2, borderRadius: 3, border: "1px solid #dce8f1", background: "linear-gradient(135deg,#f7fbff,#fff)" }}><Grid container spacing={1.5}>{[["Προεπιλεγμένη πολιτική", "Νέα πρόσβαση ξεκινά με ασφαλή, περιορισμένα δικαιώματα.", "#247bd0"], ["Έλεγχος έκδοσης", "Η έκδοση παραμένει κλειστή μέχρι να δοθεί ρητά από τον διαχειριστή.", "#c9821c"], ["Ιχνηλασιμότητα", "Κάθε αλλαγή δικαιώματος και σύνδεση παραμένει στο ιστορικό.", "#16895a"]].map(([title, body, color]) => <Grid item xs={12} md={4} key={title}><Box sx={{ p: 1.5, borderRadius: 2, bgcolor: "#f7fbfe", border: "1px solid #e3edf4", height: "100%" }}><Typography sx={{ color, fontWeight: 900, mb: .5 }}>{title}</Typography><Typography variant="body2" color="text.secondary">{body}</Typography></Box></Grid>)}</Grid></Card><PermissionsSection partners={partners} onView={onView} /></Stack>;
+}
+
+function PartnerPerformanceSection({ data, loading, partners, onView }: { data?: Analytics; loading: boolean; partners: Partner[]; onView: (p: Partner) => void }) {
+  const rows = data?.partners ?? [];
+  const chartData = rows.slice(0, 8).map(item => ({ name: item.partnerName.length > 14 ? `${item.partnerName.slice(0, 14)}…` : item.partnerName, προσφορές: item.totalQuotes, επιλογές: item.selectedQuotes }));
+  return <Stack spacing={2}><SectionHeading title="Αποτελεσματικότητα ανά συνεργάτη" subtitle="Συγκρίνετε χρήση, προσφορές και επιλογές συνεργατών μέσα από ενιαία εικόνα." /><Grid container spacing={1.5}><Grid item xs={12} md={8}><Card sx={{ p: { xs: 1.5, md: 2.25 }, borderRadius: 3, border: "1px solid #dce8f1", height: "100%" }}><Typography color="#123a64" fontWeight={900}>Προσφορές και επιλογές</Typography><Typography variant="caption" color="text.secondary">Συγκεντρωτικά δεδομένα από το InsureOne</Typography>{loading ? <Box sx={{ display: "grid", placeItems: "center", minHeight: 230 }}><CircularProgress /></Box> : <ResponsiveContainer width="100%" height={250}><ComposedChart data={chartData} margin={{ top: 15, right: 10, left: -18, bottom: 8 }}><CartesianGrid stroke="#e8eff4" vertical={false} /><XAxis dataKey="name" tick={{ fill: "#6f8797", fontSize: 10 }} axisLine={false} tickLine={false} /><YAxis allowDecimals={false} tick={{ fill: "#6f8797", fontSize: 10 }} axisLine={false} tickLine={false} /><RechartsTooltip /><Legend wrapperStyle={{ fontSize: 11 }} /><Bar dataKey="προσφορές" fill="#82bde8" radius={[4, 4, 0, 0]} /><Line dataKey="επιλογές" stroke="#16895a" strokeWidth={3} dot={{ r: 3 }} /></ComposedChart></ResponsiveContainer>}</Card></Grid><Grid item xs={12} md={4}><Card sx={{ p: 2.25, borderRadius: 3, border: "1px solid #dce8f1", height: "100%" }}><Typography color="#123a64" fontWeight={900}>Καλύτερη απόδοση</Typography><Typography variant="caption" color="text.secondary">Με βάση τις επιλεγμένες προσφορές</Typography><Stack spacing={1.1} mt={2}>{[...rows].sort((a, b) => b.selectedQuotes - a.selectedQuotes).slice(0, 5).map((row, index) => <Stack direction="row" alignItems="center" justifyContent="space-between" key={row.accessId}><Stack direction="row" alignItems="center" gap={.8} minWidth={0}><Box sx={{ width: 26, height: 26, borderRadius: "50%", bgcolor: index === 0 ? "#fff0c7" : "#edf4f8", color: "#234965", display: "grid", placeItems: "center", fontWeight: 900, fontSize: 11 }}>{index + 1}</Box><Typography sx={{ color: "#345873", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.partnerName}</Typography></Stack><Chip size="small" label={row.selectedQuotes} sx={{ bgcolor: "#e2f5ea", color: "#16754c", fontWeight: 850 }} /></Stack>)}{!rows.length && <Typography color="text.secondary" sx={{ mt: 2 }}>Δεν υπάρχουν ακόμη δεδομένα.</Typography>}</Stack></Card></Grid></Grid><Card sx={{ borderRadius: 3, border: "1px solid #dce8f1", overflow: "hidden" }}><Stack sx={{ p: 1.6 }} direction="row" alignItems="center" gap={1}><TrendingUpRoundedIcon sx={{ color: "#247bd0" }} /><Typography color="#123a64" fontWeight={900}>Λεπτομερής πίνακας απόδοσης</Typography></Stack><PartnerDirectoryTable partners={partners} analytics={data} onView={onView} compact /></Card></Stack>;
 }
 
 function BrandingSection({ settings, onEdit, onError, onSaved }: { settings?: Branding; onEdit: () => void; onError: (message: string) => void; onSaved: () => void }) {
