@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions,
-  DialogContent, DialogTitle, Divider, Drawer, FormControlLabel, Grid, IconButton,
-  LinearProgress, List, ListItemButton, ListItemText, Stack, Switch, TextField,
+  Collapse, DialogContent, DialogTitle, Divider, Drawer, FormControlLabel, Grid, IconButton,
+  LinearProgress, List, ListItemButton, ListItemText, Menu, MenuItem, Stack, Switch, TextField,
   Typography, useMediaQuery,
 } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
@@ -13,6 +13,7 @@ import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import GroupRoundedIcon from "@mui/icons-material/GroupRounded";
 import InsightsRoundedIcon from "@mui/icons-material/InsightsRounded";
+import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import LinkRoundedIcon from "@mui/icons-material/LinkRounded";
 import PaletteRoundedIcon from "@mui/icons-material/PaletteRounded";
@@ -66,6 +67,52 @@ const menuItems: { key: Section; label: string; icon: JSX.Element }[] = [
   { key: "preview", label: "Προεπισκόπηση συνεργάτη", icon: <PreviewRoundedIcon /> },
 ];
 
+type InsureOneMenuGroup = {
+  key: string;
+  label: string;
+  icon: JSX.Element;
+  items: { key: string; label: string; icon: JSX.Element; section: Section }[];
+};
+
+const menuGroups: InsureOneMenuGroup[] = [
+  {
+    key: "overview",
+    label: menuItems[0].label,
+    icon: menuItems[0].icon,
+    items: [{ key: "overview", label: menuItems[0].label, icon: menuItems[0].icon, section: "overview" }],
+  },
+  {
+    key: "partners",
+    label: "Συνεργάτες",
+    icon: menuItems[1].icon,
+    items: [
+      { key: "partners-list", label: menuItems[1].label, icon: menuItems[1].icon, section: "partners" },
+      { key: "partners-permissions", label: menuItems[2].label, icon: menuItems[2].icon, section: "permissions" },
+      { key: "partners-preview", label: menuItems[5].label, icon: menuItems[5].icon, section: "preview" },
+    ],
+  },
+  {
+    key: "settings",
+    label: "Ρυθμίσεις",
+    icon: menuItems[4].icon,
+    items: [
+      { key: "branding", label: menuItems[4].label, icon: menuItems[4].icon, section: "branding" },
+      { key: "login-branding", label: "Branded login & λογότυπο", icon: <PaletteRoundedIcon />, section: "branding" },
+      { key: "quoting-branches", label: "Κλάδοι & πρόσβαση τιμολόγησης", icon: <SettingsRoundedIcon />, section: "branding" },
+      { key: "access-policies", label: "Πολιτικές πρόσβασης συνεργατών", icon: <SecurityRoundedIcon />, section: "permissions" },
+    ],
+  },
+  {
+    key: "analytics",
+    label: "Αναφορές",
+    icon: menuItems[3].icon,
+    items: [
+      { key: "analytics", label: menuItems[3].label, icon: menuItems[3].icon, section: "analytics" },
+      { key: "partner-performance", label: "Αποτελεσματικότητα ανά συνεργάτη", icon: <InsightsRoundedIcon />, section: "analytics" },
+    ],
+  },
+];
+
 export function InsureOnePartnerManagementPage() {
   const { signOut } = useAuth();
   const qc = useQueryClient();
@@ -109,11 +156,22 @@ export function InsureOnePartnerManagementPage() {
 
 function InsureOneManagementHeader({ section, onSectionChange, officeName, onLogout }: { section: Section; onSectionChange: (section: Section) => void; officeName?: string | null; onLogout: () => void }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [desktopMenu, setDesktopMenu] = useState<{ key: string; anchor: HTMLElement } | null>(null);
+  const [mobileExpandedGroup, setMobileExpandedGroup] = useState<string | null>(null);
   const compactNav = useMediaQuery("(max-width:1120px)");
   const selectSection = (nextSection: Section) => {
     onSectionChange(nextSection);
     setMobileNavOpen(false);
+    setMobileExpandedGroup(null);
+    setDesktopMenu(null);
   };
+  const activeGroupKey = section === "branding"
+    ? "settings"
+    : section === "analytics"
+      ? "analytics"
+      : section === "partners" || section === "permissions" || section === "preview"
+        ? "partners"
+        : "overview";
 
   return <>
     <Box sx={{ bgcolor: "#fff", borderBottom: "1px solid #ccd8e3", boxShadow: "0 3px 16px rgba(18,58,100,.08)" }}>
@@ -133,6 +191,21 @@ function InsureOneManagementHeader({ section, onSectionChange, officeName, onLog
     <Box sx={{ bgcolor: "#123a64", borderTop: "1px solid rgba(255,255,255,.12)" }}>
       <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: .5, sm: 2.5, lg: 4 }, display: "flex", alignItems: "center", gap: { xs: .5, sm: .75 } }}>
         {!compactNav && <Box sx={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", overflowX: "auto", scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}>
+          {menuGroups.map(group => {
+            const active = activeGroupKey === group.key;
+            if (group.items.length === 1) {
+              const item = group.items[0];
+              return <Button key={group.key} onClick={() => onSectionChange(item.section)} startIcon={group.icon} sx={{ minHeight: 58, minWidth: "max-content", px: { sm: 1.5, md: 2.1 }, borderRadius: 0, color: "#fff", fontWeight: 850, fontSize: { sm: 13, md: 14 }, textTransform: "none", whiteSpace: "nowrap", borderBottom: "3px solid transparent", bgcolor: active ? "#2e75b6" : "transparent", borderBottomColor: active ? "#53c6d3" : "transparent", transition: "background-color .16s ease, color .16s ease, border-color .16s ease", "&:hover": { bgcolor: "rgba(83,198,211,.2)", color: "#fff", borderBottomColor: "#53c6d3" }, "& .MuiButton-startIcon": { color: "inherit", mr: .55 } }}>{group.label}</Button>;
+            }
+            return <Fragment key={group.key}>
+              <Button onClick={event => setDesktopMenu({ key: group.key, anchor: event.currentTarget })} startIcon={group.icon} endIcon={<KeyboardArrowDownRoundedIcon fontSize="small" />} sx={{ minHeight: 58, minWidth: "max-content", px: { sm: 1.5, md: 2.1 }, borderRadius: 0, color: "#fff", fontWeight: 850, fontSize: { sm: 13, md: 14 }, textTransform: "none", whiteSpace: "nowrap", borderBottom: "3px solid transparent", bgcolor: active ? "#2e75b6" : "transparent", borderBottomColor: active ? "#53c6d3" : "transparent", transition: "background-color .16s ease, color .16s ease, border-color .16s ease", "&:hover": { bgcolor: "rgba(83,198,211,.2)", color: "#fff", borderBottomColor: "#53c6d3" }, "& .MuiButton-startIcon": { color: "inherit", mr: .55 }, "& .MuiButton-endIcon": { ml: .35, transition: "transform .16s ease", transform: desktopMenu?.key === group.key ? "rotate(180deg)" : "none" } }}>{group.label}</Button>
+              <Menu anchorEl={desktopMenu?.key === group.key ? desktopMenu.anchor : null} open={desktopMenu?.key === group.key} onClose={() => setDesktopMenu(null)} PaperProps={{ sx: { mt: .75, minWidth: 250, border: "1px solid #cbd9e6", boxShadow: "0 10px 28px rgba(18,58,100,.2)", borderRadius: 1.5 } }} MenuListProps={{ dense: true, sx: { py: .5, "& .MuiMenuItem-root": { px: 1.5, py: 1, fontSize: 13, fontWeight: 750, color: "#173b5d", borderRadius: .75, mx: .5, gap: 1, "&:hover": { bgcolor: "#e6f4f7", color: "#0b6d84" } } } }}>
+                {group.items.map(item => <MenuItem key={item.key} selected={section === item.section} onClick={() => selectSection(item.section)}>{item.icon}<span>{item.label}</span></MenuItem>)}
+              </Menu>
+            </Fragment>;
+          })}
+        </Box>}
+        {!compactNav && <Box sx={{ display: "none", flex: 1, minWidth: 0, alignItems: "center", overflowX: "auto", scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}>
           {menuItems.map(item => <Button key={item.key} onClick={() => onSectionChange(item.key)} startIcon={item.icon} sx={{ minHeight: 58, minWidth: "max-content", px: { xs: 1.25, sm: 1.75, md: 2.25 }, borderRadius: 0, color: "#fff", fontWeight: 850, fontSize: { xs: 12, sm: 13, md: 14 }, textTransform: "none", whiteSpace: "nowrap", borderBottom: "3px solid transparent", bgcolor: section === item.key ? "#2e75b6" : "transparent", borderBottomColor: section === item.key ? "#53c6d3" : "transparent", transition: "background-color .16s ease, color .16s ease, border-color .16s ease", "&:hover": { bgcolor: "rgba(83,198,211,.2)", color: "#fff", borderBottomColor: "#53c6d3" }, "& .MuiButton-startIcon": { color: "inherit", mr: .55 } }}>{item.label}</Button>)}
         </Box>}
         {compactNav && <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 1, minWidth: 0 }}>
@@ -151,6 +224,27 @@ function InsureOneManagementHeader({ section, onSectionChange, officeName, onLog
               <IconButton aria-label="Κλείσιμο μενού" onClick={() => setMobileNavOpen(false)} sx={{ color: "#fff" }}><CloseRoundedIcon /></IconButton>
             </Stack>
             <List sx={{ px: 1, py: 1 }}>
+              {menuGroups.map(group => {
+                const expanded = mobileExpandedGroup === group.key;
+                const active = activeGroupKey === group.key;
+                if (group.items.length === 1) {
+                  const item = group.items[0];
+                  return <ListItemButton key={`mobile-${group.key}`} selected={section === item.section} onClick={() => selectSection(item.section)} sx={{ borderRadius: 1, mb: .5, "&.Mui-selected": { bgcolor: "#dceff5", color: "#123a64" }, "&.Mui-selected:hover": { bgcolor: "#c8e7ef" } }}><ListItemText primary={group.label} primaryTypographyProps={{ fontWeight: 800 }} />{group.icon}</ListItemButton>;
+                }
+                return <Fragment key={`mobile-${group.key}`}>
+                  <ListItemButton selected={active} onClick={() => setMobileExpandedGroup(current => current === group.key ? null : group.key)} sx={{ borderRadius: 1, mb: .5, "&.Mui-selected": { bgcolor: "#dceff5", color: "#123a64" }, "&.Mui-selected:hover": { bgcolor: "#c8e7ef" } }}>
+                    <ListItemText primary={group.label} primaryTypographyProps={{ fontWeight: 800 }} />
+                    <KeyboardArrowDownRoundedIcon sx={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform .16s ease" }} />
+                  </ListItemButton>
+                  <Collapse in={expanded} timeout="auto" unmountOnExit>
+                    <List disablePadding sx={{ pl: 1 }}>
+                      {group.items.map(item => <ListItemButton key={`mobile-${item.key}`} selected={section === item.section} onClick={() => selectSection(item.section)} sx={{ borderRadius: 1, mb: .25, pl: 2.5, color: "#31516b", "&.Mui-selected": { bgcolor: "#e6f4f7", color: "#0b6d84" } }}><ListItemText primary={item.label} primaryTypographyProps={{ fontSize: 14, fontWeight: 700 }} />{item.icon}</ListItemButton>)}
+                    </List>
+                  </Collapse>
+                </Fragment>;
+              })}
+            </List>
+            <List sx={{ display: "none", px: 1, py: 1 }}>
               {menuItems.map(item => <ListItemButton key={`mobile-${item.key}`} selected={section === item.key} onClick={() => selectSection(item.key)} sx={{ borderRadius: 1, mb: .5, "&.Mui-selected": { bgcolor: "#dceff5", color: "#123a64" }, "&.Mui-selected:hover": { bgcolor: "#c8e7ef" } }}>
                 <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: 800 }} />
                 {item.icon}
