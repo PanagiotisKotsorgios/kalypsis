@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions,
-  DialogContent, DialogTitle, Divider, FormControlLabel, Grid, IconButton, LinearProgress,
-  Stack, Switch, TextField, Typography,
+  DialogContent, DialogTitle, Divider, Drawer, FormControlLabel, Grid, IconButton,
+  LinearProgress, List, ListItemButton, ListItemText, Stack, Switch, TextField,
+  Typography, useMediaQuery,
 } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import AnalyticsRoundedIcon from "@mui/icons-material/AnalyticsRounded";
@@ -12,6 +13,7 @@ import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import GroupRoundedIcon from "@mui/icons-material/GroupRounded";
 import InsightsRoundedIcon from "@mui/icons-material/InsightsRounded";
+import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import LinkRoundedIcon from "@mui/icons-material/LinkRounded";
 import PaletteRoundedIcon from "@mui/icons-material/PaletteRounded";
 import PreviewRoundedIcon from "@mui/icons-material/PreviewRounded";
@@ -106,29 +108,56 @@ export function InsureOnePartnerManagementPage() {
 }
 
 function InsureOneManagementHeader({ section, onSectionChange, officeName, onLogout }: { section: Section; onSectionChange: (section: Section) => void; officeName?: string | null; onLogout: () => void }) {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const compactNav = useMediaQuery("(max-width:1120px)");
+  const selectSection = (nextSection: Section) => {
+    onSectionChange(nextSection);
+    setMobileNavOpen(false);
+  };
+
   return <>
     <Box sx={{ bgcolor: "#fff", borderBottom: "1px solid #ccd8e3", boxShadow: "0 3px 16px rgba(18,58,100,.08)" }}>
-      <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: 1.5, sm: 2.5, lg: 4 }, py: { xs: 1, md: 1.25 }, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
-        <Stack direction="row" spacing={1.5} alignItems="center" minWidth={0}>
-          <Box component="img" src="/assets/insureone-plugin-logo.png" alt="InsureOne Kalypsis" sx={{ width: { xs: 175, sm: 250, md: 315 }, height: { xs: 54, sm: 68, md: 82 }, objectFit: "contain", objectPosition: "left center" }} />
+      <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: 1.25, sm: 2.5, lg: 4 }, py: { xs: .75, sm: 1, md: 1.25 }, display: "flex", alignItems: "center", justifyContent: "space-between", gap: { xs: .75, sm: 1.5, md: 2 } }}>
+        <Stack direction="row" spacing={{ xs: .75, sm: 1.5 }} alignItems="center" minWidth={0} sx={{ flex: 1 }}>
+          <Box component="img" src="/assets/insureone-plugin-logo.png" alt="InsureOne Kalypsis" sx={{ width: { xs: "clamp(145px, 56vw, 220px)", sm: 250, md: 315 }, maxWidth: "100%", height: { xs: 48, sm: 68, md: 82 }, objectFit: "contain", objectPosition: "left center", flexShrink: 1 }} />
           <Box sx={{ display: { xs: "none", md: "block" }, pl: 1.5, borderLeft: "1px solid #d9e3ec" }}>
             <Typography sx={{ color: "#123a64", fontWeight: 900, fontSize: 14 }}>ΔΙΑΧΕΙΡΙΣΗ INSUREONE</Typography>
             <Typography variant="caption" color="text.secondary" noWrap>Χρήστες, δικαιώματα και απόδοση συνεργατών</Typography>
           </Box>
         </Stack>
-        <Typography noWrap sx={{ color: "#123a64", fontWeight: 800, fontSize: { xs: 11, sm: 13 }, maxWidth: { xs: 130, sm: 240 }, overflow: "hidden", textOverflow: "ellipsis" }}>
+        <Typography noWrap sx={{ color: "#123a64", fontWeight: 800, fontSize: { xs: 10, sm: 13 }, maxWidth: { xs: 92, sm: 180, md: 240 }, flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
           {officeName || "Το γραφείο σας"}
         </Typography>
       </Box>
     </Box>
     <Box sx={{ bgcolor: "#123a64", borderTop: "1px solid rgba(255,255,255,.12)" }}>
-      <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: .5, sm: 2.5, lg: 4 }, display: "flex", alignItems: "center", gap: .75 }}>
-        <Box sx={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", overflowX: "auto", scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}>
+      <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: .5, sm: 2.5, lg: 4 }, display: "flex", alignItems: "center", gap: { xs: .5, sm: .75 } }}>
+        {!compactNav && <Box sx={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", overflowX: "auto", scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}>
           {menuItems.map(item => <Button key={item.key} onClick={() => onSectionChange(item.key)} startIcon={item.icon} sx={{ minHeight: 58, minWidth: "max-content", px: { xs: 1.25, sm: 1.75, md: 2.25 }, borderRadius: 0, color: "#fff", fontWeight: 850, fontSize: { xs: 12, sm: 13, md: 14 }, textTransform: "none", whiteSpace: "nowrap", borderBottom: "3px solid transparent", bgcolor: section === item.key ? "#2e75b6" : "transparent", borderBottomColor: section === item.key ? "#53c6d3" : "transparent", transition: "background-color .16s ease, color .16s ease, border-color .16s ease", "&:hover": { bgcolor: "rgba(83,198,211,.2)", color: "#fff", borderBottomColor: "#53c6d3" }, "& .MuiButton-startIcon": { color: "inherit", mr: .55 } }}>{item.label}</Button>)}
-        </Box>
+        </Box>}
+        {compactNav && <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 1, minWidth: 0 }}>
+          <IconButton aria-label="Άνοιγμα μενού InsureOne" onClick={() => setMobileNavOpen(true)} sx={{ color: "#fff", width: 48, height: 48, borderRadius: 1.25, bgcolor: "rgba(83,198,211,.18)", "&:hover": { bgcolor: "rgba(83,198,211,.35)" } }}>
+            <MenuRoundedIcon />
+          </IconButton>
+          <Typography noWrap sx={{ color: "#fff", fontWeight: 850, fontSize: { xs: 14, sm: 16 } }}>Μενού InsureOne</Typography>
+        </Stack>}
         <Button aria-label="Αποσύνδεση" variant="contained" color="error" size="small" onClick={onLogout} startIcon={<LogoutRoundedIcon />} sx={{ flexShrink: 0, minWidth: { xs: 38, sm: 40 }, px: { xs: 1, sm: 1.25 }, color: "#fff", fontWeight: 850, borderRadius: 1.25, bgcolor: "#c62828", "&:hover": { bgcolor: "#9f1f1f" }, "& .MuiButton-startIcon": { mr: { xs: 0, sm: .65 } } }}>
           <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>Αποσύνδεση</Box>
         </Button>
+        <Drawer anchor="left" open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} ModalProps={{ keepMounted: true }}>
+          <Box role="presentation" sx={{ width: { xs: "min(88vw, 360px)", sm: 380 }, height: "100%", bgcolor: "#f7fbfd" }}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 2, py: 1.75, bgcolor: "#123a64", color: "#fff" }}>
+              <Box><Typography sx={{ fontWeight: 900, fontSize: 17 }}>Μενού InsureOne</Typography><Typography variant="caption" sx={{ color: "rgba(255,255,255,.78)" }}>{officeName || "Το γραφείο σας"}</Typography></Box>
+              <IconButton aria-label="Κλείσιμο μενού" onClick={() => setMobileNavOpen(false)} sx={{ color: "#fff" }}><CloseRoundedIcon /></IconButton>
+            </Stack>
+            <List sx={{ px: 1, py: 1 }}>
+              {menuItems.map(item => <ListItemButton key={`mobile-${item.key}`} selected={section === item.key} onClick={() => selectSection(item.key)} sx={{ borderRadius: 1, mb: .5, "&.Mui-selected": { bgcolor: "#dceff5", color: "#123a64" }, "&.Mui-selected:hover": { bgcolor: "#c8e7ef" } }}>
+                <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: 800 }} />
+                {item.icon}
+              </ListItemButton>)}
+            </List>
+          </Box>
+        </Drawer>
       </Box>
     </Box>
   </>;
