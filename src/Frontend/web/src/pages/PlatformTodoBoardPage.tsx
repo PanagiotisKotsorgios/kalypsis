@@ -24,7 +24,7 @@ import ViewColumnOutlinedIcon from "@mui/icons-material/ViewColumnOutlined";
 import { api, extractErrorMessage } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 
-type ColumnType = "text" | "date" | "select" | "tags";
+type ColumnType = "text" | "date" | "time" | "datetime" | "select" | "tags";
 interface TodoColumn {
   id: string;
   label: string;
@@ -36,6 +36,7 @@ interface TodoRow {
   id: string;
   cells: Record<string, string>;
   colors: Record<string, string>;
+  createdAt?: string;
 }
 interface TodoBoard {
   columns: TodoColumn[];
@@ -55,6 +56,12 @@ const STATUS_OPTIONS = ["Προς εκτέλεση", "Σε εξέλιξη", "Ο�
 const PRIORITY_OPTIONS = ["Χαμηλή", "Κανονική", "Υψηλή", "Επείγον"];
 const COLOR_OPTIONS = [
   { value: "", label: "Χωρίς χρώμα", swatch: "#ffffff" },
+  { value: "#0b4f8a", label: "Σκούρο μπλε", swatch: "#0b4f8a", dark: true },
+  { value: "#146c43", label: "Σκούρο πράσινο", swatch: "#146c43", dark: true },
+  { value: "#b42318", label: "Σκούρο κόκκινο", swatch: "#b42318", dark: true },
+  { value: "#9a6700", label: "Σκούρο πορτοκαλί", swatch: "#9a6700", dark: true },
+  { value: "#5b2a86", label: "Σκούρο μωβ", swatch: "#5b2a86", dark: true },
+  { value: "#334155", label: "Σκούρο γκρι", swatch: "#334155", dark: true },
   { value: "#e9f3ff", label: "Απαλό μπλε", swatch: "#e9f3ff" },
   { value: "#e9f8ef", label: "Απαλό πράσινο", swatch: "#e9f8ef" },
   { value: "#fff8dc", label: "Απαλό κίτρινο", swatch: "#fff8dc" },
@@ -63,12 +70,17 @@ const COLOR_OPTIONS = [
   { value: "#eef1f5", label: "Απαλό γκρι", swatch: "#eef1f5" },
 ];
 
+function cellForeground(color?: string) {
+  return COLOR_OPTIONS.find(option => option.value === color)?.dark ? "#ffffff" : "#172a3a";
+}
+
 const defaultColumns = (): TodoColumn[] => [
   { id: "task", label: "Εργασία", type: "text", width: 260 },
   { id: "assignee", label: "Υπεύθυνος", type: "select", width: 190 },
   { id: "status", label: "Κατάσταση", type: "select", options: STATUS_OPTIONS, width: 170 },
   { id: "priority", label: "Προτεραιότητα", type: "select", options: PRIORITY_OPTIONS, width: 145 },
   { id: "dueDate", label: "Προθεσμία", type: "date", width: 150 },
+  { id: "dueTime", label: "Ώρα", type: "time", width: 110 },
   { id: "tags", label: "Ετικέτες", type: "tags", width: 220 },
   { id: "notes", label: "Σημειώσεις", type: "text", width: 300 },
 ];
@@ -77,6 +89,7 @@ const newRow = (columns: TodoColumn[]): TodoRow => ({
   id: crypto.randomUUID(),
   cells: Object.fromEntries(columns.map(c => [c.id, c.id === "status" ? "Προς εκτέλεση" : c.id === "priority" ? "Κανονική" : ""])),
   colors: {},
+  createdAt: new Date().toISOString(),
 });
 
 const emptyBoard = (): TodoBoard => ({ columns: defaultColumns(), rows: [] });
@@ -86,19 +99,25 @@ function userName(user: PlatformUser) {
 }
 
 function cellIsOverdue(row: TodoRow) {
-  const date = row.cells.dueDate;
-  if (!date || row.cells.status === "Ολοκληρώθηκε") return false;
-  const due = new Date(`${date}T23:59:59`);
-  return Number.isFinite(due.getTime()) && due.getTime() < Date.now();
+  const due = rowDueAt(row);
+  if (!due || row.cells.status === "Ολοκληρώθηκε") return false;
+  return due.getTime() < Date.now();
 }
 
 function cellIsDueSoon(row: TodoRow) {
-  const date = row.cells.dueDate;
-  if (!date || row.cells.status === "Ολοκληρώθηκε") return false;
-  const due = new Date(`${date}T23:59:59`);
+  const due = rowDueAt(row);
+  if (!due || row.cells.status === "Ολοκληρώθηκε") return false;
   const inSevenDays = new Date();
   inSevenDays.setDate(inSevenDays.getDate() + 7);
-  return Number.isFinite(due.getTime()) && due >= new Date() && due <= inSevenDays;
+  return due >= new Date() && due <= inSevenDays;
+}
+
+function rowDueAt(row: TodoRow) {
+  const date = row.cells.dueDate;
+  if (!date) return null;
+  const time = row.cells.dueTime || "23:59";
+  const due = new Date(`${date}T${time.length === 5 ? `${time}:59` : time}`);
+  return Number.isFinite(due.getTime()) ? due : null;
 }
 
 /** Private SuperAdmin worksheet. It deliberately lives outside tenant routes. */
@@ -111,6 +130,7 @@ export function PlatformTodoBoardPage() {
   const [statusFilter, setStatusFilter] = useState("Όλα");
   const [assigneeFilter, setAssigneeFilter] = useState("Όλοι");
   const [dueFilter, setDueFilter] = useState("Όλες");
+  const [sortBy, setSortBy] = useState<"created-desc" | "created-asc" | "due-asc" | "due-desc">("created-desc");
   const [selected, setSelected] = useState<string[]>([]);
   const [colorAnchor, setColorAnchor] = useState<HTMLElement | null>(null);
   const [colorCell, setColorCell] = useState<{ rowId: string; columnId: string } | null>(null);
@@ -143,9 +163,15 @@ export function PlatformTodoBoardPage() {
   useEffect(() => {
     const loaded = boardQuery.data?.board;
     if (!loaded) return;
-    const columns = (loaded.columns ?? []).map(column => ({ ...column, width: column.width ?? 180 }));
-    setBoard({ columns: columns.length ? columns : defaultColumns(), rows: loaded.rows ?? [] });
-    setDirty(false);
+    const loadedColumns = (loaded.columns ?? []).map(column => ({ ...column, width: column.width ?? 180 }));
+    const columns = loadedColumns.length ? loadedColumns : defaultColumns();
+    // Older saved boards predate the dedicated time column. Add it in-place so
+    // existing SuperAdmin boards gain date + time support without losing data.
+    const missingDefaults = defaultColumns().filter(defaultColumn => !columns.some(column => column.id === defaultColumn.id));
+    const mergedColumns = [...columns, ...missingDefaults];
+    const rows = (loaded.rows ?? []).map(row => ({ ...row, cells: { ...Object.fromEntries(missingDefaults.map(column => [column.id, ""])), ...row.cells }, colors: row.colors ?? {} }));
+    setBoard({ columns: mergedColumns, rows });
+    setDirty(missingDefaults.length > 0);
   }, [boardQuery.data]);
 
   useEffect(() => {
@@ -162,7 +188,7 @@ export function PlatformTodoBoardPage() {
   const users = usersQuery.data ?? [];
   const filteredRows = useMemo(() => {
     const needle = search.trim().toLocaleLowerCase("el-GR");
-    return board.rows.filter(row => {
+    const rows = board.rows.filter(row => {
       const haystack = Object.values(row.cells).join(" ").toLocaleLowerCase("el-GR");
       if (needle && !haystack.includes(needle)) return false;
       if (statusFilter !== "Όλα" && (row.cells.status || "Προς εκτέλεση") !== statusFilter) return false;
@@ -172,7 +198,20 @@ export function PlatformTodoBoardPage() {
       if (dueFilter === "Χωρίς ημερομηνία" && row.cells.dueDate) return false;
       return true;
     });
-  }, [assigneeFilter, board.rows, dueFilter, search, statusFilter]);
+    const originalIndex = new Map(board.rows.map((row, index) => [row.id, index]));
+    return rows.sort((a, b) => {
+      if (sortBy === "due-asc" || sortBy === "due-desc") {
+        const aDue = rowDueAt(a)?.getTime() ?? Number.POSITIVE_INFINITY;
+        const bDue = rowDueAt(b)?.getTime() ?? Number.POSITIVE_INFINITY;
+        if (aDue !== bDue) return sortBy === "due-asc" ? aDue - bDue : bDue - aDue;
+      } else {
+        const aCreated = a.createdAt ? Date.parse(a.createdAt) : 0;
+        const bCreated = b.createdAt ? Date.parse(b.createdAt) : 0;
+        if (aCreated !== bCreated) return sortBy === "created-desc" ? bCreated - aCreated : aCreated - bCreated;
+      }
+      return (originalIndex.get(a.id) ?? 0) - (originalIndex.get(b.id) ?? 0);
+    });
+  }, [assigneeFilter, board.rows, dueFilter, search, sortBy, statusFilter]);
 
   const stats = useMemo(() => ({
     total: board.rows.length,
@@ -244,7 +283,7 @@ export function PlatformTodoBoardPage() {
     });
     setDeleteColumnId(null);
   };
-  const resetDraft = () => { markDirty(emptyBoard()); setSelected([]); setSearch(""); setStatusFilter("Όλα"); setAssigneeFilter("Όλοι"); setDueFilter("Όλες"); };
+  const resetDraft = () => { markDirty(emptyBoard()); setSelected([]); setSearch(""); setStatusFilter("Όλα"); setAssigneeFilter("Όλοι"); setDueFilter("Όλες"); setSortBy("created-desc"); };
 
   return (
     <Box sx={{ pb: 4 }}>
@@ -268,6 +307,7 @@ export function PlatformTodoBoardPage() {
           <FormControl size="small" sx={{ minWidth: 170 }}><InputLabel>Κατάσταση</InputLabel><Select value={statusFilter} label="Κατάσταση" onChange={e => setStatusFilter(e.target.value)}><MenuItem value="Όλα">Όλες οι καταστάσεις</MenuItem>{STATUS_OPTIONS.map(option => <MenuItem key={option} value={option}>{option}</MenuItem>)}</Select></FormControl>
           <FormControl size="small" sx={{ minWidth: 180 }}><InputLabel>Υπεύθυνος</InputLabel><Select value={assigneeFilter} label="Υπεύθυνος" onChange={e => setAssigneeFilter(e.target.value)}><MenuItem value="Όλοι">Όλοι οι χρήστες</MenuItem>{users.filter(u => u.isActive).map(u => <MenuItem key={u.id} value={u.id}>{userName(u)}</MenuItem>)}</Select></FormControl>
           <FormControl size="small" sx={{ minWidth: 170 }}><InputLabel>Ημερομηνία</InputLabel><Select value={dueFilter} label="Ημερομηνία" onChange={e => setDueFilter(e.target.value)}><MenuItem value="Όλες">Όλες οι ημερομηνίες</MenuItem><MenuItem value="Εκπρόθεσμες">Εκπρόθεσμες</MenuItem><MenuItem value="Επόμενες 7 ημέρες">Επόμενες 7 ημέρες</MenuItem><MenuItem value="Χωρίς ημερομηνία">Χωρίς ημερομηνία</MenuItem></Select></FormControl>
+           <FormControl size="small" sx={{ minWidth: 205 }}><InputLabel>Ταξινόμηση</InputLabel><Select value={sortBy} label="Ταξινόμηση" onChange={e => setSortBy(e.target.value as typeof sortBy)}><MenuItem value="created-desc">Νεότερες εργασίες πρώτα</MenuItem><MenuItem value="created-asc">Παλαιότερες εργασίες πρώτα</MenuItem><MenuItem value="due-asc">Προθεσμία: κοντινότερη</MenuItem><MenuItem value="due-desc">Προθεσμία: μακρινότερη</MenuItem></Select></FormControl>
           <Divider orientation="vertical" flexItem sx={{ display: { xs: "none", lg: "block" } }} />
           <Button variant="outlined" color="inherit" startIcon={<AddIcon />} onClick={addRow} sx={{ whiteSpace: "nowrap", color: "#155aa8", borderColor: "#9fc2e2" }}>Νέα εργασία</Button>
           <Button variant="outlined" color="inherit" startIcon={<ViewColumnOutlinedIcon />} onClick={openAddColumn} sx={{ whiteSpace: "nowrap", color: "#155aa8", borderColor: "#9fc2e2" }}>Νέα στήλη</Button>
@@ -287,15 +327,17 @@ export function PlatformTodoBoardPage() {
         <TableContainer sx={{ maxHeight: "calc(100vh - 330px)", minHeight: 330, overflow: "auto", "&::-webkit-scrollbar": { height: 12, width: 12 }, "&::-webkit-scrollbar-thumb": { background: "#93b5d4", borderRadius: 6 }, "&::-webkit-scrollbar-track": { background: "#eef4fa" } }}>
           <Table stickyHeader size="small" sx={{ minWidth: Math.max(980, board.columns.reduce((sum, c) => sum + (c.width ?? 180), 80)) }}>
             <TableHead><TableRow>
-              <TableCell padding="checkbox" sx={{ bgcolor: "#edf3f8", borderBottom: "2px solid #cbdbea" }}><Checkbox size="small" checked={filteredRows.length > 0 && filteredRows.every(row => selected.includes(row.id))} indeterminate={filteredRows.some(row => selected.includes(row.id)) && !filteredRows.every(row => selected.includes(row.id))} onChange={toggleAllVisible} /></TableCell>
+              <TableCell padding="checkbox" sx={{ width: 52, bgcolor: "#edf3f8", borderBottom: "2px solid #cbdbea", position: "sticky", left: 0, zIndex: 4 }}><Checkbox size="small" checked={filteredRows.length > 0 && filteredRows.every(row => selected.includes(row.id))} indeterminate={filteredRows.some(row => selected.includes(row.id)) && !filteredRows.every(row => selected.includes(row.id))} onChange={toggleAllVisible} /></TableCell>
+              <TableCell sx={{ width: 52, bgcolor: "#edf3f8", borderBottom: "2px solid #cbdbea", fontWeight: 850, color: "#526579", textAlign: "center", position: "sticky", left: 52, zIndex: 4 }}>#</TableCell>
               {board.columns.map(column => <TableCell key={column.id} sx={{ bgcolor: "#edf3f8", borderBottom: "2px solid #cbdbea", minWidth: column.width ?? 180, fontWeight: 850, color: "#243b53", whiteSpace: "nowrap" }}>
                 <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={.5}><span>{column.label}</span><span><Tooltip title="Επεξεργασία στήλης"><IconButton size="small" onClick={() => openEditColumn(column)}><EditOutlinedIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>{board.columns.length > 1 && <Tooltip title="Διαγραφή στήλης"><IconButton size="small" color="error" onClick={() => setDeleteColumnId(column.id)}><DeleteOutlineIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>}</span></Stack>
               </TableCell>)}
             </TableRow></TableHead>
             <TableBody>
-              {filteredRows.length === 0 ? <TableRow><TableCell colSpan={board.columns.length + 1}><Box sx={{ py: 8, textAlign: "center", color: "text.secondary" }}><ArchiveOutlinedIcon sx={{ fontSize: 42, opacity: .35, mb: 1 }} /><Typography fontWeight={700}>Δεν υπάρχουν εργασίες με αυτά τα φίλτρα.</Typography><Typography variant="body2">Πατήστε «Νέα εργασία» για να δημιουργήσετε την πρώτη γραμμή.</Typography></Box></TableCell></TableRow> : filteredRows.map(row => <TableRow key={row.id} hover selected={selected.includes(row.id)}>
-                <TableCell padding="checkbox"><Checkbox size="small" checked={selected.includes(row.id)} onChange={() => toggleRow(row.id)} /></TableCell>
-                {board.columns.map(column => <TableCell key={`${row.id}-${column.id}`} sx={{ p: .65, verticalAlign: "top", backgroundColor: row.colors[column.id] || "transparent" }}>
+              {filteredRows.length === 0 ? <TableRow><TableCell colSpan={board.columns.length + 2}><Box sx={{ py: 8, textAlign: "center", color: "text.secondary" }}><ArchiveOutlinedIcon sx={{ fontSize: 42, opacity: .35, mb: 1 }} /><Typography fontWeight={700}>Δεν υπάρχουν εργασίες με αυτά τα φίλτρα.</Typography><Typography variant="body2">Πατήστε «Νέα εργασία» για να δημιουργήσετε την πρώτη γραμμή.</Typography></Box></TableCell></TableRow> : filteredRows.map(row => <TableRow key={row.id} hover selected={selected.includes(row.id)}>
+                <TableCell padding="checkbox" sx={{ position: "sticky", left: 0, zIndex: 2, bgcolor: selected.includes(row.id) ? "#e8f1fb" : "#fff" }}><Checkbox size="small" checked={selected.includes(row.id)} onChange={() => toggleRow(row.id)} /></TableCell>
+                <TableCell sx={{ width: 52, p: .65, verticalAlign: "top", textAlign: "center", color: "#64748b", fontWeight: 700, position: "sticky", left: 52, zIndex: 1, bgcolor: selected.includes(row.id) ? "#e8f1fb" : "#fff" }}>{board.rows.findIndex(item => item.id === row.id) + 1}</TableCell>
+                {board.columns.map(column => <TableCell key={`${row.id}-${column.id}`} sx={{ p: .65, verticalAlign: "top", backgroundColor: row.colors[column.id] || "transparent", color: cellForeground(row.colors[column.id]), "& .MuiInputBase-input, & .MuiSelect-select": { color: cellForeground(row.colors[column.id]) }, "& .MuiSvgIcon-root": { color: cellForeground(row.colors[column.id]) } }}>
                   <TodoCell column={column} row={row} users={users} onChange={value => updateCell(row.id, column.id, value)} onColorClick={event => { setColorCell({ rowId: row.id, columnId: column.id }); setColorAnchor(event.currentTarget); }} />
                 </TableCell>)}
               </TableRow>)}
@@ -312,7 +354,7 @@ export function PlatformTodoBoardPage() {
         <Box sx={{ p: 1.2, width: 205 }}><Typography variant="caption" fontWeight={800} color="text.secondary">Χρώμα κελιού</Typography><Stack spacing={.4} mt={.6}>{COLOR_OPTIONS.map(option => <Button key={option.value || "none"} size="small" onClick={() => setCellColor(option.value)} sx={{ justifyContent: "flex-start", color: "#243b53", textTransform: "none" }}><Box sx={{ width: 18, height: 18, mr: 1, borderRadius: .8, bgcolor: option.swatch, border: "1px solid #cbd5e1" }} />{option.label}</Button>)}</Stack></Box>
       </Popover>
 
-      <Dialog open={columnDialog.open} onClose={() => setColumnDialog({ open: false })} fullWidth maxWidth="xs"><DialogTitle>{columnDialog.editingId ? "Επεξεργασία στήλης" : "Νέα δυναμική στήλη"}</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}><TextField autoFocus label="Όνομα στήλης" value={columnDraft.label} onChange={e => setColumnDraft(d => ({ ...d, label: e.target.value }))} fullWidth /><FormControl fullWidth><InputLabel>Τύπος κελιού</InputLabel><Select value={columnDraft.type} label="Τύπος κελιού" onChange={e => setColumnDraft(d => ({ ...d, type: e.target.value as ColumnType }))}><MenuItem value="text">Κείμενο</MenuItem><MenuItem value="date">Ημερομηνία</MenuItem><MenuItem value="select">Επιλογή από λίστα</MenuItem><MenuItem value="tags">Ετικέτες</MenuItem></Select></FormControl>{columnDraft.type === "select" && <TextField label="Επιλογές" helperText="Χωρίστε τις επιλογές με κόμμα" value={columnDraft.options} onChange={e => setColumnDraft(d => ({ ...d, options: e.target.value }))} fullWidth />}</Stack></DialogContent><DialogActions><Button color="error" onClick={() => setColumnDialog({ open: false })}>Ακύρωση</Button><Button variant="contained" onClick={saveColumn} disabled={!columnDraft.label.trim()}>Αποθήκευση</Button></DialogActions></Dialog>
+      <Dialog open={columnDialog.open} onClose={() => setColumnDialog({ open: false })} fullWidth maxWidth="xs"><DialogTitle>{columnDialog.editingId ? "Επεξεργασία στήλης" : "Νέα δυναμική στήλη"}</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}><TextField autoFocus label="Όνομα στήλης" value={columnDraft.label} onChange={e => setColumnDraft(d => ({ ...d, label: e.target.value }))} fullWidth /><FormControl fullWidth><InputLabel>Τύπος κελιού</InputLabel><Select value={columnDraft.type} label="Τύπος κελιού" onChange={e => setColumnDraft(d => ({ ...d, type: e.target.value as ColumnType }))}><MenuItem value="text">Κείμενο</MenuItem><MenuItem value="date">Ημερομηνία</MenuItem><MenuItem value="time">Ώρα</MenuItem><MenuItem value="datetime">Ημερομηνία και ώρα</MenuItem><MenuItem value="select">Επιλογή από λίστα</MenuItem><MenuItem value="tags">Ετικέτες</MenuItem></Select></FormControl>{columnDraft.type === "select" && <TextField label="Επιλογές" helperText="Χωρίστε τις επιλογές με κόμμα" value={columnDraft.options} onChange={e => setColumnDraft(d => ({ ...d, options: e.target.value }))} fullWidth />}</Stack></DialogContent><DialogActions><Button color="error" onClick={() => setColumnDialog({ open: false })}>Ακύρωση</Button><Button variant="contained" onClick={saveColumn} disabled={!columnDraft.label.trim()}>Αποθήκευση</Button></DialogActions></Dialog>
       <Dialog open={Boolean(deleteColumnId)} onClose={() => setDeleteColumnId(null)}><DialogTitle>Διαγραφή στήλης;</DialogTitle><DialogContent><Typography>Τα δεδομένα της στήλης θα αφαιρεθούν από όλες τις γραμμές του προσωπικού πίνακα.</Typography></DialogContent><DialogActions><Button onClick={() => setDeleteColumnId(null)}>Ακύρωση</Button><Button color="error" variant="contained" onClick={removeColumn}>Διαγραφή</Button></DialogActions></Dialog>
       <Dialog open={confirmDeleteRows} onClose={() => setConfirmDeleteRows(false)}><DialogTitle>Διαγραφή επιλεγμένων εργασιών;</DialogTitle><DialogContent><Typography>Θέλετε να αφαιρέσετε τις {selected.length} επιλεγμένες γραμμές; Η αλλαγή θα εφαρμοστεί μετά την αποθήκευση.</Typography></DialogContent><DialogActions><Button onClick={() => setConfirmDeleteRows(false)}>Ακύρωση</Button><Button color="error" variant="contained" onClick={removeRows}>Διαγραφή</Button></DialogActions></Dialog>
       <Snackbar open={Boolean(notice)} autoHideDuration={4200} onClose={() => setNotice(null)} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}><Alert severity={notice?.severity} onClose={() => setNotice(null)}>{notice?.text}</Alert></Snackbar>
@@ -326,11 +368,12 @@ function Metric({ label, value, icon, color }: { label: string; value: number; i
 
 function TodoCell({ column, row, users, onChange, onColorClick }: { column: TodoColumn; row: TodoRow; users: PlatformUser[]; onChange: (value: string) => void; onColorClick: (event: React.MouseEvent<HTMLElement>) => void }) {
   const value = row.cells[column.id] ?? "";
-  const common = { size: "small" as const, variant: "standard" as const, fullWidth: true, value, onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => onChange(event.target.value), InputProps: { disableUnderline: true }, sx: { "& .MuiInputBase-input": { fontSize: 13, py: .55, px: .45 } } };
+  const textColor = cellForeground(row.colors[column.id]);
+  const common = { size: "small" as const, variant: "standard" as const, fullWidth: true, value, onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => onChange(event.target.value), InputProps: { disableUnderline: true }, sx: { color: textColor, "& .MuiInputBase-input": { color: textColor, fontSize: 13, py: .55, px: .45 } } };
   return <Stack direction="row" alignItems="flex-start" spacing={.25}><Box sx={{ flex: 1, minWidth: 0 }}>
     {column.id === "assignee" ? <FormControl variant="standard" size="small" fullWidth><Select value={value} displayEmpty onChange={event => onChange(event.target.value)} sx={{ fontSize: 13, "&:before, &:after": { display: "none" }, "& .MuiSelect-select": { py: .55, px: .45 } }}><MenuItem value=""><em>Χωρίς ανάθεση</em></MenuItem>{users.filter(u => u.isActive).map(u => <MenuItem key={u.id} value={u.id}>{userName(u)}</MenuItem>)}</Select></FormControl>
       : column.type === "select" ? <FormControl variant="standard" size="small" fullWidth><Select value={value} onChange={event => onChange(event.target.value)} sx={{ fontSize: 13, "&:before, &:after": { display: "none" }, "& .MuiSelect-select": { py: .55, px: .45 } }}>{(column.options ?? []).map(option => <MenuItem key={option} value={option}>{option}</MenuItem>)}</Select></FormControl>
-      : <TextField {...common} type={column.type === "date" ? "date" : "text"} multiline={column.id === "notes"} minRows={column.id === "notes" ? 1 : undefined} placeholder={column.type === "tags" ? "π.χ. επείγον, οικονομικά" : ""} />}
-  </Box><Tooltip title="Χρώμα κελιού"><IconButton size="small" onClick={onColorClick} sx={{ mt: .15, color: row.colors[column.id] ? "#155aa8" : "#94a3b8" }}><PaletteOutlinedIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip></Stack>;
+      : <TextField {...common} type={column.type === "date" ? "date" : column.type === "time" ? "time" : column.type === "datetime" ? "datetime-local" : "text"} multiline={column.id === "notes"} minRows={column.id === "notes" ? 1 : undefined} InputLabelProps={column.type === "date" || column.type === "time" || column.type === "datetime" ? { shrink: true } : undefined} placeholder={column.type === "tags" ? "π.χ. επείγον, οικονομικά" : ""} />}
+  </Box><Tooltip title="Χρώμα κελιού"><IconButton size="small" onClick={onColorClick} sx={{ mt: .15, color: row.colors[column.id] ? textColor : "#94a3b8" }}><PaletteOutlinedIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip></Stack>;
 }
 
