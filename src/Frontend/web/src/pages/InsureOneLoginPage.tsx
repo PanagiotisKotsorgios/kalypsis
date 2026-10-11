@@ -186,9 +186,9 @@ export function InsureOneLoginPage() {
             <Box component="img" src="/assets/insureone-plugin-logo.png" alt="InsureOne" sx={{ width: { xs: 86, sm: 104 }, height: { xs: 42, sm: 50 }, objectFit: "contain", bgcolor: "#fff", borderRadius: 1.25, px: .7 }} />
             <Typography sx={{ color: "#526578", fontWeight: 750, fontSize: { xs: 12.5, sm: 14 } }}>Πύλη συνεργατών InsureOne</Typography>
           </Stack>
-          <Stack alignItems={{ xs: "center", sm: "flex-end" }} spacing={.35}>
-            <Typography sx={{ color: "#526578", fontWeight: 900, fontSize: { xs: 16, sm: 18 }, letterSpacing: ".02em" }}>Powered by KALYPSIS</Typography>
-            <KalypsisLogo size={88} crop />
+          <Stack direction="row" alignItems="center" justifyContent={{ xs: "center", sm: "flex-end" }} spacing={{ xs: .8, sm: 1.1 }}>
+            <Typography sx={{ color: "#526578", fontWeight: 900, fontSize: { xs: 15, sm: 17 }, letterSpacing: ".02em", whiteSpace: "nowrap" }}>Powered by KALYPSIS</Typography>
+            <KalypsisLogo size={76} crop />
           </Stack>
         </Box>
       </Box>
