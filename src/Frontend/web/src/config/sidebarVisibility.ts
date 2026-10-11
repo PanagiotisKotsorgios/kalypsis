@@ -167,7 +167,8 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
       { path: "/office-website/overview", label: "Επισκόπηση ιστοσελίδας" },
       { path: "/office-website", label: "Επεξεργασία ιστοσελίδας" },
       { path: "/office-website/requests", label: "Αιτήματα ενδιαφέροντος" },
-      { path: "/office-website/analytics", label: "Επισκεψιμότητα & αναφορές" }
+      { path: "/office-website/analytics", label: "Επισκεψιμότητα & αναφορές" },
+      { path: "/insureone/partners", label: "Διαχείριση συνεργατών InsureOne" }
     ]
   },
   {
@@ -176,8 +177,7 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
     packages: ["FrontOffice"],
     groupKey: "quoting",
     items: [
-      { path: "/frontoffice-quoting?view=dashboard", label: "Πολυτιμολόγηση" },
-      { path: "/insureone/partners", label: "Διαχείριση συνεργατών InsureOne" }
+      { path: "/frontoffice-quoting?view=dashboard", label: "Πολυτιμολόγηση" }
     ]
   },
   {

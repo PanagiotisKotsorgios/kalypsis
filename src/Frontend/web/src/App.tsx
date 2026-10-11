@@ -423,7 +423,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/office-website/analytics", labelKey: "nav.officeWebsiteAnalytics", icon: <AnalyticsIcon />, package: "FrontOffice", group: "website" },
     { to: "/frontoffice-quoting?view=dashboard", labelKey: "nav.quotingDashboard", icon: <CalculateIcon />, package: "FrontOffice", openInNewTab: true, accent: "quoting" },
 
-    { to: "/insureone/partners", labelKey: "nav.insureonePartners", icon: <GroupIcon />, package: "FrontOffice", group: "quoting" },
+    { to: "/insureone/partners", labelKey: "nav.insureonePartners", icon: <GroupIcon />, package: "FrontOffice", accent: "quoting" },
 
     // ===== Intelligence =====
     // persistency hidden — analytics shell exists but not wired to data yet.
@@ -533,7 +533,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/office-website/requests", labelKey: "nav.officeWebsiteRequests", icon: <AssignmentIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website/analytics", labelKey: "nav.officeWebsiteAnalytics", icon: <AnalyticsIcon />, package: "FrontOffice", group: "website" },
     { to: "/frontoffice-quoting?view=dashboard", labelKey: "nav.quotingDashboard", icon: <CalculateIcon />, package: "FrontOffice", openInNewTab: true, accent: "quoting" },
-    { to: "/insureone/partners", labelKey: "nav.insureonePartners", icon: <GroupIcon />, package: "FrontOffice", group: "quoting" },
+    { to: "/insureone/partners", labelKey: "nav.insureonePartners", icon: <GroupIcon />, package: "FrontOffice", accent: "quoting" },
     { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/crm-groups", labelKey: "nav.crmGroups", icon: <GroupWorkIconRC />, package: "Crm", permission: "marketing.read" },
