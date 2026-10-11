@@ -66,6 +66,8 @@ public interface IAppDbContext
     DbSet<DeliveryRecord> DeliveryRecords { get; }
     DbSet<DocumentFolder> DocumentFolders { get; }
     DbSet<PartnerPortalAccess> PartnerPortalAccesses { get; }
+    DbSet<InsureOneOfficeSettings> InsureOneOfficeSettings { get; }
+    DbSet<InsureOnePartnerPermission> InsureOnePartnerPermissions { get; }
     DbSet<ThirdPartyApiKey> ThirdPartyApiKeys { get; }
     DbSet<DiasCode> DiasCodes { get; }
     DbSet<AccountingExport> AccountingExports { get; }

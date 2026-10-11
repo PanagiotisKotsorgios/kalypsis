@@ -74,6 +74,8 @@ interface AuthContextValue {
    * caller must catch it, render a code-entry step, then call completeTwoFactor.
    */
   signIn: (email: string, password: string, rememberMe?: boolean) => Promise<AuthUser>;
+  /** InsureOne branded login. Uses the same central session/2FA handling. */
+  signInInsureOne: (slug: string, identifier: string, password: string, rememberMe?: boolean) => Promise<AuthUser>;
   /** Second leg of the 2FA login flow. */
   completeTwoFactor: (challengeToken: string, code: string, rememberMe?: boolean) => Promise<AuthUser>;
   /** Second leg of the email-code login flow. */
@@ -262,6 +264,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [persistSession]
   );
 
+  const signInInsureOne = useCallback(
+    async (slug: string, identifier: string, password: string, rememberMe: boolean = true) => {
+      const res = await api.post<LoginResponse>(`/insureone/public/${encodeURIComponent(slug)}/login`, { identifier, password });
+      const payload = res.data;
+      if (payload.requiresTwoFactor && payload.challengeToken) throw new TwoFactorRequiredError(payload.challengeToken);
+      if (payload.requiresEmailCode && payload.challengeToken) throw new EmailCodeRequiredError(payload.challengeToken);
+      return persistSession(payload, rememberMe);
+    },
+    [persistSession]
+  );
+
   const completeTwoFactor = useCallback(
     async (challengeToken: string, code: string, rememberMe: boolean = true) => {
       const res = await api.post<LoginResponse>("/auth/2fa/login", { challengeToken, code });
@@ -421,8 +434,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   })();
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, accessToken, loading, signIn, completeTwoFactor, completeEmailCode, signOut, startUserImpersonation, endUserImpersonation, isImpersonatingUser, impersonatorEmail }),
-    [user, accessToken, loading, signIn, completeTwoFactor, completeEmailCode, signOut, startUserImpersonation, endUserImpersonation, isImpersonatingUser, impersonatorEmail]
+    () => ({ user, accessToken, loading, signIn, signInInsureOne, completeTwoFactor, completeEmailCode, signOut, startUserImpersonation, endUserImpersonation, isImpersonatingUser, impersonatorEmail }),
+    [user, accessToken, loading, signIn, signInInsureOne, completeTwoFactor, completeEmailCode, signOut, startUserImpersonation, endUserImpersonation, isImpersonatingUser, impersonatorEmail]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

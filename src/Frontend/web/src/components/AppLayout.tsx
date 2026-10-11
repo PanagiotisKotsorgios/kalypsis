@@ -627,9 +627,28 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
             aria-label="Προφίλ και επιλογές"
             aria-haspopup="menu"
             aria-expanded={profileMenuOpen ? "true" : undefined}
-            sx={{ display: "flex", width: "100%", justifyContent: "flex-start", borderRadius: 2, p: 0.75, textAlign: "left" }}
+            sx={{
+              display: "flex",
+              width: "100%",
+              justifyContent: "flex-start",
+              borderRadius: 2,
+              p: 0.75,
+              textAlign: "left",
+              border: "1px solid transparent",
+              transition: "background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease",
+              "&:hover": {
+                bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
+                borderColor: (theme) => alpha(theme.palette.primary.main, 0.28),
+                boxShadow: (theme) => `0 4px 14px ${alpha(theme.palette.primary.main, 0.12)}`,
+              },
+              "&:focus-visible": {
+                outline: "2px solid",
+                outlineColor: "primary.main",
+                outlineOffset: 2,
+              },
+            }}
           >
-            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
+            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0, width: "100%" }}>
               <Avatar sx={{ bgcolor: "primary.main", width: 36, height: 36, fontSize: 14 }}>
                 {initials}
               </Avatar>
@@ -640,6 +659,23 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
                 <Typography variant="caption" color="text.secondary" noWrap display="block">
                   {user ? t(`roles.${user.role}`) : ""}
                 </Typography>
+              </Box>
+              <Box
+                aria-hidden="true"
+                sx={{
+                  ml: "auto",
+                  display: "grid",
+                  placeItems: "center",
+                  width: 28,
+                  height: 28,
+                  flexShrink: 0,
+                  borderRadius: 1.5,
+                  color: profileMenuOpen ? "text.secondary" : "primary.main",
+                  bgcolor: profileMenuOpen ? "action.selected" : "rgba(30, 167, 225, 0.08)",
+                  transition: "background-color 160ms ease, color 160ms ease",
+                }}
+              >
+                {profileMenuOpen ? <ExpandMoreIcon fontSize="small" /> : <ExpandLessIcon fontSize="small" />}
               </Box>
             </Stack>
           </ButtonBase>

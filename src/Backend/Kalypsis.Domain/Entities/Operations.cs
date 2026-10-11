@@ -61,12 +61,23 @@ public class PartnerPortalAccess : TenantEntity
     public Guid ProducerId { get; set; }
     public Producer Producer { get; set; } = null!;
 
+    /// <summary>Central login identity used by the InsureOne partner desk.</summary>
+    public Guid? UserId { get; set; }
+    public User? User { get; set; }
+
+    /// <summary>Optional short code shown to the partner as their desk username.</summary>
+    public string? LoginCode { get; set; }
+    /// <summary>Stable JSON array of InsureOne permission codes.</summary>
+    public string? PermissionsJson { get; set; }
+
     public bool IsActive { get; set; } = true;
     public bool CanIssuePolicies { get; set; } = false;
     public bool CanViewCommissions { get; set; } = true;
     public bool CanViewCustomers { get; set; } = true;
     public string? Notes { get; set; }
     public DateTime? LastLoginAt { get; set; }
+
+    public ICollection<InsureOnePartnerPermission> Permissions { get; set; } = new List<InsureOnePartnerPermission>();
 }
 
 public class ThirdPartyApiKey : TenantEntity

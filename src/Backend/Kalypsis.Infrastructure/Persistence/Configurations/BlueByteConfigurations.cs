@@ -256,8 +256,46 @@ public class PartnerPortalAccessConfiguration : IEntityTypeConfiguration<Partner
         b.ToTable("partner_portal_accesses");
         b.HasKey(x => x.Id);
         b.Property(x => x.Notes).HasMaxLength(1000);
+        b.Property(x => x.LoginCode).HasMaxLength(80);
+        b.Property(x => x.PermissionsJson).HasColumnType("longtext");
         b.HasOne(x => x.Producer).WithMany().HasForeignKey(x => x.ProducerId).OnDelete(DeleteBehavior.Cascade);
+        b.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.SetNull);
         b.HasIndex(x => new { x.TenantId, x.ProducerId }).IsUnique();
+        b.HasIndex(x => new { x.TenantId, x.LoginCode }).IsUnique();
+    }
+}
+
+public class InsureOneOfficeSettingsConfiguration : IEntityTypeConfiguration<InsureOneOfficeSettings>
+{
+    public void Configure(EntityTypeBuilder<InsureOneOfficeSettings> b)
+    {
+        b.ToTable("insureone_office_settings");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Slug).HasMaxLength(100).IsRequired();
+        b.Property(x => x.DisplayName).HasMaxLength(180);
+        b.Property(x => x.WelcomeMessage).HasMaxLength(1000);
+        b.Property(x => x.PrimaryColor).HasMaxLength(20).IsRequired();
+        b.Property(x => x.SecondaryColor).HasMaxLength(20).IsRequired();
+        b.Property(x => x.SupportEmail).HasMaxLength(256);
+        b.Property(x => x.SupportPhone).HasMaxLength(60);
+        b.Property(x => x.LogoPath).HasMaxLength(500);
+        b.Property(x => x.AllowedBranchesJson).HasColumnType("longtext");
+        b.HasOne(x => x.AgencyOffice).WithMany().HasForeignKey(x => x.AgencyOfficeId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => new { x.TenantId, x.AgencyOfficeId }).IsUnique();
+        b.HasIndex(x => x.Slug).IsUnique();
+    }
+}
+
+public class InsureOnePartnerPermissionConfiguration : IEntityTypeConfiguration<InsureOnePartnerPermission>
+{
+    public void Configure(EntityTypeBuilder<InsureOnePartnerPermission> b)
+    {
+        b.ToTable("insureone_partner_permissions");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.PermissionCode).HasMaxLength(100).IsRequired();
+        b.HasOne(x => x.PartnerPortalAccess).WithMany(x => x.Permissions)
+            .HasForeignKey(x => x.PartnerPortalAccessId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => new { x.TenantId, x.PartnerPortalAccessId, x.PermissionCode }).IsUnique();
     }
 }
 

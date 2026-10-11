@@ -204,6 +204,9 @@ import { AgencyInstructionsPage } from "./pages/AgencyInstructionsPage";
 import { BackupsPage } from "./pages/BackupsPage";
 import { ConfigHubPage } from "./pages/ConfigHubPage";
 import { FrontOfficeQuotingPage } from "./pages/FrontOfficeQuotingPage";
+import { InsureOneLoginPage } from "./pages/InsureOneLoginPage";
+import { InsureOnePartnerDashboardPage } from "./pages/InsureOnePartnerDashboardPage";
+import { InsureOnePartnerManagementPage } from "./pages/InsureOnePartnerManagementPage";
 import { RecycleBinPage } from "./pages/RecycleBinPage";
 import { ProducerReconciliationPage } from "./pages/ProducerReconciliationPage";
 import { ReconciliationDashboardPage } from "./pages/ReconciliationDashboardPage";
@@ -420,6 +423,8 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/office-website/requests", labelKey: "nav.officeWebsiteRequests", icon: <AssignmentIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website/analytics", labelKey: "nav.officeWebsiteAnalytics", icon: <AnalyticsIcon />, package: "FrontOffice", group: "website" },
     { to: "/frontoffice-quoting?view=dashboard", labelKey: "nav.quotingDashboard", icon: <CalculateIcon />, package: "FrontOffice", openInNewTab: true, accent: "quoting" },
+
+    { to: "/insureone/partners", labelKey: "nav.insureonePartners", icon: <GroupIcon />, package: "FrontOffice", group: "website" },
 
     // ===== Intelligence =====
     // persistency hidden — analytics shell exists but not wired to data yet.
@@ -836,6 +841,8 @@ export default function App() {
             <PackageGate package="FrontOffice"><FrontOfficeQuotingPage standalone /></PackageGate>
           </ProtectedRoute>
         } />
+        <Route path="/insureone/:slug/login" element={<InsureOneLoginPage />} />
+        <Route path="/insureone/:slug" element={<ProtectedRoute><PackageGate package="FrontOffice"><InsureOnePartnerDashboardPage /></PackageGate></ProtectedRoute>} />
         <Route path="/data-retention-schedule" element={<DataRetentionPage />} />
         <Route
           path="/app/*"
@@ -1086,6 +1093,7 @@ export default function App() {
                   <Route path="office-website/analytics" element={<PackageGate package="FrontOffice"><OfficeWebsiteAnalyticsPage /></PackageGate>} />
                   <Route path="office-website" element={<PackageGate package="FrontOffice"><OfficeWebsitePage /></PackageGate>} />
                   <Route path="frontoffice/quoting" element={<PackageGate package="FrontOffice"><FrontOfficeQuotingPage /></PackageGate>} />
+                  <Route path="insureone/partners" element={<PackageGate package="FrontOffice"><InsureOnePartnerManagementPage /></PackageGate>} />
                   <Route path="branches" element={<BranchesPage />} />
                   <Route path="securities" element={<Navigate to="/app/financials?tab=securities" replace />} />
                   <Route path="bank-connections" element={<PackageGate package="Integrations"><BankConnectionsPage /></PackageGate>} />

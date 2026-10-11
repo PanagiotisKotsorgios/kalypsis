@@ -164,6 +164,7 @@ builder.Services.AddAuthorization(opt =>
         nameof(Kalypsis.Domain.Enums.Role.PlatformAdmin),
         nameof(Kalypsis.Domain.Enums.Role.PlatformEmployee)));
     opt.AddPolicy("Producer", p => p.RequireClaim("role", nameof(Kalypsis.Domain.Enums.Role.Producer)));
+    opt.AddPolicy("InsureOnePartner", p => p.RequireClaim("role", nameof(Kalypsis.Domain.Enums.Role.Producer)));
     // Federation module policies — mirror the AgencyAdmin / AgencyStaff pair
     // so PlatformAdmin/Employee can operate federation surfaces while
     // impersonating (identical to the insurance-side policies).
@@ -456,6 +457,7 @@ async Task BootstrapDatabaseAsync(CancellationToken stoppingToken)
 
             await DataSeeder.SeedAsync(app.Services, stoppingToken);
             await DemoDataSeeder.SeedAsync(app.Services, stoppingToken);
+            await InsureOneSeeder.SeedAsync(app.Services, stoppingToken);
             startupReadiness.MarkReady();
             logger.LogInformation("Database bootstrap completed; API is ready.");
             return;

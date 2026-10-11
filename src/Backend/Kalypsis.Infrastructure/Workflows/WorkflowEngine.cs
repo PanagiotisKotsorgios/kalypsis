@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Net;
+using System.Net.Http.Json;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Domain.Entities;
 using Kalypsis.Domain.Enums;
@@ -19,11 +21,13 @@ public class WorkflowEngine : IWorkflowEngine
 {
     private readonly IServiceScopeFactory _scopes;
     private readonly ILogger<WorkflowEngine> _log;
+    private readonly IHttpClientFactory _http;
 
-    public WorkflowEngine(IServiceScopeFactory scopes, ILogger<WorkflowEngine> log)
+    public WorkflowEngine(IServiceScopeFactory scopes, ILogger<WorkflowEngine> log, IHttpClientFactory http)
     {
         _scopes = scopes;
         _log = log;
+        _http = http;
     }
 
     public async Task FireAsync(WorkflowFireRequest request, CancellationToken ct = default)
@@ -55,7 +59,7 @@ public class WorkflowEngine : IWorkflowEngine
             {
                 try
                 {
-                    var summary = await RunActionAsync(action, request.Context, db, email, sms, ct);
+                    var summary = await RunActionAsync(action, request.Context, db, email, sms, _http, ct);
                     summaries.Add($"{action.Action}: {summary}");
                 }
                 catch (Exception ex)
@@ -66,6 +70,7 @@ public class WorkflowEngine : IWorkflowEngine
                 }
             }
 
+            var resultSummary = string.Join(" | ", summaries);
             db.WorkflowExecutions.Add(new WorkflowExecution
             {
                 Id = Guid.NewGuid(),
@@ -75,7 +80,7 @@ public class WorkflowEngine : IWorkflowEngine
                 EntityRef = request.Context.GetValueOrDefault("entityRef")?.ToString(),
                 ExecutedAt = DateTime.UtcNow,
                 Success = success,
-                ResultSummary = string.Join(" | ", summaries).Take(900).ToArray().ToString()
+                ResultSummary = resultSummary[..Math.Min(900, resultSummary.Length)]
             });
         }
         await db.SaveChangesAsync(ct);
@@ -105,6 +110,7 @@ public class WorkflowEngine : IWorkflowEngine
         AppDbContext db,
         IEmailSender? email,
         ISmsSender? sms,
+        IHttpClientFactory http,
         CancellationToken ct)
     {
         using var doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(action.PayloadJson) ? "{}" : action.PayloadJson);
@@ -151,13 +157,54 @@ public class WorkflowEngine : IWorkflowEngine
                 return "notification queued";
 
             case WorkflowAction.CreateTask:
-                return "task scaffolded";
+                if (!ctx.TryGetValue("tenantId", out var taskTenantValue) || taskTenantValue is not Guid taskTenant)
+                    return "skipped (no tenantId)";
+                var title = Render(payload.GetPropertyOrEmpty("title"), ctx);
+                if (string.IsNullOrWhiteSpace(title)) return "skipped (no title)";
+                var task = new AgencyTask
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = taskTenant,
+                    Title = title[..Math.Min(200, title.Length)],
+                    Description = Render(payload.GetPropertyOrEmpty("description"), ctx),
+                    Priority = ParsePriority(payload.GetPropertyOrEmpty("priority")),
+                    DueAt = ParseDateTime(payload.GetPropertyOrEmpty("dueAt")),
+                    AssignedToUserId = ParseGuid(payload.GetPropertyOrEmpty("assignedToUserId")),
+                    CustomerId = ParseGuid(payload.GetPropertyOrEmpty("customerId")) ?? ParseGuid(ctx.GetValueOrDefault("customerId")?.ToString()),
+                    PolicyId = ParseGuid(payload.GetPropertyOrEmpty("policyId")) ?? ParseGuid(ctx.GetValueOrDefault("policyId")?.ToString()),
+                    ProducerId = ParseGuid(payload.GetPropertyOrEmpty("producerId")) ?? ParseGuid(ctx.GetValueOrDefault("producerId")?.ToString())
+                };
+                if (task.AssignedToUserId.HasValue && !await db.Users.AnyAsync(x => x.Id == task.AssignedToUserId && x.TenantId == taskTenant && x.DeletedAt == null, ct)) task.AssignedToUserId = null;
+                if (task.CustomerId.HasValue && !await db.Customers.AnyAsync(x => x.Id == task.CustomerId && x.TenantId == taskTenant && x.DeletedAt == null, ct)) task.CustomerId = null;
+                if (task.PolicyId.HasValue && !await db.Policies.AnyAsync(x => x.Id == task.PolicyId && x.TenantId == taskTenant && x.DeletedAt == null, ct)) task.PolicyId = null;
+                if (task.ProducerId.HasValue && !await db.Producers.AnyAsync(x => x.Id == task.ProducerId && x.TenantId == taskTenant && x.DeletedAt == null, ct)) task.ProducerId = null;
+                db.AgencyTasks.Add(task);
+                return $"task created: {task.Title}";
 
             case WorkflowAction.TagCustomer:
-                return "tag scaffolded";
+                if (!ctx.TryGetValue("tenantId", out var tagTenantValue) || tagTenantValue is not Guid tagTenant)
+                    return "skipped (no tenantId)";
+                var customerId = ParseGuid(payload.GetPropertyOrEmpty("customerId")) ?? ParseGuid(ctx.GetValueOrDefault("customerId")?.ToString());
+                var tag = Render(payload.GetPropertyOrEmpty("tag"), ctx).Trim();
+                if (!customerId.HasValue || string.IsNullOrWhiteSpace(tag)) return "skipped (customer/tag missing)";
+                var customer = await db.Customers.FirstOrDefaultAsync(x => x.Id == customerId && x.TenantId == tagTenant && x.DeletedAt == null, ct);
+                if (customer is null) return "skipped (customer not found)";
+                var tags = ParseTags(customer.TagsJson);
+                if (!tags.Contains(tag, StringComparer.OrdinalIgnoreCase)) tags.Add(tag);
+                customer.TagsJson = JsonSerializer.Serialize(tags);
+                return $"tagged customer: {tag}";
 
             case WorkflowAction.Webhook:
-                return "webhook scaffolded";
+            {
+                var url = payload.GetPropertyOrEmpty("url").Trim();
+                if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
+                    return "skipped (webhook requires HTTPS URL)";
+                if (IPAddress.TryParse(uri.Host, out var ip) && (IPAddress.IsLoopback(ip) || ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal))
+                    return "skipped (private webhook address)";
+                var client = http.CreateClient("workflow-webhook");
+                using var response = await client.PostAsJsonAsync(uri, ctx, cancellationToken: ct);
+                return $"webhook {(int)response.StatusCode}";
+            }
 
             default:
                 return "noop";
@@ -174,10 +221,29 @@ public class WorkflowEngine : IWorkflowEngine
         }
         return output;
     }
+
+    private static Guid? ParseGuid(string? value) => Guid.TryParse(value, out var id) ? id : null;
+
+    private static DateTime? ParseDateTime(string value) => DateTime.TryParse(value, out var parsed) ? parsed : null;
+
+    private static AgencyTaskPriority ParsePriority(string value)
+        => Enum.TryParse<AgencyTaskPriority>(value, true, out var priority)
+            ? priority
+            : int.TryParse(value, out var number) && Enum.IsDefined(typeof(AgencyTaskPriority), number)
+                ? (AgencyTaskPriority)number : AgencyTaskPriority.Normal;
+
+    private static List<string> ParseTags(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return new List<string>();
+        try { return JsonSerializer.Deserialize<List<string>>(json) ?? new List<string>(); }
+        catch { return new List<string>(); }
+    }
 }
 
 internal static class JsonElementExtensions
 {
     public static string GetPropertyOrEmpty(this JsonElement e, string name) =>
-        e.TryGetProperty(name, out var v) ? v.GetString() ?? string.Empty : string.Empty;
+        e.TryGetProperty(name, out var v)
+            ? v.ValueKind == JsonValueKind.String ? v.GetString() ?? string.Empty : v.ToString()
+            : string.Empty;
 }

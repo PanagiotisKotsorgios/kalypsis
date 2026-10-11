@@ -73,6 +73,8 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<DeliveryRecord> DeliveryRecords => Set<DeliveryRecord>();
     public DbSet<DocumentFolder> DocumentFolders => Set<DocumentFolder>();
     public DbSet<PartnerPortalAccess> PartnerPortalAccesses => Set<PartnerPortalAccess>();
+    public DbSet<InsureOneOfficeSettings> InsureOneOfficeSettings => Set<InsureOneOfficeSettings>();
+    public DbSet<InsureOnePartnerPermission> InsureOnePartnerPermissions => Set<InsureOnePartnerPermission>();
     public DbSet<ThirdPartyApiKey> ThirdPartyApiKeys => Set<ThirdPartyApiKey>();
     public DbSet<DiasCode> DiasCodes => Set<DiasCode>();
     public DbSet<AccountingExport> AccountingExports => Set<AccountingExport>();

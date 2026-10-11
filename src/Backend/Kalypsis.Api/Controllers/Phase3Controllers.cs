@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Text;
+using System.Security.Cryptography;
 using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
@@ -63,7 +65,8 @@ public class CarriersController : ControllerBase
         existing.Status = body.Status;
         existing.BaseUrl = body.BaseUrl;
         existing.ClientId = body.ClientId;
-        // TODO: encrypt — for now store as-is in a dev environment.
+        // The AppDbContext applies the AES-GCM encrypted value converter to
+        // ClientSecretEncrypted before it is persisted.
         existing.ClientSecretEncrypted = body.ClientSecret;
         existing.AgentCode = body.AgentCode;
         existing.AuthMode = body.AuthMode;
@@ -112,11 +115,13 @@ public class QuotesController : ControllerBase
             if (!owns) throw AppException.NotFound("Πελάτης");
         }
 
+        var tenantIdForQuote = _current.TenantId ?? throw AppException.Forbidden();
         var quote = new Domain.Entities.Quote
         {
-            Id = Guid.NewGuid(),
+            Id = Guid.NewGuid(), TenantId = tenantIdForQuote,
             QuoteNumber = $"Q-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}",
             CustomerId = body.CustomerId,
+            CreatedByUserId = _current.UserId,
             ProductType = body.ProductType,
             RiskInputsJson = body.RiskInputsJson,
             Status = QuoteStatus.Submitted,
@@ -124,22 +129,44 @@ public class QuotesController : ControllerBase
         };
         _db.Quotes.Add(quote);
 
+        var carrierConnections = await _db.CarrierConnections
+            .Where(c => c.DeletedAt == null).Select(c => new { c.CarrierCode, c.Status }).ToListAsync(ct);
+        var configuredCarrierCodes = carrierConnections.Where(c => c.Status == CarrierAdapterStatus.Enabled).Select(c => c.CarrierCode).ToList();
+        var availableCarriers = carrierConnections.Count > 0
+            ? _registry.All.Where(a => configuredCarrierCodes.Contains(a.CarrierCode, StringComparer.OrdinalIgnoreCase))
+            : _registry.All;
         var carriers = (body.OnlyCarriers is { Count: > 0 }
-            ? _registry.All.Where(a => body.OnlyCarriers.Contains(a.CarrierCode, StringComparer.OrdinalIgnoreCase))
-            : _registry.All).ToList();
+            ? availableCarriers.Where(a => body.OnlyCarriers.Contains(a.CarrierCode, StringComparer.OrdinalIgnoreCase))
+            : availableCarriers).ToList();
 
-        // Fan-out to every enabled adapter in parallel.
-        var tasks = carriers.Select(a => a.GetQuoteAsync(new CarrierQuoteRequest(body.ProductType, body.RiskInputsJson), ct)
-            .ContinueWith(t => (Adapter: a, Result: t.Result), ct));
+        // Fan-out to every enabled adapter in parallel. One carrier outage must
+        // not make the whole comparison fail; its redacted error is logged.
+        var tasks = carriers.Select(async a =>
+        {
+            try { return (Adapter: a, Result: await a.GetQuoteAsync(new CarrierQuoteRequest(body.ProductType, body.RiskInputsJson), ct)); }
+            catch (Exception ex) { return (Adapter: a, Result: new CarrierQuoteResult(false, null, "EUR", null, null, null, null, null, ex.Message)); }
+        });
         var results = await Task.WhenAll(tasks);
 
         var offers = new List<OfferDto>();
         foreach (var (adapter, result) in results)
         {
+            _db.CarrierOperationLogs.Add(new Domain.Entities.CarrierOperationLog
+            {
+                Id = Guid.NewGuid(), TenantId = tenantIdForQuote, CarrierCode = adapter.CarrierCode,
+                Operation = CarrierOperation.Quote, CorrelationId = quote.QuoteNumber,
+                Success = result.Success, DurationMs = 0, ErrorMessage = result.ErrorMessage,
+                ResponseSummary = result.Success ? result.CoverageSummary : null
+            });
+            if (result.Success)
+            {
+                var connection = await _db.CarrierConnections.FirstOrDefaultAsync(c => c.CarrierCode == adapter.CarrierCode && c.DeletedAt == null, ct);
+                if (connection is not null) connection.LastSuccessfulCallAt = _clock.UtcNow;
+            }
             if (!result.Success || result.Premium is null) continue;
             var offer = new Domain.Entities.QuoteOffer
             {
-                Id = Guid.NewGuid(),
+                Id = Guid.NewGuid(), TenantId = tenantIdForQuote,
                 QuoteId = quote.Id,
                 CarrierCode = adapter.CarrierCode,
                 CarrierProductCode = result.CarrierProductCode,
@@ -170,7 +197,9 @@ public class QuotesController : ControllerBase
 public class WorkflowsController : ControllerBase
 {
     private readonly AppDbContext _db;
-    public WorkflowsController(AppDbContext db) => _db = db;
+    private readonly IWorkflowEngine _engine;
+    private readonly ICurrentUser _current;
+    public WorkflowsController(AppDbContext db, IWorkflowEngine engine, ICurrentUser current) { _db = db; _engine = engine; _current = current; }
 
     public record RuleDto(Guid Id, string Name, WorkflowEvent TriggerEvent, bool IsActive, int Priority,
         string? ConditionsJson, IReadOnlyList<RuleActionDto> Actions);
@@ -190,6 +219,8 @@ public class WorkflowsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<RuleDto>> Create([FromBody] UpsertRuleBody body, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(body.Name) || body.Name.Length > 120) throw AppException.Validation("Το όνομα του αυτοματισμού είναι υποχρεωτικό.");
+        ValidateJson(body.ConditionsJson, "Οι συνθήκες");
         var rule = new Domain.Entities.WorkflowRule
         {
             Id = Guid.NewGuid(),
@@ -199,8 +230,9 @@ public class WorkflowsController : ControllerBase
             Priority = body.Priority,
             ConditionsJson = body.ConditionsJson
         };
-        foreach (var a in body.Actions)
+        foreach (var a in body.Actions ?? Array.Empty<UpsertRuleActionBody>())
         {
+            ValidateJson(a.PayloadJson, "Το payload της ενέργειας");
             rule.Actions.Add(new Domain.Entities.WorkflowRuleAction
             { Id = Guid.NewGuid(), RuleId = rule.Id, Action = a.Action, Order = a.Order, PayloadJson = a.PayloadJson });
         }
@@ -210,20 +242,35 @@ public class WorkflowsController : ControllerBase
             rule.Actions.OrderBy(a => a.Order).Select(a => new RuleActionDto(a.Id, a.Action, a.Order, a.PayloadJson)).ToList()));
     }
 
+    public record FireBody(WorkflowEvent Event, Dictionary<string, object?> Context);
+    [HttpPost("fire")]
+    public async Task<ActionResult> Fire([FromBody] FireBody body, CancellationToken ct)
+    {
+        var context = body.Context ?? new Dictionary<string, object?>();
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        context["tenantId"] = tenantId;
+        if (_current.UserId is Guid userId) context["userId"] = userId;
+        await _engine.FireAsync(new WorkflowFireRequest(body.Event, context), ct);
+        return Ok(new { fired = true, body.Event });
+    }
+
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<RuleDto>> Update(Guid id, [FromBody] UpsertRuleBody body, CancellationToken ct)
     {
+        ValidateJson(body.ConditionsJson, "Οι συνθήκες");
         var rule = await _db.WorkflowRules.Include(r => r.Actions)
             .FirstOrDefaultAsync(r => r.Id == id && r.DeletedAt == null, ct);
         if (rule is null) return NotFound();
+        if (string.IsNullOrWhiteSpace(body.Name) || body.Name.Length > 120) throw AppException.Validation("Το όνομα του αυτοματισμού είναι υποχρεωτικό.");
         rule.Name = body.Name.Trim();
         rule.TriggerEvent = body.TriggerEvent;
         rule.IsActive = body.IsActive;
         rule.Priority = body.Priority;
         rule.ConditionsJson = body.ConditionsJson;
         foreach (var action in rule.Actions) action.DeletedAt = DateTime.UtcNow;
-        foreach (var a in body.Actions)
+        foreach (var a in body.Actions ?? Array.Empty<UpsertRuleActionBody>())
         {
+            ValidateJson(a.PayloadJson, "Το payload της ενέργειας");
             rule.Actions.Add(new Domain.Entities.WorkflowRuleAction
             { Id = Guid.NewGuid(), RuleId = rule.Id, Action = a.Action, Order = a.Order, PayloadJson = a.PayloadJson });
         }
@@ -242,6 +289,13 @@ public class WorkflowsController : ControllerBase
         await _db.SaveChangesAsync(ct);
         return NoContent();
     }
+
+    private static void ValidateJson(string? json, string label)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return;
+        try { using var _ = JsonDocument.Parse(json); }
+        catch { throw AppException.Validation($"{label} δεν είναι έγκυρο JSON."); }
+    }
 }
 
 /* ============ AI assistants (uniform surface) ============ */
@@ -253,7 +307,9 @@ public class WorkflowsController : ControllerBase
 public class AiController : ControllerBase
 {
     private readonly IAiService _ai;
-    public AiController(IAiService ai) => _ai = ai;
+    private readonly AppDbContext _db;
+    private readonly ICurrentUser _current;
+    public AiController(IAiService ai, AppDbContext db, ICurrentUser current) { _ai = ai; _db = db; _current = current; }
 
     [HttpPost("extract-policy-pdf")]
     [RequestSizeLimit(20_000_000)]
@@ -261,24 +317,53 @@ public class AiController : ControllerBase
     {
         if (file is null || file.Length == 0) return BadRequest();
         using var s = file.OpenReadStream();
-        return Ok(await _ai.ExtractPolicyFromPdfAsync(s, ct));
+        var result = await _ai.ExtractPolicyFromPdfAsync(s, ct);
+        await RecordAiInvocation(AiTaskType.ExtractPolicyPdf, "PDF extraction", result.Success, result.FullJson, 0, 0, result.ErrorMessage, ct);
+        return Ok(result);
     }
 
     [HttpPost("draft")]
     public async Task<ActionResult<AiDraftResult>> Draft([FromBody] AiDraftRequest body, CancellationToken ct)
-        => Ok(await _ai.DraftCommunicationAsync(body, ct));
+    {
+        var result = await _ai.DraftCommunicationAsync(body, ct);
+        await RecordAiInvocation(body.Task, body.Variables?.GetValueOrDefault("customerName"), result.Success, result.Body, 0, 0, result.ErrorMessage, ct);
+        return Ok(result);
+    }
 
     [HttpGet("churn/{customerId:guid}")]
     public async Task<ActionResult<AiChurnResult>> Churn(Guid customerId, CancellationToken ct)
-        => Ok(await _ai.ScoreChurnAsync(customerId, ct));
+    {
+        if (!await _db.Customers.AnyAsync(x => x.Id == customerId && x.DeletedAt == null, ct)) throw AppException.NotFound("Πελάτης");
+        var result = await _ai.ScoreChurnAsync(customerId, ct);
+        var score = await _db.ChurnScores.FirstOrDefaultAsync(x => x.CustomerId == customerId, ct);
+        if (score is null) _db.ChurnScores.Add(new Domain.Entities.ChurnScore { Id = Guid.NewGuid(), CustomerId = customerId, Score = result.Score, Band = result.Band, TopFactorsJson = JsonSerializer.Serialize(result.TopFactors), ComputedAt = DateTime.UtcNow });
+        else { score.Score = result.Score; score.Band = result.Band; score.TopFactorsJson = JsonSerializer.Serialize(result.TopFactors); score.ComputedAt = DateTime.UtcNow; }
+        await _db.SaveChangesAsync(ct);
+        return Ok(result);
+    }
 
     [HttpGet("portfolio-summary")]
     public async Task<ActionResult<object>> Portfolio(CancellationToken ct)
-        => Ok(new { summary = await _ai.SummarisePortfolioAsync(Guid.Empty, ct) });
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var summary = await _ai.SummarisePortfolioAsync(tenantId, ct);
+        await RecordAiInvocation(AiTaskType.PortfolioSummary, "portfolio", true, summary, 0, 0, null, ct);
+        return Ok(new { summary });
+    }
 
     [HttpGet("search")]
     public async Task<ActionResult> Search([FromQuery] string q, [FromQuery] int take = 10, CancellationToken ct = default)
-        => Ok(await _ai.SemanticSearchAsync(q, take, ct));
+    {
+        if (string.IsNullOrWhiteSpace(q)) return BadRequest(new { code = "query_required", message = "Απαιτείται όρος αναζήτησης." });
+        return Ok(await _ai.SemanticSearchAsync(q.Trim(), Math.Clamp(take, 1, 50), ct));
+    }
+
+    private async Task RecordAiInvocation(AiTaskType task, string? prompt, bool success, string? response, int promptTokens, int completionTokens, string? error, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId; if (tenantId is null) return;
+        _db.AiInvocations.Add(new Domain.Entities.AiInvocation { Id = Guid.NewGuid(), TenantId = tenantId.Value, UserId = _current.UserId, TaskType = task, Model = _ai.Model, PromptRedacted = prompt is null ? null : prompt[..Math.Min(prompt.Length, 4000)], ResponseRedacted = response is null ? null : response[..Math.Min(response.Length, 4000)], PromptTokens = promptTokens, CompletionTokens = completionTokens, Success = success, ErrorMessage = error });
+        await _db.SaveChangesAsync(ct);
+    }
 }
 
 /* ============ Billing — installments + bank statement import ============ */
@@ -292,8 +377,9 @@ public class BillingController : ControllerBase
     private readonly AppDbContext _db;
     private readonly IBankStatementParser _parser;
     private readonly IPaymentReconciler _reconciler;
-    public BillingController(AppDbContext db, IBankStatementParser parser, IPaymentReconciler reconciler)
-    { _db = db; _parser = parser; _reconciler = reconciler; }
+    private readonly ICurrentUser _current;
+    public BillingController(AppDbContext db, IBankStatementParser parser, IPaymentReconciler reconciler, ICurrentUser current)
+    { _db = db; _parser = parser; _reconciler = reconciler; _current = current; }
 
     public record InstallmentDto(Guid Id, Guid PolicyId, int SequenceNumber, string DueDate, decimal Amount, decimal PaidAmount, string Status);
 
@@ -315,20 +401,26 @@ public class BillingController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<InstallmentDto>>> Generate([FromBody] GenerateScheduleBody body, CancellationToken ct)
     {
         if (body.Installments <= 0) return BadRequest();
+        if (body.TotalAmount <= 0) throw AppException.Validation("Το συνολικό ποσό πρέπει να είναι μεγαλύτερο από μηδέν.");
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        if (!await _db.Policies.AnyAsync(x => x.Id == body.PolicyId && x.TenantId == tenantId && x.DeletedAt == null, ct)) throw AppException.NotFound("Συμβόλαιο");
         var amount = Math.Round(body.TotalAmount / body.Installments, 2);
         var stepDays = body.Frequency.ToLowerInvariant() switch
         { "monthly" => 30, "quarterly" => 90, "semiannual" => 182, _ => 30 };
 
         var created = new List<Domain.Entities.Installment>();
+        var accumulated = 0m;
         for (var i = 0; i < body.Installments; i++)
         {
+            var lineAmount = i == body.Installments - 1 ? Math.Round(body.TotalAmount - accumulated, 2) : amount;
+            accumulated += lineAmount;
             created.Add(new Domain.Entities.Installment
             {
                 Id = Guid.NewGuid(),
                 PolicyId = body.PolicyId,
                 SequenceNumber = i + 1,
                 DueDate = body.Start.AddDays(stepDays * i),
-                Amount = amount,
+                Amount = lineAmount,
                 PaidAmount = 0,
                 Currency = "EUR",
                 Status = InstallmentStatus.Scheduled
@@ -390,17 +482,30 @@ public class BillingController : ControllerBase
 public class MyDataController : ControllerBase
 {
     private readonly IMyDataClient _client;
-    public MyDataController(IMyDataClient client) => _client = client;
+    private readonly AppDbContext _db;
+    public MyDataController(IMyDataClient client, AppDbContext db) { _client = client; _db = db; }
 
     public record SubmitBody(Guid InvoiceId);
 
     [HttpPost("submit")]
     public async Task<ActionResult<MyDataSubmitResult>> Submit([FromBody] SubmitBody body, CancellationToken ct)
-        => Ok(await _client.SubmitInvoiceAsync(new MyDataSubmitRequest(body.InvoiceId), ct));
+    {
+        var invoice = await _db.MyDataInvoices.FirstOrDefaultAsync(x => x.Id == body.InvoiceId && x.DeletedAt == null, ct) ?? throw AppException.NotFound("Παραστατικό");
+        if (invoice.Status == MyDataInvoiceStatus.Accepted) return Ok(new MyDataSubmitResult(true, invoice.MyDataMark, invoice.MyDataUid, null));
+        var result = await _client.SubmitInvoiceAsync(new MyDataSubmitRequest(body.InvoiceId), ct);
+        invoice.Status = result.Success ? MyDataInvoiceStatus.Accepted : MyDataInvoiceStatus.Failed; invoice.MyDataMark = result.Mark; invoice.MyDataUid = result.Uid; invoice.ErrorMessage = result.ErrorMessage; invoice.SubmittedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct); return Ok(result);
+    }
 
     [HttpPost("cancel/{mark}")]
     public async Task<ActionResult<MyDataSubmitResult>> Cancel(string mark, CancellationToken ct)
-        => Ok(await _client.CancelInvoiceAsync(mark, ct));
+    {
+        if (string.IsNullOrWhiteSpace(mark)) throw AppException.Validation("Το MARK είναι υποχρεωτικό.");
+        var invoice = await _db.MyDataInvoices.FirstOrDefaultAsync(x => x.MyDataMark == mark && x.DeletedAt == null, ct) ?? throw AppException.NotFound("Παραστατικό");
+        var result = await _client.CancelInvoiceAsync(mark, ct);
+        if (result.Success) { invoice.Status = MyDataInvoiceStatus.Cancelled; invoice.CancellationMark = result.Mark; } else invoice.ErrorMessage = result.ErrorMessage;
+        await _db.SaveChangesAsync(ct); return Ok(result);
+    }
 }
 
 /* ============ Mailbox sync OAuth bootstrap ============ */
@@ -428,13 +533,82 @@ public class MailboxesController : ControllerBase
 public class TelephonyController : ControllerBase
 {
     private readonly ITelephonyAdapter _phone;
-    public TelephonyController(ITelephonyAdapter phone) => _phone = phone;
+    private readonly IAudioTranscriber _transcriber;
+    private readonly AppDbContext _db;
+    private readonly ICurrentUser _current;
+    public TelephonyController(ITelephonyAdapter phone, IAudioTranscriber transcriber, AppDbContext db, ICurrentUser current) { _phone = phone; _transcriber = transcriber; _db = db; _current = current; }
 
     public record OutboundBody(string ToNumber, Guid UserId, Guid? CustomerId);
 
     [HttpPost("call")]
     public async Task<ActionResult> Call([FromBody] OutboundBody body, CancellationToken ct)
-        => Ok(new { callId = await _phone.PlaceOutboundCallAsync(body.ToNumber, body.UserId, body.CustomerId, ct) });
+    {
+        if (string.IsNullOrWhiteSpace(body.ToNumber)) throw AppException.Validation("Ο αριθμός τηλεφώνου είναι υποχρεωτικός.");
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var userId = _current.UserId ?? body.UserId;
+        if (!await _db.Users.AnyAsync(x => x.Id == userId && x.TenantId == tenantId && x.DeletedAt == null, ct)) throw AppException.NotFound("Χρήστης");
+        if (body.CustomerId is Guid customerId && !await _db.Customers.AnyAsync(x => x.Id == customerId && x.TenantId == tenantId && x.DeletedAt == null, ct)) throw AppException.NotFound("Πελάτης");
+        var providerId = await _phone.PlaceOutboundCallAsync(body.ToNumber.Trim(), userId, body.CustomerId, ct);
+        _db.CallRecords.Add(new Domain.Entities.CallRecord { Id = Guid.NewGuid(), UserId = userId, CustomerId = body.CustomerId, Direction = CallDirection.Outbound, Status = CallStatus.Ringing, FromNumber = string.Empty, ToNumber = body.ToNumber.Trim(), StartedAt = DateTime.UtcNow, ProviderCallId = providerId });
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { callId = providerId });
+    }
+
+    [HttpGet("calls/{id:guid}/recording")]
+    public async Task<IActionResult> Recording(Guid id, CancellationToken ct)
+    {
+        var call = await _db.CallRecords.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, ct) ?? throw AppException.NotFound("Κλήση");
+        if (string.IsNullOrWhiteSpace(call.ProviderCallId)) throw AppException.NotFound("Ηχογράφηση");
+        var stream = await _phone.DownloadRecordingAsync(call.ProviderCallId, ct);
+        return File(stream, "audio/mpeg", $"call-{id:N}.mp3");
+    }
+
+    [HttpPost("calls/{id:guid}/transcribe")]
+    public async Task<ActionResult<TranscriptionResult>> Transcribe(Guid id, CancellationToken ct)
+    {
+        var call = await _db.CallRecords.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, ct) ?? throw AppException.NotFound("Κλήση");
+        if (string.IsNullOrWhiteSpace(call.ProviderCallId)) throw AppException.NotFound("Ηχογράφηση");
+        await using var recording = await _phone.DownloadRecordingAsync(call.ProviderCallId, ct);
+        var result = await _transcriber.TranscribeAsync(recording, "audio/mpeg", "el", ct);
+        if (!result.Success) return Ok(result);
+        var transcript = new Domain.Entities.Transcript { Id = Guid.NewGuid(), TenantId = call.TenantId, Provider = _transcriber.Provider, Language = result.Language, Confidence = result.Confidence, FullText = result.Text ?? string.Empty, SegmentsJson = result.SegmentsJson, TranscribedAt = DateTime.UtcNow };
+        _db.Transcripts.Add(transcript); call.TranscriptId = transcript.Id;
+        await _db.SaveChangesAsync(ct);
+        return Ok(result);
+    }
+
+    [HttpGet("calls/{id:guid}/transcript")]
+    public async Task<ActionResult> Transcript(Guid id, CancellationToken ct)
+    {
+        var transcript = await _db.CallRecords.Where(x => x.Id == id && x.DeletedAt == null && x.TranscriptId != null).Select(x => x.Transcript).FirstOrDefaultAsync(ct);
+        if (transcript is null) throw AppException.NotFound("Απομαγνητοφώνηση");
+        return Ok(new { transcript.Id, transcript.Provider, transcript.Language, transcript.Confidence, transcript.FullText, transcript.SegmentsJson, transcript.TranscribedAt });
+    }
+
+    public record WebhookBody(string ProviderCallId, string FromNumber, string ToNumber, CallStatus Status, int? DurationSeconds, Guid? CustomerId, Guid? TenantId, string? Signature);
+    [HttpPost("webhook")]
+    [AllowAnonymous]
+    public async Task<ActionResult> Webhook([FromBody] WebhookBody body, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(body.ProviderCallId)) return BadRequest(new { code = "provider_call_id_required" });
+        var tenantId = _current.TenantId;
+        if (tenantId is null)
+        {
+            tenantId = body.TenantId;
+            if (!tenantId.HasValue || string.IsNullOrWhiteSpace(body.Signature)) return Unauthorized();
+            var connection = await _db.TelephonyConnections.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.TenantId == tenantId && x.IsActive && x.DeletedAt == null, ct);
+            if (connection is null || string.IsNullOrWhiteSpace(connection.WebhookSecret)) return Unauthorized();
+            var canonical = $"{body.ProviderCallId}|{body.FromNumber}|{body.ToNumber}|{body.Status}|{body.DurationSeconds}|{body.CustomerId}";
+            using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(connection.WebhookSecret));
+            var expected = Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(canonical)));
+            if (!CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(expected), Encoding.UTF8.GetBytes(body.Signature.Trim().ToUpperInvariant()))) return Unauthorized();
+        }
+        if (body.CustomerId is Guid customerId && !await _db.Customers.AnyAsync(x => x.Id == customerId && x.TenantId == tenantId && x.DeletedAt == null, ct)) return BadRequest(new { code = "customer_not_found" });
+        var call = await _db.CallRecords.FirstOrDefaultAsync(x => x.TenantId == tenantId && x.ProviderCallId == body.ProviderCallId && x.DeletedAt == null, ct);
+        if (call is null) { call = new Domain.Entities.CallRecord { Id = Guid.NewGuid(), TenantId = tenantId.Value, ProviderCallId = body.ProviderCallId, Direction = CallDirection.Inbound, StartedAt = DateTime.UtcNow, FromNumber = body.FromNumber ?? string.Empty, ToNumber = body.ToNumber ?? string.Empty }; _db.CallRecords.Add(call); }
+        call.Status = body.Status; call.DurationSeconds = body.DurationSeconds; call.EndedAt = body.Status is CallStatus.Ended or CallStatus.Missed ? DateTime.UtcNow : call.EndedAt; call.CustomerId = body.CustomerId ?? call.CustomerId;
+        await _db.SaveChangesAsync(ct); return Ok(new { accepted = true, call.Id });
+    }
 }
 
 /* ============ Custom reports ============ */
@@ -447,7 +621,8 @@ public class CustomReportsController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly IReportRunner _runner;
-    public CustomReportsController(AppDbContext db, IReportRunner runner) { _db = db; _runner = runner; }
+    private readonly ICurrentUser _current;
+    public CustomReportsController(AppDbContext db, IReportRunner runner, ICurrentUser current) { _db = db; _runner = runner; _current = current; }
 
     public record ReportDefDto(Guid Id, string Name, ReportEntity Entity, string? FieldsJson, string? FiltersJson,
         string? GroupByJson, string? AggregationsJson, string? SortJson, string Visibility, bool IsScheduled);
@@ -464,10 +639,12 @@ public class CustomReportsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<ReportDefDto>> Create([FromBody] UpsertReportDefBody body, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(body.Name) || body.Name.Length > 120) throw AppException.Validation("Το όνομα της αναφοράς είναι υποχρεωτικό.");
+        if (!new[] { "Private", "Team", "Tenant" }.Contains(body.Visibility, StringComparer.OrdinalIgnoreCase)) throw AppException.Validation("Μη έγκυρη ορατότητα αναφοράς.");
         var def = new Domain.Entities.ReportDefinition
         {
             Id = Guid.NewGuid(),
-            Name = body.Name, Entity = body.Entity,
+            Name = body.Name.Trim(), Entity = body.Entity, OwnerUserId = _current.UserId,
             FieldsJson = body.FieldsJson, FiltersJson = body.FiltersJson,
             GroupByJson = body.GroupByJson, AggregationsJson = body.AggregationsJson,
             SortJson = body.SortJson, Visibility = body.Visibility,
@@ -498,7 +675,9 @@ public class CustomReportsController : ControllerBase
 public class SubscriptionBillingController : ControllerBase
 {
     private readonly ISubscriptionBilling _billing;
-    public SubscriptionBillingController(ISubscriptionBilling billing) => _billing = billing;
+    private readonly AppDbContext _db;
+    private readonly ICurrentUser _current;
+    public SubscriptionBillingController(ISubscriptionBilling billing, AppDbContext db, ICurrentUser current) { _billing = billing; _db = db; _current = current; }
 
     public record CheckoutBody(string PriceCode, string SuccessUrl, string CancelUrl);
 
@@ -506,8 +685,13 @@ public class SubscriptionBillingController : ControllerBase
     [HttpPost("checkout")]
     public async Task<ActionResult> Checkout([FromBody] CheckoutBody body, CancellationToken ct)
     {
-        // Tenant is resolved from the JWT — using Guid.Empty here as placeholder until ICurrentUser is wired.
-        var url = await _billing.CreateCheckoutAsync(Guid.Empty, body.PriceCode, body.SuccessUrl, body.CancelUrl, ct);
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        if (string.IsNullOrWhiteSpace(body.PriceCode) || string.IsNullOrWhiteSpace(body.SuccessUrl) || string.IsNullOrWhiteSpace(body.CancelUrl)) throw AppException.Validation("Το πακέτο και οι διευθύνσεις επιστροφής είναι υποχρεωτικά.");
+        var url = await _billing.CreateCheckoutAsync(tenantId, body.PriceCode.Trim(), body.SuccessUrl, body.CancelUrl, ct);
+        var subscription = await _db.TenantSubscriptions.FirstOrDefaultAsync(x => x.TenantId == tenantId && x.DeletedAt == null, ct);
+        if (subscription is null) { subscription = new Domain.Entities.TenantSubscription { Id = Guid.NewGuid(), TenantId = tenantId, ProviderCode = _billing.Provider, Plan = body.PriceCode.Trim(), State = SubscriptionState.Trial }; _db.TenantSubscriptions.Add(subscription); }
+        else subscription.Plan = body.PriceCode.Trim();
+        await _db.SaveChangesAsync(ct);
         return Ok(new { url });
     }
 
@@ -515,7 +699,9 @@ public class SubscriptionBillingController : ControllerBase
     [HttpPost("portal")]
     public async Task<ActionResult> Portal([FromQuery] string returnUrl, CancellationToken ct)
     {
-        var session = await _billing.CreatePortalSessionAsync(Guid.Empty, returnUrl, ct);
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        if (string.IsNullOrWhiteSpace(returnUrl)) throw AppException.Validation("Η διεύθυνση επιστροφής είναι υποχρεωτική.");
+        var session = await _billing.CreatePortalSessionAsync(tenantId, returnUrl, ct);
         return Ok(session);
     }
 
@@ -527,6 +713,7 @@ public class SubscriptionBillingController : ControllerBase
         var raw = await sr.ReadToEndAsync(ct);
         var eventId = Request.Headers["X-Provider-Event-Id"].ToString();
         var eventType = Request.Headers["X-Provider-Event-Type"].ToString();
+        if (string.IsNullOrWhiteSpace(eventId)) return BadRequest(new { code = "event_id_required" });
         await _billing.HandleWebhookAsync(eventId, eventType, raw, ct);
         return Ok();
     }
@@ -542,21 +729,30 @@ public class DocumentIntelligenceController : ControllerBase
 {
     private readonly IOcrService _ocr;
     private readonly IFileScanner _scanner;
-    public DocumentIntelligenceController(IOcrService ocr, IFileScanner scanner) { _ocr = ocr; _scanner = scanner; }
+    private readonly AppDbContext _db;
+    public DocumentIntelligenceController(IOcrService ocr, IFileScanner scanner, AppDbContext db) { _ocr = ocr; _scanner = scanner; _db = db; }
 
     [HttpPost("ocr")]
     [RequestSizeLimit(20_000_000)]
-    public async Task<ActionResult<OcrResult>> Ocr(IFormFile file, [FromQuery] string? language = "el", CancellationToken ct = default)
+    public async Task<ActionResult<OcrResult>> Ocr(IFormFile file, [FromQuery] string? language = "el", [FromQuery] Guid? documentId = null, CancellationToken ct = default)
     {
+        if (file is null || file.Length == 0) return BadRequest(new { code = "file_required" });
         using var s = file.OpenReadStream();
-        return Ok(await _ocr.ExtractAsync(s, file.ContentType, language, ct));
+        var result = await _ocr.ExtractAsync(s, file.ContentType, language, ct);
+        if (documentId is Guid id && await _db.PolicyDocuments.AnyAsync(x => x.Id == id && x.DeletedAt == null, ct)) _db.DocumentExtractions.Add(new Domain.Entities.DocumentExtraction { Id = Guid.NewGuid(), DocumentId = id, Provider = _ocr.Provider, TextContent = result.Text, StructuredJson = result.StructuredJson, Confidence = result.Confidence, ExtractedAt = DateTime.UtcNow, Language = language });
+        await _db.SaveChangesAsync(ct);
+        return Ok(result);
     }
 
     [HttpPost("scan")]
     [RequestSizeLimit(20_000_000)]
     public async Task<ActionResult<FileScanReport>> Scan(IFormFile file, CancellationToken ct)
     {
+        if (file is null || file.Length == 0) return BadRequest(new { code = "file_required" });
         using var s = file.OpenReadStream();
-        return Ok(await _scanner.ScanAsync(s, ct));
+        var result = await _scanner.ScanAsync(s, ct);
+        _db.FileScanResults.Add(new Domain.Entities.FileScanResult { Id = Guid.NewGuid(), FileKey = file.FileName.Trim(), Scanner = _scanner.GetType().Name, Clean = result.Clean, Verdict = result.Verdict, Signature = result.Signature, ScannedAt = DateTime.UtcNow });
+        await _db.SaveChangesAsync(ct);
+        return Ok(result);
     }
 }

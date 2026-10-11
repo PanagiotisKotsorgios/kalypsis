@@ -7969,6 +7969,127 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.ToTable("insurance_company_partners", (string)null);
                 });
 
+            modelBuilder.Entity("Kalypsis.Domain.Entities.InsureOneOfficeSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("AgencyOfficeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("AgencyOfficeScopeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("AllowedBranchesJson")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(180)
+                        .HasColumnType("varchar(180)");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("LogoPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("PrimaryColor")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("SecondaryColor")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("SupportEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)");
+
+                    b.Property<string>("SupportPhone")
+                        .HasMaxLength(60)
+                        .HasColumnType("varchar(60)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("WelcomeMessage")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AgencyOfficeId");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "AgencyOfficeId")
+                        .IsUnique();
+
+                    b.ToTable("insureone_office_settings", (string)null);
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.InsureOnePartnerPermission", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("AgencyOfficeScopeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsAllowed")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<Guid>("PartnerPortalAccessId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("PermissionCode")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PartnerPortalAccessId");
+
+                    b.HasIndex("TenantId", "PartnerPortalAccessId", "PermissionCode")
+                        .IsUnique();
+
+                    b.ToTable("insureone_partner_permissions", (string)null);
+                });
+
             modelBuilder.Entity("Kalypsis.Domain.Entities.IntegrationSetting", b =>
                 {
                     b.Property<Guid>("Id")
@@ -9853,9 +9974,16 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("LastLoginAt")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<string>("LoginCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("varchar(80)");
+
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)
                         .HasColumnType("varchar(1000)");
+
+                    b.Property<string>("PermissionsJson")
+                        .HasColumnType("longtext");
 
                     b.Property<Guid>("ProducerId")
                         .HasColumnType("char(36)");
@@ -9866,9 +9994,17 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("char(36)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ProducerId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("TenantId", "LoginCode")
+                        .IsUnique();
 
                     b.HasIndex("TenantId", "ProducerId")
                         .IsUnique();
@@ -16713,6 +16849,28 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Navigation("PartnerInsuranceCompany");
                 });
 
+            modelBuilder.Entity("Kalypsis.Domain.Entities.InsureOneOfficeSettings", b =>
+                {
+                    b.HasOne("Kalypsis.Domain.Entities.AgencyOffice", "AgencyOffice")
+                        .WithMany()
+                        .HasForeignKey("AgencyOfficeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AgencyOffice");
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.InsureOnePartnerPermission", b =>
+                {
+                    b.HasOne("Kalypsis.Domain.Entities.PartnerPortalAccess", "PartnerPortalAccess")
+                        .WithMany("Permissions")
+                        .HasForeignKey("PartnerPortalAccessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PartnerPortalAccess");
+                });
+
             modelBuilder.Entity("Kalypsis.Domain.Entities.KoumparasLine", b =>
                 {
                     b.HasOne("Kalypsis.Domain.Entities.Producer", "Producer")
@@ -16883,7 +17041,14 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Kalypsis.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Producer");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.PasswordResetToken", b =>
@@ -17831,6 +17996,11 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Navigation("Documents");
 
                     b.Navigation("Members");
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.PartnerPortalAccess", b =>
+                {
+                    b.Navigation("Permissions");
                 });
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.PaymentNotice", b =>

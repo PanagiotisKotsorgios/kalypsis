@@ -44,6 +44,7 @@ public sealed class AgencyOfficeScopeMiddleware
         var officeAwareRole = role == Role.AgencyUser
             || role == Role.AgencyOfficeAdmin
             || role == Role.AgencyAdmin
+            || role == Role.Producer
             || role == Role.Customer
             || platformImpersonating;
         if (!officeAwareRole)
@@ -215,7 +216,7 @@ public sealed class AgencyOfficeScopeMiddleware
         // data contains more than one assignment, use the primary (or first)
         // assignment and ignore a forged/ambiguous office switch header.
         var requestedRaw = context.Request.Headers[OfficeHeader].ToString();
-        var selected = role is Role.AgencyUser or Role.AgencyOfficeAdmin
+        var selected = role is Role.AgencyUser or Role.AgencyOfficeAdmin or Role.Producer
             ? offices.FirstOrDefault(x => x.IsPrimary) ?? offices[0]
             : (Guid.TryParse(requestedRaw, out var requestedId)
                 ? offices.FirstOrDefault(x => x.AgencyOfficeId == requestedId)

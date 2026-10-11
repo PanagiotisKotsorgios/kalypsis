@@ -114,6 +114,13 @@ public static class DataSeeder
         ]),
         ("20261008152253_AddPartnerNetworks", [
             "partner_networks", "partner_network_documents", "partner_network_members"
+        ]),
+        // InsureOne adds its columns before creating these two tables.  If a
+        // MySQL restart happens after the DDL but before EF writes history,
+        // all three objects being present is a safe signal to reconcile the
+        // migration instead of retrying CREATE TABLE forever.
+        ("20261010213719_AddInsureOnePartnerPortal", [
+            "insureone_office_settings", "insureone_partner_permissions"
         ])
     ];
 
