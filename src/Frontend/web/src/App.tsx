@@ -423,7 +423,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/office-website/analytics", labelKey: "nav.officeWebsiteAnalytics", icon: <AnalyticsIcon />, package: "FrontOffice", group: "website" },
     { to: "/frontoffice-quoting?view=dashboard", labelKey: "nav.quotingDashboard", icon: <CalculateIcon />, package: "FrontOffice", openInNewTab: true, accent: "quoting" },
 
-    { to: "/insureone/partners", labelKey: "nav.insureonePartners", icon: <GroupIcon />, package: "FrontOffice", accent: "quoting" },
+    { to: "/insureone/partners", labelKey: "nav.insureonePartners", icon: <GroupIcon />, package: "FrontOffice", openInNewTab: true, accent: "quoting" },
 
     // ===== Intelligence =====
     // persistency hidden — analytics shell exists but not wired to data yet.
@@ -460,7 +460,8 @@ export const navByRole: Record<Role, NavItem[]> = {
     // + «Προφίλ»). Both live at /agency-and-profile now as tabs to
     // save one row in the sidebar. Old /agency-settings-hub and
     // /profile URLs still work — redirected below into the right tab.
-    { to: "/agency-and-profile", labelKey: "nav.agencyAndProfile", icon: <SettingsIcon /> },
+    { to: "/agency-and-profile", labelKey: "nav.agencyAndProfile", icon: <SettingsIcon />,
+      workspaces: ["BackOffice", "Crm", "Intelligence", "Integrations", "Ermes"] },
     // Referral programme is intentionally package-independent: it stays
     // visible while the operator switches between all workspaces.
     { to: "/affiliate-program", labelKey: "nav.affiliateProgram", icon: <CardGiftcardIcon />, accent: "affiliate" }
@@ -533,7 +534,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/office-website/requests", labelKey: "nav.officeWebsiteRequests", icon: <AssignmentIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website/analytics", labelKey: "nav.officeWebsiteAnalytics", icon: <AnalyticsIcon />, package: "FrontOffice", group: "website" },
     { to: "/frontoffice-quoting?view=dashboard", labelKey: "nav.quotingDashboard", icon: <CalculateIcon />, package: "FrontOffice", openInNewTab: true, accent: "quoting" },
-    { to: "/insureone/partners", labelKey: "nav.insureonePartners", icon: <GroupIcon />, package: "FrontOffice", accent: "quoting" },
+    { to: "/insureone/partners", labelKey: "nav.insureonePartners", icon: <GroupIcon />, package: "FrontOffice", openInNewTab: true, accent: "quoting" },
     { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/crm-groups", labelKey: "nav.crmGroups", icon: <GroupWorkIconRC />, package: "Crm", permission: "marketing.read" },
@@ -839,6 +840,13 @@ export default function App() {
         <Route path="/frontoffice-quoting" element={
           <ProtectedRoute>
             <PackageGate package="FrontOffice"><FrontOfficeQuotingPage standalone /></PackageGate>
+          </ProtectedRoute>
+        } />
+        {/* InsureOne partner management opens as its own protected workspace,
+            without the main Kalypsis sidebar, just like the quotation desk. */}
+        <Route path="/insureone/partners" element={
+          <ProtectedRoute>
+            <PackageGate package="FrontOffice"><InsureOnePartnerManagementPage /></PackageGate>
           </ProtectedRoute>
         } />
         <Route path="/insureone/:slug/login" element={<InsureOneLoginPage />} />
