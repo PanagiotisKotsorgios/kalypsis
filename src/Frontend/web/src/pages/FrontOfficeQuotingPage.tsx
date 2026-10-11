@@ -92,7 +92,7 @@ import { KalypsisLogo } from "../components/KalypsisLogo";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 
 type ViewKey = "dashboard" | "quotes" | "contracts" | "customers" | "reports" | "forms" | "print-pay" | "pay-print" | "requests" | QuotingViewKey;
-type QuotingViewKey = "quoting-vehicles" | "quoting-vehicle-compare" | "quoting-property" | "quoting-health" | "quoting-marine" | "quoting-requests" | "quoting-roadside" | "quoting-green-card" | "quoting-bicycles" | "quoting-accident" | "quoting-legal";
+type QuotingViewKey = "quoting-vehicles" | "quoting-vehicle-compare" | "quoting-property" | "quoting-health" | "quoting-marine" | "quoting-requests" | "quoting-roadside" | "quoting-green-card" | "quoting-bicycles" | "quoting-accident" | "quoting-legal" | "quoting-professional-liability" | "quoting-life";
 type BranchKey = "Αυτοκίνητο" | "Κατοικία" | "Υγεία" | "Ζωή" | "Επιχείρηση";
 
 interface QuoteRow {
@@ -146,6 +146,8 @@ const quotingViewByLabel: Record<string, QuotingViewKey> = {
   "Ποδηλάτων-Πατινιών": "quoting-bicycles",
   "Προσωπικού Ατυχήματος": "quoting-accident",
   "Νομική Προστασία": "quoting-legal",
+  "Επαγγελματικής Ευθύνης": "quoting-professional-liability",
+  "Ζωής": "quoting-life",
 };
 
 const branchPresets: Record<BranchKey, { customer: string; title: string; fields: [string, string][]; quotes: QuoteRow[] }> = {
@@ -262,6 +264,19 @@ export function FrontOfficeQuotingPage({ standalone = false }: { standalone?: bo
     go("dashboard");
   };
 
+  // Dashboard category cards open the dedicated quotation workspace directly.
+  // Keep startQuote's existing behaviour for the offers history, which opens
+  // the comparison workspace on the dashboard.
+  const openQuotingBranch = (selectedBranchLabel: string) => {
+    const selectedOption = quotingBranchOptions.find((option) => option.label === selectedBranchLabel);
+    const target = quotingViewByLabel[selectedBranchLabel];
+    if (!selectedOption || !target) return;
+    setQuoteBranchLabel(selectedBranchLabel);
+    setBranch(selectedOption.branch);
+    setQuoteMode(false);
+    go(target);
+  };
+
   return (
     <Box sx={standalone ? { minHeight: "100vh", bgcolor: "#edf3f8", pb: 2, color: "#172a3a", display: "flex", flexDirection: "column" } : { maxWidth: 1540, mx: "auto", pb: 5 }}>
       {standalone && <StandalonePluginHeader view={view} onNavigate={go} partnerBranding={partnerBranding.data} />}
@@ -280,7 +295,7 @@ export function FrontOfficeQuotingPage({ standalone = false }: { standalone?: bo
         </Stack>
       </Stack>}
 
-      {standalone && view === "dashboard" && !quoteMode && <StandaloneBranchPanel branch={branch} setBranch={setBranch} />}
+      {standalone && view === "dashboard" && !quoteMode && <StandaloneBranchPanel branch={branch} setBranch={setBranch} onSelectPricing={openQuotingBranch} />}
 
       {!standalone && <Paper variant="outlined" sx={{ borderRadius: 2.5, mb: 2.5, overflow: "hidden", bgcolor: "#f7f9fc" }}>
         <Tabs value={view} onChange={(_, next: ViewKey) => go(next)} variant="scrollable" scrollButtons="auto" sx={{ minHeight: 54, "& .MuiTab-root": { minHeight: 54, fontWeight: 750, textTransform: "none" } }}>
@@ -348,6 +363,8 @@ const standaloneDropdowns: { key: string; label: string; views: { label: string;
     { label: "Ποδηλάτων-Πατινιών", view: quotingViewByLabel["Ποδηλάτων-Πατινιών"] },
     { label: "Προσωπικού Ατυχήματος", view: quotingViewByLabel["Προσωπικού Ατυχήματος"] },
     { label: "Νομική Προστασία", view: quotingViewByLabel["Νομική Προστασία"] },
+    { label: "Επαγγελματικής Ευθύνης", view: quotingViewByLabel["Επαγγελματικής Ευθύνης"] },
+    { label: "Ζωής", view: quotingViewByLabel["Ζωής"] },
   ] },
   { key: "print-pay", label: "Τυπώνω-Πληρώνω", views: [
     { label: "Εκτύπωση Συμβολαίων", view: "print-pay" },
@@ -664,7 +681,7 @@ function PricingCategoryCard({ card, selected, onSelect }: { card: PricingCardCo
   </Button>;
 }
 
-function StandaloneHomeSections({ branch, setBranch }: { branch: BranchKey; setBranch: (value: BranchKey) => void }) {
+function StandaloneHomeSections({ branch, onSelectPricing }: { branch: BranchKey; onSelectPricing: (label: string) => void }) {
   const pricingMobile = useMediaQuery("(max-width:599px)");
   const pricingTablet = useMediaQuery("(min-width:600px) and (max-width:899px)");
   const pricingHeight = pricingMobile ? 1520 : pricingTablet ? 980 : 870;
@@ -751,7 +768,7 @@ function StandaloneHomeSections({ branch, setBranch }: { branch: BranchKey; setB
       <Card variant="outlined" sx={{ position: "relative", height: "100%", borderRadius: 1.5, overflow: "hidden", borderTop: 0, bgcolor: "#f8fcff", borderColor: "#dce5ec", "&::after": { content: '""', position: "absolute", right: -170, bottom: -210, width: 560, height: 430, borderRadius: "50% 0 0 0", border: "2px solid rgba(104,170,221,.13)", boxShadow: "0 -18px 0 rgba(104,170,221,.07), 0 -36px 0 rgba(104,170,221,.045)", pointerEvents: "none" } }}>
         <CardContent sx={{ position: "relative", zIndex: 1, p: { xs: 1.5, md: 2.5 }, height: "100%" }}>
           <Grid container spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }}>
-            {pricingCards.map((card, index) => <Grid item xs={12} sm={6} md={4} key={`${card.title}-${index}`}><PricingCategoryCard card={card} selected={branch === card.key && index < 5} onSelect={() => setBranch(card.key)} /></Grid>)}
+            {pricingCards.map((card, index) => <Grid item xs={12} sm={6} md={4} key={`${card.title}-${index}`}><PricingCategoryCard card={card} selected={branch === card.key && index < 5} onSelect={() => onSelectPricing(card.title)} /></Grid>)}
           </Grid>
         </CardContent>
       </Card>
@@ -806,8 +823,8 @@ function StandaloneHomeSections({ branch, setBranch }: { branch: BranchKey; setB
   </Box>;
 }
 
-function StandaloneBranchPanel({ branch, setBranch }: { branch: BranchKey; setBranch: (value: BranchKey) => void }) {
-  return <StandaloneHomeSections branch={branch} setBranch={setBranch} />;
+function StandaloneBranchPanel({ branch, setBranch, onSelectPricing }: { branch: BranchKey; setBranch: (value: BranchKey) => void; onSelectPricing: (label: string) => void }) {
+  return <StandaloneHomeSections branch={branch} onSelectPricing={onSelectPricing} />;
   /* Legacy layout retained below for source compatibility; the standalone home now uses the compact four-section dashboard. */
   const cards: { key: BranchKey; title: string; count: string; icon: ReactNode; colour: string }[] = [
     { key: branchLabels[0], title: "Οχημάτων", count: "19 Ασφαλιστικές", icon: <DirectionsCarFilledOutlinedIcon />, colour: "#26a69a" },
@@ -961,6 +978,18 @@ const quotingBranchConfigs: Record<Exclude<QuotingViewKey, "quoting-requests" | 
     fields: [{ key: "start", label: "Έναρξη", value: "2026-10-11", kind: "date" }, { key: "duration", label: "Διάρκεια", value: "ΕΤΗΣΙΑ", kind: "select", options: ["ΕΤΗΣΙΑ", "ΕΞΑΜΗΝΗ"] }, { key: "object", label: "Αντικείμενο", value: "Νομική οχημάτων", kind: "select", options: ["Νομική οχημάτων", "Νομική κατοικίας", "Επαγγελματική νομική"] }, { key: "package", label: "Πακέτο", value: "ΝΟΜΙΚΗ ΟΧΗΜΑΤΩΝ STANDARD", kind: "select", options: ["ΝΟΜΙΚΗ ΟΧΗΜΑΤΩΝ STANDARD", "ΝΟΜΙΚΗ ΟΧΗΜΑΤΩΝ PLUS"] }, { key: "use", label: "Χρήση", value: "ΕΙΧ", kind: "select", options: ["ΕΙΧ", "Επαγγελματική"] }],
     packages: ["STANDARD", "PLUS"], info: ["Επιλέξτε το αντικείμενο της Νομικής Προστασίας.", "Διαλέξτε το πακέτο που ταιριάζει στις ανάγκες του πελάτη.", "Η τελική τιμή θα υπολογιστεί μετά τον υπολογισμό."],
     results: [demoQuote("legal", "Mediterrania", 28, ["Νομική οχημάτων", "Δικαστική προστασία"], "#e58a26", true)],
+  },
+  "quoting-professional-liability": {
+    title: "Τιμολόγηση Επαγγελματικής Ευθύνης", subtitle: "Συμπληρώστε τα στοιχεία της επιχείρησης για σύγκριση προγραμμάτων επαγγελματικής ευθύνης.", icon: <BusinessCenterOutlinedIcon />, accent: "#6246b8", carriers: carrierCards(["240,00 €", "285,00 €", "320,00 €"]),
+    fields: [{ key: "start", label: "Έναρξη", value: "2026-10-11", kind: "date" }, { key: "duration", label: "Διάρκεια", value: "ΕΤΗΣΙΑ", kind: "select", options: ["ΕΤΗΣΙΑ", "ΕΞΑΜΗΝΗ"] }, { key: "profession", label: "Επάγγελμα / δραστηριότητα", value: "Τεχνικές υπηρεσίες" }, { key: "turnover", label: "Ετήσιος κύκλος εργασιών (€)", value: "250000", kind: "number" }, { key: "employees", label: "Αριθμός εργαζομένων", value: "12", kind: "number" }, { key: "limit", label: "Όριο ευθύνης", value: "500.000 €", kind: "select", options: ["100.000 €", "250.000 €", "500.000 €", "1.000.000 €"] }],
+    packages: ["STANDARD", "PLUS", "PREMIUM"], info: ["Η τιμολόγηση βασίζεται στη δραστηριότητα και τον κύκλο εργασιών.", "Επιλέξτε το όριο ευθύνης που χρειάζεται η επιχείρηση.", "Τα αποτελέσματα είναι ενδεικτικά έως την ολοκλήρωση της διασύνδεσης."],
+    results: [demoQuote("professional-liability", "AIG", 240, ["Αστική ευθύνη", "Επαγγελματικά λάθη", "Νομική προστασία"], "#6246b8", true), demoQuote("professional-liability", "ERGO", 285, ["Αστική ευθύνη", "Υλικές ζημιές"], "#2875d7")],
+  },
+  "quoting-life": {
+    title: "Τιμολόγηση Ασφάλισης Ζωής", subtitle: "Συμπληρώστε τα στοιχεία του ασφαλιζόμενου για σύγκριση προγραμμάτων ζωής.", icon: <FavoriteBorderRoundedIcon />, accent: "#e56c2f", carriers: carrierCards(["392,00 €", "421,00 €"]),
+    fields: [{ key: "start", label: "Έναρξη", value: "2026-10-11", kind: "date" }, { key: "duration", label: "Διάρκεια", value: "20 έτη", kind: "select", options: ["10 έτη", "20 έτη", "30 έτη"] }, { key: "age", label: "Ηλικία", value: "38", kind: "number" }, { key: "gender", label: "Φύλο", value: "Άντρας", kind: "select", options: ["Άντρας", "Γυναίκα"] }, { key: "capital", label: "Κεφάλαιο κάλυψης (€)", value: "100000", kind: "number" }, { key: "occupation", label: "Επάγγελμα", value: "Μηχανικός" }],
+    packages: ["ΒΑΣΙΚΟ", "PLUS", "PREMIUM"], info: ["Η τιμή υπολογίζεται από την ηλικία, τη διάρκεια και το κεφάλαιο.", "Δηλώστε τα βασικά στοιχεία του ασφαλιζόμενου.", "Ενδέχεται να απαιτηθούν πρόσθετα στοιχεία υγείας πριν την έκδοση."],
+    results: [demoQuote("life", "Generali", 392, ["Θάνατος", "Μόνιμη ανικανότητα", "Πρόσθετες παροχές"], "#e56c2f", true), demoQuote("life", "ERGO", 421, ["Θάνατος", "Ατύχημα"], "#e35d6a")],
   },
 };
 
