@@ -26,6 +26,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { KalypsisLogo } from "../components/KalypsisLogo";
 
 interface Branding {
   agencyOfficeId: string;
@@ -78,9 +79,25 @@ export function InsureOneLoginPage() {
     setError(null);
     try {
       if (challenge) {
+        if (!code.trim()) {
+          setError("Συμπληρώστε τον κωδικό επιβεβαίωσης.");
+          return;
+        }
         if (challenge.kind === "totp") await completeTwoFactor(challenge.token, code, remember);
         else await completeEmailCode(challenge.token, code, remember);
         navigate(`/insureone/${encodeURIComponent(slug)}`, { replace: true });
+        return;
+      }
+      if (!identifier.trim() && !password.trim()) {
+        setError("Συμπληρώστε το email ή το όνομα χρήστη και τον κωδικό πρόσβασης.");
+        return;
+      }
+      if (!identifier.trim()) {
+        setError("Συμπληρώστε το email ή το όνομα χρήστη.");
+        return;
+      }
+      if (!password.trim()) {
+        setError("Συμπληρώστε τον κωδικό πρόσβασης.");
         return;
       }
       await signInInsureOne(slug, identifier, password, remember);
@@ -133,8 +150,9 @@ export function InsureOneLoginPage() {
   };
 
   return (
-    <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", py: { xs: 2, sm: 4 }, px: { xs: 1.25, sm: 2 }, bgcolor: "#eaf5fd", backgroundImage: `url("${background}")`, backgroundSize: "cover", backgroundPosition: "center", overflow: "hidden" }}>
-      <Container maxWidth={false} sx={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 645, px: 0 }}>
+    <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column", bgcolor: "#eaf5fd", backgroundImage: `url("${background}")`, backgroundSize: "cover", backgroundPosition: "center" }}>
+      <Box component="main" sx={{ flex: 1, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", py: { xs: 2, sm: 4 }, px: { xs: 1.25, sm: 2 }, overflow: "hidden" }}>
+        <Container maxWidth={false} sx={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 645, px: 0 }}>
         <Paper elevation={0} sx={{ overflow: "hidden", borderRadius: { xs: 2.5, sm: 2.8 }, border: "1px solid rgba(218,231,244,.95)", boxShadow: "0 18px 48px rgba(16,67,128,.16)", bgcolor: "rgba(255,255,255,.975)" }}>
           <Box sx={{ px: { xs: 3, sm: 6.5 }, pt: { xs: 3, sm: 3.5 }, pb: { xs: 2.5, sm: 2.9 } }}>
             <Box sx={{ minHeight: { xs: 64, sm: 86 }, display: "flex", justifyContent: "center", alignItems: "center", mb: { xs: 2, sm: 2.8 } }}>
@@ -155,17 +173,25 @@ export function InsureOneLoginPage() {
               <TextField fullWidth label="Κωδικός πρόσβασης" placeholder="Πληκτρολογήστε τον κωδικό σας" type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" InputProps={{ startAdornment: <InputAdornment position="start"><LockRoundedIcon sx={{ color: "#4f6b93", fontSize: 27 }} /></InputAdornment>, endAdornment: <InputAdornment position="end"><IconButton aria-label={showPassword ? "Απόκρυψη κωδικού" : "Εμφάνιση κωδικού"} aria-pressed={showPassword} title={showPassword ? "Απόκρυψη κωδικού" : "Εμφάνιση κωδικού"} onClick={() => setShowPassword(v => !v)} edge="end" sx={{ color: "#4f6b93" }}>{showPassword ? <VisibilityOffRoundedIcon /> : <VisibilityRoundedIcon />}</IconButton></InputAdornment> }} sx={fieldSx} />
               <Stack direction="row" justifyContent="space-between" alignItems="center" gap={1} flexWrap="wrap" sx={{ mt: .05 }}><FormControlLabel control={<Checkbox checked={remember} onChange={e => setRemember(e.target.checked)} sx={{ color: primary, p: .45, "&.Mui-checked": { color: primary } }} />} label={<Typography sx={{ fontSize: { xs: 14, sm: 15 }, color: "#374f73" }}>Να με θυμάμαι</Typography>} />{b.supportEmail && <Link href={`mailto:${b.supportEmail}`} underline="always" sx={{ fontSize: { xs: 14, sm: 15 }, color: primary, fontWeight: 700 }}>Ξέχασα τον κωδικό μου;</Link>}</Stack>
             </>}
-            <Button type="submit" variant="contained" size="large" endIcon={<ArrowForwardRoundedIcon sx={{ fontSize: 28 }} />} disabled={challenge ? code.length < 4 : !identifier || !password} sx={{ minHeight: { xs: 58, sm: 62 }, borderRadius: 1.9, textTransform: "none", fontSize: { xs: 16, sm: 18 }, fontWeight: 900, background: `linear-gradient(100deg, #1739b8 0%, ${primary} 58%, #1475ee 100%)`, boxShadow: "0 8px 18px rgba(16,79,214,.23)", "&:hover": { background: `linear-gradient(100deg, ${secondary} 0%, ${primary} 100%)` }, "&.Mui-disabled": { color: "#fff", background: "#bfc5cc" } }}>{challenge ? "Επιβεβαίωση σύνδεσης" : "Σύνδεση στην πύλη"}</Button>
+            <Button type="submit" variant="contained" size="large" endIcon={<ArrowForwardRoundedIcon sx={{ fontSize: 28 }} />} sx={{ minHeight: { xs: 58, sm: 62 }, borderRadius: 1.9, textTransform: "none", fontSize: { xs: 16, sm: 18 }, fontWeight: 900, background: `linear-gradient(100deg, #1739b8 0%, ${primary} 58%, #1475ee 100%)`, boxShadow: "0 8px 18px rgba(16,79,214,.23)", "&:hover": { background: `linear-gradient(100deg, ${secondary} 0%, ${primary} 100%)` } }}>{challenge ? "Επιβεβαίωση σύνδεσης" : "Σύνδεση στην πύλη"}</Button>
             <Stack direction="row" alignItems="center" gap={1.5} sx={{ my: .25 }}><Divider sx={{ flex: 1, borderColor: "#d3deed" }} /><Typography sx={{ color: "#65799a", fontWeight: 800 }}>ή</Typography><Divider sx={{ flex: 1, borderColor: "#d3deed" }} /></Stack>
             <Button variant="outlined" startIcon={<HeadsetMicRoundedIcon sx={{ fontSize: 27 }} />} href={b.supportEmail ? `mailto:${b.supportEmail}` : undefined} sx={{ minHeight: { xs: 54, sm: 58 }, borderRadius: 1.9, textTransform: "none", color: primary, border: `2px solid ${primary}`, fontSize: { xs: 15, sm: 17 }, fontWeight: 900, "&:hover": { border: `2px solid ${secondary}`, bgcolor: `${primary}08` } }}>Επικοινωνία με υποστήριξη</Button>
           </Stack>
-
         </Paper>
-        <Stack component="footer" direction="row" justifyContent="center" alignItems="center" spacing={{ xs: 1.1, sm: 1.6 }} sx={{ mt: { xs: 1.3, sm: 1.8 }, px: 1.5, py: .75, borderRadius: 999, bgcolor: "rgba(255,255,255,.78)", border: "1px solid rgba(255,255,255,.9)", boxShadow: "0 8px 22px rgba(16,67,128,.08)" }}>
-          <Box component="img" src="/assets/insureone-plugin-logo.png" alt="InsureOne" sx={{ width: { xs: 58, sm: 72 }, height: { xs: 28, sm: 32 }, objectFit: "contain", opacity: .88 }} />
-          <Typography sx={{ color: "#345174", fontSize: { xs: 11.5, sm: 12.5 }, fontWeight: 800, letterSpacing: ".02em", whiteSpace: "nowrap" }}>Powered by <Box component="span" sx={{ color: secondary, fontWeight: 950 }}>KALYPSIS</Box></Typography>
-        </Stack>
-      </Container>
+        </Container>
+      </Box>
+      <Box component="footer" sx={{ width: "100%", borderTop: "1px solid #b9c6d1", bgcolor: "#dfe5ea" }}>
+        <Box sx={{ maxWidth: 1540, mx: "auto", px: { xs: 2, sm: 3, lg: 5 }, py: { xs: 1.7, sm: 2.1 }, display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", alignItems: "center", gap: { xs: 1.25, sm: 3 } }}>
+          <Stack direction="row" alignItems="center" spacing={1.25}>
+            <Box component="img" src="/assets/insureone-plugin-logo.png" alt="InsureOne" sx={{ width: { xs: 86, sm: 104 }, height: { xs: 42, sm: 50 }, objectFit: "contain", bgcolor: "#fff", borderRadius: 1.25, px: .7 }} />
+            <Typography sx={{ color: "#526578", fontWeight: 750, fontSize: { xs: 12.5, sm: 14 } }}>Πύλη συνεργατών InsureOne</Typography>
+          </Stack>
+          <Stack alignItems={{ xs: "center", sm: "flex-end" }} spacing={.35}>
+            <Typography sx={{ color: "#526578", fontWeight: 900, fontSize: { xs: 16, sm: 18 }, letterSpacing: ".02em" }}>Powered by KALYPSIS</Typography>
+            <KalypsisLogo size={88} crop />
+          </Stack>
+        </Box>
+      </Box>
     </Box>
   );
 }
