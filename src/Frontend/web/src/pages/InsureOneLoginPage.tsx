@@ -20,7 +20,6 @@ import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import HeadsetMicRoundedIcon from "@mui/icons-material/HeadsetMicRounded";
 import LockRoundedIcon from "@mui/icons-material/LockRounded";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
-import SecurityRoundedIcon from "@mui/icons-material/SecurityRounded";
 import VisibilityOffRoundedIcon from "@mui/icons-material/VisibilityOffRounded";
 import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 import { useNavigate, useParams } from "react-router-dom";
@@ -109,6 +108,29 @@ export function InsureOneLoginPage() {
   const titleWords = title.split(/\s+/);
   const titleLead = titleWords.shift() || title;
   const titleRest = titleWords.join(" ");
+  const fieldSx = {
+    "& .MuiOutlinedInput-root": {
+      minHeight: { xs: 58, sm: 62 },
+      borderRadius: 1.9,
+      bgcolor: "#fff",
+      "& .MuiOutlinedInput-notchedOutline": {
+        borderColor: "#8ea9c9",
+        borderWidth: 1.8,
+      },
+      "&:hover .MuiOutlinedInput-notchedOutline": {
+        borderColor: secondary,
+        borderWidth: 2,
+      },
+      "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+        borderColor: primary,
+        borderWidth: 2.2,
+        boxShadow: `0 0 0 3px ${primary}18`,
+      },
+    },
+    "& .MuiInputLabel-root": { color: "#506b91" },
+    "& .MuiInputLabel-root.Mui-focused": { color: secondary, fontWeight: 800 },
+    "& input::placeholder": { color: "#7188a8", opacity: 1 },
+  };
 
   return (
     <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", py: { xs: 2, sm: 4 }, px: { xs: 1.25, sm: 2 }, bgcolor: "#eaf5fd", backgroundImage: `url("${background}")`, backgroundSize: "cover", backgroundPosition: "center", overflow: "hidden" }}>
@@ -119,7 +141,7 @@ export function InsureOneLoginPage() {
               {b.logoUrl ? <Box component="img" src={b.logoUrl} alt={`Λογότυπο ${b.displayName}`} sx={{ width: { xs: 250, sm: 335 }, maxWidth: "100%", maxHeight: 96, height: "auto", objectFit: "contain" }} /> : <Stack direction="row" alignItems="center" spacing={1.25}><Box sx={{ width: 58, height: 58, borderRadius: 2.5, display: "grid", placeItems: "center", bgcolor: primary, color: "#fff", fontWeight: 950, fontSize: 20 }}>{initials}</Box><Typography sx={{ fontSize: 28, fontWeight: 950, color: secondary }}>{b.displayName}</Typography></Stack>}
             </Box>
             <Box sx={{ textAlign: "left" }}>
-              <Typography component="h1" sx={{ color: secondary, fontWeight: 950, letterSpacing: "-.055em", lineHeight: 1.02, fontSize: { xs: 35, sm: 47 } }}><Box component="span" sx={{ color: secondary }}>{titleLead}</Box>{titleRest && <> <Box component="span" sx={{ color: primary }}>{titleRest}</Box></>}</Typography>
+              <Typography component="h1" sx={{ color: secondary, fontWeight: 950, letterSpacing: "-.055em", lineHeight: 1.02, fontSize: { xs: 35, sm: 47 } }}><Box component="span" sx={{ color: secondary }}>{titleLead}</Box>{titleRest && <> <Box component="span" sx={{ color: secondary }}>{titleRest}</Box></>}</Typography>
               <Box sx={{ width: 65, height: 5, borderRadius: 5, bgcolor: "#ef3340", mt: 1.15, mb: 1.8 }} />
               <Typography sx={{ color: "#556c8f", fontSize: { xs: 15, sm: 17 }, lineHeight: 1.42, maxWidth: 510 }}>{b.loginSubtitle || b.welcomeMessage || "Ασφαλής πρόσβαση για συνεργάτες, πρακτορεία και δίκτυο πωλήσεων."}</Typography>
             </Box>
@@ -128,9 +150,9 @@ export function InsureOneLoginPage() {
           <Divider sx={{ borderColor: "#e7edf6" }} />
           <Stack component="form" onSubmit={e => { e.preventDefault(); void submit(); }} spacing={{ xs: 1.55, sm: 1.8 }} sx={{ px: { xs: 3, sm: 6.5 }, pt: { xs: 2.6, sm: 3.1 }, pb: { xs: 2.5, sm: 3.1 } }}>
             {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
-            {challenge ? <TextField autoFocus fullWidth label={challenge.kind === "totp" ? "Κωδικός εφαρμογής" : "Κωδικός email"} value={code} onChange={e => setCode(e.target.value)} inputProps={{ inputMode: "numeric", maxLength: 8 }} /> : <>
-              <TextField autoFocus fullWidth label="Email ή Όνομα Χρήστη" value={identifier} onChange={e => setIdentifier(e.target.value)} autoComplete="username" InputProps={{ startAdornment: <InputAdornment position="start"><PersonRoundedIcon sx={{ color: "#6479a2", fontSize: 27 }} /></InputAdornment> }} sx={{ "& .MuiOutlinedInput-root": { minHeight: { xs: 58, sm: 62 }, borderRadius: 1.9, bgcolor: "#fff" }, "& .MuiInputLabel-root": { color: "#7185a7" } }} />
-              <TextField fullWidth label="Κωδικός πρόσβασης" type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" InputProps={{ startAdornment: <InputAdornment position="start"><LockRoundedIcon sx={{ color: "#6479a2", fontSize: 27 }} /></InputAdornment>, endAdornment: <InputAdornment position="end"><IconButton aria-label={showPassword ? "Απόκρυψη κωδικού" : "Εμφάνιση κωδικού"} onClick={() => setShowPassword(v => !v)} edge="end" sx={{ color: "#6479a2" }}>{showPassword ? <VisibilityOffRoundedIcon /> : <VisibilityRoundedIcon />}</IconButton></InputAdornment> }} sx={{ "& .MuiOutlinedInput-root": { minHeight: { xs: 58, sm: 62 }, borderRadius: 1.9, bgcolor: "#fff" }, "& .MuiInputLabel-root": { color: "#7185a7" } }} />
+            {challenge ? <TextField autoFocus fullWidth label={challenge.kind === "totp" ? "Κωδικός εφαρμογής" : "Κωδικός email"} placeholder="Πληκτρολογήστε τον κωδικό" value={code} onChange={e => setCode(e.target.value)} inputProps={{ inputMode: "numeric", maxLength: 8 }} sx={fieldSx} /> : <>
+              <TextField autoFocus fullWidth label="Email ή Όνομα Χρήστη" placeholder="π.χ. συνεργάτης@lanca.gr" value={identifier} onChange={e => setIdentifier(e.target.value)} autoComplete="username" InputProps={{ startAdornment: <InputAdornment position="start"><PersonRoundedIcon sx={{ color: "#4f6b93", fontSize: 27 }} /></InputAdornment> }} sx={fieldSx} />
+              <TextField fullWidth label="Κωδικός πρόσβασης" placeholder="Πληκτρολογήστε τον κωδικό σας" type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" InputProps={{ startAdornment: <InputAdornment position="start"><LockRoundedIcon sx={{ color: "#4f6b93", fontSize: 27 }} /></InputAdornment>, endAdornment: <InputAdornment position="end"><IconButton aria-label={showPassword ? "Απόκρυψη κωδικού" : "Εμφάνιση κωδικού"} aria-pressed={showPassword} title={showPassword ? "Απόκρυψη κωδικού" : "Εμφάνιση κωδικού"} onClick={() => setShowPassword(v => !v)} edge="end" sx={{ color: "#4f6b93" }}>{showPassword ? <VisibilityOffRoundedIcon /> : <VisibilityRoundedIcon />}</IconButton></InputAdornment> }} sx={fieldSx} />
               <Stack direction="row" justifyContent="space-between" alignItems="center" gap={1} flexWrap="wrap" sx={{ mt: .05 }}><FormControlLabel control={<Checkbox checked={remember} onChange={e => setRemember(e.target.checked)} sx={{ color: primary, p: .45, "&.Mui-checked": { color: primary } }} />} label={<Typography sx={{ fontSize: { xs: 14, sm: 15 }, color: "#374f73" }}>Να με θυμάμαι</Typography>} />{b.supportEmail && <Link href={`mailto:${b.supportEmail}`} underline="always" sx={{ fontSize: { xs: 14, sm: 15 }, color: primary, fontWeight: 700 }}>Ξέχασα τον κωδικό μου;</Link>}</Stack>
             </>}
             <Button type="submit" variant="contained" size="large" endIcon={<ArrowForwardRoundedIcon sx={{ fontSize: 28 }} />} disabled={challenge ? code.length < 4 : !identifier || !password} sx={{ minHeight: { xs: 58, sm: 62 }, borderRadius: 1.9, textTransform: "none", fontSize: { xs: 16, sm: 18 }, fontWeight: 900, background: `linear-gradient(100deg, #1739b8 0%, ${primary} 58%, #1475ee 100%)`, boxShadow: "0 8px 18px rgba(16,79,214,.23)", "&:hover": { background: `linear-gradient(100deg, ${secondary} 0%, ${primary} 100%)` }, "&.Mui-disabled": { color: "#fff", background: "#bfc5cc" } }}>{challenge ? "Επιβεβαίωση σύνδεσης" : "Σύνδεση στην πύλη"}</Button>
@@ -138,15 +160,11 @@ export function InsureOneLoginPage() {
             <Button variant="outlined" startIcon={<HeadsetMicRoundedIcon sx={{ fontSize: 27 }} />} href={b.supportEmail ? `mailto:${b.supportEmail}` : undefined} sx={{ minHeight: { xs: 54, sm: 58 }, borderRadius: 1.9, textTransform: "none", color: primary, border: `2px solid ${primary}`, fontSize: { xs: 15, sm: 17 }, fontWeight: 900, "&:hover": { border: `2px solid ${secondary}`, bgcolor: `${primary}08` } }}>Επικοινωνία με υποστήριξη</Button>
           </Stack>
 
-          <Box sx={{ px: { xs: 3, sm: 6.5 }, pb: { xs: 2.4, sm: 3.1 } }}>
-            <Divider sx={{ mb: 1.35, borderColor: "#e2eaf4" }} />
-            <Stack direction={{ xs: "column", sm: "row" }} justifyContent="center" alignItems="center" divider={<Divider orientation="vertical" flexItem sx={{ display: { xs: "none", sm: "block" }, borderColor: "#cbd7e8" }} />} spacing={{ xs: .65, sm: 1.7 }}>
-              <Stack direction="row" alignItems="center" spacing={.65}><SecurityRoundedIcon sx={{ fontSize: 22, color: "#109c62" }} /><Typography variant="caption" sx={{ color: "#11955e", fontWeight: 850 }}>{b.loginSecurityText || "Ασφαλής σύνδεση"}</Typography></Stack>
-              <Stack direction="row" alignItems="center" spacing={.65}><LockRoundedIcon sx={{ fontSize: 19, color: "#65799a" }} /><Typography variant="caption" sx={{ color: "#65799a", fontWeight: 700 }}>SSL Encryption</Typography></Stack>
-              <Stack direction="row" alignItems="center" spacing={.65}><SecurityRoundedIcon sx={{ fontSize: 20, color: "#65799a" }} /><Typography variant="caption" sx={{ color: "#65799a", fontWeight: 700 }}>Προστασία Δεδομένων</Typography></Stack>
-            </Stack>
-          </Box>
         </Paper>
+        <Stack component="footer" direction="row" justifyContent="center" alignItems="center" spacing={{ xs: 1.1, sm: 1.6 }} sx={{ mt: { xs: 1.3, sm: 1.8 }, px: 1.5, py: .75, borderRadius: 999, bgcolor: "rgba(255,255,255,.78)", border: "1px solid rgba(255,255,255,.9)", boxShadow: "0 8px 22px rgba(16,67,128,.08)" }}>
+          <Box component="img" src="/assets/insureone-plugin-logo.png" alt="InsureOne" sx={{ width: { xs: 58, sm: 72 }, height: { xs: 28, sm: 32 }, objectFit: "contain", opacity: .88 }} />
+          <Typography sx={{ color: "#345174", fontSize: { xs: 11.5, sm: 12.5 }, fontWeight: 800, letterSpacing: ".02em", whiteSpace: "nowrap" }}>Powered by <Box component="span" sx={{ color: secondary, fontWeight: 950 }}>KALYPSIS</Box></Typography>
+        </Stack>
       </Container>
     </Box>
   );
