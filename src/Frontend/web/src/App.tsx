@@ -281,6 +281,29 @@ import { CustomerPortalPage } from "./pages/CustomerPortalPage";
 import { AffiliateProgramPage } from "./pages/AffiliateProgramPage";
 import { PlatformTodoBoardPage } from "./pages/PlatformTodoBoardPage";
 
+// BackOffice routes that were previously folded into hub pages remained
+// available as deep links, but disappeared from the office sidebars. Keep the
+// recovery list in one place so every office-facing role receives the same
+// production/bridge/financial tools without duplicating navigation metadata.
+// The carrier-bridges-hub is intentionally not included: it was explicitly
+// removed from the sidebar and the concrete bridge pages below are the useful
+// entry points.
+const restoredBackOfficeItems: NavItem[] = [
+  { to: "/carrier-bridges", labelKey: "nav.carrierBridges", icon: <HubIcon />, package: "BackOffice", group: "production" },
+  { to: "/collection-files-bridges", labelKey: "nav.collectionFilesBridges", icon: <CloudUploadIcon />, package: "BackOffice", group: "financials" },
+  { to: "/bridge-code-mappings", labelKey: "nav.bridgeCodeMappings", icon: <AccountTreeIcon />, package: "BackOffice", group: "params" },
+  { to: "/financials?tab=receipts", labelKey: "nav.receipts", icon: <ReceiptLongIcon />, package: "BackOffice", group: "financials" },
+  { to: "/financials?tab=payments", labelKey: "nav.payments", icon: <PaymentsIcon />, package: "BackOffice", group: "financials" },
+  { to: "/advance-payments", labelKey: "nav.advance", icon: <AccountBalanceIcon />, package: "BackOffice", group: "financials" },
+  { to: "/bulk-receipts", labelKey: "nav.bulkReceipts", icon: <CloudUploadIcon />, package: "BackOffice", group: "financials" },
+  { to: "/auto-receipt-matching", labelKey: "nav.autoReceiptMatching", icon: <PaymentsIcon />, package: "BackOffice", group: "financials" },
+  { to: "/ageing-analysis", labelKey: "nav.ageingAnalysis", icon: <AnalyticsIcon />, package: "BackOffice", group: "financials" },
+  { to: "/journal-entries", labelKey: "nav.journalEntries", icon: <DescriptionOutlinedIcon />, package: "BackOffice", group: "financials" },
+  { to: "/commission-certificates", labelKey: "nav.commissionCertificates", icon: <ReceiptLongIcon />, package: "BackOffice", group: "financials" },
+  { to: "/carrier-ledger", labelKey: "nav.carrierLedger", icon: <AccountBalanceIcon />, package: "BackOffice", group: "financials" },
+  { to: "/statement-mailer", labelKey: "nav.statementMailer", icon: <EmailIcon />, package: "BackOffice", group: "financials" }
+];
+
 // Exported so Platform Admin can render a read-only, faithful sidebar preview
 // for an office user without starting an impersonation session.
 export const navByRole: Record<Role, NavItem[]> = {
@@ -321,6 +344,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     // with the URL bookmarked keeps working.
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/producers", labelKey: "nav.producers", icon: <HandshakeIcon />, package: "BackOffice", group: "production" },
+    ...restoredBackOfficeItems,
     // «Πρόσθετες πράξεις» + «Ακυρώσεις» are reachable as buttons inside
     // /app/policies. Legacy routes still resolve so old bookmarks keep
     // working — see route registrations further down.
@@ -490,6 +514,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/garages", labelKey: "nav.garages", icon: <EngineeringIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/indemnities", labelKey: "nav.indemnities", icon: <PaymentsIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/friendly-settlements", labelKey: "nav.friendly", icon: <HandshakeIcon />, package: "BackOffice", group: "claimsOps" },
+    ...restoredBackOfficeItems,
     { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice" },
     { to: "/office-website/overview", labelKey: "nav.officeWebsiteOverview", icon: <DashboardIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website", labelKey: "nav.officeWebsite", icon: <LanguageIcon />, package: "FrontOffice", group: "website" },
@@ -527,6 +552,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/garages", labelKey: "nav.garages", icon: <EngineeringIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/indemnities", labelKey: "nav.indemnities", icon: <PaymentsIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/friendly-settlements", labelKey: "nav.friendly", icon: <HandshakeIcon />, package: "BackOffice", group: "claimsOps" },
+    ...restoredBackOfficeItems,
     { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice" },
     { to: "/office-website/overview", labelKey: "nav.officeWebsiteOverview", icon: <DashboardIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website", labelKey: "nav.officeWebsite", icon: <LanguageIcon />, package: "FrontOffice", group: "website" },
