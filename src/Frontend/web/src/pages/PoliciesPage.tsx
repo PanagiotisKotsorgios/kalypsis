@@ -70,6 +70,7 @@ import { QuickFilterBar } from "../components/QuickFilterBar";
 import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
 import { BulkImportDialog, type BulkImportResult } from "../components/BulkImportDialog";
 import { ExcelImportButton } from "../components/ExcelImportButton";
+import { SavedReportsButton } from "../components/SavedReportsButton";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
 type PolicyStatus = "Draft" | "Active" | "Expired" | "Cancelled" | "Renewed" | "PendingRenewal" | "Undelivered" | "AwaitingIssue" | "Prospect";
@@ -374,6 +375,29 @@ export function PoliciesPage() {
     search, statusFilter, typeFilter, carrierFilter, producerFilter, fromDate, toDate,
     plateFilter, appNumberFilter, premiumMin, premiumMax, expiryWindow, paymentRouteFilter, table.query,
   ].filter(Boolean).length;
+  const savedPolicyFilters = {
+    search, statusFilter, typeFilter, carrierFilter, subCarrierFilter, producerFilter,
+    fromDate, toDate, plateFilter, appNumberFilter, premiumMin, premiumMax,
+    expiryWindow, paymentRouteFilter,
+  };
+  const loadSavedPolicyFilters = (filters: Partial<typeof savedPolicyFilters>) => {
+    setSearch(filters.search ?? "");
+    setStatusFilter((filters.statusFilter ?? "") as PolicyStatus | "");
+    setTypeFilter((filters.typeFilter ?? "") as PolicyType | "");
+    setCarrierFilter(filters.carrierFilter ?? "");
+    setSubCarrierFilter(filters.subCarrierFilter ?? []);
+    setProducerFilter(filters.producerFilter ?? "");
+    setFromDate(filters.fromDate ?? "");
+    setToDate(filters.toDate ?? "");
+    setPlateFilter(filters.plateFilter ?? "");
+    setAppNumberFilter(filters.appNumberFilter ?? "");
+    setPremiumMin(filters.premiumMin ?? "");
+    setPremiumMax(filters.premiumMax ?? "");
+    setExpiryWindow((filters.expiryWindow ?? "") as typeof expiryWindow);
+    setPaymentRouteFilter((filters.paymentRouteFilter ?? "") as PaymentRoute);
+    table.setQuery(filters.search ?? "");
+    table.setPage(1);
+  };
 
   const importPolicies = async (importRows: Record<string, string>[]): Promise<BulkImportResult> => {
     let imported = 0;
@@ -642,6 +666,14 @@ export function PoliciesPage() {
                >
                  Γρήγορα φίλτρα
                </Button>
+               <Box sx={{ gridColumn: { xs: "1", sm: "1 / -1", md: "1 / -1" }, display: "flex", justifyContent: "flex-end", minWidth: 0 }}>
+                 <SavedReportsButton
+                   inline
+                   entity="policies"
+                   currentFilters={savedPolicyFilters}
+                   onLoad={loadSavedPolicyFilters}
+                 />
+               </Box>
              </Box>
            </Card>
            <Dialog open={advancedFiltersOpen} onClose={() => setAdvancedFiltersOpen(false)} fullWidth maxWidth="md">

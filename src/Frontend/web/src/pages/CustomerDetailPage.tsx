@@ -52,6 +52,7 @@ import { useNavigate, useParams, Link as RouterLink } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { VehicleDetailDialog, vehicleStatusLabel } from "./CustomerVehiclesPage";
+import { InlineValueField, type InlineValueOption } from "../components/InlineValueField";
 
 interface CustomerDto {
   id: string;
@@ -98,6 +99,32 @@ interface CustomerDto {
   source?: string | null;
   tagsJson?: string | null;
   photoUrl?: string | null;
+}
+
+/** The PUT endpoint intentionally accepts the complete customer projection.
+ * Inline editing therefore merges the changed value into the same payload used
+ * by the full editor, keeping all existing fields intact. */
+function customerInlinePayload(customer: CustomerDto, key: keyof CustomerDto, value: string) {
+  const optional = (field: keyof CustomerDto) => customer[field] ?? undefined;
+  return {
+    type: customer.type,
+    status: customer.status,
+    firstName: optional("firstName"), lastName: optional("lastName"), companyName: optional("companyName"),
+    vatNumber: optional("vatNumber"), email: optional("email"), phone: optional("phone"),
+    address: optional("address"), city: optional("city"), postalCode: optional("postalCode"),
+    occupation: optional("occupation"), notes: optional("notes"), paymentDueDate: optional("paymentDueDate"),
+    birthDate: optional("birthDate"), fatherName: optional("fatherName"), motherName: optional("motherName"), spouseName: optional("spouseName"),
+    nationality: optional("nationality"), zone: optional("zone"), activityCode: optional("activityCode"), taxOffice: optional("taxOffice"),
+    gemiNumber: optional("gemiNumber"), legalForm: optional("legalForm"), altPhone: optional("altPhone"), mobilePhone: optional("mobilePhone"),
+    amka: optional("amka"), idNumber: optional("idNumber"), passportNumber: optional("passportNumber"), region: optional("region"),
+    gender: optional("gender"), maritalStatus: optional("maritalStatus"), employer: optional("employer"),
+    driverLicenseNumber: optional("driverLicenseNumber"), driverLicenseClass: optional("driverLicenseClass"),
+    driverLicenseIssueDate: optional("driverLicenseIssueDate"), driverLicenseExpiryDate: optional("driverLicenseExpiryDate"),
+    source: optional("source"), tagsJson: optional("tagsJson"), photoUrl: optional("photoUrl"),
+    createPortalAccount: false,
+    assignedAdvisorId: undefined,
+    [key]: value || undefined,
+  };
 }
 
 interface ConsentRow {
@@ -959,6 +986,7 @@ function CustomerProducersSummary({ customerId }: { customerId: string }) {
 }
 
 function OverviewTab({ customer }: { customer: CustomerDto }) {
+  const qc = useQueryClient();
   const nameDaysQ = useQuery({
     queryKey: ["customer-name-days", customer.id],
     retry: false,
@@ -1008,28 +1036,59 @@ function OverviewTab({ customer }: { customer: CustomerDto }) {
     if (today.getMonth() < birth.getMonth() || (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())) years -= 1;
     return years >= 0 ? `${years} ετών` : "—";
   })() : "—";
+  const genderLabels: Record<string, string> = { Male: "Άνδρας", Female: "Γυναίκα", Other: "Άλλο" };
+  const editKeyByLabel: Record<string, keyof CustomerDto> = {
+    "Κατάσταση": "status", "Τύπος πελάτη": "type", Email: "email", "Κύριο τηλέφωνο": "phone",
+    "Κινητό": "mobilePhone", "2ο τηλέφωνο": "altPhone", "Διεύθυνση": "address", Πόλη: "city",
+    "Τ.Κ.": "postalCode", Περιφέρεια: "region", "Ημ. εξόφλησης": "paymentDueDate",
+    ΑΦΜ: "vatNumber", "Αριθμός ταυτότητας": "idNumber", ΑΜΚΑ: "amka", Διαβατήριο: "passportNumber",
+    "Ημ. γέννησης": "birthDate", Φύλο: "gender", "Οικογενειακή κατάσταση": "maritalStatus", Εθνικότητα: "nationality",
+    Πατρώνυμο: "fatherName", Μητρώνυμο: "motherName", "Σύζυγος / σύντροφος": "spouseName",
+    Επάγγελμα: "occupation", Εργοδότης: "employer", Δραστηριότητα: "activityCode", Ζώνη: "zone",
+    ΔΟΥ: "taxOffice", ΓΕΜΗ: "gemiNumber", "Νομική μορφή": "legalForm", Πηγή: "source",
+    "Αριθμός διπλώματος": "driverLicenseNumber", "Κατηγορία": "driverLicenseClass", "Έκδοση διπλώματος": "driverLicenseIssueDate",
+    "Λήξη διπλώματος": "driverLicenseExpiryDate", Ετικέτες: "tagsJson", "URL φωτογραφίας": "photoUrl", "Σημειώσεις συμβούλου": "notes",
+  };
+  const editOptions: Partial<Record<keyof CustomerDto, InlineValueOption[]>> = {
+    type: [{ value: "Individual", label: "Φυσικό πρόσωπο" }, { value: "Company", label: "Νομικό πρόσωπο" }],
+    status: ["Prospect", "Active", "Inactive", "Churned", "Blocked"].map(value => ({
+      value, label: ({ Prospect: "Πιθανός πελάτης", Active: "Ενεργός", Inactive: "Ανενεργός", Churned: "Απώλεια", Blocked: "Αποκλεισμένος" } as Record<string, string>)[value],
+    })),
+    gender: [{ value: "", label: "Δεν έχει οριστεί" }, ...Object.entries(genderLabels).map(([value, label]) => ({ value, label }))],
+  };
+  const editableType: Partial<Record<keyof CustomerDto, "date" | "email" | "number">> = {
+    paymentDueDate: "date", birthDate: "date", driverLicenseIssueDate: "date", driverLicenseExpiryDate: "date", email: "email",
+  };
   const groups: { title: string; fields: [string, React.ReactNode][] }[] = [
     { title: "Επικοινωνία & διεύθυνση", fields: [
       ["Κατάσταση", customer.status === "Prospect" ? "Πιθανός πελάτης" : customer.status === "Active" ? "Ενεργός" : customer.status], ["Τύπος πελάτη", customer.type === "Company" ? "Νομικό πρόσωπο" : "Φυσικό πρόσωπο"],
       ["Email", customer.email ?? "—"], ["Κύριο τηλέφωνο", customer.phone ?? "—"], ["Κινητό", customer.mobilePhone ?? "—"], ["2ο τηλέφωνο", customer.altPhone ?? "—"],
-      ["Διεύθυνση", customer.address ?? "—"], ["Πόλη / Τ.Κ.", [customer.city, customer.postalCode].filter(Boolean).join(" · ") || "—"], ["Περιφέρεια", customer.region ?? "—"],
+      ["Διεύθυνση", customer.address ?? "—"], ["Πόλη", customer.city ?? "—"], ["Τ.Κ.", customer.postalCode ?? "—"], ["Περιφέρεια", customer.region ?? "—"],
       ["Καταχωρημένα κανάλια", `${contactMethodCount} από 4`], ["Ημ. εξόφλησης", customer.paymentDueDate ?? "Δεν έχει οριστεί"], ["Λογαριασμός portal", customer.hasPortalAccount ? "Ενεργός" : "Δεν έχει δημιουργηθεί"]
     ] },
     { title: "Ταυτότητα & προσωπικά στοιχεία", fields: [
       ["ΑΦΜ", customer.vatNumber ?? "—"], ["Αριθμός ταυτότητας", customer.idNumber ?? "—"], ["ΑΜΚΑ", customer.amka ?? "—"], ["Διαβατήριο", customer.passportNumber ?? "—"],
-      ["Ημ. γέννησης", customer.birthDate ?? "—"], ["Επόμενα γενέθλια", annualDate(customer.birthDate)], ["Ηλικία", age], ["Ονομαστική εορτή", matchingNameDays.length ? `${matchingNameDays.map(item => `${String(item.day).padStart(2, "0")}/${String(item.month).padStart(2, "0")}`).join(", ")} · επόμενη ${nextNameDay}` : "Δεν έχει αντιστοίχιση"], ["Φύλο", customer.gender ?? "—"], ["Οικογενειακή κατάσταση", customer.maritalStatus ?? "—"], ["Εθνικότητα", customer.nationality ?? "—"],
+      ["Ημ. γέννησης", customer.birthDate ?? "—"], ["Επόμενα γενέθλια", annualDate(customer.birthDate)], ["Ηλικία", age], ["Ονομαστική εορτή", matchingNameDays.length ? `${matchingNameDays.map(item => `${String(item.day).padStart(2, "0")}/${String(item.month).padStart(2, "0")}`).join(", ")} · επόμενη ${nextNameDay}` : "Δεν έχει αντιστοίχιση"], ["Φύλο", customer.gender ? (genderLabels[customer.gender] ?? customer.gender) : "—"], ["Οικογενειακή κατάσταση", customer.maritalStatus ?? "—"], ["Εθνικότητα", customer.nationality ?? "—"],
       ["Πατρώνυμο", customer.fatherName ?? "—"], ["Μητρώνυμο", customer.motherName ?? "—"], ["Σύζυγος / σύντροφος", customer.spouseName ?? "—"]
     ] },
     { title: "Εργασία & εταιρικά στοιχεία", fields: [
       ["Επάγγελμα", customer.occupation ?? "—"], ["Εργοδότης", customer.employer ?? "—"], ["Δραστηριότητα", customer.activityCode ?? "—"], ["Ζώνη", customer.zone ?? "—"],
       ["ΔΟΥ", customer.taxOffice ?? "—"], ["ΓΕΜΗ", customer.gemiNumber ?? "—"], ["Νομική μορφή", customer.legalForm ?? "—"], ["Πηγή", customer.source ?? "—"],
-      ["Φορολογικό προφίλ", taxProfile], ["Φωτογραφία προφίλ", customer.photoUrl ? "Καταχωρημένη" : "Δεν έχει καταχωρηθεί"], ["Αριθμός πελάτη", customer.customerNumber]
+      ["Φορολογικό προφίλ", taxProfile], ["URL φωτογραφίας", customer.photoUrl ?? "—"], ["Αριθμός πελάτη", customer.customerNumber]
     ] },
     { title: "Οδήγηση & εσωτερική πληροφόρηση", fields: [
       ["Οδηγός", hasDriverLicense ? "Ναι" : "Δεν έχει καταχωρηθεί"], ["Κατάσταση διπλώματος", licenseStatus], ["Αριθμός διπλώματος", customer.driverLicenseNumber ?? "—"], ["Κατηγορία", customer.driverLicenseClass ?? "—"],
       ["Έκδοση διπλώματος", customer.driverLicenseIssueDate ?? "—"], ["Χρόνια με δίπλωμα", licenseYears], ["Λήξη διπλώματος", customer.driverLicenseExpiryDate ?? "—"], ["Έγγραφο ταυτοποίησης", identityDocument], ["Ετικέτες", customer.tagsJson ?? "—"]
     ] }
   ];
+  const inlineUpdate = useMutation({
+    mutationFn: async ({ key, value }: { key: keyof CustomerDto; value: string }) => (await api.put<CustomerDto>(`/customers/${customer.id}`, customerInlinePayload(customer, key, value))).data,
+    onSuccess: (updated) => {
+      qc.setQueryData(["customer", customer.id], updated);
+      void qc.invalidateQueries({ queryKey: ["customer", customer.id] });
+      void qc.invalidateQueries({ queryKey: ["customers"] });
+    },
+  });
   const isMissingField = (value: React.ReactNode) => {
     if (value === null || value === undefined || value === false) return true;
     if (typeof value !== "string") return false;
@@ -1045,6 +1104,13 @@ function OverviewTab({ customer }: { customer: CustomerDto }) {
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(3, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))", xl: "repeat(5, minmax(0, 1fr))" }, gap: 0.5 }}>
           {group.fields.map(([label, value]) => {
             const missing = isMissingField(value);
+            const key = editKeyByLabel[label];
+            const storedValue = key ? customer[key] : undefined;
+            const display = label === "Τύπος πελάτη"
+              ? (customer.type === "Company" ? "Νομικό πρόσωπο" : "Φυσικό πρόσωπο")
+              : label === "Κατάσταση"
+                ? ({ Prospect: "Πιθανός πελάτης", Active: "Ενεργός", Inactive: "Ανενεργός", Churned: "Απώλεια", Blocked: "Αποκλεισμένος" } as Record<string, string>)[customer.status] ?? value
+                : value;
             return <Box key={label} sx={{
               p: 0.65,
               minWidth: 0,
@@ -1054,15 +1120,30 @@ function OverviewTab({ customer }: { customer: CustomerDto }) {
               border: "1px solid",
               borderColor: missing ? "rgba(211,47,47,0.2)" : "rgba(46,125,50,0.2)",
             }}>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.66rem", lineHeight: 1.1, mb: 0.2 }}>{label}</Typography>
-              <Typography variant="body2" fontWeight={600} color={missing ? "error.dark" : "success.dark"} sx={{ wordBreak: "break-word", fontSize: "0.78rem", lineHeight: 1.2 }}>{value}</Typography>
+              <InlineValueField
+                label={label}
+                value={storedValue === null || storedValue === undefined ? (typeof value === "string" ? value : "") : String(storedValue)}
+                copyValue={typeof display === "string" || typeof display === "number" ? display : undefined}
+                displayValue={display}
+                options={key ? editOptions[key] : undefined}
+                type={key ? editableType[key] : undefined}
+                valueColor={missing ? "error.dark" : "success.dark"}
+                onCommit={key ? (next) => { inlineUpdate.mutate({ key, value: next }); } : undefined}
+                plain
+              />
             </Box>;
           })}
         </Box>
       </Card>)}
       <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 } }}>
-        <Typography variant="subtitle2" fontWeight={800}>Σημειώσεις</Typography>
-        <Typography variant="body2" sx={{ mt: 0.25, whiteSpace: "pre-wrap", fontSize: "0.8rem" }}>{customer.notes ?? "Δεν υπάρχουν σημειώσεις."}</Typography>
+        <InlineValueField
+          label="Σημειώσεις συμβούλου"
+          value={customer.notes ?? ""}
+          displayValue={customer.notes || "Δεν υπάρχουν σημειώσεις."}
+          multiline
+          onCommit={(value) => inlineUpdate.mutate({ key: "notes", value })}
+          plain
+        />
       </Card>
       <CustomerProducersSummary customerId={customer.id} />
       <CustomerVehiclesTab customerId={customer.id} compact />
@@ -1100,9 +1181,14 @@ function CustomerEditorDialog({ open, customer, onClose, onSaveReady }: { open: 
     return () => onSaveReady(null, false);
   }, [open, save.isPending, onSaveReady]);
   const set = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }));
+  const optionLabel: Record<string, string> = {
+    Individual: "Φυσικό πρόσωπο", Company: "Νομικό πρόσωπο",
+    Prospect: "Πιθανός πελάτης", Active: "Ενεργός", Inactive: "Ανενεργός", Churned: "Απώλεια", Blocked: "Αποκλεισμένος",
+    Male: "Άνδρας", Female: "Γυναίκα", Other: "Άλλο",
+  };
   const field = (label: string, key: string, options?: { type?: string; multiline?: boolean; select?: string[]; placeholder?: string }) => options?.select ? (
     <TextField key={key} size="small" select label={label} value={form[key] ?? ""} onChange={e => set(key, e.target.value)} fullWidth>
-      <MenuItem value="">Δεν έχει οριστεί</MenuItem>{options.select.map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}
+      <MenuItem value="">Δεν έχει οριστεί</MenuItem>{options.select.map(value => <MenuItem key={value} value={value}>{optionLabel[value] ?? value}</MenuItem>)}
     </TextField>
   ) : <TextField key={key} size="small" label={label} type={options?.type} value={form[key] ?? ""} onChange={e => set(key, e.target.value)} fullWidth multiline={options?.multiline} rows={options?.multiline ? 2 : undefined} placeholder={options?.placeholder} InputLabelProps={options?.type === "date" ? { shrink: true } : undefined} />;
   const editorGridSx = { display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" }, gap: 0.75, alignItems: "start", "& > .MuiFormControl-root, & > .MuiBox-root": { minWidth: 0 }, "& .MuiInputLabel-root": { fontSize: "0.78rem" }, "& .MuiInputBase-root": { minHeight: 38 } };
@@ -1130,17 +1216,17 @@ function CustomerEditorDialog({ open, customer, onClose, onSaveReady }: { open: 
           {field("Ημερομηνία εξόφλησης", "paymentDueDate", { type: "date" })}
           <Box sx={{ gridColumn: { sm: "1 / -1" } }}>{field("Σημειώσεις", "notes", { multiline: true })}</Box>
         </>)}
-        {editorSection("Ταυτότητα & οικογένεια", <>
+        {editorSection("Ταυτότητα & προσωπικά στοιχεία", <>
           {field("Ημερομηνία γέννησης", "birthDate", { type: "date" })}{field("Φύλο", "gender", { select: ["Male", "Female", "Other"] })}{field("Εθνικότητα", "nationality")}{field("Οικογενειακή κατάσταση", "maritalStatus")}
           {field("Αριθμός ταυτότητας", "idNumber")}{field("ΑΜΚΑ", "amka")}{field("Διαβατήριο", "passportNumber")}{field("Πατρώνυμο", "fatherName")}
           {field("Μητρώνυμο", "motherName")}{field("Σύζυγος / σύντροφος", "spouseName")}
         </>)}
-        {editorSection("Εργασία, φορολογικά & ψηφιακά στοιχεία", <>
+        {editorSection("Εργασία & εταιρικά στοιχεία", <>
           {field("Επάγγελμα", "occupation")}{field("Εργοδότης", "employer")}{field("Κωδικός δραστηριότητας", "activityCode")}{field("Ζώνη", "zone")}
           {field("ΑΦΜ", "vatNumber")}{field("ΔΟΥ", "taxOffice")}{field("ΓΕΜΗ", "gemiNumber")}{field("Νομική μορφή", "legalForm")}
           {field("Πηγή", "source")}{field("Ετικέτες", "tagsJson", { placeholder: "π.χ. premium, εταιρεία" })}{field("URL φωτογραφίας", "photoUrl")}
         </>)}
-        {editorSection("Οδήγηση & άδεια οδηγού", <>
+        {editorSection("Οδήγηση & εσωτερική πληροφόρηση", <>
           {field("Αριθμός διπλώματος", "driverLicenseNumber")}{field("Κατηγορία διπλώματος", "driverLicenseClass")}{field("Έκδοση", "driverLicenseIssueDate", { type: "date" })}{field("Λήξη", "driverLicenseExpiryDate", { type: "date" })}
           <Alert severity="info" sx={{ gridColumn: { sm: "1 / -1" }, py: 0 }}>Τα οχήματα εμφανίζονται αυτόματα από τα συμβόλαια και τις πινακίδες τους.</Alert>
         </>)}

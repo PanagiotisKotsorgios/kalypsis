@@ -24,6 +24,8 @@ import { InlineCreateCustomerDialog } from "../components/InlineCreateCustomerDi
 import { useUndoable } from "../components/UndoToast";
 import { useColumnPreferences } from "../hooks/useColumnPreferences";
 import { ColumnPreferencesButton } from "../components/ColumnPreferencesButton";
+import { SavedReportsButton } from "../components/SavedReportsButton";
+import { InlineValueField } from "../components/InlineValueField";
 
 const METHODS = ["Cash","Card","BankTransfer","Cheque","PromissoryNote","Other"] as const;
 type Method = typeof METHODS[number];
@@ -137,6 +139,16 @@ export function ReceiptsPage() {
     { key: "amount",   label: "Ποσό" },
   ]);
   const total = filtered.reduce((s, r) => s + r.amount, 0);
+  const savedReceiptFilters = { search, methodFilter, fromDate, toDate, customerFilter };
+  const loadSavedReceiptFilters = (filters: Partial<typeof savedReceiptFilters>) => {
+    setSearch(filters.search ?? "");
+    setMethodFilter((filters.methodFilter ?? "") as Method | "");
+    setFromDate(filters.fromDate ?? "");
+    setToDate(filters.toDate ?? "");
+    setCustomerFilter(filters.customerFilter ?? "");
+    table.setQuery(filters.search ?? "");
+    table.setPage(1);
+  };
 
   const inferType = (key: string): ColumnType =>
     key === "date" ? "date" : key === "amount" ? "number" : "string";
@@ -219,6 +231,12 @@ export function ReceiptsPage() {
           <Button size="small" onClick={() => {
             setSearch(""); setMethodFilter(""); setFromDate(""); setToDate(""); setCustomerFilter("");
           }} color="error" variant="contained">Καθαρισμός</Button>
+          <SavedReportsButton
+            inline
+            entity="receipts"
+            currentFilters={savedReceiptFilters}
+            onLoad={loadSavedReceiptFilters}
+          />
         </Stack>
       </Card>
 
@@ -253,25 +271,25 @@ export function ReceiptsPage() {
                 <TableRow><TableCell colSpan={receiptCols.visibleColumns.length + 1} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("receipts.empty")}</TableCell></TableRow>
               )}
               {rows.map(r => (
-                <TableRow key={r.id} hover onContextMenu={(e) => rowMenu.open(e, r)}>
+                <TableRow key={r.id} hover onDoubleClick={() => setEditingReceipt(r)} onContextMenu={(e) => rowMenu.open(e, r)}>
                   {receiptCols.visibleColumns.map(c => {
                     switch (c.key) {
                       case "number":
-                        return <TableCell key={c.key}><Typography fontWeight={700} sx={{ fontFamily: "monospace" }}>{r.number}</Typography></TableCell>;
+                        return <TableCell key={c.key}><InlineValueField compact hideLabel label="Αριθμός απόδειξης" value={r.number} displayValue={<Typography fontWeight={700} sx={{ fontFamily: "monospace", fontSize: 13 }}>{r.number}</Typography>} onRequestEdit={() => setEditingReceipt(r)} /></TableCell>;
                       case "date":
-                        return <TableCell key={c.key}>{date(r.receivedOn)}</TableCell>;
+                        return <TableCell key={c.key}><InlineValueField compact hideLabel label="Ημερομηνία" value={r.receivedOn.slice(0, 10)} displayValue={date(r.receivedOn)} onRequestEdit={() => setEditingReceipt(r)} /></TableCell>;
                       case "customer":
-                        return <TableCell key={c.key}>{r.customerName}</TableCell>;
+                        return <TableCell key={c.key}><InlineValueField compact hideLabel label="Πελάτης" value={r.customerName} onRequestEdit={() => setEditingReceipt(r)} /></TableCell>;
                       case "policy":
-                        return <TableCell key={c.key}>{r.policyNumber ?? "—"}</TableCell>;
+                        return <TableCell key={c.key}><InlineValueField compact hideLabel label="Συμβόλαιο" value={r.policyNumber ?? "—"} onRequestEdit={() => setEditingReceipt(r)} /></TableCell>;
                       case "policyStatus":
                         return <TableCell key={c.key}><PaidChip policyId={r.policyId} /></TableCell>;
                       case "method":
-                        return <TableCell key={c.key}>{t(`paymentMethod.${r.method}`)}</TableCell>;
+                        return <TableCell key={c.key}><InlineValueField compact hideLabel label="Τρόπος" value={r.method} displayValue={t(`paymentMethod.${r.method}`)} onRequestEdit={() => setEditingReceipt(r)} /></TableCell>;
                       case "txRef":
-                        return <TableCell key={c.key} sx={{ fontFamily: "monospace", fontSize: 12 }}>{r.transactionReference ?? "—"}</TableCell>;
+                        return <TableCell key={c.key}><InlineValueField compact hideLabel label="Αναφορά συναλλαγής" value={r.transactionReference ?? "—"} mono onRequestEdit={() => setEditingReceipt(r)} /></TableCell>;
                       case "amount":
-                        return <TableCell key={c.key} align="right" sx={{ fontWeight: 700 }}>{money(r.amount, r.currency)}</TableCell>;
+                        return <TableCell key={c.key} align="right"><InlineValueField compact hideLabel label="Ποσό" value={String(r.amount)} displayValue={<Typography fontWeight={700} sx={{ fontSize: 13 }}>{money(r.amount, r.currency)}</Typography>} onRequestEdit={() => setEditingReceipt(r)} /></TableCell>;
                       default: return <TableCell key={c.key}>—</TableCell>;
                     }
                   })}

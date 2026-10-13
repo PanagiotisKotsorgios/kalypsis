@@ -586,7 +586,7 @@ export function ProductionListsPage() {
         </Stack>
         <Box sx={{ flex: 1 }} />
         <Stack direction="row" spacing={1} alignItems="center">
-          <SavedReportsButton entity="production-lists" currentFilters={f} onLoad={(next) => setF({ ...f, ...next })} />
+          <SavedReportsButton inline entity="production-lists" currentFilters={f} onLoad={(next) => setF({ ...f, ...next })} />
           {/* «Ετήσια παραγωγή» button removed from the header. The report
               is still reachable via /app/production-report (old bookmarks
               keep working); it's no longer a standalone entry point in

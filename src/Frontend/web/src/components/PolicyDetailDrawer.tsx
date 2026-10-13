@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { isValidElement, useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   Divider, Drawer, FormControlLabel, IconButton, MenuItem,
@@ -21,6 +21,7 @@ import { PropagateChangesDialog, type PropagatableChanges } from "./PropagateCha
 import { SearchableSelect } from "./SearchableSelect";
 import { VehicleDetailDialog } from "../pages/CustomerVehiclesPage";
 import { contractDurationLabel } from "../utils/contractDuration";
+import { InlineValueField } from "./InlineValueField";
 
 // Mirrors PolicyDetailDto from the backend (see PolicyDetailQuery.cs).
 export interface PolicyDetail {
@@ -210,6 +211,16 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
       setEditing(false);
     }
   }, [open, policyId]);
+
+  // Detail values stay readable and copyable with one click. A double click
+  // asks the already-existing policy editor to open, so no second edit form or
+  // duplicate API flow is introduced.
+  useEffect(() => {
+    if (!open || readOnly) return;
+    const openEditor = () => setEditing(true);
+    window.addEventListener("kalypsis:policy-edit-request", openEditor);
+    return () => window.removeEventListener("kalypsis:policy-edit-request", openEditor);
+  }, [open, readOnly]);
 
   const q = useQuery({
     queryKey: ["policy-detail", policyId],
@@ -1811,13 +1822,28 @@ function CoversBreakdown({ p }: { p: PolicyDetail }) {
   );
 }
 
+function nodeCopyText(value: React.ReactNode): string {
+  if (value === null || value === undefined || typeof value === "boolean") return "";
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  if (Array.isArray(value)) return value.map(nodeCopyText).filter(Boolean).join(" ");
+  if (isValidElement(value)) {
+    const props = value.props as { children?: React.ReactNode; label?: React.ReactNode };
+    return nodeCopyText(props.label ?? props.children);
+  }
+  return "";
+}
+
 function KV({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
+  const copyText = nodeCopyText(value);
   return (
     <Box className="policy-kv" sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(118px, .45fr) 1fr", sm: "minmax(145px, .52fr) 1fr" }, gap: 1, py: .35, alignItems: "baseline", borderBottom: "1px solid", borderColor: "divider", "&:last-child": { borderBottom: 0 } }}>
       <Typography variant="caption" color="text.secondary">{label}</Typography>
-      <Typography variant="body2" sx={{ fontFamily: mono ? "monospace" : undefined, fontWeight: 650, wordBreak: "break-word" }}>
-        {value}
-      </Typography>
+      {copyText ? (
+        <InlineValueField
+          plain compact hideLabel label={label} value={copyText} displayValue={value} mono={mono} copyValue={copyText}
+          onRequestEdit={() => window.dispatchEvent(new Event("kalypsis:policy-edit-request"))}
+        />
+      ) : <Typography variant="body2" sx={{ fontFamily: mono ? "monospace" : undefined, fontWeight: 650, wordBreak: "break-word" }}>{value}</Typography>}
     </Box>
   );
 }
@@ -1832,12 +1858,18 @@ function PolicySummarySection({ title, children }: { title: string; children: Re
 }
 
 function PolicySummaryLine({ label, value, mono, valueColor }: { label: string; value: React.ReactNode; mono?: boolean; valueColor?: string }) {
-  const textValue = typeof value === "string" || typeof value === "number" ? String(value) : "";
+  const textValue = nodeCopyText(value);
   const missing = textValue.trim() === "" || textValue === "—" || textValue === "Δεν αναφέρεται" || textValue === "Δεν έχει καταχωρηθεί";
   return (
     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(118px, .45fr) 1fr", sm: "minmax(135px, .5fr) 1fr" }, gap: 1, py: .35, alignItems: "baseline", borderBottom: "1px solid", borderColor: "divider", "&:last-child": { borderBottom: 0 } }}>
       <Typography variant="caption" color="text.secondary">{label}</Typography>
-      <Typography variant="body2" fontWeight={650} sx={{ fontFamily: mono ? "monospace" : undefined, color: valueColor ?? (textValue ? (missing ? "error.dark" : "success.dark") : undefined), wordBreak: "break-word", whiteSpace: "pre-wrap" }}>{value}</Typography>
+      {textValue ? (
+        <InlineValueField
+          plain compact hideLabel label={label} value={textValue} displayValue={value} mono={mono}
+          valueColor={valueColor}
+          onRequestEdit={() => window.dispatchEvent(new Event("kalypsis:policy-edit-request"))}
+        />
+      ) : <Typography variant="body2" fontWeight={650} sx={{ fontFamily: mono ? "monospace" : undefined, color: valueColor ?? (missing ? "error.dark" : undefined), wordBreak: "break-word", whiteSpace: "pre-wrap" }}>{value}</Typography>}
     </Box>
   );
 }

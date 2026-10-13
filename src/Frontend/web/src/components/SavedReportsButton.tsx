@@ -6,6 +6,7 @@ import {
 import BookmarkIcon from "@mui/icons-material/Bookmark";
 import BookmarkAddIcon from "@mui/icons-material/BookmarkAdd";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
+import SaveIcon from "@mui/icons-material/Save";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 
@@ -29,10 +30,12 @@ interface SavedReport {
  *      currentFilters={f}
  *      onLoad={(filters) => setF(filters)} />
  */
-export function SavedReportsButton<T>({ entity, currentFilters, onLoad }: {
+export function SavedReportsButton<T>({ entity, currentFilters, onLoad, inline = false }: {
   entity: string;
   currentFilters: T;
   onLoad: (filters: T) => void;
+  /** Render the compact selector + name field + save action in a filter bar. */
+  inline?: boolean;
 }) {
   const qc = useQueryClient();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
@@ -47,13 +50,14 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad }: {
   });
 
   const save = useMutation({
-    mutationFn: async () => (await api.post("/saved-reports", {
+    mutationFn: async () => (await api.post<SavedReport>("/saved-reports", {
       entity,
       name: form.name,
       isShared: form.isShared,
       filtersJson: JSON.stringify(currentFilters),
     })).data,
-    onSuccess: () => {
+    onSuccess: (result) => {
+      setActiveId(result.id);
       setSaveOpen(false);
       setForm({ name: "", isShared: false });
       void qc.invalidateQueries({ queryKey: ["saved-reports", entity] });
@@ -70,17 +74,47 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad }: {
 
   const activeName = (q.data ?? []).find(report => report.id === activeId)?.name;
 
+  const selectorButton = (
+    <Button size="small" variant={activeId ? "contained" : "outlined"} startIcon={<BookmarkIcon />}
+      onClick={(e) => setAnchor(e.currentTarget)} sx={{
+        whiteSpace: "nowrap", flexShrink: 0,
+        ...(activeId
+          ? { bgcolor: "#0b5cad", color: "#fff", "&:hover": { bgcolor: "#084d91", color: "#fff" } }
+          : { color: "#123a64", borderColor: "#9ab2ca", "&:hover": { bgcolor: "#e8f2fb", borderColor: "#5d8fbd", color: "#123a64" } })
+      }}>
+      {activeName ?? (inline ? "Όνομα νέου φίλτρου" : "Αποθηκευμένα")}
+    </Button>
+  );
+
   return (
     <>
-      <Button size="small" variant={activeId ? "contained" : "outlined"} startIcon={<BookmarkIcon />}
-        onClick={(e) => setAnchor(e.currentTarget)} sx={{
-          ml: "auto", whiteSpace: "nowrap",
-          ...(activeId
-            ? { bgcolor: "#0b5cad", color: "#fff", "&:hover": { bgcolor: "#084d91", color: "#fff" } }
-            : { color: "#123a64", borderColor: "#9ab2ca", "&:hover": { bgcolor: "#e8f2fb", borderColor: "#5d8fbd", color: "#123a64" } })
-        }}>
-        {activeName ?? "Αποθηκευμένα"}
-      </Button>
+      {inline ? (
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={0.75} alignItems={{ xs: "stretch", sm: "center" }}
+          useFlexGap flexWrap="wrap" sx={{ ml: "auto", minWidth: 0, justifyContent: "flex-end" }}>
+          {selectorButton}
+          <TextField
+            size="small"
+            label="Όνομα νέου φίλτρου"
+            placeholder="π.χ. Πελάτες Αθήνας"
+            value={form.name}
+            onChange={(event) => setForm({ ...form, name: event.target.value })}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && form.name.trim() && !save.isPending) save.mutate();
+            }}
+            sx={{ minWidth: { xs: "100%", sm: 190, md: 230 }, flex: "1 1 220px", maxWidth: { sm: 280, md: 330 } }}
+          />
+          <Button
+            size="small"
+            variant="contained"
+            startIcon={save.isPending ? <CircularProgress size={15} color="inherit" /> : <SaveIcon />}
+            disabled={!form.name.trim() || save.isPending}
+            onClick={() => save.mutate()}
+            sx={{ whiteSpace: "nowrap", minHeight: 40 }}
+          >
+            Αποθήκευση φίλτρου
+          </Button>
+        </Stack>
+      ) : selectorButton}
       <Menu anchorEl={anchor} open={!!anchor} onClose={() => setAnchor(null)}
         slotProps={{ paper: { sx: { minWidth: 300, maxHeight: 400 } } }}>
         <MenuItem onClick={() => { setAnchor(null); setSaveOpen(true); }}>

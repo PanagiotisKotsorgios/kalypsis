@@ -60,6 +60,7 @@ import { SearchableTextField } from "../components/SearchableTextField";
 import { QuickFilterBar } from "../components/QuickFilterBar";
 import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
 import { BulkImportDialog, type BulkImportResult } from "../components/BulkImportDialog";
+import { SavedReportsButton } from "../components/SavedReportsButton";
 
 type CustomerType = "Individual" | "Company";
 type CustomerStatus = "Prospect" | "Active" | "Inactive" | "Churned" | "Blocked";
@@ -202,8 +203,8 @@ function newCustomerForm(status: CustomerStatus): CreateBody {
 }
 
 const CUSTOMER_IMPORT_COLUMNS = [
-  { key: "type", label: "Τύπος πελάτη (Individual/Company)", required: true, example: "Individual" },
-  { key: "status", label: "Κατάσταση (Prospect/Active)", required: true, example: "Active" },
+  { key: "type", label: "Τύπος πελάτη", required: true, example: "Φυσικό πρόσωπο" },
+  { key: "status", label: "Κατάσταση", required: true, example: "Ενεργός" },
   { key: "firstName", label: "Όνομα", example: "Μαρία" },
   { key: "lastName", label: "Επώνυμο", example: "Παπαδοπούλου" },
   { key: "companyName", label: "Επωνυμία εταιρείας", example: "Παράδειγμα ΑΕ" },
@@ -316,8 +317,10 @@ export function CustomersPage() {
     for (let index = 0; index < rows.length; index++) {
       const row = rows[index];
       try {
-        const type = row.type === "Company" ? "Company" : "Individual";
-        const status: CustomerStatus = row.status === "Prospect" ? "Prospect" : "Active";
+        const normalizedType = (row.type ?? "").trim().toLowerCase();
+        const type: CustomerType = ["company", "εταιρεία", "εταιρεια", "νομικό πρόσωπο", "νομικο προσωπο"].includes(normalizedType) ? "Company" : "Individual";
+        const normalizedStatus = (row.status ?? "").trim().toLowerCase();
+        const status: CustomerStatus = ["prospect", "πιθανός πελάτης", "πιθανος πελατης"].includes(normalizedStatus) ? "Prospect" : "Active";
         await api.post("/customers", {
           type, status,
           firstName: row.firstName || undefined, lastName: row.lastName || undefined,
@@ -387,6 +390,22 @@ export function CustomersPage() {
     table.setQuery("");
     table.setPage(1);
   };
+  const savedCustomerFilters = {
+    search, needKind, onlyUninsuredNeeds, statusFilter, paymentFilter,
+    paymentWindow, paymentFrom, paymentTo,
+  };
+  const loadSavedCustomerFilters = (filters: Partial<typeof savedCustomerFilters>) => {
+    setSearch(filters.search ?? "");
+    setNeedKind(filters.needKind ?? "");
+    setOnlyUninsuredNeeds(Boolean(filters.onlyUninsuredNeeds));
+    setStatusFilter((filters.statusFilter ?? "") as CustomerStatus | "");
+    setPaymentFilter((filters.paymentFilter ?? "all") as PaymentFilter);
+    setPaymentWindow((filters.paymentWindow ?? "all") as PaymentWindow);
+    setPaymentFrom(filters.paymentFrom ?? "");
+    setPaymentTo(filters.paymentTo ?? "");
+    table.setQuery(filters.search ?? "");
+    table.setPage(1);
+  };
   const customerCols = useColumnPreferences("customers", [
     { key: "number", label: "Αρ. Πελάτη", alwaysVisible: true },
     { key: "type",   label: "Τύπος" },
@@ -452,7 +471,7 @@ export function CustomersPage() {
           <Typography variant="h4">{t("customers.title")}</Typography>
           <HelpHint id="page.customers" />
         </Stack>
-        <Stack direction="row" spacing={1}>
+        <Stack direction={{ xs: "column", lg: "row" }} spacing={1} alignItems={{ lg: "center" }} useFlexGap flexWrap="wrap">
           <ExcelImportButton size="large" onClick={() => setImportOpen(true)}>
             Εισαγωγή
           </ExcelImportButton>
@@ -570,6 +589,14 @@ export function CustomersPage() {
             onClick={clearFilters} sx={{ minWidth: "auto", px: 1, whiteSpace: "nowrap", color: "common.white" }}>
             Καθαρισμός φίλτρων
           </Button>
+          <Box sx={{ gridColumn: { xs: "1", md: "1 / -1" }, display: "flex", justifyContent: "flex-end", minWidth: 0 }}>
+            <SavedReportsButton
+              inline
+              entity="customers"
+              currentFilters={savedCustomerFilters}
+              onLoad={loadSavedCustomerFilters}
+            />
+          </Box>
         </Stack>
       </ResponsiveFilterPanel>
 
@@ -775,7 +802,7 @@ export function CustomersPage() {
         open={importOpen}
         onClose={() => setImportOpen(false)}
         title="Μαζική εισαγωγή πελατών"
-        description="Κατεβάστε το πρότυπο, συμπληρώστε πελάτες ή πιθανούς πελάτες και ανεβάστε το αρχείο. Η στήλη status ορίζει Prospect ή Active."
+        description="Κατεβάστε το πρότυπο, συμπληρώστε πελάτες ή πιθανούς πελάτες και ανεβάστε το αρχείο. Η στήλη «Κατάσταση» ορίζει αν είναι πιθανός ή ενεργός πελάτης."
         columns={[...CUSTOMER_IMPORT_COLUMNS]}
         onImport={importCustomers}
       />
@@ -914,7 +941,7 @@ function CreateCustomerDialog({
         }}>
           <Box sx={{ p: { xs: 1, md: 1.25 }, bgcolor: "#f8fafc", border: "1px solid #d6e3f0", borderRadius: 1.25 }}>
           <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.75, px: 0.75, py: 0.5, borderLeft: "3px solid", borderColor: "primary.main", bgcolor: "rgba(25,118,210,0.08)" }}>
-            Βασικά & επικοινωνία
+            Επικοινωνία & διεύθυνση
           </Typography>
           <SearchableTextField
             select
@@ -928,8 +955,8 @@ function CreateCustomerDialog({
               },
             }}
           >
-            <MenuItem value="Individual">{t("customers.individual")}</MenuItem>
-            <MenuItem value="Company">{t("customers.company")}</MenuItem>
+            <MenuItem value="Individual">Φυσικό πρόσωπο</MenuItem>
+            <MenuItem value="Company">Νομικό πρόσωπο</MenuItem>
           </SearchableTextField>
 
           <FormControlLabel
@@ -996,18 +1023,6 @@ function CreateCustomerDialog({
           )}
 
           <TextField
-            label={form.type === "Company" ? "Κλάδος / δραστηριότητα" : "Επάγγελμα"}
-            value={form.occupation}
-            onChange={(e) => setForm({ ...form, occupation: e.target.value })}
-            fullWidth
-            placeholder={form.type === "Company" ? "π.χ. Εστίαση, ξενοδοχείο, εμπόριο" : "π.χ. Ελεύθερος επαγγελματίας"}
-            InputProps={{
-              startAdornment: <InputAdornment position="start"><WorkOutlineIcon fontSize="small" /></InputAdornment>,
-              endAdornment: <FilterHelp title={form.type === "Company" ? "Κλάδος δραστηριότητας — βοηθά σε ανάλυση χαρτοφυλακίου ανά τομέα." : "Επάγγελμα πελάτη — αξιοποιείται σε cross-sell προτάσεις."} />,
-            }}
-          />
-
-          <TextField
             label={t("customers.email")}
             type="email"
             value={form.email}
@@ -1028,7 +1043,10 @@ function CreateCustomerDialog({
               endAdornment: <FilterHelp title="Τηλέφωνο επικοινωνίας. Χρησιμοποιείται σε SMS ειδοποιήσεις και CRM δραστηριότητες." />,
             }}
           />
-
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            <TextField label="Κινητό" value={form.mobilePhone} onChange={e => setForm({ ...form, mobilePhone: e.target.value })} fullWidth />
+            <TextField label="2ο τηλέφωνο" value={form.altPhone} onChange={e => setForm({ ...form, altPhone: e.target.value })} fullWidth />
+          </Stack>
           <TextField
             label={t("customers.address")}
             value={form.address}
@@ -1061,19 +1079,7 @@ function CreateCustomerDialog({
               }}
             />
           </Stack>
-
-          <TextField
-            label={t("customers.notes")}
-            value={form.notes}
-            onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            fullWidth
-            multiline
-            rows={2}
-            InputProps={{
-              startAdornment: <InputAdornment position="start"><NotesOutlinedIcon fontSize="small" /></InputAdornment>,
-              endAdornment: <FilterHelp title="Προαιρετικά εσωτερικά σχόλια για τον πελάτη — προτιμήσεις, ιστορικό, ειδικές συμφωνίες." />,
-            }}
-          />
+          <TextField label="Περιφέρεια / περιοχή" value={form.region} onChange={e => setForm({ ...form, region: e.target.value })} fullWidth />
 
           <TextField
             label="Ημερομηνία εξόφλησης"
@@ -1088,7 +1094,7 @@ function CreateCustomerDialog({
 
           <Box sx={{ p: { xs: 1, md: 1.25 }, bgcolor: "#f8fafc", border: "1px solid #d6e3f0", borderRadius: 1.25 }}>
             <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.75, px: 0.75, py: 0.5, borderLeft: "3px solid", borderColor: "primary.main", bgcolor: "rgba(25,118,210,0.08)" }}>
-              Ταυτότητα & οικογένεια
+              Ταυτότητα & προσωπικά στοιχεία
             </Typography>
             <Stack spacing={1}>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
@@ -1108,20 +1114,26 @@ function CreateCustomerDialog({
                 <TextField label="ΑΜΚΑ" value={form.amka ?? ""} onChange={e => setForm({ ...form, amka: e.target.value })} fullWidth />
                 <TextField label="Αριθμός διαβατηρίου" value={form.passportNumber ?? ""} onChange={e => setForm({ ...form, passportNumber: e.target.value })} fullWidth />
               </Stack>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                <TextField label="2ο τηλέφωνο" value={form.altPhone ?? ""} onChange={e => setForm({ ...form, altPhone: e.target.value })} fullWidth />
-                <TextField label="Κινητό" value={form.mobilePhone ?? ""} onChange={e => setForm({ ...form, mobilePhone: e.target.value })} fullWidth />
-                <TextField label="Οικογενειακή κατάσταση" value={form.maritalStatus ?? ""} onChange={e => setForm({ ...form, maritalStatus: e.target.value })} fullWidth />
-              </Stack>
-              <TextField label="Περιφέρεια / περιοχή" value={form.region ?? ""} onChange={e => setForm({ ...form, region: e.target.value })} fullWidth />
+              <TextField label="Οικογενειακή κατάσταση" value={form.maritalStatus ?? ""} onChange={e => setForm({ ...form, maritalStatus: e.target.value })} fullWidth />
             </Stack>
           </Box>
 
           <Box sx={{ p: { xs: 1, md: 1.25 }, bgcolor: "#f8fafc", border: "1px solid #d6e3f0", borderRadius: 1.25 }}>
             <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.75, px: 0.75, py: 0.5, borderLeft: "3px solid", borderColor: "primary.main", bgcolor: "rgba(25,118,210,0.08)" }}>
-              Επιχείρηση & οδήγηση
+              Εργασία & εταιρικά στοιχεία
             </Typography>
             <Stack spacing={1}>
+              <TextField
+                label={form.type === "Company" ? "Κλάδος / δραστηριότητα" : "Επάγγελμα"}
+                value={form.occupation}
+                onChange={(e) => setForm({ ...form, occupation: e.target.value })}
+                fullWidth
+                placeholder={form.type === "Company" ? "π.χ. Εστίαση, ξενοδοχείο, εμπόριο" : "π.χ. Ελεύθερος επαγγελματίας"}
+                InputProps={{
+                  startAdornment: <InputAdornment position="start"><WorkOutlineIcon fontSize="small" /></InputAdornment>,
+                  endAdornment: <FilterHelp title={form.type === "Company" ? "Κλάδος δραστηριότητας — βοηθά σε ανάλυση χαρτοφυλακίου ανά τομέα." : "Επάγγελμα πελάτη — αξιοποιείται σε cross-sell προτάσεις."} />,
+                }}
+              />
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                 <TextField label="Εργοδότης" value={form.employer ?? ""} onChange={e => setForm({ ...form, employer: e.target.value })} fullWidth />
                 <TextField label="Κωδικός δραστηριότητας" value={form.activityCode ?? ""} onChange={e => setForm({ ...form, activityCode: e.target.value })} fullWidth />
@@ -1133,18 +1145,42 @@ function CreateCustomerDialog({
                 <TextField label="Νομική μορφή" value={form.legalForm ?? ""} onChange={e => setForm({ ...form, legalForm: e.target.value })} fullWidth />
               </Stack>}
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                <TextField label="Πηγή πελάτη" value={form.source ?? ""} onChange={e => setForm({ ...form, source: e.target.value })} fullWidth placeholder="π.χ. σύσταση, website, καμπάνια" />
+                <TextField label="Ετικέτες" value={form.tagsJson ?? ""} onChange={e => setForm({ ...form, tagsJson: e.target.value })} fullWidth placeholder="π.χ. premium, εταιρεία" />
+                <TextField label="URL φωτογραφίας" value={form.photoUrl ?? ""} onChange={e => setForm({ ...form, photoUrl: e.target.value })} fullWidth />
+              </Stack>
+            </Stack>
+          </Box>
+
+          <Box sx={{ p: { xs: 1, md: 1.25 }, bgcolor: "#f8fafc", border: "1px solid #d6e3f0", borderRadius: 1.25 }}>
+            <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.75, px: 0.75, py: 0.5, borderLeft: "3px solid", borderColor: "primary.main", bgcolor: "rgba(25,118,210,0.08)" }}>
+              Οδήγηση & εσωτερική πληροφόρηση
+            </Typography>
+            <Stack spacing={1}>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                 <TextField label="Αριθμός διπλώματος" value={form.driverLicenseNumber ?? ""} onChange={e => setForm({ ...form, driverLicenseNumber: e.target.value })} fullWidth />
                 <TextField label="Κατηγορία διπλώματος" value={form.driverLicenseClass ?? ""} onChange={e => setForm({ ...form, driverLicenseClass: e.target.value })} fullWidth />
                 <TextField label="Έκδοση διπλώματος" type="date" value={form.driverLicenseIssueDate ?? ""} onChange={e => setForm({ ...form, driverLicenseIssueDate: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
                 <TextField label="Λήξη διπλώματος" type="date" value={form.driverLicenseExpiryDate ?? ""} onChange={e => setForm({ ...form, driverLicenseExpiryDate: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
               </Stack>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                <TextField label="Πηγή πελάτη" value={form.source ?? ""} onChange={e => setForm({ ...form, source: e.target.value })} fullWidth placeholder="π.χ. σύσταση, website, καμπάνια" />
-                <TextField label="Ετικέτες" value={form.tagsJson ?? ""} onChange={e => setForm({ ...form, tagsJson: e.target.value })} fullWidth placeholder="π.χ. premium, εταιρεία" />
-                <TextField label="URL φωτογραφίας" value={form.photoUrl ?? ""} onChange={e => setForm({ ...form, photoUrl: e.target.value })} fullWidth />
-              </Stack>
               <Alert severity="info">Τα οχήματα και τα ασφαλιστήρια προστίθενται από τα συμβόλαια και θα εμφανίζονται αυτόματα στην καρτέλα «Οχήματα».</Alert>
             </Stack>
+          </Box>
+
+          <Box sx={{ p: { xs: 1, md: 1.25 }, bgcolor: "#f8fafc", border: "1px solid #d6e3f0", borderRadius: 1.25 }}>
+            <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.75, px: 0.75, py: 0.5, borderLeft: "3px solid", borderColor: "primary.main", bgcolor: "rgba(25,118,210,0.08)" }}>
+              Σημειώσεις συμβούλου
+            </Typography>
+            <TextField
+              label="Σημειώσεις"
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              fullWidth multiline rows={2}
+              InputProps={{
+                startAdornment: <InputAdornment position="start"><NotesOutlinedIcon fontSize="small" /></InputAdornment>,
+                endAdornment: <FilterHelp title="Προαιρετικά εσωτερικά σχόλια για τον πελάτη — προτιμήσεις, ιστορικό, ειδικές συμφωνίες." />,
+              }}
+            />
           </Box>
 
         </Stack>
