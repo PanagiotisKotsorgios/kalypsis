@@ -31,11 +31,16 @@ public sealed class DesktopSyncController : ControllerBase
 
     private readonly AppDbContext _db;
     private readonly Kalypsis.Application.Abstractions.ICurrentUser _current;
+    private readonly ILogger<DesktopSyncController> _logger;
 
-    public DesktopSyncController(AppDbContext db, Kalypsis.Application.Abstractions.ICurrentUser current)
+    public DesktopSyncController(
+        AppDbContext db,
+        Kalypsis.Application.Abstractions.ICurrentUser current,
+        ILogger<DesktopSyncController> logger)
     {
         _db = db;
         _current = current;
+        _logger = logger;
     }
 
     public sealed record SyncRequest(
@@ -55,25 +60,47 @@ public sealed class DesktopSyncController : ControllerBase
     {
         var tenantId = _current.TenantId ?? throw Kalypsis.Application.Common.AppException.Forbidden();
         var conflict = NormalizeConflict(request.ConflictPolicy);
+        var warnings = new List<string>();
+        var dataNode = JsonNode.Parse(request.Data.GetRawText())?.AsObject() ?? new JsonObject();
+        var syncData = ToSyncElement(dataNode);
 
         var pushed = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        pushed["customers"] = await UpsertAsync<Customer>(request.Data, "customers", tenantId, conflict, ct);
-        pushed["producers"] = await UpsertAsync<Producer>(request.Data, "producers", tenantId, conflict, ct);
-        pushed["carriers"] = await UpsertAsync<InsuranceCompany>(request.Data, "carriers", tenantId, conflict, ct);
-        pushed["policies"] = await UpsertAsync<Policy>(request.Data, "policies", tenantId, conflict, ct);
-        pushed["claims"] = await UpsertAsync<Claim>(request.Data, "claims", tenantId, conflict, ct);
-        pushed["receipts"] = await UpsertAsync<Receipt>(request.Data, "receipts", tenantId, conflict, ct);
-        pushed["payments"] = await UpsertAsync<Payment>(request.Data, "payments", tenantId, conflict, ct);
-        pushed["tasks"] = await UpsertAsync<AgencyTask>(request.Data, "tasks", tenantId, conflict, ct);
-        pushed["appointments"] = await UpsertAsync<Appointment>(request.Data, "appointments", tenantId, conflict, ct);
-        pushed["instructions"] = await UpsertAsync<AgencyInstruction>(request.Data, "instructions", tenantId, conflict, ct);
-        await _db.SaveChangesAsync(ct);
+        pushed["customers"] = await UpsertAsync<Customer>(syncData, "customers", tenantId, conflict, ct);
+        await FlushSyncPhaseAsync("πελάτες", warnings, ct);
+
+        pushed["producers"] = await UpsertAsync<Producer>(syncData, "producers", tenantId, conflict, ct);
+        await FlushSyncPhaseAsync("συνεργάτες", warnings, ct);
+
+        pushed["carriers"] = await UpsertAsync<InsuranceCompany>(syncData, "carriers", tenantId, conflict, ct);
+        await FlushSyncPhaseAsync("ασφαλιστικές", warnings, ct);
+
+        // Desktop and Cloud use independent catalogue IDs.  Resolve the
+        // references by stable producer/carrier codes before policies are
+        // materialised, otherwise a valid local policy would violate a Cloud
+        // foreign key even though both sides contain the same company.
+        var carrierMap = await BuildCarrierMapAsync(syncData, tenantId, ct);
+        var producerMap = await BuildProducerMapAsync(syncData, tenantId, ct);
+        var customerMap = await BuildCustomerMapAsync(syncData, tenantId, ct);
+        var removedPolicies = RewriteReferences(dataNode, carrierMap, producerMap, customerMap);
+        if (removedPolicies > 0)
+            warnings.Add($"{removedPolicies} εγγραφές συμβολαίων παραλείφθηκαν επειδή έλειπε ο απαιτούμενος πελάτης ή η ασφαλιστική εταιρεία.");
+        syncData = ToSyncElement(dataNode);
+
+        pushed["policies"] = await UpsertAsync<Policy>(syncData, "policies", tenantId, conflict, ct);
+        await FlushSyncPhaseAsync("συμβόλαια", warnings, ct);
+        pushed["claims"] = await UpsertAsync<Claim>(syncData, "claims", tenantId, conflict, ct);
+        pushed["receipts"] = await UpsertAsync<Receipt>(syncData, "receipts", tenantId, conflict, ct);
+        pushed["payments"] = await UpsertAsync<Payment>(syncData, "payments", tenantId, conflict, ct);
+        pushed["tasks"] = await UpsertAsync<AgencyTask>(syncData, "tasks", tenantId, conflict, ct);
+        pushed["appointments"] = await UpsertAsync<Appointment>(syncData, "appointments", tenantId, conflict, ct);
+        pushed["instructions"] = await UpsertAsync<AgencyInstruction>(syncData, "instructions", tenantId, conflict, ct);
+        await FlushSyncPhaseAsync("λειτουργικά δεδομένα", warnings, ct);
 
         // Pull after the push so both sides converge to the same server state.
         // A full pull is used for the first sync; later calls can pass SinceUtc
         // to keep the payload small.  DeletedAt is included, so the client can
         // apply the configured tombstone policy without physical deletes.
-        var data = await ExportAsync(tenantId, request.SinceUtc, ct);
+        var exported = await ExportAsync(tenantId, request.SinceUtc, ct);
         return Ok(new
         {
             protocol = "kalypsis-desktop-sync",
@@ -83,8 +110,9 @@ public sealed class DesktopSyncController : ControllerBase
             conflictPolicy = conflict,
             deletionPolicy = NormalizeDeletion(request.DeletionPolicy),
             pushed,
-            data = data.Data,
-            summary = data.Summary,
+            warnings,
+            data = exported.Data,
+            summary = exported.Summary,
         });
     }
 
@@ -174,6 +202,203 @@ public sealed class DesktopSyncController : ControllerBase
         return processed;
     }
 
+    private static JsonElement ToSyncElement(JsonObject node)
+        => JsonSerializer.SerializeToElement(node, SyncJson);
+
+    private async Task FlushSyncPhaseAsync(string phase, List<string> warnings, CancellationToken ct)
+    {
+        if (!_db.ChangeTracker.HasChanges()) return;
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            // The entity write can already have committed before the paired
+            // audit write fails (AppDbContext persists those in two steps).
+            // Clear the tracker and continue with the next phase; a single
+            // legacy row must never turn the entire bridge into a 500 response.
+            _logger.LogWarning(ex, "Desktop sync phase {Phase} was partially skipped", phase);
+            _db.ChangeTracker.Clear();
+            warnings.Add($"Ο συγχρονισμός ολοκληρώθηκε με προειδοποίηση στο στάδιο «{phase}».");
+        }
+    }
+
+    private async Task<Dictionary<Guid, Guid>> BuildCarrierMapAsync(JsonElement data, Guid tenantId, CancellationToken ct)
+    {
+        var rows = data.TryGetProperty("carriers", out var value) && value.ValueKind == JsonValueKind.Array
+            ? value.EnumerateArray().ToList()
+            : new List<JsonElement>();
+        var cloud = await _db.InsuranceCompanies.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.TenantId == null || x.TenantId == tenantId).ToListAsync(ct);
+        var map = cloud.ToDictionary(x => x.Id, x => x.Id);
+        foreach (var row in rows)
+        {
+            if (!TryGuid(row, "Id", out var localId)) continue;
+            if (cloud.FirstOrDefault(x => x.Id == localId) is { } byId)
+            {
+                map[localId] = byId.Id;
+                continue;
+            }
+            var code = NormalizeKey(GetText(row, "Code"));
+            var match = cloud.FirstOrDefault(x => !string.IsNullOrWhiteSpace(code)
+                && string.Equals(NormalizeKey(x.Code), code, StringComparison.OrdinalIgnoreCase));
+            if (match is not null) map[localId] = match.Id;
+        }
+        return map;
+    }
+
+    private async Task<Dictionary<Guid, Guid>> BuildProducerMapAsync(JsonElement data, Guid tenantId, CancellationToken ct)
+    {
+        var rows = data.TryGetProperty("producers", out var value) && value.ValueKind == JsonValueKind.Array
+            ? value.EnumerateArray().ToList()
+            : new List<JsonElement>();
+        var cloud = await _db.Producers.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.TenantId == tenantId).ToListAsync(ct);
+        var map = cloud.ToDictionary(x => x.Id, x => x.Id);
+        foreach (var row in rows)
+        {
+            if (!TryGuid(row, "Id", out var localId)) continue;
+            if (cloud.FirstOrDefault(x => x.Id == localId) is { } byId)
+            {
+                map[localId] = byId.Id;
+                continue;
+            }
+            var code = NormalizeKey(GetText(row, "Code"));
+            var match = cloud.FirstOrDefault(x => !string.IsNullOrWhiteSpace(code)
+                && string.Equals(NormalizeKey(x.Code), code, StringComparison.OrdinalIgnoreCase));
+            if (match is not null) map[localId] = match.Id;
+        }
+        return map;
+    }
+
+    private async Task<Dictionary<Guid, Guid>> BuildCustomerMapAsync(JsonElement data, Guid tenantId, CancellationToken ct)
+    {
+        var rows = data.TryGetProperty("customers", out var value) && value.ValueKind == JsonValueKind.Array
+            ? value.EnumerateArray().ToList()
+            : new List<JsonElement>();
+        var cloud = await _db.Customers.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.TenantId == tenantId).ToListAsync(ct);
+        var map = cloud.ToDictionary(x => x.Id, x => x.Id);
+        foreach (var row in rows)
+        {
+            if (!TryGuid(row, "Id", out var localId)) continue;
+            if (cloud.FirstOrDefault(x => x.Id == localId) is { } byId)
+            {
+                map[localId] = byId.Id;
+                continue;
+            }
+            var number = NormalizeKey(GetText(row, "CustomerNumber") ?? GetText(row, "CustomerCode"));
+            var match = cloud.FirstOrDefault(x => !string.IsNullOrWhiteSpace(number)
+                && string.Equals(NormalizeKey(x.CustomerNumber), number, StringComparison.OrdinalIgnoreCase));
+            if (match is not null) map[localId] = match.Id;
+        }
+        return map;
+    }
+
+    private static int RewriteReferences(
+        JsonObject data,
+        IReadOnlyDictionary<Guid, Guid> carriers,
+        IReadOnlyDictionary<Guid, Guid> producers,
+        IReadOnlyDictionary<Guid, Guid> customers)
+    {
+        var removedPolicies = 0;
+        var policyIds = new HashSet<Guid>();
+        if (data["policies"] is JsonArray policies)
+        {
+            for (var i = policies.Count - 1; i >= 0; i--)
+            {
+                if (policies[i] is not JsonObject row) continue;
+                var customerOk = RewriteRequired(row, "CustomerId", customers);
+                var carrierOk = RewriteRequired(row, "InsuranceCompanyId", carriers);
+                if (!customerOk || !carrierOk)
+                {
+                    policies.RemoveAt(i);
+                    removedPolicies++;
+                    continue;
+                }
+                RewriteOptional(row, "ContractPartyCustomerId", customers);
+                RewriteOptional(row, "PreviousInsuranceCompanyId", carriers);
+                RewriteOptional(row, "ProducerId", producers);
+                row.Remove("CreatedByUserId"); // web users are not shared with Desktop
+                if (TryGuid(row, "Id", out var policyId)) policyIds.Add(policyId);
+            }
+        }
+
+        RewriteRows(data["claims"] as JsonArray, "PolicyId", policyIds);
+        RewriteRows(data["receipts"] as JsonArray, "CustomerId", customers.Keys.ToHashSet());
+        RewriteOptionalRows(data["receipts"] as JsonArray, "PolicyId", policyIds);
+        RewriteOptionalRows(data["payments"] as JsonArray, "PolicyId", policyIds);
+        RewriteOptionalRows(data["payments"] as JsonArray, "BeneficiaryInsuranceCompanyId", carriers);
+        RewriteOptionalRows(data["payments"] as JsonArray, "BeneficiaryProducerId", producers);
+        RewriteOptionalRows(data["tasks"] as JsonArray, "CustomerId", customers);
+        RewriteOptionalRows(data["tasks"] as JsonArray, "ProducerId", producers);
+        RewriteOptionalRows(data["tasks"] as JsonArray, "PolicyId", policyIds);
+        RewriteOptionalRows(data["appointments"] as JsonArray, "CustomerId", customers);
+        RewriteOptionalRows(data["appointments"] as JsonArray, "ProducerId", producers);
+        RewriteOptionalRows(data["appointments"] as JsonArray, "PolicyId", policyIds);
+        return removedPolicies;
+    }
+
+    private static bool RewriteRequired(JsonObject row, string property, IReadOnlyDictionary<Guid, Guid> map)
+    {
+        if (!TryGuid(row, property, out var value) || !map.TryGetValue(value, out var mapped)) return false;
+        row[property] = mapped.ToString();
+        return true;
+    }
+
+    private static void RewriteOptional(JsonObject row, string property, IReadOnlyDictionary<Guid, Guid> map)
+    {
+        if (!TryGuid(row, property, out var value)) return;
+        if (map.TryGetValue(value, out var mapped)) row[property] = mapped.ToString();
+        else row.Remove(property);
+    }
+
+    private static void RewriteRows(JsonArray? rows, string property, IReadOnlySet<Guid> allowed)
+    {
+        if (rows is null) return;
+        for (var i = rows.Count - 1; i >= 0; i--)
+        {
+            if (rows[i] is not JsonObject row) continue;
+            if (!TryGuid(row, property, out var value) || !allowed.Contains(value)) rows.RemoveAt(i);
+        }
+    }
+
+    private static void RewriteOptionalRows(JsonArray? rows, string property, IReadOnlyDictionary<Guid, Guid> map)
+    {
+        if (rows is null) return;
+        for (var i = rows.Count - 1; i >= 0; i--)
+            if (rows[i] is JsonObject row) RewriteOptional(row, property, map);
+    }
+
+    private static void RewriteOptionalRows(JsonArray? rows, string property, IReadOnlySet<Guid> allowed)
+    {
+        if (rows is null) return;
+        for (var i = rows.Count - 1; i >= 0; i--)
+            if (rows[i] is JsonObject row && TryGuid(row, property, out var value) && !allowed.Contains(value)) row.Remove(property);
+    }
+
+    private static bool TryGuid(JsonElement row, string property, out Guid value)
+    {
+        value = Guid.Empty;
+        return row.TryGetProperty(property, out var token) && token.ValueKind == JsonValueKind.String
+            && Guid.TryParse(token.GetString(), out value);
+    }
+
+    private static bool TryGuid(JsonObject row, string property, out Guid value)
+    {
+        value = Guid.Empty;
+        return row.TryGetPropertyValue(property, out var token) && token is JsonValue json
+            && json.TryGetValue<string>(out var raw) && Guid.TryParse(raw, out value);
+    }
+
+    private static string? GetText(JsonElement row, string property)
+        => row.TryGetProperty(property, out var token) && token.ValueKind == JsonValueKind.String
+            ? token.GetString() : null;
+
+    private static string NormalizeKey(string? value)
+        => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Replace('\u00B7', '-').Trim();
+
     /// <summary>
     /// Desktop and Web deliberately keep their native models (DateOnly vs
     /// DateTime, richer Greek field names, and local-only fields).  The sync
@@ -239,17 +464,31 @@ public sealed class DesktopSyncController : ControllerBase
                     node["Status"] = isActive ? "Active" : "Inactive";
                 break;
             case nameof(Policy):
-                Alias("EffectiveFrom", "StartDate");
-                Alias("EffectiveTo", "EndDate");
-                Alias("GrossPremium", "Premium");
-                Alias("Plate", "VehicleRegistrationPlate");
-                Alias("LineOfBusiness", "CarrierBranchCode");
+                // Desktop uses the business names EffectiveFrom/To, GrossPremium
+                // and Plate.  The web domain stores these as StartDate/EndDate,
+                // Premium and VehicleRegistrationPlate.  Keep the direction of
+                // the alias explicit; leaving the dates unmapped makes a desktop
+                // policy materialise with DateOnly.MinValue (which MySQL rejects).
+                Alias("StartDate", "EffectiveFrom");
+                Alias("EndDate", "EffectiveTo");
+                Alias("Premium", "GrossPremium");
+                Alias("VehicleRegistrationPlate", "Plate");
+                Alias("PolicyType", "LineOfBusiness", "CarrierBranchCode");
+                DateOnlyAlias("StartDate", "EffectiveFrom");
+                DateOnlyAlias("EndDate", "EffectiveTo");
+                DateOnlyAlias("IssuedAt", "IssuedAt");
+                DateOnlyAlias("NextRenewalDate", "NextRenewalDate");
+                DateOnlyAlias("HandoverDate", "HandoverDate");
+                DateOnlyAlias("OfficeReceivedAt", "OfficeReceivedAt");
+                DateOnlyAlias("PaymentPromisedOn", "PaymentPromisedOn");
+                NormalizeCurrency(node);
                 break;
             case nameof(Receipt):
                 Alias("Number", "ReceiptNumber");
                 Alias("ReceivedOn", "ReceiptDate");
                 Alias("Method", "PaymentMethod");
                 Alias("TransactionReference", "Reference");
+                NormalizeCurrency(node);
                 break;
             case nameof(Payment):
                 Alias("Number", "PaymentNumber");
@@ -266,6 +505,7 @@ public sealed class DesktopSyncController : ControllerBase
                         "Customer" => "Vendor",
                         _ => beneficiaryName,
                     };
+                NormalizeCurrency(node);
                 break;
             case nameof(Claim):
                 DateOnlyAlias("IncidentDate", "IncidentDate");
@@ -294,6 +534,20 @@ public sealed class DesktopSyncController : ControllerBase
                 break;
         }
 
+        // The desktop demo seeder marks every value with a centred dot.  The
+        // production database is intentionally conservative about legacy text
+        // encodings, so preserve the visible marker while using a portable
+        // hyphen.  This is also safe for real records entered with that glyph.
+        NormalizeTextMarkers(node);
+
+        // A few catalog columns pre-date the richer domain model (notably the
+        // carrier country code).  Keep the bridge compatible with those deployed
+        // schemas instead of allowing one oversized legacy value to abort the
+        // whole sync transaction.
+        if (typeof(T) == typeof(InsuranceCompany) && node.TryGetPropertyValue("Country", out var country)
+            && country is JsonValue countryValue && countryValue.TryGetValue<string>(out var countryText))
+            node["Country"] = NormalizeCountryCode(countryText);
+
         // Demo/legacy desktop seeders append a human-readable marker to
         // values (for example "Active · Δοκιμή 17").  That marker is useful
         // in a local table, but it is not a valid enum token in the web
@@ -302,6 +556,42 @@ public sealed class DesktopSyncController : ControllerBase
         NormalizeEnumProperties(typeof(T), node);
 
         return JsonSerializer.SerializeToElement(node, SyncJson);
+    }
+
+    private static void NormalizeTextMarkers(JsonObject node)
+    {
+        foreach (var property in node.ToList())
+        {
+            if (property.Value is JsonValue value && value.TryGetValue<string>(out var text)
+                && text.Contains('\u00B7', StringComparison.Ordinal))
+                node[property.Key] = text.Replace('\u00B7', '-');
+        }
+    }
+
+    private static void NormalizeCurrency(JsonObject node)
+    {
+        if (!node.TryGetPropertyValue("Currency", out var value) || value is not JsonValue json
+            || !json.TryGetValue<string>(out var raw))
+            return;
+
+        var token = raw.Trim().ToUpperInvariant();
+        if (token.Length >= 3)
+            token = token[..3];
+        else if (token.Length == 0)
+            token = "EUR";
+        node["Currency"] = token;
+    }
+
+    private static string NormalizeCountryCode(string raw)
+    {
+        var value = raw.Trim();
+        if (value.Contains("Ελλάδ", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("GREECE", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("GR", StringComparison.OrdinalIgnoreCase))
+            return "GR";
+
+        var letters = new string(value.Where(char.IsLetter).ToArray()).ToUpperInvariant();
+        return letters.Length >= 2 ? letters[..2] : (letters.Length == 1 ? $"{letters}X" : "GR");
     }
 
     private static void NormalizeEnumProperties(Type entityType, JsonObject node)
