@@ -294,7 +294,70 @@ public sealed class DesktopSyncController : ControllerBase
                 break;
         }
 
+        // Demo/legacy desktop seeders append a human-readable marker to
+        // values (for example "Active · Δοκιμή 17").  That marker is useful
+        // in a local table, but it is not a valid enum token in the web
+        // domain.  Normalize enum-shaped fields centrally so one such label
+        // cannot abort the whole sync request.
+        NormalizeEnumProperties(typeof(T), node);
+
         return JsonSerializer.SerializeToElement(node, SyncJson);
+    }
+
+    private static void NormalizeEnumProperties(Type entityType, JsonObject node)
+    {
+        foreach (var property in entityType.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+        {
+            var nullable = Nullable.GetUnderlyingType(property.PropertyType);
+            var enumType = nullable ?? property.PropertyType;
+            if (!enumType.IsEnum || !node.TryGetPropertyValue(property.Name, out var value) || value is null)
+                continue;
+            if (value is not JsonValue jsonValue || !jsonValue.TryGetValue<string>(out var raw))
+                continue;
+
+            var token = NormalizeEnumToken(property.Name, enumType, raw);
+            if (token is not null)
+                node[property.Name] = token;
+            else if (nullable is not null)
+                node.Remove(property.Name);
+            else
+                node[property.Name] = Enum.GetNames(enumType).FirstOrDefault() ?? "0";
+        }
+    }
+
+    private static string? NormalizeEnumToken(string propertyName, Type enumType, string raw)
+    {
+        var token = raw.Trim();
+        var marker = token.IndexOf("· Δοκιμή", StringComparison.OrdinalIgnoreCase);
+        if (marker >= 0) token = token[..marker].Trim();
+
+        var translated = propertyName switch
+        {
+            "Type" when token.Contains("Φυσικ", StringComparison.OrdinalIgnoreCase) => "Individual",
+            "Type" when token.Contains("Νομικ", StringComparison.OrdinalIgnoreCase) ||
+                         token.Contains("Εταιρ", StringComparison.OrdinalIgnoreCase) => "Company",
+            "Method" when token.Contains("μετρη", StringComparison.OrdinalIgnoreCase) => "Cash",
+            "Method" when token.Contains("κάρτ", StringComparison.OrdinalIgnoreCase) => "Card",
+            "Method" when token.Contains("τραπεζ", StringComparison.OrdinalIgnoreCase) => "BankTransfer",
+            "Method" when token.Contains("επιταγ", StringComparison.OrdinalIgnoreCase) => "Cheque",
+            "Method" when token.Contains("γραμμάτι", StringComparison.OrdinalIgnoreCase) => "PromissoryNote",
+            "BeneficiaryType" when token.Contains("ασφαλισ", StringComparison.OrdinalIgnoreCase) => "InsuranceCompany",
+            "BeneficiaryType" when token.Contains("συνεργ", StringComparison.OrdinalIgnoreCase) => "Producer",
+            "BeneficiaryType" when token.Contains("προμηθευ", StringComparison.OrdinalIgnoreCase) => "Vendor",
+            "PolicyType" when token.Contains("αυτοκ", StringComparison.OrdinalIgnoreCase) => "Auto",
+            "PolicyType" when token.Contains("κατοικ", StringComparison.OrdinalIgnoreCase) => "Home",
+            "PolicyType" when token.Contains("υγει", StringComparison.OrdinalIgnoreCase) => "Health",
+            "PolicyType" when token.Contains("ζω", StringComparison.OrdinalIgnoreCase) => "Life",
+            "PolicyType" when token.Contains("επιχειρ", StringComparison.OrdinalIgnoreCase) => "Business",
+            "PolicyType" when token.Contains("ταξιδ", StringComparison.OrdinalIgnoreCase) => "Travel",
+            _ => token,
+        };
+
+        if (Enum.TryParse(enumType, translated, ignoreCase: true, out var parsed))
+            return parsed?.ToString();
+        if (int.TryParse(translated, out var numeric) && Enum.IsDefined(enumType, numeric))
+            return Enum.GetName(enumType, numeric);
+        return null;
     }
 
     private async Task<(Dictionary<string, JsonElement> Data, Dictionary<string, int> Summary)> ExportAsync(
