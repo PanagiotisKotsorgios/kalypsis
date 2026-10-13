@@ -1,4 +1,6 @@
+using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Features.CollectionFileBridges;
+using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,6 +15,7 @@ namespace Kalypsis.Api.Controllers;
 [ApiController]
 [Route("api/collection-file-bridges")]
 [Authorize(Policy = "AgencyStaff")]
+[RequiresPackage(PackageCode.BackOffice)]
 public class CollectionFileBridgesController : ControllerBase
 {
     private readonly IMediator _mediator;

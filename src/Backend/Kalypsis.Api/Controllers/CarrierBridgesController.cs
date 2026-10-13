@@ -1,5 +1,6 @@
 using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Features.CarrierBridges;
+using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,6 +10,7 @@ namespace Kalypsis.Api.Controllers;
 [ApiController]
 [Route("api/carrier-bridges")]
 [Authorize(Policy = "AgencyStaff")]
+[RequiresPackage(PackageCode.BackOffice)]
 [RequirePermission("bridges.read")]
 public class CarrierBridgesController : ControllerBase
 {

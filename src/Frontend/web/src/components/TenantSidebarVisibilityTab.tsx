@@ -33,6 +33,42 @@ interface TenantPackagesResponse {
   packages: PackageCode[];
 }
 
+const PACKAGE_ORDER: PackageCode[] = [
+  "BackOffice",
+  "FrontOffice",
+  "Crm",
+  "Intelligence",
+  "Integrations",
+  "Ermes"
+];
+
+const PACKAGE_META: Record<PackageCode, { label: string; detail: string }> = {
+  BackOffice: {
+    label: "BackOffice — Διαχείριση γραφείου",
+    detail: "Πελάτες, συμβόλαια, παραγωγή και όλες οι γέφυρες εταιρειών."
+  },
+  FrontOffice: {
+    label: "FrontOffice — Ιστοσελίδα & InsureOne",
+    detail: "Ιστοσελίδα γραφείου, προσφορές, αιτήσεις και πολυτιμολόγηση."
+  },
+  Crm: {
+    label: "CRM & Πύλη Πελάτη",
+    detail: "Επικοινωνίες, ραντεβού, καμπάνιες και πύλη πελάτη."
+  },
+  Intelligence: {
+    label: "Αναλυτικά & Νοημοσύνη",
+    detail: "Αναφορές, στόχοι, AI εργαλεία και δείκτες απόδοσης."
+  },
+  Integrations: {
+    label: "Διασυνδέσεις & Συμμόρφωση",
+    detail: "myDATA, online πληρωμές και εξωτερικές διασυνδέσεις."
+  },
+  Ermes: {
+    label: "ΕΡΜΗΣ — Ασφαλής επικοινωνία",
+    detail: "Εσωτερικά μηνύματα, ομάδες και ασφαλείς συναντήσεις."
+  }
+};
+
 interface OfficeUser {
   id: string;
   email: string;
@@ -266,6 +302,7 @@ export function TenantSidebarVisibilityTab({ tenantId, onError }: {
 }) {
   const qc = useQueryClient();
   const [draft, setDraft] = useState<Set<string> | null>(null);
+  const [packageDraft, setPackageDraft] = useState<Set<PackageCode> | null>(null);
   const [previewUserId, setPreviewUserId] = useState("");
   const query = useQuery({
     queryKey: ["tenant-sidebar-visibility", tenantId],
@@ -291,8 +328,10 @@ export function TenantSidebarVisibilityTab({ tenantId, onError }: {
     () => new Set(packagesQuery.data?.packages ?? []),
     [packagesQuery.data]
   );
+  const effectivePackages = packageDraft ?? activePackages;
+  const packagesChanged = packageDraft !== null;
   const belongsToActivePackage = (item: { packages?: readonly PackageCode[] }) =>
-    !item.packages || item.packages.some((pkg) => activePackages.has(pkg));
+    !item.packages || item.packages.some((pkg) => effectivePackages.has(pkg));
   const availableGroupContainers = new Map(
     SIDEBAR_GROUP_CONTAINERS
       .filter(belongsToActivePackage)
@@ -350,6 +389,27 @@ export function TenantSidebarVisibilityTab({ tenantId, onError }: {
     onError: (error) => onError(extractErrorMessage(error))
   });
 
+  const savePackages = useMutation({
+    mutationFn: async (packages: PackageCode[]) => (await api.put<TenantPackagesResponse>(
+      `/platform/tenants/${tenantId}/packages`,
+      { packages }
+    )).data,
+    onSuccess: (data) => {
+      qc.setQueryData(["tenant-packages", tenantId], data);
+      setPackageDraft(null);
+      onError(null);
+    },
+    onError: (error) => onError(extractErrorMessage(error))
+  });
+
+  const togglePackage = (pkg: PackageCode, enabled: boolean) => {
+    setPackageDraft(previous => {
+      const next = new Set(previous ?? activePackages);
+      if (enabled) next.add(pkg); else next.delete(pkg);
+      return next;
+    });
+  };
+
   if (query.isLoading || packagesQuery.isLoading || usersQuery.isLoading) {
     return <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>;
   }
@@ -360,9 +420,58 @@ export function TenantSidebarVisibilityTab({ tenantId, onError }: {
   return (
     <Stack spacing={2}>
       <Alert severity="info">
-        Οι ρυθμίσεις αυτές αφορούν μόνο την εμφάνιση του sidebar για αυτό το γραφείο. Δεν αφαιρούν δικαιώματα,
-        πακέτα ή πρόσβαση με απευθείας σύνδεσμο. Εμφανίζονται μόνο επιλογές από τα ενεργά πακέτα του γραφείου.
+        Από εδώ ρυθμίζετε ξεχωριστά τα ενεργά πακέτα του γραφείου και την εμφάνιση του sidebar. Η ενεργοποίηση
+        ή απενεργοποίηση πακέτου εφαρμόζεται σε όλο το γραφείο και στους χρήστες του. Οι ρυθμίσεις εμφάνισης
+        κρύβουν μόνο στοιχεία του sidebar και δεν αλλάζουν δικαιώματα.
       </Alert>
+
+      <Card variant="outlined">
+        <CardContent>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ md: "flex-start" }} justifyContent="space-between">
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="h6" fontWeight={700}>Πακέτα γραφείου & πρόσβαση γεφυρών</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 1.5 }}>
+                Οι γέφυρες παραγωγής, αρχείων εισπράξεων, υπερπρομηθειών και αντιστοίχισης κωδικών
+                ανήκουν στο BackOffice. Ενεργοποιήστε το πακέτο για να εμφανιστούν κανονικά στο sidebar
+                και να είναι διαθέσιμες στους εξουσιοδοτημένους χρήστες.
+              </Typography>
+              <Stack divider={<Divider flexItem />}>
+                {PACKAGE_ORDER.map((pkg) => (
+                  <FormControlLabel
+                    key={pkg}
+                    sx={{ m: 0, py: 0.65, alignItems: "flex-start", width: "100%" }}
+                    labelPlacement="start"
+                    control={(
+                      <Switch
+                        checked={effectivePackages.has(pkg)}
+                        onChange={(_, checked) => togglePackage(pkg, checked)}
+                        inputProps={{ "aria-label": `Ενεργοποίηση ${PACKAGE_META[pkg].label}` }}
+                      />
+                    )}
+                    label={(
+                      <Box sx={{ pr: 2 }}>
+                        <Typography fontWeight={700}>{PACKAGE_META[pkg].label}</Typography>
+                        <Typography variant="body2" color="text.secondary">{PACKAGE_META[pkg].detail}</Typography>
+                      </Box>
+                    )}
+                    componentsProps={{ typography: { sx: { flex: 1 } } }}
+                  />
+                ))}
+              </Stack>
+            </Box>
+            <Stack direction={{ xs: "row", md: "column" }} spacing={1} sx={{ minWidth: { md: 150 } }}>
+              {packagesChanged && <Button onClick={() => setPackageDraft(null)}>Ακύρωση</Button>}
+              <Button
+                variant="contained"
+                disabled={!packagesChanged || savePackages.isPending}
+                onClick={() => savePackages.mutate([...effectivePackages])}
+              >
+                {savePackages.isPending ? "Αποθήκευση…" : "Αποθήκευση πακέτων"}
+              </Button>
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
 
       <Card variant="outlined">
         <CardContent>
@@ -407,7 +516,7 @@ export function TenantSidebarVisibilityTab({ tenantId, onError }: {
               ) : (
                 <SidebarPreview
                   user={previewUser}
-                  activePackages={activePackages}
+                  activePackages={effectivePackages}
                   hiddenItems={current}
                   permissions={new Set(previewPermissionsQuery.data?.effective ?? [])}
                 />

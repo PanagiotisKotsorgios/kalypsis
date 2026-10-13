@@ -1207,10 +1207,10 @@ export default function App() {
                   <Route path="help" element={<Navigate to="/app/documentation" replace />} />
                   <Route path="docs" element={<Navigate to="/app/documentation" replace />} />
                   <Route path="default-value-rules" element={<Navigate to="/app/commission-rules" replace />} />
-                  <Route path="carrier-bridges-hub" element={<CarrierBridgesHubPage />} />
-                  <Route path="carrier-bridges" element={<CarrierBridgesPage />} />
-                  <Route path="collection-files-bridges" element={<CollectionFilesBridgesPage />} />
-                  <Route path="bridge-code-mappings" element={<BridgeCodeMappingsPage />} />
+                  <Route path="carrier-bridges-hub" element={<PackageGate package="BackOffice"><CarrierBridgesHubPage /></PackageGate>} />
+                  <Route path="carrier-bridges" element={<PackageGate package="BackOffice"><CarrierBridgesPage /></PackageGate>} />
+                  <Route path="collection-files-bridges" element={<PackageGate package="BackOffice"><CollectionFilesBridgesPage /></PackageGate>} />
+                  <Route path="bridge-code-mappings" element={<PackageGate package="BackOffice"><BridgeCodeMappingsPage /></PackageGate>} />
                   <Route path="production-lists" element={<ProductionListsPage />} />
                   <Route path="producer-production" element={<ProducerProductionPage />} />
                   <Route path="producer-statistics" element={<ProducerProductionAnalyticsPage />} />

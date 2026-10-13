@@ -4,7 +4,6 @@ import SyncAltIcon from "@mui/icons-material/SyncAlt";
 import StackedLineChartIcon from "@mui/icons-material/StackedLineChart";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import { Link as RouterLink } from "react-router-dom";
-import { usePageContainerVisibility } from "../hooks/usePageContainerVisibility";
 
 /**
  * «Γέφυρες Εταιρειών» hub — one sidebar entry replaces four. Presents the
@@ -12,7 +11,6 @@ import { usePageContainerVisibility } from "../hooks/usePageContainerVisibility"
  * still gets a one-click path to each specific tool.
  */
 export function CarrierBridgesHubPage() {
-  const isContainerVisible = usePageContainerVisibility("carrier-bridges-hub");
   const tiles = [
     {
       id: "production-bridges",
@@ -64,7 +62,7 @@ export function CarrierBridgesHubPage() {
         gap: 2.5,
         gridTemplateColumns: { xs: "1fr", sm: "repeat(2,1fr)" }
       }}>
-        {tiles.filter((t) => isContainerVisible(t.id)).map((t) => (
+        {tiles.map((t) => (
           <Card key={t.to} variant="outlined" sx={{
             borderRadius: 2.5,
             // Permanent navy-tinted frame at rest so the tile reads as a

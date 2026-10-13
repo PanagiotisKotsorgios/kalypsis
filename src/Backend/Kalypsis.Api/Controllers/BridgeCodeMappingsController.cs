@@ -1,3 +1,4 @@
+using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
 using Kalypsis.Domain.Entities;
@@ -20,6 +21,7 @@ namespace Kalypsis.Api.Controllers;
 [ApiController]
 [Route("api/bridge-code-mappings")]
 [Authorize(Policy = "AgencyStaff")]
+[RequiresPackage(PackageCode.BackOffice)]
 public class BridgeCodeMappingsController : ControllerBase
 {
     private readonly AppDbContext _db;
