@@ -11,18 +11,6 @@ public static class TenantSidebarVisibility
 {
     public const int MaxHiddenItems = 100;
 
-    // These core bridge entries were reintroduced after an earlier sidebar
-    // cleanup. Ignore stale item-level hide rules so old tenant preferences
-    // cannot make the bridge tools disappear again. Package and permission
-    // checks remain authoritative.
-    private static readonly HashSet<string> AlwaysVisibleBridgeItems = new(StringComparer.Ordinal)
-    {
-        "item:/carrier-bridges",
-        "item:/over-commission-bridges",
-        "item:/collection-files-bridges",
-        "item:/bridge-code-mappings"
-    };
-
     public static string[] Parse(string? json)
     {
         if (string.IsNullOrWhiteSpace(json)) return [];
@@ -42,7 +30,6 @@ public static class TenantSidebarVisibility
         => (items ?? [])
             .Where(IsValidKey)
             .Select(x => x.Trim())
-            .Where(x => !AlwaysVisibleBridgeItems.Contains(x))
             .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal)
             .Take(MaxHiddenItems)

@@ -25,7 +25,7 @@ public class TenantSidebarVisibilityTests
     }
 
     [Fact]
-    public void Normalize_drops_legacy_hides_for_core_bridge_tools()
+    public void Normalize_keeps_bridge_visibility_keys_for_admin_configuration()
     {
         var result = TenantSidebarVisibility.Normalize([
             "item:/carrier-bridges",
@@ -34,6 +34,9 @@ public class TenantSidebarVisibilityTests
             "group:financials"
         ]);
 
-        Assert.Equal(["group:financials"], result);
+        Assert.Contains("item:/carrier-bridges", result);
+        Assert.Contains("item:/collection-files-bridges", result);
+        Assert.Contains("item:/bridge-code-mappings", result);
+        Assert.Contains("group:financials", result);
     }
 }

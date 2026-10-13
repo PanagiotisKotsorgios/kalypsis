@@ -289,10 +289,9 @@ import { PlatformTodoBoardPage } from "./pages/PlatformTodoBoardPage";
 // code mappings) while the concrete bridge pages remain available as deep
 // links from the hub and from existing bookmarks.
 const restoredBackOfficeItems: NavItem[] = [
-  { to: "/carrier-bridges-hub", labelKey: "nav.carrierBridges", icon: <HubIcon />, package: "BackOffice", group: "production", alwaysVisible: true },
-  { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice", group: "production", alwaysVisible: true },
-  { to: "/collection-files-bridges", labelKey: "nav.collectionFilesBridges", icon: <CloudUploadIcon />, package: "BackOffice", group: "financials", alwaysVisible: true },
-  { to: "/bridge-code-mappings", labelKey: "nav.bridgeCodeMappings", icon: <AccountTreeIcon />, package: "BackOffice", group: "params", alwaysVisible: true },
+  // The four company-bridge tools are intentionally exposed through one
+  // Production hub. Their concrete routes remain available as deep links.
+  { to: "/carrier-bridges-hub", labelKey: "nav.carrierBridges", icon: <HubIcon />, package: "BackOffice", group: "production" },
   { to: "/financials?tab=receipts", labelKey: "nav.receipts", icon: <ReceiptLongIcon />, package: "BackOffice", group: "financials" },
   { to: "/financials?tab=payments", labelKey: "nav.payments", icon: <PaymentsIcon />, package: "BackOffice", group: "financials" },
   { to: "/advance-payments", labelKey: "nav.advance", icon: <AccountBalanceIcon />, package: "BackOffice", group: "financials" },
