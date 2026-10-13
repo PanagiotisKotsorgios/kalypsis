@@ -65,13 +65,13 @@ public sealed class DesktopSyncController : ControllerBase
         var syncData = ToSyncElement(dataNode);
 
         var pushed = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        pushed["customers"] = await UpsertAsync<Customer>(syncData, "customers", tenantId, conflict, ct);
+        pushed["customers"] = await UpsertAsync<Customer>(syncData, "customers", tenantId, conflict, warnings, ct);
         await FlushSyncPhaseAsync("πελάτες", warnings, ct);
 
-        pushed["producers"] = await UpsertAsync<Producer>(syncData, "producers", tenantId, conflict, ct);
+        pushed["producers"] = await UpsertAsync<Producer>(syncData, "producers", tenantId, conflict, warnings, ct);
         await FlushSyncPhaseAsync("συνεργάτες", warnings, ct);
 
-        pushed["carriers"] = await UpsertAsync<InsuranceCompany>(syncData, "carriers", tenantId, conflict, ct);
+        pushed["carriers"] = await UpsertAsync<InsuranceCompany>(syncData, "carriers", tenantId, conflict, warnings, ct);
         await FlushSyncPhaseAsync("ασφαλιστικές", warnings, ct);
 
         // Desktop and Cloud use independent catalogue IDs.  Resolve the
@@ -86,14 +86,14 @@ public sealed class DesktopSyncController : ControllerBase
             warnings.Add($"{removedPolicies} εγγραφές συμβολαίων παραλείφθηκαν επειδή έλειπε ο απαιτούμενος πελάτης ή η ασφαλιστική εταιρεία.");
         syncData = ToSyncElement(dataNode);
 
-        pushed["policies"] = await UpsertAsync<Policy>(syncData, "policies", tenantId, conflict, ct);
+        pushed["policies"] = await UpsertAsync<Policy>(syncData, "policies", tenantId, conflict, warnings, ct);
         await FlushSyncPhaseAsync("συμβόλαια", warnings, ct);
-        pushed["claims"] = await UpsertAsync<Claim>(syncData, "claims", tenantId, conflict, ct);
-        pushed["receipts"] = await UpsertAsync<Receipt>(syncData, "receipts", tenantId, conflict, ct);
-        pushed["payments"] = await UpsertAsync<Payment>(syncData, "payments", tenantId, conflict, ct);
-        pushed["tasks"] = await UpsertAsync<AgencyTask>(syncData, "tasks", tenantId, conflict, ct);
-        pushed["appointments"] = await UpsertAsync<Appointment>(syncData, "appointments", tenantId, conflict, ct);
-        pushed["instructions"] = await UpsertAsync<AgencyInstruction>(syncData, "instructions", tenantId, conflict, ct);
+        pushed["claims"] = await UpsertAsync<Claim>(syncData, "claims", tenantId, conflict, warnings, ct);
+        pushed["receipts"] = await UpsertAsync<Receipt>(syncData, "receipts", tenantId, conflict, warnings, ct);
+        pushed["payments"] = await UpsertAsync<Payment>(syncData, "payments", tenantId, conflict, warnings, ct);
+        pushed["tasks"] = await UpsertAsync<AgencyTask>(syncData, "tasks", tenantId, conflict, warnings, ct);
+        pushed["appointments"] = await UpsertAsync<Appointment>(syncData, "appointments", tenantId, conflict, warnings, ct);
+        pushed["instructions"] = await UpsertAsync<AgencyInstruction>(syncData, "instructions", tenantId, conflict, warnings, ct);
         await FlushSyncPhaseAsync("λειτουργικά δεδομένα", warnings, ct);
 
         // Pull after the push so both sides converge to the same server state.
@@ -116,18 +116,33 @@ public sealed class DesktopSyncController : ControllerBase
         });
     }
 
-    private async Task<int> UpsertAsync<T>(JsonElement data, string key, Guid tenantId, string conflict, CancellationToken ct)
+    private async Task<int> UpsertAsync<T>(JsonElement data, string key, Guid tenantId, string conflict,
+        List<string> warnings, CancellationToken ct)
         where T : BaseEntity
     {
         if (!data.TryGetProperty(key, out var rows) || rows.ValueKind != JsonValueKind.Array)
             return 0;
 
-        var items = rows.EnumerateArray()
-            .Select(NormalizeDesktopRow<T>)
-            .Select(row => row.Deserialize<T>(SyncJson))
-            .Where(row => row is not null)
-            .Cast<T>()
-            .ToList();
+        var items = new List<T>();
+        var rowNumber = 0;
+        foreach (var rawRow in rows.EnumerateArray())
+        {
+            rowNumber++;
+            try
+            {
+                var normalized = NormalizeDesktopRow<T>(rawRow);
+                var item = normalized.Deserialize<T>(SyncJson);
+                if (item is not null) items.Add(item);
+            }
+            catch (Exception ex)
+            {
+                // One legacy/forward-compatible row must not abort the complete
+                // bridge.  Keep the warning intentionally value-free: sync
+                // responses must never echo customer data or secrets.
+                _logger.LogWarning(ex, "Desktop sync skipped invalid {Entity} row {RowNumber}", key, rowNumber);
+                warnings.Add($"Παραλείφθηκε μία μη συμβατή εγγραφή από το {key} (γραμμή {rowNumber}).");
+            }
+        }
         var processed = 0;
         foreach (var item in items)
         {
