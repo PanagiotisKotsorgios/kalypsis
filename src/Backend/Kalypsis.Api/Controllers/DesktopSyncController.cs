@@ -107,6 +107,16 @@ public sealed class DesktopSyncController : ControllerBase
             if (item is TenantEntity tenant) tenant.TenantId = tenantId;
             if (item is InsuranceCompany carrier) carrier.TenantId = tenantId;
 
+            // Older desktop databases may contain demo/legacy customers
+            // without a customer number.  CustomerNumber is unique in the
+            // web database, so allowing several empty values would make an
+            // otherwise valid sync fail with a database duplicate-key error.
+            // Use a deterministic, non-user-facing bridge identifier instead
+            // of changing any of the customer's actual profile data.  The
+            // same desktop row gets the same value on every subsequent sync.
+            if (item is Customer customer && string.IsNullOrWhiteSpace(customer.CustomerNumber))
+                customer.CustomerNumber = $"DESKTOP-{item.Id:N}";
+
             // Required relationships cannot be represented by an orphaned
             // desktop row.  Skip those rows instead of creating an invalid FK
             // or a record that can never be opened in the web application.
