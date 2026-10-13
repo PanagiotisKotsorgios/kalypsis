@@ -61,8 +61,8 @@ function SidebarPreview({
   const navItems = useMemo(() => {
     const source = navByRole[user.role] ?? [];
     return source.filter((item) => {
-      if (hiddenItems.has(sidebarItemKey(item.to))) return false;
-      if (item.group && sidebarGroupVisibilityKeys(item.group).some(key => hiddenItems.has(key))) return false;
+      if (!item.alwaysVisible && hiddenItems.has(sidebarItemKey(item.to))) return false;
+      if (!item.alwaysVisible && item.group && sidebarGroupVisibilityKeys(item.group).some(key => hiddenItems.has(key))) return false;
       if (item.package && !activePackages.has(item.package)) return false;
       if (item.permission && !bypassPermissions && !permissions.has(item.permission)) return false;
       return true;
@@ -224,12 +224,12 @@ function SidebarVisibilityEditor({
                     </Typography>
                   )}
                   {section.items.map((item) => {
-                    const itemHidden = hiddenItems.has(sidebarItemKey(item.path));
+                    const itemHidden = !item.alwaysVisible && hiddenItems.has(sidebarItemKey(item.path));
                     return (
                       <ListItem
                         key={item.path}
                         disableGutters
-                        sx={{ px: group ? 1.8 : 1.1, py: 0.15, minHeight: 36, opacity: groupHidden ? 0.5 : 1 }}
+                        sx={{ px: group ? 1.8 : 1.1, py: 0.15, minHeight: 36, opacity: groupHidden && !item.alwaysVisible ? 0.5 : 1 }}
                       >
                         <ListItemIcon sx={{ minWidth: group ? 26 : 30, color: "text.secondary" }}>
                           {group ? <Box sx={{ width: 5, height: 5, borderRadius: "50%", bgcolor: "currentColor" }} /> : <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: "currentColor" }} />}
@@ -242,7 +242,8 @@ function SidebarVisibilityEditor({
                         />
                         <Switch
                           size="small"
-                          checked={!itemHidden}
+                          checked={item.alwaysVisible || !itemHidden}
+                          disabled={item.alwaysVisible}
                           inputProps={{ "aria-label": `Εμφάνιση ${item.label}` }}
                           onChange={(_, checked) => onChange(sidebarItemKey(item.path), !checked)}
                         />

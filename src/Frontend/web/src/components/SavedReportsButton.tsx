@@ -38,6 +38,7 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad }: {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [saveOpen, setSaveOpen] = useState(false);
   const [form, setForm] = useState({ name: "", isShared: false });
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   const q = useQuery({
     queryKey: ["saved-reports", entity],
@@ -61,14 +62,24 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad }: {
 
   const del = useMutation({
     mutationFn: async (id: string) => api.delete(`/saved-reports/${id}`),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["saved-reports", entity] }),
+    onSuccess: (_data, id) => {
+      if (activeId === id) setActiveId(null);
+      void qc.invalidateQueries({ queryKey: ["saved-reports", entity] });
+    },
   });
+
+  const activeName = (q.data ?? []).find(report => report.id === activeId)?.name;
 
   return (
     <>
-      <Button size="small" variant="outlined" startIcon={<BookmarkIcon />}
-        onClick={(e) => setAnchor(e.currentTarget)}>
-        Αποθηκευμένα
+      <Button size="small" variant={activeId ? "contained" : "outlined"} startIcon={<BookmarkIcon />}
+        onClick={(e) => setAnchor(e.currentTarget)} sx={{
+          ml: "auto", whiteSpace: "nowrap",
+          ...(activeId
+            ? { bgcolor: "#0b5cad", color: "#fff", "&:hover": { bgcolor: "#084d91", color: "#fff" } }
+            : { color: "#123a64", borderColor: "#9ab2ca", "&:hover": { bgcolor: "#e8f2fb", borderColor: "#5d8fbd", color: "#123a64" } })
+        }}>
+        {activeName ?? "Αποθηκευμένα"}
       </Button>
       <Menu anchorEl={anchor} open={!!anchor} onClose={() => setAnchor(null)}
         slotProps={{ paper: { sx: { minWidth: 300, maxHeight: 400 } } }}>
@@ -81,12 +92,18 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad }: {
         ) : (q.data ?? []).length === 0 ? (
           <MenuItem disabled sx={{ fontSize: 13, color: "text.secondary" }}>Δεν υπάρχουν αποθηκευμένα.</MenuItem>
         ) : (q.data ?? []).map(r => (
-          <MenuItem key={r.id} onClick={() => {
+          <MenuItem key={r.id} selected={r.id === activeId} onClick={() => {
             try {
               const parsed = JSON.parse(r.filtersJson);
               onLoad(parsed);
+              setActiveId(r.id);
               setAnchor(null);
             } catch { /* ignore malformed */ }
+          }} sx={{
+            color: "#123a64",
+            "&:hover": { bgcolor: "#e8f2fb", color: "#123a64" },
+            "&.Mui-selected": { bgcolor: "#d8eafa", color: "#0b305c", fontWeight: 800 },
+            "&.Mui-selected:hover": { bgcolor: "#c8e1f6", color: "#0b305c" },
           }}>
             <Stack direction="row" alignItems="center" spacing={1} sx={{ width: "100%" }}>
               <Typography sx={{ flex: 1 }} noWrap>{r.name}</Typography>

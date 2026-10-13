@@ -95,6 +95,8 @@ export interface NavItem {
   group?: string;
   /** Optional icon next to the group header in the sidebar. */
   groupIcon?: ReactNode;
+  /** Core bridge tools ignore stale tenant presentation-only hide rules. */
+  alwaysVisible?: boolean;
   /**
    * Phase 16: fine-grained permission code required to see this nav item.
    * When set, the sidebar hides the entry unless the current user's
@@ -291,8 +293,8 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
             appliesTenantSidebarVisibility ? user?.hiddenSidebarItems ?? [] : []
           );
           const visible = navItems.filter(item => {
-            if (hiddenSidebarItems.has(sidebarItemKey(item.to))) return false;
-            if (item.group && sidebarGroupVisibilityKeys(item.group).some(key => hiddenSidebarItems.has(key))) return false;
+            if (!item.alwaysVisible && hiddenSidebarItems.has(sidebarItemKey(item.to))) return false;
+            if (!item.alwaysVisible && item.group && sidebarGroupVisibilityKeys(item.group).some(key => hiddenSidebarItems.has(key))) return false;
             if (item.package && !hasPackage(item.package)) return false;
             if (item.permission && !bypassPermissions && !heldPermissions.has(item.permission))
               return false;

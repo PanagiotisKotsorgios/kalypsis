@@ -1389,9 +1389,10 @@ function PolicyFormDialog({
   // customer options come from useCustomerSearch (server-side filtered).
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg"
+      PaperProps={{ sx: { maxHeight: "calc(100vh - 24px)", bgcolor: "#edf3f9", border: "1px solid #d6e3f0", borderRadius: 2 } }}>
       <DialogTitle>{editing ? t("policies.form.editTitle") : t("policies.form.createTitle")}</DialogTitle>
-      <DialogContent>
+      <DialogContent sx={{ p: { xs: 1.5, md: 2 }, bgcolor: "#edf3f9" }}>
         {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
         {!editing && hasDraft && (
           <Alert severity="info" sx={{ mb: 2 }} action={
@@ -1400,7 +1401,14 @@ function PolicyFormDialog({
             Επαναφέραμε τα δεδομένα από την προηγούμενη σύνοδο.
           </Alert>
         )}
-        <Stack spacing={2.5} mt={1}>
+        <Stack spacing={1.5} mt={1} sx={{
+          p: { xs: 1.25, md: 1.75 },
+          bgcolor: "#f8fafc",
+          border: "1px solid #d6e3f0",
+          borderRadius: 1.5,
+          "& .MuiTextField-root, & .MuiFormControl-root": { bgcolor: "#fff" },
+          "& .MuiOutlinedInput-notchedOutline": { borderColor: "#b8c9da" },
+        }}>
           <TextField label="Αριθμός συμβολαίου" value={form.policyNumber}
             onChange={e => setForm({ ...form, policyNumber: e.target.value })}
             placeholder="Κενό = αυτόματη αρίθμηση (P-000001)"

@@ -163,7 +163,6 @@ import { PlatformRegistrationsPage } from "./pages/PlatformRegistrationsPage";
 // PlatformBillingConfigPage + PlatformInvoicesPage are now embedded as
 // tabs inside PlatformFinancePage — imported there, not directly here.
 import { CommissionRunsPage } from "./pages/CommissionRunsPage";
-import { CompanyBridgesPage } from "./pages/CompanyBridgesPage";
 import { QuoteBuilderPage } from "./pages/QuoteBuilderPage";
 import { WorkflowRulesPage } from "./pages/WorkflowRulesPage";
 import { ChurnDashboardPage } from "./pages/ChurnDashboardPage";
@@ -285,13 +284,15 @@ import { PlatformTodoBoardPage } from "./pages/PlatformTodoBoardPage";
 // available as deep links, but disappeared from the office sidebars. Keep the
 // recovery list in one place so every office-facing role receives the same
 // production/bridge/financial tools without duplicating navigation metadata.
-// The carrier-bridges-hub is intentionally not included: it was explicitly
-// removed from the sidebar and the concrete bridge pages below are the useful
-// entry points.
+// Keep the company-bridges hub as the single entry point. It restores the
+// grouped bridge selector (production, collection files, over-commissions and
+// code mappings) while the concrete bridge pages remain available as deep
+// links from the hub and from existing bookmarks.
 const restoredBackOfficeItems: NavItem[] = [
-  { to: "/carrier-bridges", labelKey: "nav.carrierBridges", icon: <HubIcon />, package: "BackOffice", group: "production" },
-  { to: "/collection-files-bridges", labelKey: "nav.collectionFilesBridges", icon: <CloudUploadIcon />, package: "BackOffice", group: "financials" },
-  { to: "/bridge-code-mappings", labelKey: "nav.bridgeCodeMappings", icon: <AccountTreeIcon />, package: "BackOffice", group: "params" },
+  { to: "/carrier-bridges-hub", labelKey: "nav.carrierBridges", icon: <HubIcon />, package: "BackOffice", group: "production", alwaysVisible: true },
+  { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice", group: "production", alwaysVisible: true },
+  { to: "/collection-files-bridges", labelKey: "nav.collectionFilesBridges", icon: <CloudUploadIcon />, package: "BackOffice", group: "financials", alwaysVisible: true },
+  { to: "/bridge-code-mappings", labelKey: "nav.bridgeCodeMappings", icon: <AccountTreeIcon />, package: "BackOffice", group: "params", alwaysVisible: true },
   { to: "/financials?tab=receipts", labelKey: "nav.receipts", icon: <ReceiptLongIcon />, package: "BackOffice", group: "financials" },
   { to: "/financials?tab=payments", labelKey: "nav.payments", icon: <PaymentsIcon />, package: "BackOffice", group: "financials" },
   { to: "/advance-payments", labelKey: "nav.advance", icon: <AccountBalanceIcon />, package: "BackOffice", group: "financials" },
@@ -474,8 +475,9 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/integration-settings", labelKey: "nav.integrationSettings", icon: <VpnKeyIcon />, package: "Integrations" },
     { to: "/timologion", labelKey: "nav.timologion", icon: <ReceiptLongIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/mydata", labelKey: "nav.mydata", icon: <GavelOutlinedIcon />, package: "Integrations" },
-    // company-bridges + bridge-import are duplicates of /carrier-bridges
-    // (BackOffice top-level). Routes redirect — sidebar entries removed.
+    // company-bridges + bridge-import resolve to the grouped bridge hub
+    // (BackOffice top-level). The concrete bridge screens remain reachable
+    // from that hub.
     { to: "/partner-portals", labelKey: "nav.b2bPortal", icon: <HubIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/api-keys", labelKey: "nav.thirdParty", icon: <ExtensionIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "Integrations" },
@@ -515,7 +517,6 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/indemnities", labelKey: "nav.indemnities", icon: <PaymentsIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/friendly-settlements", labelKey: "nav.friendly", icon: <HandshakeIcon />, package: "BackOffice", group: "claimsOps" },
     ...restoredBackOfficeItems,
-    { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice" },
     { to: "/office-website/overview", labelKey: "nav.officeWebsiteOverview", icon: <DashboardIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website", labelKey: "nav.officeWebsite", icon: <LanguageIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website/requests", labelKey: "nav.officeWebsiteRequests", icon: <AssignmentIcon />, package: "FrontOffice", group: "website" },
@@ -553,7 +554,6 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/indemnities", labelKey: "nav.indemnities", icon: <PaymentsIcon />, package: "BackOffice", group: "claimsOps" },
     { to: "/friendly-settlements", labelKey: "nav.friendly", icon: <HandshakeIcon />, package: "BackOffice", group: "claimsOps" },
     ...restoredBackOfficeItems,
-    { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice" },
     { to: "/office-website/overview", labelKey: "nav.officeWebsiteOverview", icon: <DashboardIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website", labelKey: "nav.officeWebsite", icon: <LanguageIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website/requests", labelKey: "nav.officeWebsiteRequests", icon: <AssignmentIcon />, package: "FrontOffice", group: "website" },
@@ -1160,7 +1160,7 @@ export default function App() {
                   <Route path="goals" element={<PackageGate package="Intelligence"><ProductionGoalsPage /></PackageGate>} />
                   <Route path="production-stats" element={<ProductionStatsPage />} />
                   <Route path="commission-runs" element={<CommissionRunsPage />} />
-                  <Route path="company-bridges" element={<CompanyBridgesPage />} />
+                  <Route path="company-bridges" element={<Navigate to="/app/carrier-bridges-hub" replace />} />
                   <Route path="insurance-companies" element={<InsuranceCompaniesPage />} />
                   <Route path="companies-agencies" element={<CompaniesAndAgenciesPage />} />
                   <Route path="production-companies-agencies" element={<ProductionCompaniesAgenciesPage />} />
@@ -1222,8 +1222,7 @@ export default function App() {
                   <Route path="financial-movements" element={<Navigate to="/app/financials?tab=movements" replace />} />
                   <Route path="cash" element={<Navigate to="/app/financials?tab=cash" replace />} />
                   <Route path="gl" element={<Navigate to="/app/financials?tab=gl" replace />} />
-                  <Route path="company-bridges" element={<Navigate to="/app/carrier-bridges" replace />} />
-                  <Route path="bridge-import" element={<Navigate to="/app/carrier-bridges" replace />} />
+                  <Route path="bridge-import" element={<Navigate to="/app/carrier-bridges-hub" replace />} />
                   <Route path="platform/carriers" element={<PlatformCarriersPage />} />
                   <Route path="platform/oc-bridges" element={<PlatformOverCommissionBridgesPage />} />
                   {/* Merged finance surface — one tabbed page for

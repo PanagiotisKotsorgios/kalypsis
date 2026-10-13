@@ -23,4 +23,17 @@ public class TenantSidebarVisibilityTests
             "item:/carrier-bridges-hub"
         ], result);
     }
+
+    [Fact]
+    public void Normalize_drops_legacy_hides_for_core_bridge_tools()
+    {
+        var result = TenantSidebarVisibility.Normalize([
+            "item:/carrier-bridges",
+            "item:/collection-files-bridges",
+            "item:/bridge-code-mappings",
+            "group:financials"
+        ]);
+
+        Assert.Equal(["group:financials"], result);
+    }
 }

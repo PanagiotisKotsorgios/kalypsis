@@ -112,6 +112,75 @@ public class CreateReceiptCommandHandler : IRequestHandler<CreateReceiptCommand,
     }
 }
 
+/// <summary>
+/// Updates an existing receipt while keeping its linked cash movement in sync.
+/// Receipt edits are intentionally handled server-side so customer/policy
+/// ownership and financial totals cannot be changed by a client-only form.
+/// </summary>
+public record UpdateReceiptCommand(Guid Id, ReceiptBody Body) : IRequest<ReceiptDto>;
+public class UpdateReceiptCommandValidator : AbstractValidator<UpdateReceiptCommand>
+{ public UpdateReceiptCommandValidator() { RuleFor(x => x.Body).SetValidator(new ReceiptBodyValidator()); } }
+
+public class UpdateReceiptCommandHandler : IRequestHandler<UpdateReceiptCommand, ReceiptDto>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    public UpdateReceiptCommandHandler(IAppDbContext db, ICurrentUser current) { _db = db; _current = current; }
+
+    public async Task<ReceiptDto> Handle(UpdateReceiptCommand r, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var b = r.Body;
+        var receipt = await _db.Receipts
+            .Include(x => x.Customer)
+            .Include(x => x.Policy)
+            .FirstOrDefaultAsync(x => x.Id == r.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Receipt");
+
+        var customerExists = await _db.Customers
+            .AnyAsync(x => x.Id == b.CustomerId && x.TenantId == tenantId && x.DeletedAt == null, ct);
+        if (!customerExists) throw AppException.NotFound("Customer");
+        if (b.PolicyId.HasValue)
+        {
+            var policyCustomerId = await _db.Policies
+                .Where(x => x.Id == b.PolicyId.Value && x.TenantId == tenantId && x.DeletedAt == null)
+                .Select(x => (Guid?)x.CustomerId)
+                .FirstOrDefaultAsync(ct);
+            if (!policyCustomerId.HasValue) throw AppException.NotFound("Policy");
+            if (policyCustomerId.Value != b.CustomerId)
+                throw AppException.Validation("Η είσπραξη πρέπει να συνδέεται με τον πελάτη του συμβολαίου.");
+        }
+
+        receipt.Number = b.Number.Trim();
+        receipt.ReceivedOn = b.ReceivedOn;
+        receipt.CustomerId = b.CustomerId;
+        receipt.PolicyId = b.PolicyId;
+        receipt.Method = b.Method;
+        receipt.Amount = b.Amount;
+        receipt.Currency = b.Currency.ToUpperInvariant();
+        receipt.Notes = b.Notes;
+        receipt.TransactionReference = string.IsNullOrWhiteSpace(b.TransactionReference) ? null : b.TransactionReference.Trim();
+
+        var movements = await _db.FinancialMovements
+            .Where(m => m.ReceiptId == receipt.Id && m.DeletedAt == null)
+            .ToListAsync(ct);
+        foreach (var movement in movements)
+        {
+            movement.MovementDate = b.ReceivedOn;
+            movement.Amount = b.Amount;
+            movement.Currency = b.Currency.ToUpperInvariant();
+            movement.CustomerId = b.CustomerId;
+            movement.PolicyId = b.PolicyId;
+            movement.Description = $"Είσπραξη #{b.Number.Trim()}";
+        }
+
+        await _db.SaveChangesAsync(ct);
+        var saved = await _db.Receipts.Include(x => x.Customer).Include(x => x.Policy)
+            .FirstAsync(x => x.Id == receipt.Id, ct);
+        return ListReceiptsQueryHandler.Map(saved);
+    }
+}
+
 public record DeleteReceiptCommand(Guid Id) : IRequest<Unit>;
 public class DeleteReceiptCommandHandler : IRequestHandler<DeleteReceiptCommand, Unit>
 {

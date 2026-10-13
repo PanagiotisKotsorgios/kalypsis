@@ -848,10 +848,16 @@ function CreateCustomerDialog({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth={initialCustomer ? "lg" : "sm"}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      fullWidth
+      maxWidth="lg"
+      PaperProps={{ sx: { maxHeight: "calc(100vh - 24px)", bgcolor: "#f8fafc", border: "1px solid #d5e0ec", borderRadius: 2 } }}
+    >
       <DialogTitle sx={{ py: 1.25 }}>{initialCustomer ? "Επεξεργασία πελάτη" : t("customers.createTitle")}</DialogTitle>
       <DialogContent sx={{ p: { xs: 1.5, md: 2 } }}>
-        {!initialCustomer ? (
+        {false ? (
           <Stack spacing={1.25}>
             <Alert severity="info" sx={{ py: 0.5 }}>
               Συμπληρώστε τα βασικά στοιχεία. Μετά τη δημιουργία ανοίγει η πλήρης καρτέλα για όλα τα στοιχεία, οχήματα και έγγραφα.
@@ -892,13 +898,24 @@ function CreateCustomerDialog({
         <Typography color="text.secondary" mb={1} variant="body2">
           {t("customers.createHelp")}
         </Typography>
-        <Tabs value={formTab} onChange={(_, value) => setFormTab(value)} variant="scrollable" allowScrollButtonsMobile sx={{ borderBottom: 1, borderColor: "divider", mb: 1, minHeight: 38, "& .MuiTab-root": { minHeight: 38, py: 0.5, px: 1 } }}>
+        <Tabs value={formTab} onChange={(_, value) => setFormTab(value)} variant="scrollable" allowScrollButtonsMobile sx={{ display: "none" }}>
           <Tab label="Βασικά & επικοινωνία" />
           <Tab label="Ταυτότητα & οικογένεια" />
           <Tab label="Επιχείρηση & οδήγηση" />
         </Tabs>
-        <Stack spacing={1} mt={0.5}>
-          <Box sx={{ display: formTab === 0 ? "block" : "none" }}>
+        <Stack spacing={1} mt={0.5} sx={{
+          p: { xs: 1, md: 1.5 },
+          bgcolor: "#edf3f9",
+          border: "1px solid #d6e3f0",
+          borderRadius: 1.5,
+          "& .MuiTextField-root, & .MuiFormControl-root": { bgcolor: "#fff" },
+          "& .MuiOutlinedInput-notchedOutline": { borderColor: "#b8c9da" },
+          "& .MuiTabs-root": { bgcolor: "#f8fafc", borderRadius: 1, px: 0.5 },
+        }}>
+          <Box sx={{ p: { xs: 1, md: 1.25 }, bgcolor: "#f8fafc", border: "1px solid #d6e3f0", borderRadius: 1.25 }}>
+          <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.75, px: 0.75, py: 0.5, borderLeft: "3px solid", borderColor: "primary.main", bgcolor: "rgba(25,118,210,0.08)" }}>
+            Βασικά & επικοινωνία
+          </Typography>
           <SearchableTextField
             select
             label={t("customers.type")}
@@ -1069,7 +1086,10 @@ function CreateCustomerDialog({
           />
           </Box>
 
-          <Box sx={{ display: formTab === 1 ? "block" : "none" }}>
+          <Box sx={{ p: { xs: 1, md: 1.25 }, bgcolor: "#f8fafc", border: "1px solid #d6e3f0", borderRadius: 1.25 }}>
+            <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.75, px: 0.75, py: 0.5, borderLeft: "3px solid", borderColor: "primary.main", bgcolor: "rgba(25,118,210,0.08)" }}>
+              Ταυτότητα & οικογένεια
+            </Typography>
             <Stack spacing={1}>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                 <TextField label="Ημερομηνία γέννησης" type="date" value={form.birthDate ?? ""} onChange={e => setForm({ ...form, birthDate: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
@@ -1097,7 +1117,10 @@ function CreateCustomerDialog({
             </Stack>
           </Box>
 
-          <Box sx={{ display: formTab === 2 ? "block" : "none" }}>
+          <Box sx={{ p: { xs: 1, md: 1.25 }, bgcolor: "#f8fafc", border: "1px solid #d6e3f0", borderRadius: 1.25 }}>
+            <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.75, px: 0.75, py: 0.5, borderLeft: "3px solid", borderColor: "primary.main", bgcolor: "rgba(25,118,210,0.08)" }}>
+              Επιχείρηση & οδήγηση
+            </Typography>
             <Stack spacing={1}>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                 <TextField label="Εργοδότης" value={form.employer ?? ""} onChange={e => setForm({ ...form, employer: e.target.value })} fullWidth />

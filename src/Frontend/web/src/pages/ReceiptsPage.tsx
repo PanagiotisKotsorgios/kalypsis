@@ -7,6 +7,9 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/EditOutlined";
+import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
@@ -79,6 +82,7 @@ export function ReceiptsPage() {
   const qc = useQueryClient();
   const [err, setErr] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingReceipt, setEditingReceipt] = useState<ReceiptDto | null>(null);
 
   const [search, setSearch] = useState("");
   const [methodFilter, setMethodFilter] = useState<Method | "">("");
@@ -161,6 +165,13 @@ export function ReceiptsPage() {
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
         <Box>
+          <Stack direction="row" alignItems="center" spacing={0.6} sx={{ mb: 0.65, minHeight: 28, color: "text.secondary" }}>
+            <HomeOutlinedIcon fontSize="small" sx={{ flexShrink: 0 }} />
+            <ChevronRightIcon fontSize="small" sx={{ flexShrink: 0, mx: 0.25, color: "primary.main" }} />
+            <Typography variant="caption" sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>Οικονομικά</Typography>
+            <ChevronRightIcon fontSize="small" sx={{ flexShrink: 0, mx: 0.25, color: "primary.main" }} />
+            <Typography variant="caption" sx={{ fontWeight: 800, color: "primary.dark", whiteSpace: "nowrap" }}>Εισπράξεις</Typography>
+          </Stack>
           <Stack direction="row" alignItems="center" spacing={0.5}>
             <Typography variant="h4" sx={{ fontWeight: 800 }}>{t("receipts.title")}</Typography>
             <HelpHint id="page.receipts" />
@@ -173,7 +184,7 @@ export function ReceiptsPage() {
             <Typography variant="h5" fontWeight={800}>{money(total)}</Typography>
           </Box>
           <DataExportButton entity="receipts" search={search} />
-          <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>{t("receipts.create")}</Button>
+          <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setEditingReceipt(null); setCreateOpen(true); }}>{t("receipts.create")}</Button>
         </Stack>
       </Stack>
 
@@ -265,6 +276,9 @@ export function ReceiptsPage() {
                     }
                   })}
                   <TableCell align="right">
+                    <IconButton size="small" color="success" title="Επεξεργασία" onClick={(event) => { event.stopPropagation(); setEditingReceipt(r); }}>
+                      <EditIcon fontSize="small" />
+                    </IconButton>
                     <IconButton size="small" color="error" onClick={() => { if (confirm(t("common.confirmDelete"))) del.mutate(r.id); }}>
                       <DeleteIcon fontSize="small" />
                     </IconButton>
@@ -281,17 +295,18 @@ export function ReceiptsPage() {
       {headerMenu.menu}
       {rowMenu.menu}
 
-      <FormDialog open={createOpen} onClose={() => setCreateOpen(false)}
+      <FormDialog open={createOpen || !!editingReceipt} item={editingReceipt} onClose={() => { setCreateOpen(false); setEditingReceipt(null); }}
         onSaved={() => {
           void qc.invalidateQueries({ queryKey: ["receipts"] });
           void qc.invalidateQueries({ queryKey: ["policy-payment-summary"] });
           setCreateOpen(false);
+          setEditingReceipt(null);
         }} />
     </Box>
   );
 }
 
-function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => void; onSaved: () => void }) {
+function FormDialog({ open, item, onClose, onSaved }: { open: boolean; item: ReceiptDto | null; onClose: () => void; onSaved: () => void }) {
   const { t } = useTranslation();
   const customers = useQuery({
     queryKey: ["customers-lite"], enabled: open,
@@ -321,13 +336,18 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
   });
 
   useEffect(() => {
-    if (open) setForm({
+    if (open) setForm(item ? {
+      number: item.number, receivedOn: item.receivedOn.slice(0, 10),
+      customerId: item.customerId, policyId: item.policyId ?? "", method: item.method,
+      amount: item.amount, currency: item.currency, notes: item.notes ?? "",
+      transactionReference: item.transactionReference ?? ""
+    } : {
       number: `R-${Date.now().toString().slice(-6)}`, receivedOn: today,
       customerId: "", policyId: "", method: "Cash", amount: 0, currency: "EUR", notes: "",
       transactionReference: ""
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, item]);
 
   // When the user selects a policy with a remaining balance, prefill the receipt
   // amount with the remaining so the receipt fully clears it (the user can edit).
@@ -346,17 +366,29 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
         currency: form.currency.toUpperCase(), notes: form.notes || null,
         transactionReference: form.transactionReference.trim() || null
       };
-      return (await api.post("/receipts", body)).data;
+      return item
+        ? (await api.put(`/receipts/${item.id}`, body)).data
+        : (await api.post("/receipts", body)).data;
     },
     onSuccess: onSaved, onError: e => setErr(extractErrorMessage(e))
   });
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>{t("receipts.createTitle")}</DialogTitle>
-      <DialogContent>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md"
+      PaperProps={{ sx: { bgcolor: "#edf3f9", border: "1px solid #d6e3f0", borderRadius: 2 } }}>
+      <DialogTitle sx={{ bgcolor: "#f8fafc", borderBottom: "1px solid #d6e3f0", fontWeight: 800 }}>
+        {item ? "Επεξεργασία είσπραξης" : t("receipts.createTitle")}
+      </DialogTitle>
+      <DialogContent sx={{ p: { xs: 1.5, md: 2 } }}>
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
-        <Stack spacing={2.5} mt={1}>
+        <Stack spacing={1.5} mt={1} sx={{
+          p: { xs: 1.25, md: 1.75 },
+          bgcolor: "#f8fafc",
+          border: "1px solid #d6e3f0",
+          borderRadius: 1.5,
+          "& .MuiTextField-root, & .MuiFormControl-root": { bgcolor: "#fff" },
+          "& .MuiOutlinedInput-notchedOutline": { borderColor: "#b8c9da" },
+        }}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField required label="Αριθμός απόδειξης" value={form.number}
               onChange={e => setForm({ ...form, number: e.target.value })} fullWidth

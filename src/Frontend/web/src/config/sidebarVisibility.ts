@@ -27,6 +27,8 @@ export interface SidebarVisibilityItem {
   detail?: string;
   /** Empty means the item is common; otherwise at least one package must be active. */
   packages?: readonly PackageCode[];
+  /** Core bridge tools ignore stale tenant presentation-only hide rules. */
+  alwaysVisible?: boolean;
 }
 
 export interface SidebarVisibilitySection {
@@ -88,7 +90,7 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
     packages: ["BackOffice"],
     items: [
       { path: "/documents", label: "Έγγραφα" },
-      { path: "/over-commission-bridges", label: "Γέφυρες υπερπρομηθειών" }
+      { path: "/over-commission-bridges", label: "Γέφυρες υπερπρομηθειών", alwaysVisible: true }
     ]
   },
   {
@@ -104,7 +106,7 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
       { path: "/green-cards", label: "\u03a0\u03c1\u03ac\u03c3\u03b9\u03bd\u03b5\u03c2 \u03ba\u03ac\u03c1\u03c4\u03b5\u03c2" },
       { path: "/claims", label: "Ζημιές" },
       { path: "/producers", label: "Συνεργάτες" },
-      { path: "/carrier-bridges", label: "Γέφυρες εταιριών" },
+      { path: "/carrier-bridges-hub", label: "Γέφυρες εταιριών", alwaysVisible: true },
       { path: "/over-commission-statements", label: "Υπερπρομήθειες" }
     ]
   },
@@ -118,7 +120,7 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
       { path: "/financials?tab=receipts", label: "Εισπράξεις" },
       { path: "/financials?tab=payments", label: "Πληρωμές" },
       { path: "/advance-payments", label: "Προκαταβολές" },
-      { path: "/collection-files-bridges", label: "Γέφυρες αρχείων εισπράξεων" },
+      { path: "/collection-files-bridges", label: "Γέφυρες αρχείων εισπράξεων", alwaysVisible: true },
       { path: "/bulk-receipts", label: "Εισαγωγή πολλαπλών εισπράξεων" },
       { path: "/auto-receipt-matching", label: "Αυτόματη είσπραξη ισόποσων" },
       { path: "/ageing-analysis", label: "Ανάλυση ληξιπρόθεσμων" },
@@ -139,7 +141,7 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
       { path: "/insurance-companies", label: "Ασφαλιστικές εταιρείες" },
       { path: "/company-parametrics", label: "Παραμετρικά ασφαλιστικών" },
       { path: "/commission-rules", label: "Κανόνες προμηθειών" },
-      { path: "/bridge-code-mappings", label: "Αντιστοιχίσεις γεφυρών" },
+      { path: "/bridge-code-mappings", label: "Αντιστοιχίσεις γεφυρών", alwaysVisible: true },
       { path: "/config-hub", label: "Κέντρο παραμετροποίησης" },
       { path: "/legal-templates", label: "Νομικά πρότυπα" }
     ]

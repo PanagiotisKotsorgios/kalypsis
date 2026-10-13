@@ -159,6 +159,7 @@ public class ReceiptsController : ControllerBase
     [HttpGet] public async Task<ActionResult<IReadOnlyList<ReceiptDto>>> List([FromQuery] DateOnly? from, [FromQuery] DateOnly? to, [FromQuery] Guid? customerId, CancellationToken ct)
         => Ok(await _m.Send(new ListReceiptsQuery(from, to, customerId), ct));
     [HttpPost] [RequirePermission("receipts.write")] public async Task<ActionResult<ReceiptDto>> Create([FromBody] ReceiptBody body, CancellationToken ct) => Ok(await _m.Send(new CreateReceiptCommand(body), ct));
+    [HttpPut("{id:guid}")] [RequirePermission("receipts.write")] public async Task<ActionResult<ReceiptDto>> Update(Guid id, [FromBody] ReceiptBody body, CancellationToken ct) => Ok(await _m.Send(new UpdateReceiptCommand(id, body), ct));
     [HttpDelete("{id:guid}")] [RequirePermission("receipts.write")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeleteReceiptCommand(id), ct); return NoContent(); }
 }
 
