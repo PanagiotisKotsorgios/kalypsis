@@ -212,6 +212,13 @@ public sealed class DesktopSyncController : ControllerBase
             case nameof(Customer):
                 Alias("CustomerNumber", "CustomerCode");
                 Alias("Type", "Kind");
+                if (node["Type"] is JsonValue customerType &&
+                    customerType.TryGetValue<string>(out var customerTypeName))
+                    node["Type"] = customerTypeName switch
+                    {
+                        "Legal" or "Business" or "法人" => "Company",
+                        _ => customerTypeName,
+                    };
                 Alias("CompanyName", "LegalName");
                 Alias("VatNumber", "AfmVat");
                 Alias("Source", "Origin");
