@@ -49,7 +49,7 @@ import NotesOutlinedIcon from "@mui/icons-material/NotesOutlined";
 import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
 import { useTableState } from "../components/useTableState";
 import { useColumnPreferences } from "../hooks/useColumnPreferences";
@@ -237,7 +237,6 @@ function paymentStatus(account?: CustomerAccountSummary): string {
 export function CustomersPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
-  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [needKind, setNeedKind] = useState("");
   const [onlyUninsuredNeeds, setOnlyUninsuredNeeds] = useState(false);
@@ -248,6 +247,7 @@ export function CustomersPage() {
   const [paymentTo, setPaymentTo] = useState("");
   const [quickFiltersOpen, setQuickFiltersOpen] = useState(false);
   const [createStatus, setCreateStatus] = useState<CustomerStatus | null>(null);
+  const [createdCustomer, setCreatedCustomer] = useState<{ id: string; label: string } | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<CustomerDto | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -269,7 +269,13 @@ export function CustomersPage() {
     onSuccess: (result) => {
       void qc.invalidateQueries({ queryKey: ["customers"] });
       setCreateStatus(null);
-      if (result.customer?.id) navigate(`/app/customers/${result.customer.id}`);
+      setError(null);
+      if (result.customer?.id) {
+        const label = result.customer.type === "Company"
+          ? result.customer.companyName || result.customer.customerNumber
+          : `${result.customer.firstName ?? ""} ${result.customer.lastName ?? ""}`.trim() || result.customer.customerNumber;
+        setCreatedCustomer({ id: result.customer.id, label });
+      }
     },
     onError: (err) => setError(extractErrorMessage(err))
   });
@@ -605,6 +611,20 @@ export function CustomersPage() {
           {error}
         </Alert>
       )}
+      {createdCustomer && (
+        <Alert
+          severity="success"
+          onClose={() => setCreatedCustomer(null)}
+          sx={{ mb: 2, alignItems: "center" }}
+          action={
+            <Button component={RouterLink} to={`/app/customers/${createdCustomer.id}`} color="inherit" size="small">
+              Άνοιγμα καρτέλας
+            </Button>
+          }
+        >
+          Ο πελάτης «{createdCustomer.label}» δημιουργήθηκε και εμφανίζεται στη λίστα.
+        </Alert>
+      )}
 
       <Box sx={{ mb: 2 }}>
         <TableToolbar<CustomerListRow>
@@ -884,10 +904,10 @@ function CreateCustomerDialog({
     >
       <DialogTitle sx={{ py: 1.25 }}>{initialCustomer ? "Επεξεργασία πελάτη" : t("customers.createTitle")}</DialogTitle>
       <DialogContent sx={{ p: { xs: 1.5, md: 2 } }}>
-        {false ? (
+        {!initialCustomer ? (
           <Stack spacing={1.25}>
             <Alert severity="info" sx={{ py: 0.5 }}>
-              Συμπληρώστε τα βασικά στοιχεία. Μετά τη δημιουργία ανοίγει η πλήρης καρτέλα για όλα τα στοιχεία, οχήματα και έγγραφα.
+              Συμπληρώστε τα βασικά στοιχεία. Μετά τη δημιουργία ο πελάτης εμφανίζεται στη λίστα και μπορείτε να ανοίξετε την πλήρη καρτέλα για όλα τα στοιχεία, οχήματα και έγγραφα.
             </Alert>
             <SearchableTextField
               select
@@ -902,7 +922,7 @@ function CreateCustomerDialog({
             </SearchableTextField>
             <FormControlLabel
               control={<Switch checked={form.status === "Prospect"} onChange={e => setForm({ ...form, status: e.target.checked ? "Prospect" : "Active" })} />}
-              label="Πιθανός πελάτης"
+              label={form.status === "Prospect" ? "Πιθανός πελάτης" : "Κανονικός πελάτης"}
             />
             {form.type === "Individual" ? (
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
@@ -918,6 +938,7 @@ function CreateCustomerDialog({
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
               <TextField fullWidth type="email" label={t("customers.email")} value={form.email ?? ""} onChange={e => setForm({ ...form, email: e.target.value })} InputProps={{ startAdornment: <InputAdornment position="start"><EmailOutlinedIcon fontSize="small" /></InputAdornment> }} />
               <TextField fullWidth label={t("customers.phone")} value={form.phone ?? ""} onChange={e => setForm({ ...form, phone: e.target.value })} InputProps={{ startAdornment: <InputAdornment position="start"><PhoneOutlinedIcon fontSize="small" /></InputAdornment> }} />
+              <TextField fullWidth label={t("customers.city")} value={form.city ?? ""} onChange={e => setForm({ ...form, city: e.target.value })} InputProps={{ startAdornment: <InputAdornment position="start"><LocationCityIcon fontSize="small" /></InputAdornment> }} />
             </Stack>
           </Stack>
         ) : (
@@ -1191,7 +1212,7 @@ function CreateCustomerDialog({
         <Button onClick={onClose} color="error" variant="contained" sx={{ color: "#fff", fontWeight: 700 }}>{t("common.cancel", "Άκυρο")}</Button>
         <Button onClick={handleSubmit} variant="contained"
           disabled={submitting || (!initialCustomer && (form.type === "Individual" ? !form.firstName?.trim() || !form.lastName?.trim() : !form.companyName?.trim()))}>
-          {submitting ? <CircularProgress size={18} /> : initialCustomer ? "Αποθήκευση" : "Δημιουργία & άνοιγμα καρτέλας"}
+          {submitting ? <CircularProgress size={18} /> : initialCustomer ? "Αποθήκευση" : "Δημιουργία πελάτη"}
         </Button>
       </DialogActions>
     </Dialog>

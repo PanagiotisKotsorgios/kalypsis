@@ -310,11 +310,60 @@ export function CustomerDetailPage() {
       </DialogTitle>
       <DialogContent dividers sx={{ p: { xs: 1, md: 1.75 }, "& .MuiTypography-root": { lineHeight: 1.25 } }}>
       <Box>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5} gap={1.5}>
-        <Box>
-          <Typography variant="overline" color="text.secondary">{customer.customerNumber}</Typography>
-          <Typography variant="h4" sx={{ fontWeight: 800 }}>{displayName}</Typography>
-        </Box>
+      <Stack
+        direction={{ xs: "column", lg: "row" }}
+        justifyContent="space-between"
+        alignItems={{ xs: "stretch", lg: "center" }}
+        mb={1.5}
+        gap={1.5}
+        sx={{
+          p: { xs: 1.25, md: 1.75 },
+          borderRadius: 2.25,
+          color: "#fff",
+          background: "linear-gradient(135deg, #092b56 0%, #0b5cad 52%, #1591c8 100%)",
+          boxShadow: "0 8px 22px rgba(9,43,86,.22)",
+          border: "1px solid rgba(255,255,255,.2)",
+        }}
+      >
+        <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0, flex: 1 }}>
+          <Box sx={{
+            width: 50, height: 50, flex: "0 0 auto", borderRadius: "50%",
+            display: "grid", placeItems: "center", fontSize: 24, fontWeight: 900,
+            bgcolor: "rgba(255,255,255,.16)", border: "1px solid rgba(255,255,255,.42)",
+          }}>
+            {displayName.trim().charAt(0).toUpperCase() || "Π"}
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="overline" sx={{ color: "rgba(255,255,255,.72)", letterSpacing: ".08em", lineHeight: 1.1 }}>
+              Κωδικός πελάτη · {customer.customerNumber}
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 850, lineHeight: 1.1, overflowWrap: "anywhere" }}>
+              {displayName}
+            </Typography>
+            <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mt: 0.75 }}>
+              <Chip
+                size="small"
+                label={customer.type === "Company" ? "Νομικό πρόσωπο" : "Φυσικό πρόσωπο"}
+                sx={{ color: "#fff", bgcolor: "rgba(255,255,255,.16)", border: "1px solid rgba(255,255,255,.3)" }}
+              />
+              <Chip
+                size="small"
+                label={customer.status === "Prospect" ? "Πιθανός πελάτης" : "Ενεργός πελάτης"}
+                sx={{ color: "#fff", bgcolor: customer.status === "Prospect" ? "rgba(245,158,11,.82)" : "rgba(21,155,89,.82)" }}
+              />
+            </Stack>
+          </Box>
+        </Stack>
+        <Stack direction="row" spacing={1.25} useFlexGap flexWrap="wrap" sx={{ alignItems: "stretch" }}>
+          <Box sx={{ pl: 1.25, borderLeft: "1px solid rgba(255,255,255,.25)", minWidth: 110 }}>
+            <Typography variant="caption" sx={{ color: "rgba(255,255,255,.7)", display: "block" }}>ΑΦΜ</Typography>
+            <Typography fontWeight={800}>{customer.vatNumber || "—"}</Typography>
+          </Box>
+          <Box sx={{ pl: 1.25, borderLeft: "1px solid rgba(255,255,255,.25)", minWidth: 110 }}>
+            <Typography variant="caption" sx={{ color: "rgba(255,255,255,.7)", display: "block" }}>Πόλη</Typography>
+            <Typography fontWeight={800}>{customer.city || "—"}</Typography>
+          </Box>
+        </Stack>
         {canManageCustomer && (
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
             {tab === 0 && <Button startIcon={<EditIcon />} variant="contained" color="success" sx={{ color: "#fff", fontWeight: 800 }} onClick={() => setShowEditor(true)}>
