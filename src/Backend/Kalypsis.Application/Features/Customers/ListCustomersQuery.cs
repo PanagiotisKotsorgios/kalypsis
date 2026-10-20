@@ -80,13 +80,70 @@ public class ListCustomersQueryHandler : IRequestHandler<ListCustomersQuery, IRe
             q = q.Where(c => c.Status == request.Status.Value);
 
         var take = Math.Clamp(request.Limit ?? 200, 1, 5000);
-        return await q
+        var rows = await q
             .OrderByDescending(c => c.CreatedAt)
             .Take(take)
             .Select(c => new CustomerDto(
                 c.Id, c.CustomerNumber, c.Type, c.Status, c.FirstName, c.LastName,
                 c.CompanyName, c.VatNumber, c.Email, c.Phone, c.City, c.Notes, c.CreatedAt,
-                _db.Users.Any(u => u.CustomerId == c.Id && u.DeletedAt == null), c.PaymentDueDate))
+                _db.Users.Any(u => u.CustomerId == c.Id && u.DeletedAt == null), c.PaymentDueDate)
+            {
+                // The list only returns the additional values required by its filters.
+                // Sensitive profile-only identifiers (AMKA, identity/passport, licence)
+                // remain confined to the single-customer endpoint.
+                BirthDate = c.BirthDate,
+                AltPhone = c.AltPhone,
+                MobilePhone = c.MobilePhone,
+                TagsJson = c.TagsJson,
+                UpdatedAt = c.UpdatedAt,
+                ChildrenCount = _db.CustomerRelationships.Count(r => r.CustomerId == c.Id
+                    && r.RelationshipType == Kalypsis.Domain.Entities.CustomerRelationshipType.Child
+                    && r.DeletedAt == null),
+                HasPolicy = _db.Policies.Any(p => p.CustomerId == c.Id && p.DeletedAt == null),
+                HasGdprConsent = _db.ConsentRecords.Any(x => x.CustomerId == c.Id
+                    && x.Type == ConsentType.PrivacyNotice && x.Granted && x.RevokedAt == null
+                    && x.DeletedAt == null),
+                HasMarketingConsent = _db.ConsentRecords.Any(x => x.CustomerId == c.Id
+                    && (x.Type == ConsentType.EmailMarketing || x.Type == ConsentType.SmsMarketing
+                        || x.Type == ConsentType.PhoneMarketing || x.Type == ConsentType.ViberMarketing)
+                    && x.Granted && x.RevokedAt == null && x.DeletedAt == null),
+                HasCommunicationConsent = _db.ConsentRecords.Any(x => x.CustomerId == c.Id
+                    && (x.Type == ConsentType.EmailMarketing || x.Type == ConsentType.SmsMarketing
+                        || x.Type == ConsentType.PhoneMarketing || x.Type == ConsentType.ViberMarketing)
+                    && x.Granted && x.RevokedAt == null && x.DeletedAt == null),
+                HasNeedsForm = _db.ConsentRecords.Any(x => x.CustomerId == c.Id
+                    && x.Type == ConsentType.IddDemandsAndNeeds && x.Granted && x.RevokedAt == null
+                    && x.DeletedAt == null)
+                    || _db.CustomerFormSignings.Any(x => x.CustomerId == c.Id
+                        && x.FormCode.Contains("needs") && x.DeletedAt == null)
+            })
             .ToListAsync(cancellationToken);
+
+        if (rows.Count == 0) return rows;
+
+        var customerIdsForRows = rows.Select(x => x.Id).ToArray();
+        var producerLinks = await _db.Policies
+            .Where(p => customerIdsForRows.Contains(p.CustomerId) && p.DeletedAt == null
+                && p.ProducerId != null && p.Producer != null && p.Producer.DeletedAt == null)
+            .Select(p => new { p.CustomerId, ProducerId = p.ProducerId!.Value, p.Producer!.Name })
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        var producerLinksByCustomer = producerLinks
+            .GroupBy(x => x.CustomerId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.GroupBy(x => x.ProducerId)
+                    .Select(x => new { Id = x.Key, Name = x.Select(link => link.Name).First() })
+                    .OrderBy(x => x.Name)
+                    .ToArray());
+
+        return rows.Select(row => producerLinksByCustomer.TryGetValue(row.Id, out var producers)
+            ? row with
+            {
+                ProducerIds = producers.Select(x => x.Id).ToArray(),
+                ProducerNames = producers.Select(x => x.Name).ToArray()
+            }
+            : row with { ProducerIds = Array.Empty<Guid>(), ProducerNames = Array.Empty<string>() })
+            .ToArray();
     }
 }

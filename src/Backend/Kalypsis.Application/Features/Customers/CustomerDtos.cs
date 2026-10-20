@@ -53,7 +53,16 @@ public record CustomerDto(
     Guid? AssignedAdvisorId = null,
     bool? HasDrivingLicense = null,
     bool? IsDriver = null,
-    bool? IsNewDriver = null);
+    bool? IsNewDriver = null,
+    DateTime? UpdatedAt = null,
+    int ChildrenCount = 0,
+    bool HasPolicy = false,
+    bool HasGdprConsent = false,
+    bool HasMarketingConsent = false,
+    bool HasCommunicationConsent = false,
+    bool HasNeedsForm = false,
+    IReadOnlyList<Guid>? ProducerIds = null,
+    IReadOnlyList<string>? ProducerNames = null);
 
 public record CreateCustomerRequest(
     CustomerType Type,

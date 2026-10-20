@@ -10,7 +10,8 @@
     "typecheck": "tsc -b --noEmit",
     "test:customer-edit": "node --experimental-strip-types --test src/components/customer/customerEditSession.test.mjs src/components/customer/customerInlineFields.test.mjs src/components/customer/customerValidation.test.mjs",
     "test:profile-edit": "node --experimental-strip-types --test --test-concurrency=1 src/components/profile/profileDrafts.test.mjs src/components/profile/profileComponents.test.mjs src/components/profile/recordProfiles.test.mjs",
-    "test:producer-statement": "node --experimental-strip-types --test src/pages/producerStatementNavigation.test.mjs"
+    "test:producer-statement": "node --experimental-strip-types --test src/pages/producerStatementNavigation.test.mjs",
+    "test:customer-filters": "node --experimental-strip-types --test src/pages/customerListFilters.test.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

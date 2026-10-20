@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
-import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
+import { FilterHelp } from "../components/FilterHelp";
 import {
   Alert,
   Box,
@@ -57,30 +57,14 @@ import { ColumnPreferencesButton } from "../components/ColumnPreferencesButton";
 import { TableToolbar, NumberedPager } from "../components/TableToolbar";
 import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import { SearchableTextField } from "../components/SearchableTextField";
-import { QuickFilterBar } from "../components/QuickFilterBar";
-import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
 import { BulkImportDialog, type BulkImportResult } from "../components/BulkImportDialog";
 import { SavedReportsButton } from "../components/SavedReportsButton";
 import { customerDraftErrors, customerFieldError } from "../components/customer/customerValidation";
+import { CustomerDesktopFiltersDialog, CustomerMultiSelect, type CustomerFilterOption } from "../components/customer/CustomerDesktopFilters";
+import { activeCustomerFilterCount, customerMatchesFilters, EMPTY_CUSTOMER_LIST_FILTERS, type CustomerListFilters } from "./customerListFilters";
 
 type CustomerType = "Individual" | "Company";
 type CustomerStatus = "Prospect" | "Active" | "Inactive" | "Churned" | "Blocked";
-const NEED_KINDS = ["Home", "Vehicle", "Health", "Life", "Business", "Travel", "Pet", "Liability", "Cyber", "Other"] as const;
-// Localise the Ανάγκη / περιουσία dropdown values into Greek — the enum
-// names ship straight to the API but the operator sees the label.
-const NEED_KIND_LABEL: Record<string, string> = {
-  Home: "Κατοικία", Vehicle: "Όχημα", Health: "Υγεία", Life: "Ζωή",
-  Business: "Επιχείρηση", Travel: "Ταξίδι", Pet: "Κατοικίδιο",
-  Liability: "Ευθύνη", Cyber: "Cyber", Other: "Άλλο",
-};
-const CUSTOMER_STATUS_LABEL: Record<CustomerStatus, string> = {
-  Prospect: "Πιθανός πελάτης",
-  Active: "Ενεργός",
-  Inactive: "Ανενεργός",
-  Churned: "Απώλεια",
-  Blocked: "Αποκλεισμένος",
-};
-
 interface CustomerDto {
   id: string;
   customerNumber: string;
@@ -124,6 +108,16 @@ interface CustomerDto {
   source?: string | null;
   tagsJson?: string | null;
   photoUrl?: string | null;
+  hasPortalAccount?: boolean;
+  updatedAt?: string | null;
+  childrenCount?: number;
+  hasPolicy?: boolean;
+  hasGdprConsent?: boolean;
+  hasMarketingConsent?: boolean;
+  hasCommunicationConsent?: boolean;
+  hasNeedsForm?: boolean;
+  producerIds?: string[];
+  producerNames?: string[];
   createdAt: string;
 }
 
@@ -145,8 +139,6 @@ interface CustomerAccountSummary {
 }
 
 type CustomerListRow = CustomerDto & { account?: CustomerAccountSummary };
-type PaymentFilter = "all" | "debtors" | "creditors" | "settled" | "overdue" | "good" | "bad" | "unpaid";
-type PaymentWindow = "all" | "last7" | "last30" | "previousWeek" | "previousMonth" | "thisMonth" | "custom";
 
 interface CreateBody {
   type: CustomerType;
@@ -220,13 +212,6 @@ const CUSTOMER_IMPORT_COLUMNS = [
   { key: "paymentDueDate", label: "Ημερομηνία εξόφλησης (YYYY-MM-DD)", example: "2026-12-31" }
 ] as const;
 
-function isoDate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
 function paymentStatus(account?: CustomerAccountSummary): string {
   if (!account) return "—";
   if (account.balance > 0.005) return account.overdueAmount > 0.005 ? "Κακοπληρωτής" : "Οφειλέτης";
@@ -239,14 +224,8 @@ export function CustomersPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
-  const [needKind, setNeedKind] = useState("");
-  const [onlyUninsuredNeeds, setOnlyUninsuredNeeds] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<CustomerStatus | "">("");
-  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>("all");
-  const [paymentWindow, setPaymentWindow] = useState<PaymentWindow>("all");
-  const [paymentFrom, setPaymentFrom] = useState("");
-  const [paymentTo, setPaymentTo] = useState("");
-  const [quickFiltersOpen, setQuickFiltersOpen] = useState(false);
+  const [filters, setFilters] = useState<CustomerListFilters>(() => ({ ...EMPTY_CUSTOMER_LIST_FILTERS }));
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [createStatus, setCreateStatus] = useState<CustomerStatus | null>(null);
   const [createdCustomer, setCreatedCustomer] = useState<{ id: string; label: string } | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<CustomerDto | null>(null);
@@ -254,13 +233,9 @@ export function CustomersPage() {
   const [error, setError] = useState<string | null>(null);
 
   const customersQuery = useQuery({
-    queryKey: ["customers", search, needKind, onlyUninsuredNeeds, statusFilter],
+    queryKey: ["customers", "desktop-parity-filter-list"],
     queryFn: async () =>
       (await api.get<CustomerDto[]>("/customers", { params: {
-        search: search || undefined,
-        needKind: needKind || undefined,
-        onlyUninsuredNeeds: needKind && onlyUninsuredNeeds ? true : undefined,
-        status: statusFilter || undefined,
         limit: 5000
       } })).data
   });
@@ -281,33 +256,10 @@ export function CustomersPage() {
     onError: (err) => setError(extractErrorMessage(err))
   });
 
-  const paymentRange = useMemo(() => {
-    if (paymentWindow === "custom") return { from: paymentFrom || undefined, to: paymentTo || undefined };
-    if (paymentWindow === "all") return { from: undefined, to: undefined };
-    const today = new Date();
-    const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const start = new Date(end);
-    if (paymentWindow === "last7") start.setDate(start.getDate() - 6);
-    if (paymentWindow === "last30") start.setDate(start.getDate() - 29);
-    if (paymentWindow === "thisMonth") start.setDate(1);
-    if (paymentWindow === "previousWeek") {
-      const day = end.getDay() || 7;
-      end.setDate(end.getDate() - day);
-      start.setDate(end.getDate() - 6);
-    }
-    if (paymentWindow === "previousMonth") {
-      start.setMonth(start.getMonth() - 1, 1);
-      end.setDate(0);
-    }
-    return { from: isoDate(start), to: isoDate(end) };
-  }, [paymentWindow, paymentFrom, paymentTo]);
-
   const accountsQuery = useQuery({
-    queryKey: ["customer-accounts", paymentRange.from, paymentRange.to],
+    queryKey: ["customer-accounts", "all-time"],
     retry: false,
     queryFn: async () => (await api.get<CustomerAccountSummary[]>("/customers/accounts", { params: {
-      from: paymentRange.from,
-      to: paymentRange.to,
       onlyDebtors: false,
       onlyCreditors: false,
       onlyOverdue: false
@@ -352,65 +304,38 @@ export function CustomersPage() {
     ...customer,
     account: accountByCustomer.get(customer.id)
   })), [customersQuery.data, accountByCustomer]);
-  const financeFilteredCustomers = useMemo(() => allCustomers.filter(customer => {
-    if (paymentFilter === "all") return true;
-    const account = customer.account;
-    if (!account) return false;
-    switch (paymentFilter) {
-      case "debtors": return account.balance > 0.005;
-      case "creditors": return account.balance < -0.005;
-      case "settled": return Math.abs(account.balance) <= 0.005;
-      case "overdue": return account.overdueAmount > 0.005;
-      case "good": return (account.credits > 0.005 || account.paidInstallments > 0) && account.overdueAmount <= 0.005 && account.latePayments === 0 && account.balance <= 0.005;
-      case "bad": return account.overdueAmount > 0.005 || account.latePayments > 0;
-      case "unpaid": return account.balance > 0.005 && account.credits <= 0.005;
-      default: return true;
-    }
-  }), [allCustomers, paymentFilter]);
-  const debtorCount = allCustomers.filter(c => (c.account?.balance ?? 0) > 0.005).length;
-  const creditorCount = allCustomers.filter(c => (c.account?.balance ?? 0) < -0.005).length;
-  const overdueCount = allCustomers.filter(c => (c.account?.overdueAmount ?? 0) > 0.005).length;
-  const goodPayerCount = allCustomers.filter(c => c.account && (c.account.credits > 0.005 || c.account.paidInstallments > 0) && c.account.overdueAmount <= 0.005 && c.account.latePayments === 0 && c.account.balance <= 0.005).length;
-  const badPayerCount = allCustomers.filter(c => (c.account?.overdueAmount ?? 0) > 0.005 || (c.account?.latePayments ?? 0) > 0).length;
-  const unpaidCount = allCustomers.filter(c => c.account && c.account.balance > 0.005 && c.account.credits <= 0.005).length;
-  const settledCount = allCustomers.filter(c => c.account && Math.abs(c.account.balance) <= 0.005).length;
+  const filteredCustomers = useMemo(() => allCustomers.filter(customer => customerMatchesFilters(customer, filters)), [allCustomers, filters]);
+  const cityOptions = useMemo<CustomerFilterOption[]>(() => Array.from(new Set(allCustomers
+    .map(customer => customer.city?.trim()).filter((city): city is string => Boolean(city))))
+    .sort((a, b) => a.localeCompare(b, "el")).map(city => ({ value: city, label: city })), [allCustomers]);
+  const producerOptions = useMemo<CustomerFilterOption[]>(() => {
+    const options = new Map<string, string>();
+    allCustomers.forEach(customer => customer.producerIds?.forEach((id, index) => options.set(id, customer.producerNames?.[index] ?? id)));
+    return Array.from(options, ([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label, "el"));
+  }, [allCustomers]);
   const table = useTableState<CustomerListRow>({
-    rows: financeFilteredCustomers,
+    rows: filteredCustomers,
     searchableText: (c) => `${c.customerNumber} ${c.firstName ?? ""} ${c.lastName ?? ""} ${c.companyName ?? ""} ${c.vatNumber ?? ""} ${c.email ?? ""} ${c.phone ?? ""} ${c.city ?? ""}`,
     pageSize: 25
   });
   const customers = table.paged;
-  const customerFilterCount = [
-    search, needKind, onlyUninsuredNeeds ? "needs" : "", statusFilter,
-    paymentFilter !== "all" ? paymentFilter : "", paymentWindow !== "all" ? paymentWindow : "",
-    paymentFrom, paymentTo,
-  ].filter(Boolean).length;
+  const customerFilterCount = activeCustomerFilterCount(filters) + (search ? 1 : 0);
   const clearFilters = () => {
     setSearch("");
-    setNeedKind("");
-    setOnlyUninsuredNeeds(false);
-    setStatusFilter("");
-    setPaymentFilter("all");
-    setPaymentWindow("all");
-    setPaymentFrom("");
-    setPaymentTo("");
+    setFilters({ ...EMPTY_CUSTOMER_LIST_FILTERS });
     table.setQuery("");
     table.setPage(1);
   };
-  const savedCustomerFilters = {
-    search, needKind, onlyUninsuredNeeds, statusFilter, paymentFilter,
-    paymentWindow, paymentFrom, paymentTo,
-  };
-  const loadSavedCustomerFilters = (filters: Partial<typeof savedCustomerFilters>) => {
-    setSearch(filters.search ?? "");
-    setNeedKind(filters.needKind ?? "");
-    setOnlyUninsuredNeeds(Boolean(filters.onlyUninsuredNeeds));
-    setStatusFilter((filters.statusFilter ?? "") as CustomerStatus | "");
-    setPaymentFilter((filters.paymentFilter ?? "all") as PaymentFilter);
-    setPaymentWindow((filters.paymentWindow ?? "all") as PaymentWindow);
-    setPaymentFrom(filters.paymentFrom ?? "");
-    setPaymentTo(filters.paymentTo ?? "");
-    table.setQuery(filters.search ?? "");
+  const savedCustomerFilters = { search, ...filters };
+  const loadSavedCustomerFilters = (saved: Partial<typeof savedCustomerFilters>) => {
+    const next = { ...EMPTY_CUSTOMER_LIST_FILTERS } as CustomerListFilters;
+    (Object.keys(next) as (keyof CustomerListFilters)[]).forEach(key => {
+      const value = saved[key];
+      if (value !== undefined) (next as unknown as Record<string, unknown>)[key] = value;
+    });
+    setSearch(saved.search ?? "");
+    setFilters(next);
+    table.setQuery(saved.search ?? "");
     table.setPage(1);
   };
   const customerCols = useColumnPreferences("customers", [
@@ -493,119 +418,35 @@ export function CustomersPage() {
         </Stack>
       </Stack>
 
-      <ResponsiveFilterPanel
-        activeCount={customerFilterCount}
-        title="Φίλτρα πελατών"
-        quickButtonPlacement="external"
-        quickOpen={quickFiltersOpen}
-        onQuickOpenChange={setQuickFiltersOpen}
-        quickFilters={<Stack spacing={1}>
-          <QuickFilterBar
-            activeCount={customerFilterCount}
-            onClear={clearFilters}
-            options={[
-              { key: "all", label: "Όλοι", active: customerFilterCount === 0, onClick: clearFilters },
-              { key: "debtors", label: "Οφειλέτες", count: debtorCount, active: paymentFilter === "debtors", color: "error", onClick: () => setPaymentFilter("debtors") },
-              { key: "creditors", label: "Πιστωτικοί", count: creditorCount, active: paymentFilter === "creditors", color: "info", onClick: () => setPaymentFilter("creditors") },
-              { key: "overdue", label: "Ληξιπρόθεσμοι", count: overdueCount, active: paymentFilter === "overdue", color: "warning", onClick: () => setPaymentFilter("overdue") },
-              { key: "good", label: "Καλοπληρωτές", count: goodPayerCount, active: paymentFilter === "good", color: "success", onClick: () => setPaymentFilter("good") },
-              { key: "bad", label: "Κακοπληρωτές", count: badPayerCount, active: paymentFilter === "bad", color: "error", onClick: () => setPaymentFilter("bad") },
-              { key: "unpaid", label: "Χωρίς καταβολή", count: unpaidCount, active: paymentFilter === "unpaid", onClick: () => setPaymentFilter("unpaid") },
-              { key: "settled", label: "Εξοφλημένοι", count: settledCount, active: paymentFilter === "settled", color: "success", onClick: () => setPaymentFilter("settled") },
-              { key: "last7", label: "Οφειλές 7 ημερών", active: paymentWindow === "last7", onClick: () => setPaymentWindow("last7") },
-              { key: "last30", label: "Οφειλές 30 ημερών", active: paymentWindow === "last30", onClick: () => setPaymentWindow("last30") },
-              { key: "previousWeek", label: "Προηγούμενη εβδομάδα", active: paymentWindow === "previousWeek", onClick: () => setPaymentWindow("previousWeek") },
-              { key: "previousMonth", label: "Προηγούμενος μήνας", active: paymentWindow === "previousMonth", onClick: () => setPaymentWindow("previousMonth") },
-              { key: "thisMonth", label: "Τρέχων μήνας", active: paymentWindow === "thisMonth", onClick: () => setPaymentWindow("thisMonth") },
-            ]}
-          />
-          <FormControlLabel
-            sx={{ mt: 0.5, mx: 0, "& .MuiFormControlLabel-label": { fontSize: "0.82rem", fontWeight: 650 } }}
-            control={<Switch size="small" checked={onlyUninsuredNeeds} disabled={!needKind}
-              onChange={(e) => setOnlyUninsuredNeeds(e.target.checked)} />}
-            label={needKind ? "Μόνο ανάγκες χωρίς κάλυψη" : "Μόνο χωρίς κάλυψη (επιλέξτε πρώτα ανάγκη)"}
-          />
-        </Stack>}
-      >
-        <Stack direction={{ xs: "column", md: "row" }} spacing={0.5}
-          alignItems={{ xs: "stretch", md: "center" }}
-          flexWrap={{ xs: "wrap", md: "nowrap" }} useFlexGap
-          sx={{
-            display: { xs: "flex", md: "grid" },
-            gridTemplateColumns: { md: "repeat(4, minmax(0, 1fr))" },
-            gridAutoFlow: "row",
-            rowGap: { md: 1 },
-            width: "100%",
-            minWidth: 0,
-            overflowX: "hidden",
-            overflowY: "hidden",
-            pt: { xs: 0, md: 1 },
-            pb: { xs: 0, md: 0.25 },
-            "& > .MuiTextField-root, & > .MuiFormControl-root, & > .MuiFormControlLabel-root, & > .MuiBox-root": {
-              flex: { md: "0 0 auto" },
-              minWidth: 0,
-            },
-            "& .MuiInputBase-root": { minHeight: 36 },
-            "& .MuiInputLabel-root": { fontSize: "0.76rem" },
-          }}>
+      <Card variant="outlined" sx={{ mb: 2, p: 1.25, bgcolor: "#EDF2F7", borderColor: "#C8D5E4" }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }} useFlexGap flexWrap="wrap">
           <TextField size="small" label="Αναζήτηση πελατών" value={search}
-            onChange={(e) => { setSearch(e.target.value); table.setQuery(e.target.value); }}
-            placeholder="Όνομα, ΑΦΜ, email, τηλέφωνο ή πόλη"
+            onChange={(e) => { setSearch(e.target.value); table.setQuery(e.target.value); table.setPage(1); }}
+            placeholder="Όνομα, ΑΦΜ, email, τηλέφωνο, κωδικός ή πόλη"
             InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
-            sx={{ minWidth: 0, width: "100%", flex: "1 1 0" }} />
-          <FilterFieldWrap tip="Φιλτράρετε τους πελάτες βάσει ασφαλιστικής ανάγκης ή περιουσιακού στοιχείου.">
-            <SearchableTextField size="small" label="Ανάγκη / περιουσία" value={needKind}
-              onChange={(e) => setNeedKind(e.target.value)} sx={{ minWidth: 0, width: "100%", flex: "1 1 0" }}>
-              <MenuItem value="">Όλες</MenuItem>
-              {NEED_KINDS.map(kind => <MenuItem key={kind} value={kind}>{NEED_KIND_LABEL[kind] ?? kind}</MenuItem>)}
-            </SearchableTextField>
-          </FilterFieldWrap>
-          <SearchableTextField select size="small" label="Κατάσταση" value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as CustomerStatus | "")} sx={{ minWidth: 0, width: "100%", flex: "1 1 0" }}>
-            <MenuItem value="">Όλες</MenuItem>
-            {Object.entries(CUSTOMER_STATUS_LABEL).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
-          </SearchableTextField>
-          <SearchableTextField select size="small" label="Οικονομική εικόνα" value={paymentFilter}
-            onChange={(e) => setPaymentFilter(e.target.value as PaymentFilter)} sx={{ minWidth: 0, width: "100%", flex: "1 1 0" }}>
-            <MenuItem value="all">Όλοι οι πελάτες</MenuItem>
-            <MenuItem value="debtors">Χρωστάνε στο γραφείο</MenuItem>
-            <MenuItem value="unpaid">Χρέος χωρίς καταβολή</MenuItem>
-            <MenuItem value="overdue">Ληξιπρόθεσμοι</MenuItem>
-            <MenuItem value="creditors">Πιστωτικοί</MenuItem>
-            <MenuItem value="good">Καλοπληρωτές</MenuItem>
-            <MenuItem value="bad">Κακοπληρωτές</MenuItem>
-            <MenuItem value="settled">Εξοφλημένοι</MenuItem>
-          </SearchableTextField>
-          <SearchableTextField select size="small" label="Περίοδος οφειλής" value={paymentWindow}
-            onChange={(e) => setPaymentWindow(e.target.value as PaymentWindow)} sx={{ minWidth: 0, width: "100%", flex: "1 1 0" }}>
-            <MenuItem value="all">Όλο το ιστορικό</MenuItem>
-            <MenuItem value="last7">Τελευταίες 7 ημέρες</MenuItem>
-            <MenuItem value="last30">Τελευταίες 30 ημέρες</MenuItem>
-            <MenuItem value="previousWeek">Προηγούμενη εβδομάδα</MenuItem>
-            <MenuItem value="previousMonth">Προηγούμενος μήνας</MenuItem>
-            <MenuItem value="thisMonth">Τρέχων μήνας</MenuItem>
-            <MenuItem value="custom">Δική μου περίοδος</MenuItem>
-          </SearchableTextField>
-          {paymentWindow === "custom" && <>
-            <TextField size="small" type="date" label="Από" value={paymentFrom}
-              onChange={(e) => setPaymentFrom(e.target.value)} InputLabelProps={{ shrink: true }} />
-            <TextField size="small" type="date" label="Έως" value={paymentTo}
-              onChange={(e) => setPaymentTo(e.target.value)} InputLabelProps={{ shrink: true }} />
-          </>}
-          <Button size="small" variant="contained" color="error" startIcon={<FilterAltOffIcon />}
-            onClick={clearFilters} sx={{ minWidth: "auto", px: 1, whiteSpace: "nowrap", color: "common.white" }}>
-            Καθαρισμός φίλτρων
+            sx={{ minWidth: { xs: "100%", md: 260 }, flex: "2 1 300px" }} />
+          <CustomerMultiSelect label="Είδος" values={filters.types} options={[
+            { value: "Individual", label: "Φυσικά πρόσωπα" }, { value: "Company", label: "Νομικά πρόσωπα" }, { value: "Prospect", label: "Πιθανοί πελάτες" },
+          ]} onChange={types => { setFilters({ ...filters, types: types as CustomerListFilters["types"] }); table.setPage(1); }} minWidth={155} />
+          <CustomerMultiSelect label="Πόλη" values={filters.cities} options={cityOptions}
+            onChange={cities => { setFilters({ ...filters, cities }); table.setPage(1); }} minWidth={155} />
+          <CustomerMultiSelect label="Συνεργάτης" values={filters.producerIds} options={producerOptions}
+            onChange={producerIds => { setFilters({ ...filters, producerIds }); table.setPage(1); }} minWidth={175} />
+          <Button variant={activeCustomerFilterCount(filters) > 0 ? "contained" : "outlined"} startIcon={<FilterListIcon />}
+            onClick={() => setFiltersOpen(true)} sx={{ minHeight: 40, whiteSpace: "nowrap" }}>
+            Περισσότερα φίλτρα{activeCustomerFilterCount(filters) > 0 ? ` (${activeCustomerFilterCount(filters)})` : ""}
           </Button>
-          <Box sx={{ gridColumn: { xs: "1", md: "span 2" }, display: "flex", justifyContent: "flex-end", minWidth: 0 }}>
-            <SavedReportsButton
-              compact
-              entity="customers"
-              currentFilters={savedCustomerFilters}
-              onLoad={loadSavedCustomerFilters}
-            />
-          </Box>
+          <SavedReportsButton compact entity="customers" currentFilters={savedCustomerFilters} onLoad={loadSavedCustomerFilters} />
+          {customerFilterCount > 0 && <Button size="small" variant="contained" color="error" startIcon={<FilterAltOffIcon />}
+            onClick={clearFilters} sx={{ minHeight: 40, whiteSpace: "nowrap", color: "common.white" }}>
+            Καθαρισμός
+          </Button>}
         </Stack>
-      </ResponsiveFilterPanel>
+      </Card>
+
+      <CustomerDesktopFiltersDialog open={filtersOpen} filters={filters} cities={cityOptions} producers={producerOptions}
+        activeCount={activeCustomerFilterCount(filters)}
+        onChange={next => { setFilters(next); table.setPage(1); }} onClear={clearFilters} onClose={() => setFiltersOpen(false)} />
 
       {error && (
         <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
@@ -631,7 +472,7 @@ export function CustomersPage() {
         <TableToolbar<CustomerListRow>
           query={search} onQuery={(value) => { setSearch(value); table.setQuery(value); }}
           hideSearch
-          count={financeFilteredCustomers.length} filteredCount={table.filtered.length}
+          count={filteredCustomers.length} filteredCount={table.filtered.length}
           pageSize={table.pageSize} onPageSize={table.setPageSize}
           exportRows={table.filtered}
           exportFileName={`customers-${new Date().toISOString().slice(0, 10)}`}
@@ -648,17 +489,6 @@ export function CustomersPage() {
             { key: "city", label: "Πόλη" }
           ]}
           visibleColumnKeys={customerCols.visibleColumns.map(c => c.key)}
-          rightSlot={
-            <Button
-              size="small"
-              variant={customerFilterCount > 0 ? "contained" : "outlined"}
-              startIcon={<FilterListIcon />}
-              onClick={() => setQuickFiltersOpen(true)}
-              sx={{ whiteSpace: "nowrap" }}
-            >
-              Γρήγορα φίλτρα{customerFilterCount > 0 ? ` (${customerFilterCount})` : ""}
-            </Button>
-          }
         />
       </Box>
       {customersQuery.isLoading ? (
