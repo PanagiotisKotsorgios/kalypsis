@@ -34,15 +34,14 @@ import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import CloseIcon from "@mui/icons-material/Close";
-import FamilyRestroomIcon from "@mui/icons-material/FamilyRestroom";
 import HomeWorkIcon from "@mui/icons-material/HomeWork";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import HealthAndSafetyIcon from "@mui/icons-material/HealthAndSafety";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
 import ContactPhoneIcon from "@mui/icons-material/ContactPhone";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import FolderIcon from "@mui/icons-material/Folder";
-import BarChartIcon from "@mui/icons-material/BarChart";
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
@@ -209,13 +208,11 @@ const CONSENT_TYPES_MARKETING = [
 const COMMUNICATION_KINDS = ["Note", "Phone", "Email", "Meeting", "Sms", "WalkIn"];
 
 const CUSTOMER_PROFILE_TAB_LABELS = [
-  { label: "Επισκόπηση & στοιχεία", icon: <InfoOutlinedIcon fontSize="small" /> },
-  { label: "Συμβόλαια & οχήματα", icon: <DirectionsCarIcon fontSize="small" /> },
-  { label: "Ζημίες & οικονομικά", icon: <AccountBalanceWalletOutlinedIcon fontSize="small" /> },
-  { label: "Επικοινωνία & ειδοποιήσεις", icon: <ContactPhoneIcon fontSize="small" /> },
-  { label: "Επαφές & οικογένεια", icon: <FamilyRestroomIcon fontSize="small" /> },
-  { label: "Έντυπα & προτάσεις", icon: <FolderIcon fontSize="small" /> },
-  { label: "Στατιστικά", icon: <BarChartIcon fontSize="small" /> },
+  { label: "Γενικά", icon: <InfoOutlinedIcon fontSize="small" /> },
+  { label: "Επικοινωνία", icon: <ContactPhoneIcon fontSize="small" /> },
+  { label: "Ασφάλιση & οικονομικά", icon: <DirectionsCarIcon fontSize="small" /> },
+  { label: "Εκκρεμή & ζημιές", icon: <AccountBalanceWalletOutlinedIcon fontSize="small" /> },
+  { label: "Έγγραφα & ιστορικό", icon: <FolderIcon fontSize="small" /> },
 ];
 
 function CustomerProfileTabs({ value, onChange }: { value: number; onChange: (value: number) => void }) {
@@ -302,12 +299,6 @@ export function CustomerDetailPage() {
       onClose={() => navigate("/app/customers")}
       PaperProps={{ sx: { height: { xs: "100vh", md: "calc(100vh - 32px)" }, maxHeight: "none", m: { xs: 0, md: 2 } } }}
     >
-      <DialogTitle sx={{ py: 1.5, borderBottom: 1, borderColor: "divider" }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography fontWeight={800}>Καρτέλα πελάτη</Typography>
-          <Typography variant="caption" color="text.secondary">Προβολή στοιχείων · επεξεργασία μόνο με το κουμπί επεξεργασίας</Typography>
-        </Stack>
-      </DialogTitle>
       <DialogContent dividers sx={{ p: { xs: 1, md: 1.75 }, "& .MuiTypography-root": { lineHeight: 1.25 } }}>
       <Box>
       <Stack
@@ -331,95 +322,80 @@ export function CustomerDetailPage() {
             display: "grid", placeItems: "center", fontSize: 24, fontWeight: 900,
             bgcolor: "rgba(255,255,255,.16)", border: "1px solid rgba(255,255,255,.42)",
           }}>
-            {displayName.trim().charAt(0).toUpperCase() || "Π"}
+            <PersonOutlineIcon sx={{ fontSize: 34 }} />
           </Box>
           <Box sx={{ minWidth: 0 }}>
-            <Typography variant="overline" sx={{ color: "rgba(255,255,255,.72)", letterSpacing: ".08em", lineHeight: 1.1 }}>
-              Κωδικός πελάτη · {customer.customerNumber}
-            </Typography>
             <Typography variant="h4" sx={{ fontWeight: 850, lineHeight: 1.1, overflowWrap: "anywhere" }}>
               {displayName}
             </Typography>
             <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mt: 0.75 }}>
               <Chip
                 size="small"
-                label={customer.type === "Company" ? "Νομικό πρόσωπο" : "Φυσικό πρόσωπο"}
-                sx={{ color: "#fff", bgcolor: "rgba(255,255,255,.16)", border: "1px solid rgba(255,255,255,.3)" }}
-              />
-              <Chip
-                size="small"
                 label={customer.status === "Prospect" ? "Πιθανός πελάτης" : "Ενεργός πελάτης"}
-                sx={{ color: "#fff", bgcolor: customer.status === "Prospect" ? "rgba(245,158,11,.82)" : "rgba(21,155,89,.82)" }}
+                clickable={canManageCustomer}
+                disabled={statusMutation.isPending}
+                onClick={() => canManageCustomer && statusMutation.mutate(customer.status === "Prospect" ? "Active" : "Prospect")}
+                sx={{ color: "#fff", bgcolor: customer.status === "Prospect" ? "rgba(245,158,11,.82)" : "rgba(21,155,89,.82)", "&.Mui-disabled": { color: "#fff", opacity: .82 } }}
               />
             </Stack>
           </Box>
         </Stack>
         <Stack direction="row" spacing={1.25} useFlexGap flexWrap="wrap" sx={{ alignItems: "stretch" }}>
+          <Box sx={{ pl: 1.25, borderLeft: "1px solid rgba(255,255,255,.25)", minWidth: 140 }}>
+            <Typography variant="caption" sx={{ color: "rgba(255,255,255,.7)", display: "block" }}>Κωδικός πελάτη</Typography>
+            <Typography fontWeight={800}>{customer.customerNumber}</Typography>
+          </Box>
           <Box sx={{ pl: 1.25, borderLeft: "1px solid rgba(255,255,255,.25)", minWidth: 110 }}>
             <Typography variant="caption" sx={{ color: "rgba(255,255,255,.7)", display: "block" }}>ΑΦΜ</Typography>
             <Typography fontWeight={800}>{customer.vatNumber || "—"}</Typography>
           </Box>
-          <Box sx={{ pl: 1.25, borderLeft: "1px solid rgba(255,255,255,.25)", minWidth: 110 }}>
-            <Typography variant="caption" sx={{ color: "rgba(255,255,255,.7)", display: "block" }}>Πόλη</Typography>
-            <Typography fontWeight={800}>{customer.city || "—"}</Typography>
+          <Box sx={{ pl: 1.25, borderLeft: "1px solid rgba(255,255,255,.25)", minWidth: 150 }}>
+            <Typography variant="caption" sx={{ color: "rgba(255,255,255,.7)", display: "block" }}>Εξωτερικός κωδικός</Typography>
+            <Typography fontWeight={800}>—</Typography>
           </Box>
         </Stack>
-        {canManageCustomer && (
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
-            {tab === 0 && <Button startIcon={<EditIcon />} variant="contained" color="success" sx={{ color: "#fff", fontWeight: 800 }} onClick={() => setShowEditor(true)}>
-              Επεξεργασία πελάτη
-            </Button>}
-            {tab === 0 && showEditor && (
-              <>
-                <Button
-                  startIcon={<SaveIcon />}
-                  variant="contained"
-                  color="primary"
-                  disabled={!editorSave || editorSaving}
-                  onClick={() => editorSave?.()}
-                  sx={{ color: "#fff", fontWeight: 800 }}
-                >
-                  {editorSaving ? "Αποθήκευση..." : "Αποθήκευση"}
-                </Button>
-                <Button
-                  startIcon={<CloseIcon />}
-                  variant="contained"
-                  color="error"
-                  onClick={() => { setShowEditor(false); setEditorSave(null); setEditorSaving(false); }}
-                  sx={{ color: "#fff", fontWeight: 800 }}
-                >
-                  Ακύρωση επεξεργασίας
-                </Button>
-              </>
-            )}
-            <Button
-              variant={customer.status === "Prospect" ? "contained" : "outlined"}
-              color={customer.status === "Prospect" ? "success" : "warning"}
-              disabled={statusMutation.isPending}
-              onClick={() => statusMutation.mutate(customer.status === "Prospect" ? "Active" : "Prospect")}
-            >
-              {customer.status === "Prospect" ? "Μετατροπή σε πελάτη" : "Ορισμός ως πιθανός"}
-            </Button>
-          </Stack>
-        )}
       </Stack>
 
       <CustomerProfileTabs value={tab} onChange={changeProfileTab} />
 
       {showEditor && tab === 0 && <CustomerEditorDialog open customer={customer} onClose={() => { setShowEditor(false); setEditorSave(null); setEditorSaving(false); }} onSaveReady={registerEditorSave} />}
       {tab === 0 && !showEditor && <OverviewTab customer={customer} />}
-      {tab === 1 && <Stack spacing={3}><CustomerPoliciesTab customerId={id} /><CustomerVehiclesTab customerId={id} /></Stack>}
-      {tab === 2 && <Stack spacing={3}><CustomerClaimsTab customerId={id} /><CustomerAccountTab customerId={id} /></Stack>}
-      {tab === 3 && <Stack spacing={3}><CommunicationsTab customerId={id} /><CustomerNotificationsTab customerId={id} /></Stack>}
-      {tab === 4 && <Stack spacing={0.75}><ContactsTab customerId={id} customerType={customer.type} /><FamilyNeedsTab customerId={id} /></Stack>}
-      {tab === 5 && <Stack spacing={3}><GdprActionsTab customerId={id} /><InsuranceOpportunitiesTab customerId={id} /></Stack>}
-      {tab === 6 && <CustomerStatisticsTab customerId={id} />}
+      {tab === 1 && <Stack spacing={2}><CommunicationsTab customerId={id} /><CustomerNotificationsTab customerId={id} /><ContactsTab customerId={id} customerType={customer.type} /><FamilyNeedsTab customerId={id} /></Stack>}
+      {tab === 2 && <Stack spacing={2}><CustomerPoliciesTab customerId={id} /><CustomerVehiclesTab customerId={id} /><CustomerAccountTab customerId={id} /><CustomerProducersSummary customerId={id} /></Stack>}
+      {tab === 3 && <Stack spacing={2}><CustomerClaimsTab customerId={id} /><InsuranceOpportunitiesTab customerId={id} /></Stack>}
+      {tab === 4 && <Stack spacing={2}><GdprActionsTab customerId={id} /><CustomerStatisticsTab customerId={id} /></Stack>}
       </Box>
       </DialogContent>
-      <DialogActions sx={{ borderTop: 1, borderColor: "divider" }}>
-        <Button component={RouterLink} to="/app/customers" color="error" variant="contained" startIcon={<CloseIcon />} sx={{ color: "#fff", fontWeight: 800 }}>
-          Κλείσιμο καρτέλας
-        </Button>
+      <DialogActions sx={{ borderTop: 1, borderColor: "divider", px: { xs: 1, md: 1.5 }, py: 1, gap: 1, flexWrap: "wrap", justifyContent: "space-between" }}>
+        <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0, flex: "1 1 280px" }}>
+          <InfoOutlinedIcon fontSize="small" color="info" />
+          <Typography variant="caption" color="text.secondary">
+            Η οικονομική εικόνα υπολογίζεται από τις κινήσεις της εφαρμογής.
+          </Typography>
+        </Stack>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={0.75} sx={{ flex: "0 0 auto" }}>
+          {canManageCustomer && !showEditor && (
+            <Button startIcon={<EditIcon />} variant="contained" color="success" onClick={() => { setTab(0); setShowEditor(true); }} sx={{ color: "#fff", fontWeight: 800 }}>
+              Επεξεργασία πελάτη
+            </Button>
+          )}
+          {canManageCustomer && showEditor && (
+            <>
+              <Button startIcon={<SaveIcon />} variant="contained" color="primary" disabled={!editorSave || editorSaving} onClick={() => editorSave?.()} sx={{ color: "#fff", fontWeight: 800 }}>
+                {editorSaving ? "Αποθήκευση..." : "Αποθήκευση"}
+              </Button>
+              <Button startIcon={<CloseIcon />} variant="contained" color="error" onClick={() => { setShowEditor(false); setEditorSave(null); setEditorSaving(false); }} sx={{ color: "#fff", fontWeight: 800 }}>
+                Ακύρωση επεξεργασίας
+              </Button>
+            </>
+          )}
+          <Button startIcon={<ContactPhoneIcon />} variant="contained" color="primary" onClick={() => setTab(1)} sx={{ color: "#fff", fontWeight: 800 }}>
+            Επικοινωνία
+          </Button>
+          <Button component={RouterLink} to="/app/customers" color="error" variant="contained" startIcon={<CloseIcon />} sx={{ color: "#fff", fontWeight: 800 }}>
+            Κλείσιμο
+          </Button>
+        </Stack>
       </DialogActions>
     </Dialog>
   );
@@ -1144,6 +1120,10 @@ function OverviewTab({ customer }: { customer: CustomerDto }) {
     const text = value.trim();
     return !text || text === "—" || text === "-" || text === "0 από 4" || /^(Δεν |Χωρίς )/i.test(text);
   };
+  // The desktop client card is intentionally a dense, two-column field sheet.
+  // Keep the richer calculations above for backwards compatibility, but render
+  // the same compact field order and controls used by the installed desktop app.
+  return <DesktopCustomerFields customer={customer} />;
   return (
     <Stack spacing={0.75}>
       {groups.map(group => <Card key={group.title} variant="outlined" sx={{ p: { xs: 0.75, md: 1 }, bgcolor: "rgba(248,250,252,0.92)", borderColor: "rgba(100,116,139,0.2)", borderRadius: 1.5 }}>
@@ -1197,6 +1177,112 @@ function OverviewTab({ customer }: { customer: CustomerDto }) {
       <CustomerProducersSummary customerId={customer.id} />
       <CustomerVehiclesTab customerId={customer.id} compact />
     </Stack>
+  );
+}
+
+type DesktopCustomerField = {
+  label: string;
+  key?: keyof CustomerDto;
+  value?: string | null;
+  displayValue?: React.ReactNode;
+  type?: "text" | "date" | "email" | "number";
+  options?: InlineValueOption[];
+};
+
+function DesktopCustomerFields({ customer }: { customer: CustomerDto }) {
+  const qc = useQueryClient();
+  const inlineUpdate = useMutation({
+    mutationFn: async ({ key, value }: { key: keyof CustomerDto; value: string }) =>
+      (await api.put<CustomerDto>(`/customers/${customer.id}`, customerInlinePayload(customer, key, value))).data,
+    onSuccess: updated => {
+      qc.setQueryData(["customer", customer.id], updated);
+      void qc.invalidateQueries({ queryKey: ["customer", customer.id] });
+      void qc.invalidateQueries({ queryKey: ["customers"] });
+    },
+  });
+  const dash = "—";
+  const dateTime = customer.createdAt ? new Date(customer.createdAt).toLocaleString("el-GR", { dateStyle: "short", timeStyle: "short" }) : dash;
+  const contactMethod = customer.email ? "e-mail" : customer.phone || customer.mobilePhone ? "Τηλέφωνο" : dash;
+  const typeLabel = customer.type === "Company" ? "Νομικό πρόσωπο" : "Φυσικό πρόσωπο";
+  const statusLabel = ({ Prospect: "Πιθανός πελάτης", Active: "Ενεργός πελάτης", Inactive: "Ανενεργός", Churned: "Απώλεια", Blocked: "Αποκλεισμένος" } as Record<string, string>)[customer.status] ?? customer.status;
+  const typeOptions: InlineValueOption[] = [
+    { value: "Individual", label: "Φυσικό πρόσωπο" },
+    { value: "Company", label: "Νομικό πρόσωπο" },
+  ];
+  const statusOptions: InlineValueOption[] = [
+    { value: "Prospect", label: "Πιθανός πελάτης" },
+    { value: "Active", label: "Ενεργός πελάτης" },
+    { value: "Inactive", label: "Ανενεργός" },
+    { value: "Churned", label: "Απώλεια" },
+    { value: "Blocked", label: "Αποκλεισμένος" },
+  ];
+  const left: DesktopCustomerField[] = [
+    { label: "Κωδ. πελάτη", value: customer.customerNumber },
+    { label: "ΑΦΜ", key: "vatNumber", value: customer.vatNumber },
+    { label: "Επώνυμο", key: "lastName", value: customer.lastName },
+    { label: "Όνομα", key: "firstName", value: customer.firstName },
+    { label: "Διεύθυνση", key: "address", value: customer.address },
+    { label: "Περιοχή", key: "region", value: customer.region },
+    { label: "Πόλη", key: "city", value: customer.city },
+    { label: "Τηλέφωνο", key: "phone", value: customer.phone },
+    { label: "Κινητό τηλ.", key: "mobilePhone", value: customer.mobilePhone },
+    { label: "Επάγγελμα", key: "occupation", value: customer.occupation },
+    { label: "Διεύθυνση εργασίας", key: "employer", value: customer.employer },
+    { label: "Κατηγορία επαγγέλματος", key: "activityCode", value: customer.activityCode },
+    { label: "Νομός / περιφέρεια", value: customer.region },
+    { label: "Ζώνη", key: "zone", value: customer.zone },
+    { label: "Ταχ. κώδικας", key: "postalCode", value: customer.postalCode },
+    { label: "Σημ. πελάτη", key: "notes", value: customer.notes },
+  ];
+  const right: DesktopCustomerField[] = [
+    { label: "Ημ. δημιουργίας", value: dateTime },
+    { label: "Ημ. ενημέρωσης", value: dash },
+    { label: "Εξωτερικός κωδικός", value: dash },
+    { label: "Δ.Ο.Υ.", key: "taxOffice", value: customer.taxOffice },
+    { label: "Αριθ. ταυτότητας", key: "idNumber", value: customer.idNumber },
+    { label: "Τρόπος επικοινωνίας", value: contactMethod },
+    { label: "e-mail", key: "email", value: customer.email, type: "email" },
+    { label: "e-mail 2", value: dash },
+    { label: "Επώνυμο στην κλήση", value: customer.lastName },
+    { label: "Όνομα στην κλήση", value: customer.firstName },
+    { label: "Τύπος προσώπου", key: "type", value: customer.type, displayValue: typeLabel, options: typeOptions },
+    { label: "Επωνυμία νομ. προσώπου", key: "companyName", value: customer.companyName },
+    { label: "ΑΜΚΑ", key: "amka", value: customer.amka },
+    { label: "Κέντρο επιρροής", value: dash },
+    { label: "Κατάσταση", key: "status", value: customer.status, displayValue: statusLabel, options: statusOptions },
+  ];
+
+  const renderField = (field: DesktopCustomerField) => {
+    const stored = field.key ? customer[field.key] : field.value;
+    const raw = typeof stored === "string" || typeof stored === "number" ? stored : stored == null ? "" : String(stored);
+    const display = field.displayValue ?? (field.value || dash);
+    return (
+      <Box key={field.label} sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(112px, .38fr) minmax(0, 1fr)", sm: "140px minmax(0, 1fr)" }, alignItems: "center", minHeight: 36, gap: .65 }}>
+        <Typography variant="caption" sx={{ color: "#506783", fontWeight: 700, lineHeight: 1.15, pr: .35 }}>{field.label}</Typography>
+        <InlineValueField
+          label={field.label}
+          value={raw}
+          copyValue={typeof display === "string" || typeof display === "number" ? display : raw}
+          displayValue={display}
+          options={field.options}
+          type={field.type}
+          valueColor="#193653"
+          compact
+          hideLabel
+          showActions
+          onCommit={field.key ? value => { inlineUpdate.mutate({ key: field.key!, value }); } : undefined}
+        />
+      </Box>
+    );
+  };
+
+  return (
+    <Box sx={{ bgcolor: "#edf3f9", border: "1px solid #d6e3f0", borderRadius: 1.5, p: { xs: .75, md: 1 }, overflow: "auto", maxHeight: "calc(100vh - 250px)" }}>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(0, 1fr) minmax(0, 1fr)" }, columnGap: { xs: 0, lg: 1.5 }, alignItems: "start" }}>
+        <Stack spacing={.25}>{left.map(renderField)}</Stack>
+        <Stack spacing={.25}>{right.map(renderField)}</Stack>
+      </Box>
+    </Box>
   );
 }
 

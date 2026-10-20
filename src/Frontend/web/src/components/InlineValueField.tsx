@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
-import { Box, MenuItem, TextField, Typography } from "@mui/material";
+import { Box, IconButton, MenuItem, TextField, Tooltip, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 
 export interface InlineValueOption {
   value: string;
@@ -26,6 +28,8 @@ interface InlineValueFieldProps {
   hideLabel?: boolean;
   /** Use the surrounding surface's spacing (tables/detail rows). */
   plain?: boolean;
+  /** Render the desktop-style copy and edit controls on the right. */
+  showActions?: boolean;
 }
 
 /**
@@ -52,6 +56,7 @@ export function InlineValueField({
   compact = false,
   hideLabel = false,
   plain = false,
+  showActions = false,
 }: InlineValueFieldProps) {
   const raw = value === null || value === undefined ? "" : String(value);
   const clipboardText = copyValue === null || copyValue === undefined ? raw : String(copyValue);
@@ -160,6 +165,8 @@ export function InlineValueField({
       {!hideLabel && <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: compact ? ".64rem" : ".68rem", lineHeight: 1.1, mb: .2 }}>
         {label}
       </Typography>}
+      <Box sx={{ display: "flex", alignItems: "center", gap: .35, minWidth: 0 }}>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
       {editing ? (
         options ? (
           <TextField
@@ -201,6 +208,34 @@ export function InlineValueField({
           {copied && <CheckCircleIcon sx={{ fontSize: 15, color: "success.main", flexShrink: 0 }} />}
         </Typography>
       )}
+      </Box>
+      {showActions && (
+        <Box sx={{ display: "flex", flex: "0 0 auto", gap: .25 }} onClick={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
+          <Tooltip title={copied ? "Αντιγράφηκε" : "Αντιγραφή"}>
+            <IconButton
+              size="small"
+              aria-label={`Αντιγραφή ${label}`}
+              onClick={() => void copy()}
+              disabled={editing || !clipboardText.trim()}
+              sx={{ width: 30, height: 30, borderRadius: .5, color: "#087ceB", bgcolor: "#e7f3fc", border: "1px solid #b6d6ed", "&:hover": { bgcolor: "#d1e9f8" } }}
+            >
+              <ContentCopyOutlinedIcon sx={{ fontSize: 17 }} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={onCommit || onRequestEdit ? "Επεξεργασία" : "Μη επεξεργάσιμο"}>
+            <IconButton
+              size="small"
+              aria-label={`Επεξεργασία ${label}`}
+              onClick={beginEdit}
+              disabled={disabled || (!onCommit && !onRequestEdit)}
+              sx={{ width: 30, height: 30, borderRadius: .5, color: "#936a00", bgcolor: "#fff6dc", border: "1px solid #e4c96b", "&:hover": { bgcolor: "#ffefb8" } }}
+            >
+              <EditOutlinedIcon sx={{ fontSize: 17 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      )}
+      </Box>
     </Box>
   );
 }
