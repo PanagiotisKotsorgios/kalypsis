@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createServer } from "vite";
+import { readFile } from "node:fs/promises";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 test("card-wide editing uses the existing field controls without autofocus or editable read-only values", async () => {
@@ -41,36 +42,33 @@ test("card-wide editing uses the existing field controls without autofocus or ed
     // Load the actual General sheet, not a duplicate test-only implementation.
     globalThis.sessionStorage ??= { getItem: () => null, setItem() {}, removeItem() {} };
     globalThis.localStorage ??= { getItem: () => null, setItem() {}, removeItem() {} };
-    const { DesktopCustomerFields, CUSTOMER_MISC_FIELD_KEYS, CustomerProfileTabs } = await server.ssrLoadModule("/src/pages/CustomerDetailPage.tsx");
+    const { DesktopCustomerFields, CustomerProfileTabs } = await server.ssrLoadModule("/src/pages/CustomerDetailPage.tsx");
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const customer = { id: "test", customerNumber: "C-TEST", type: "Individual", status: "Active", firstName: "Δοκιμή" };
     const editing = { editAll: false, drafts: {}, saving: false, canEdit: true, onDraftChange() {}, async onCommitField() {} };
     try {
       const general = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(DesktopCustomerFields, { customer, editing })));
-      const expected = ["birthDate", "gender", "nationality", "fatherName", "occupation", "mobilePhone", "hasDrivingLicense", "isDriver", "isNewDriver"];
+      const expected = ["birthDate", "gender", "nationality", "fatherName", "occupation", "mobilePhone", "hasDrivingLicense", "isDriver", "isNewDriver",
+        "taxOffice", "passportNumber", "maritalStatus", "spouseName", "motherName", "gemiNumber", "legalForm", "notes",
+        "driverLicenseNumber", "driverLicenseClass", "driverLicenseIssueDate", "driverLicenseExpiryDate"];
       for (const field of expected) assert.equal(general.split(`data-customer-field="${field}"`).length - 1, 1, `${field} must appear once in General`);
-      const misc = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(DesktopCustomerFields, { customer, editing, section: "other" })));
-      for (const field of CUSTOMER_MISC_FIELD_KEYS) {
-        assert.equal(misc.split(`data-customer-field="${field}"`).length - 1, 1, `${field} must appear once in Other`);
-        assert.equal(general.includes(`data-customer-field="${field}"`), false);
-      }
-      for (const markup of [general, misc]) assert.equal(markup.includes('data-customer-field="paymentDueDate"'), false);
+      for (const removedField of ["activityCode", "employer", "source", "tagsJson", "photoUrl", "zone"]) assert.equal(general.includes(`data-customer-field="${removedField}"`), false, removedField);
+      assert.equal(general.includes('data-customer-field="paymentDueDate"'), false);
       assert.equal(general.includes("Προφίλ και οικογενειακή κατάσταση"), false);
       const editable = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(DesktopCustomerFields, { customer, editing: { ...editing, editAll: true } })));
       for (const field of expected) assert.equal(editable.includes(`data-customer-field="${field}"`), true);
       assert.equal(editable.includes("Αποθήκευση Ηλικία"), false);
-      const otherEditable = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(DesktopCustomerFields, { customer, editing: { ...editing, editAll: true }, section: "other" })));
-      assert.equal(otherEditable.includes("Αποθήκευση Λήξη διπλώματος"), true);
+      assert.equal(editable.includes("Αποθήκευση Λήξη διπλώματος"), true);
       assert.equal(editable.includes("Αποθήκευση Έχει δίπλωμα"), true);
       const tabs = renderToStaticMarkup(createElement(CustomerProfileTabs, { value: 0, onChange() {} }));
       assert.equal(tabs.includes("Ζημιές"), false);
-      assert.equal(tabs.includes("Λοιπά"), true);
+      assert.equal(tabs.includes("Λοιπά"), false);
       const other = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(DesktopCustomerFields, { customer, editing, fieldKeys: [] })));
       assert.equal(other.includes("Δεν έχουν οριστεί ακόμη πεδία"), true);
       assert.equal(other.includes("data-customer-field="), false);
-      const subset = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(DesktopCustomerFields, { customer, editing, fieldKeys: ["zone", "source"] })));
-      assert.equal(subset.includes('data-customer-field="zone"'), true);
-      assert.equal(subset.includes('data-customer-field="source"'), true);
+      const subset = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(DesktopCustomerFields, { customer, editing, fieldKeys: ["taxOffice", "passportNumber"] })));
+      assert.equal(subset.includes('data-customer-field="taxOffice"'), true);
+      assert.equal(subset.includes('data-customer-field="passportNumber"'), true);
       assert.equal(subset.includes('data-customer-field="firstName"'), false);
       const { AuditFieldChanges } = await server.ssrLoadModule("/src/components/audit/AuditFieldChanges.tsx");
       const history = renderToStaticMarkup(createElement(AuditFieldChanges, { changes: [{ field: "Phone", label: "Τηλέφωνο", before: "2101234567", after: "2109876543", beforeRecorded: true, afterRecorded: true }] }));
@@ -80,6 +78,9 @@ test("card-wide editing uses the existing field controls without autofocus or ed
       assert.equal(total.includes('aria-label="Συμβόλαια"'), true);
       assert.equal(total.includes("min-height:36px"), true);
       assert.equal(total.includes("MuiTypography-h6"), false);
+      const customersSource = await readFile(new URL("../../pages/CustomersPage.tsx", import.meta.url), "utf8");
+      const exportSection = customersSource.slice(customersSource.indexOf("exportColumns={["), customersSource.indexOf("visibleColumnKeys="));
+      assert.equal(exportSection.includes("paymentDueDate"), false);
     } finally { client.clear(); }
   } finally { await server.close(); }
 });

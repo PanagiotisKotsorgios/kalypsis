@@ -43,7 +43,6 @@ import ContactPhoneIcon from "@mui/icons-material/ContactPhone";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import FolderIcon from "@mui/icons-material/Folder";
 import BarChartIcon from "@mui/icons-material/BarChart";
-import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import { CustomerCommunicationManager, CustomerHistory, CustomerObligations, CustomerPopup } from "../components/customer/CustomerWorkspace";
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 import { SearchableSelect } from "../components/SearchableSelect";
@@ -217,7 +216,6 @@ const CUSTOMER_PROFILE_TAB_LABELS = [
   { label: "Εκκρεμή", icon: <InfoOutlinedIcon fontSize="small" /> },
   { label: "Έγγραφα", icon: <FolderIcon fontSize="small" /> },
   { label: "Ιστορικό", icon: <HistoryIcon fontSize="small" /> },
-  { label: "Λοιπά", icon: <MoreHorizIcon fontSize="small" /> },
 ];
 
 export function CustomerProfileTabs({ value, onChange }: { value: number; onChange: (value: number) => void }) {
@@ -464,7 +462,6 @@ export function CustomerDetailPage() {
       {tab === 7 && <CustomerTabLayout>
         <CustomerHistory customerId={id} />
       </CustomerTabLayout>}
-      {tab === 8 && <DesktopCustomerFields customer={customer} editing={fieldEditing} section="other" />}
       </Box>
       </DialogContent>
       <DialogActions sx={{ borderTop: 1, borderColor: "divider", px: { xs: .75, md: 1.25 }, py: .55, gap: .65, flexWrap: "wrap", justifyContent: "space-between", "& .MuiButton-root": { minHeight: 32, px: { xs: .9, md: 1.1 }, fontSize: { xs: ".72rem", md: ".78rem" } } }}>
@@ -1148,15 +1145,8 @@ interface CustomerFieldEditing {
   onCommitField: (key: keyof CustomerDto, value: string) => Promise<void>;
 }
 
-export const CUSTOMER_MISC_FIELD_KEYS = [
-  "activityCode", "employer", "notes", "taxOffice", "passportNumber", "maritalStatus", "spouseName", "motherName",
-  "gemiNumber", "legalForm", "source", "tagsJson", "photoUrl", "zone", "driverLicenseNumber", "driverLicenseClass",
-  "driverLicenseIssueDate", "driverLicenseExpiryDate",
-] as const satisfies readonly (keyof CustomerDto)[];
-const miscellaneousFields = new Set<string>(CUSTOMER_MISC_FIELD_KEYS);
-
 export function DesktopCustomerFields({ customer, section = "general", editing, fieldKeys }: {
-  customer: CustomerDto; section?: "general" | "contact" | "other"; editing: CustomerFieldEditing;
+  customer: CustomerDto; section?: "general" | "contact"; editing: CustomerFieldEditing;
   /** Reuse the exact same controls for a selected subset without duplicating field metadata. */
   fieldKeys?: readonly (keyof CustomerDto)[];
 }) {
@@ -1197,8 +1187,6 @@ export function DesktopCustomerFields({ customer, section = "general", editing, 
     { label: "Τηλέφωνο", key: "phone", value: customer.phone },
     { label: "Κινητό τηλ.", key: "mobilePhone", value: customer.mobilePhone },
     { label: "Επάγγελμα / κλάδος", key: "occupation", value: customer.occupation },
-    { label: "Εργοδότης / επιχείρηση", key: "employer", value: customer.employer },
-    { label: "Κωδ. δραστηριότητας", key: "activityCode", value: customer.activityCode },
     { label: "Ταχ. κώδικας", key: "postalCode", value: customer.postalCode },
     { label: "Σημ. πελάτη", key: "notes", value: customer.notes },
   ];
@@ -1247,11 +1235,13 @@ export function DesktopCustomerFields({ customer, section = "general", editing, 
     { label: "Μητρώνυμο", key: "motherName", value: customer.motherName },
     { label: "Σύζυγος / σύντροφος", key: "spouseName", value: customer.spouseName },
     { label: "ΓΕΜΗ", key: "gemiNumber", value: customer.gemiNumber },
-    { label: "Νομική μορφή", key: "legalForm", value: customer.legalForm },
-    { label: "Πηγή", key: "source", value: customer.source },
-    { label: "Ετικέτες", key: "tagsJson", value: customer.tagsJson },
-    { label: "URL φωτογραφίας", key: "photoUrl", value: customer.photoUrl },
-    { label: "Ζώνη", key: "zone", value: customer.zone },
+    { label: "Νομική μορφή", key: "legalForm", value: customer.legalForm,
+      options: [
+        { value: "", label: "Δεν έχει οριστεί" }, { value: "Ατομική επιχείρηση", label: "Ατομική επιχείρηση" },
+        { value: "Ο.Ε.", label: "Ο.Ε." }, { value: "Ε.Ε.", label: "Ε.Ε." }, { value: "Ι.Κ.Ε.", label: "Ι.Κ.Ε." },
+        { value: "Ε.Π.Ε.", label: "Ε.Π.Ε." }, { value: "Α.Ε.", label: "Α.Ε." },
+        { value: "Σωματείο / σύλλογος", label: "Σωματείο / σύλλογος" }, { value: "Άλλη", label: "Άλλη" },
+      ] },
     { label: "Αριθμός διπλώματος", key: "driverLicenseNumber", value: customer.driverLicenseNumber },
     { label: "Κατηγορία διπλώματος", key: "driverLicenseClass", value: customer.driverLicenseClass,
       options: [{ value: "", label: "Δεν έχει οριστεί" }, ...["ΑΜ", "Α1", "Α2", "Α", "Β", "ΒΕ", "Γ", "ΓΕ", "Δ", "ΔΕ"].map(value => ({ value, label: value }))] },
@@ -1259,11 +1249,11 @@ export function DesktopCustomerFields({ customer, section = "general", editing, 
     { label: "Λήξη διπλώματος", key: "driverLicenseExpiryDate", value: customer.driverLicenseExpiryDate, type: "date" },
   ];
 
-  // Both tabs use the same metadata, controls, drafts and save workflow.
+  // All customer identity, tax, family and driving information now lives in
+  // General. This avoids a second catch-all tab and keeps one edit workflow.
   const allGeneralFields = [...left, ...right, ...additional];
   const generalFields = fieldKeys !== undefined ? allGeneralFields.filter(field => field.key && fieldKeys.includes(field.key))
-    : section === "other" ? CUSTOMER_MISC_FIELD_KEYS.flatMap(key => allGeneralFields.filter(field => field.key === key))
-    : allGeneralFields.filter(field => !field.key || !miscellaneousFields.has(field.key));
+    : allGeneralFields;
   const columnCount = wide ? 3 : 2;
   const columnSize = Math.ceil(generalFields.length / columnCount);
   const columns = section === "contact" ? [contactLeft, contactRight]
@@ -1304,7 +1294,7 @@ export function DesktopCustomerFields({ customer, section = "general", editing, 
   return (
     <Box sx={{ bgcolor: "#edf3f9", border: "1px solid #d6e3f0", borderRadius: 1.25, p: { xs: .5, md: .75 }, minHeight: 0, overflow: section !== "contact" ? "auto" : "visible", flexShrink: section !== "contact" ? 1 : 0 }}>
       {fieldKeys?.length === 0 && <Typography role="status" variant="body2" color="text.secondary" sx={{ p: 1 }}>
-        Δεν έχουν οριστεί ακόμη πεδία για την ενότητα «Λοιπά».
+        Δεν έχουν οριστεί ακόμη πεδία για αυτή την ενότητα.
       </Typography>}
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))", lg: `repeat(${section !== "contact" ? 3 : 2}, minmax(0, 1fr))` }, columnGap: { xs: 0, md: 1 }, alignItems: "start" }}>
         {columns.map((fields, index) => <Stack key={index} spacing={.25}>{fields.map(renderField)}</Stack>)}

@@ -107,6 +107,15 @@ test("production profiles reuse client fields, pencil/save actions and compact t
     assert.equal(companySource.includes('label="Κωδικός από γέφυρα"'), true);
     for (const removed of ["Κλάδος / τύπος συμβολαίου (προαιρετικό)", "Κατηγορία χρήσης οχήματος (προαιρετικό)", "Γονικός κωδικός"]) assert.equal(companySource.includes(`label="${removed}"`), false, removed);
     assert.equal(companySource.includes('>Τελευταίες επικοινωνίες ({communications.length})</Button>'), true);
+    for (const heading of ["Ημερομηνία", "Κανάλι", "Κατεύθυνση", "Επαφή", "Θέμα / σημείωση"]) assert.equal(companySource.includes(`<TableCell>${heading}</TableCell>`), true, heading);
+    assert.equal(companySource.includes('label="Αναζήτηση" placeholder="Θέμα, επαφή, email, τηλέφωνο…"'), true);
+    assert.equal(companySource.includes('aria-label={`Προεπισκόπηση ${document.fileName}`}'), true);
+    assert.equal(companySource.includes('title={`Προεπισκόπηση ${previewDocument.fileName}`}'), true);
+    for (const field of ["Διεύθυνση", "Πόλη", "Τ.Κ.", "Σύμβαση με ασφαλιστική εταιρεία", "Ημερομηνία λήξης σύμβασης"]) assert.equal(companySource.includes(`["${field}"`), true, field);
+    assert.equal(companySource.includes("Διαχείριση προσαρμόσιμων πεδίων"), true);
+    assert.equal(companySource.includes("Νέο προσαρμόσιμο πεδίο"), true);
+    assert.equal(companySource.includes('label="Εμφάνιση στο tab"'), true);
+    assert.equal(companySource.includes("predefinedFields"), false);
     assert.equal(companySource.includes('label: "Έγγραφα & πεδία"'), true);
     assert.equal(companySource.includes('label: "Έγγραφα"'), true);
     assert.equal(companySource.includes('label: "Πεδία"'), true);

@@ -346,7 +346,6 @@ export function CustomersPage() {
     { key: "phone",  label: "Τηλέφωνο" },
     { key: "notes",  label: "Σημειώσεις" },
     { key: "balance", label: "Υπόλοιπο / πληρωμές" },
-    { key: "paymentDueDate", label: "Ημ. εξόφλησης" },
     { key: "paymentStatus", label: "Συμπεριφορά πληρωμών" },
     { key: "city",   label: "Πόλη", defaultVisible: false },
   ]);
@@ -482,7 +481,6 @@ export function CustomersPage() {
             { key: "phone", label: "Τηλέφωνο" },
             { key: "notes", label: "Σημειώσεις" },
             { key: "balance", label: "Υπόλοιπο / πληρωμές", map: (r) => r.account?.balance ?? null },
-            { key: "paymentDueDate", label: "Ημ. εξόφλησης", map: (r) => r.account?.paymentDueDate ?? null },
             { key: "paymentStatus", label: "Συμπεριφορά πληρωμών", map: (r) => paymentStatus(r.account) },
             { key: "city", label: "Πόλη" }
           ]}

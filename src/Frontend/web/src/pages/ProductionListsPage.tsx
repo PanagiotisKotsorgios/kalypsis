@@ -519,7 +519,7 @@ export function ProductionListsPage() {
 
   return (
     <Box>
-      <Stack direction="row" alignItems="center" spacing={2} mb={3} flexWrap="wrap" gap={2}>
+      <Stack direction="row" alignItems="center" spacing={2} mb={1.25} flexWrap="wrap" gap={1}>
         <Stack direction="row" alignItems="center" spacing={2}>
           <StackedBarChartIcon sx={{ fontSize: 36 }} color="primary" />
           <Box>
@@ -571,6 +571,7 @@ export function ProductionListsPage() {
           f.coverCode, f.packageCode, f.status,
         ].filter(Boolean).length}
         title="Φίλτρα λίστας παραγωγής"
+        cardSx={{ py: .85, mb: 1.25 }}
         quickButtonPlacement="external"
         quickOpen={quickFiltersOpen}
         onQuickOpenChange={setQuickFiltersOpen}
@@ -593,10 +594,6 @@ export function ProductionListsPage() {
           ]}
         />}
       >
-        <Stack direction="row" alignItems="center" spacing={1} mb={1}>
-          <FilterAltIcon color="primary" fontSize="small" />
-          <Typography fontWeight={700} variant="body2">{t("productionList.filters")}</Typography>
-        </Stack>
         {/* Compact grid — 6 columns on lg, 3 on md. Same ? position unchanged
             (next to the page title above). */}
         <Box sx={{ display: "grid", gap: .85, alignItems: "start", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(3, 1fr)", lg: "repeat(6, 1fr)" } }}>

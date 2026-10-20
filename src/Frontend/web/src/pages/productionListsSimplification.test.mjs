@@ -13,6 +13,8 @@ test("production list keeps a single green coverage action and removes redundant
   assert.match(source, /key: "cover"[\s\S]*?variant="contained"[\s\S]*?color="success"[\s\S]*?>\s*Καλύψεις\s*<\/Button>/);
   assert.match(source, /onClick=\{\(\) => setCoveragePolicyId\(r\.policyId\)\}/);
   assert.match(source, /open=\{coveragePolicyId !== null\}/);
+  assert.equal(source.includes('t("productionList.filters")'), false);
+  assert.equal(source.includes('<FilterAltIcon color="primary" fontSize="small" />'), false);
 });
 
 test("document folders page and legacy route no longer exist", async () => {
