@@ -120,7 +120,11 @@ public record PolicyDetailDto(
     decimal ProducerOutstanding = 0m,
     decimal AgencyCommissionExpected = 0m,
     decimal AgencyCommissionReceived = 0m,
-    decimal AgencyCommissionOutstanding = 0m);
+    decimal AgencyCommissionOutstanding = 0m,
+    // Raw carrier mappings are needed for lossless, single-field profile edits.
+    string? CarrierBranchCode = null,
+    string? CarrierPackageCode = null,
+    string? CarrierCoverageCode = null);
 
 public record GetPolicyDetailQuery(Guid Id) : IRequest<PolicyDetailDto>;
 
@@ -442,7 +446,10 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
             Math.Max(0m, producerDue - producerPaid),
             agencyExpected,
             agencyReceived,
-            Math.Max(0m, agencyExpected - agencyReceived));
+            Math.Max(0m, agencyExpected - agencyReceived),
+            p.CarrierBranchCode,
+            p.CarrierPackageCode,
+            p.CarrierCoverageCode);
     }
 }
 

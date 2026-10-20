@@ -1,27 +1,28 @@
-import { isValidElement, useEffect, useMemo, useState } from "react";
+import { DetailProfileTabs } from "./profile/DetailProfileTabs";
+import { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback, profileFieldGridSx, useProfileFieldEditor, type ProfileFieldSession } from "./profile/ProfileFieldEditor";
+import { POLICY_CORE_KEYS, policyCorePayload, policyPreservedAmounts } from "./profile/policyProfile";
+import { createContext, useContext, Children, isValidElement, useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   Divider, Drawer, FormControlLabel, IconButton, MenuItem,
-  Stack, Switch, Tab, Tabs, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
+  Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow, TextField as MuiTextField, Typography
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import EditIcon from "@mui/icons-material/Edit";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
-import SaveIcon from "@mui/icons-material/Save";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { EntityAuditTimeline } from "./EntityAuditTimeline";
 import { PropagateChangesDialog, type PropagatableChanges } from "./PropagateChangesDialog";
-import { SearchableSelect } from "./SearchableSelect";
+import { SearchableSelect as OriginalSearchableSelect } from "./SearchableSelect";
 import { VehicleDetailDialog } from "../pages/CustomerVehiclesPage";
 import { contractDurationLabel } from "../utils/contractDuration";
-import { InlineValueField } from "./InlineValueField";
+import EditIcon from "@mui/icons-material/Edit";
 
 // Mirrors PolicyDetailDto from the backend (see PolicyDetailQuery.cs).
 export interface PolicyDetail {
@@ -79,6 +80,9 @@ export interface PolicyDetail {
   // Bridge-supplied Προμήθεια Γραφείου — summed from FinancialMovements
   // created at import time. Null on policies that never touched a bridge.
   bridgeAgencyCommissionAmount: number | null;
+  carrierBranchCode?: string | null;
+  carrierPackageCode?: string | null;
+  carrierCoverageCode?: string | null;
 }
 
 export interface PolicyCoverRow {
@@ -185,7 +189,6 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   const [tab, setTab] = useState(0);
   const [err, setErr] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-  const [editing, setEditing] = useState(false);
   const [modalTab, setModalTab] = useState(0);
   const [changeProducerOpen, setChangeProducerOpen] = useState(false);
   const [customerPreviewOpen, setCustomerPreviewOpen] = useState(false);
@@ -208,7 +211,6 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
     if (open) {
       setModalTab(0);
       setTab(0);
-      setEditing(false);
     }
   }, [open, policyId]);
 
@@ -217,7 +219,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   // duplicate API flow is introduced.
   useEffect(() => {
     if (!open || readOnly) return;
-    const openEditor = () => setEditing(true);
+    const openEditor = () => session.begin();
     window.addEventListener("kalypsis:policy-edit-request", openEditor);
     return () => window.removeEventListener("kalypsis:policy-edit-request", openEditor);
   }, [open, readOnly]);
@@ -358,7 +360,8 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   // «apply to other contracts of this customer» prompt afterwards.
   const [propagateChanges, setPropagateChanges] = useState<PropagatableChanges | null>(null);
   const save = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (override?: Partial<typeof form>) => {
+      const next = { ...form, ...override };
       const before = {
         paymentFrequency: q.data?.paymentFrequency,
         specialCommissionPercent: q.data?.specialCommissionPercent,
@@ -367,31 +370,33 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
         paymentCollectionMethod: q.data?.paymentCollectionMethod,
       };
       const saved = (await api.put<PolicyDetail>(`/policies/${policyId}/extended`, {
-        paymentFrequency: form.paymentFrequency,
-        premiumIncludesVat: form.premiumIncludesVat,
-        specialCommissionPercent: form.specialCommissionPercent ? Number(form.specialCommissionPercent) : null,
-        specsJson: form.specsJson || null,
-        nextRenewalDate: form.nextRenewalDate || null,
-        renewalTransferToProducerId: form.renewalTransferToProducerId || null,
-        renewalTransferToCarrierId: form.renewalTransferToCarrierId || null,
-        retainCommissionsOnRenewal: form.retainCommissionsOnRenewal,
-        retainDocumentNumberOnRenewal: form.retainDocumentNumberOnRenewal,
-        retainSpecialCommissionsOnRenewal: form.retainSpecialCommissionsOnRenewal,
-        renewalInstructions: form.renewalInstructions || null,
-        deliveredAt: form.deliveredAt || null,
-        deliveredTo: form.deliveredTo || null,
-        deliveryMethod: form.deliveryMethod || null,
-        paymentCollectionMethod: form.paymentCollectionMethod || null,
-        paidDirectlyToCarrier: form.paidDirectlyToCarrier,
-        applicationNumber: form.applicationNumber.trim() || null,
-        contractPartyCustomerId: form.contractPartyCustomerId || null,
-        previousInsuranceCompanyId: form.previousInsuranceCompanyId || null,
-        issuedAt: form.issuedAt || null,
-        vehicleRegistrationPlate: form.vehicleRegistrationPlate.trim() || null,
-        driverVatNumber: form.driverVatNumber.trim() || null,
-        reasonForCirculation: form.reasonForCirculation.trim() || null,
-        specialLevelPercentsJson: form.specialLevelPercentsJson.trim() || null
+        ...policyPreservedAmounts({ ...(qc.getQueryData<PolicyDetail>(["policy-detail", policyId]) ?? q.data) }),
+        paymentFrequency: next.paymentFrequency,
+        premiumIncludesVat: next.premiumIncludesVat,
+        specialCommissionPercent: next.specialCommissionPercent ? Number(next.specialCommissionPercent) : null,
+        specsJson: next.specsJson || null,
+        nextRenewalDate: next.nextRenewalDate || null,
+        renewalTransferToProducerId: next.renewalTransferToProducerId || null,
+        renewalTransferToCarrierId: next.renewalTransferToCarrierId || null,
+        retainCommissionsOnRenewal: next.retainCommissionsOnRenewal,
+        retainDocumentNumberOnRenewal: next.retainDocumentNumberOnRenewal,
+        retainSpecialCommissionsOnRenewal: next.retainSpecialCommissionsOnRenewal,
+        renewalInstructions: next.renewalInstructions || null,
+        deliveredAt: next.deliveredAt || null,
+        deliveredTo: next.deliveredTo || null,
+        deliveryMethod: next.deliveryMethod || null,
+        paymentCollectionMethod: next.paymentCollectionMethod || null,
+        paidDirectlyToCarrier: next.paidDirectlyToCarrier,
+        applicationNumber: next.applicationNumber.trim() || null,
+        contractPartyCustomerId: next.contractPartyCustomerId || null,
+        previousInsuranceCompanyId: next.previousInsuranceCompanyId || null,
+        issuedAt: next.issuedAt || null,
+        vehicleRegistrationPlate: next.vehicleRegistrationPlate.trim() || null,
+        driverVatNumber: next.driverVatNumber.trim() || null,
+        reasonForCirculation: next.reasonForCirculation.trim() || null,
+        specialLevelPercentsJson: next.specialLevelPercentsJson.trim() || null
       })).data;
+      qc.setQueryData(["policy-detail", policyId], saved);
       // Diff the fields that map to propagatable ones.
       const diff: PropagatableChanges = {};
       if (saved.paymentFrequency !== before.paymentFrequency)
@@ -409,7 +414,6 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
     onSuccess: (diff) => {
       void qc.invalidateQueries({ queryKey: ["policy-detail", policyId] });
       void qc.invalidateQueries({ queryKey: ["policies"] });
-      if (modalPresentation) setEditing(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
       // Trigger the propagation prompt only when at least one propagatable
@@ -487,6 +491,50 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
+  const session = useProfileFieldEditor({
+    sessionKey: open ? policyId ?? "" : "", values: {
+      ...Object.fromEntries(Object.keys(form).map(key => [key, String(q.data?.[key as keyof PolicyDetail] ?? "")])),
+      ...Object.fromEntries(POLICY_CORE_KEYS.map(key => [key, String(q.data?.[key as keyof PolicyDetail] ?? "")])),
+      policyType: q.data?.carrierBranchCode || q.data?.policyType || "",
+    }, onClose, refresh: () => { void qc.invalidateQueries({ queryKey: ["policy-detail", policyId] }); void qc.invalidateQueries({ queryKey: ["policies"] }); },
+    write: async (changes, accept) => {
+      if (readOnly || !q.data) throw new Error("Δεν επιτρέπεται η επεξεργασία συμβολαίου.");
+      if (!Object.keys(changes).length) return;
+      const core = Object.fromEntries(Object.entries(changes).filter(([key]) => POLICY_CORE_KEYS.some(field => field === key)));
+      if (Object.keys(core).length) {
+        const current = (await api.get<PolicyDetail>("/policies/" + policyId + "/detail")).data;
+        // The list DTO omits taxes and carrier mappings; only the full detail is lossless.
+        await api.put("/policies/" + policyId, policyCorePayload({ ...current,
+          policyType: current.carrierBranchCode || current.policyType,
+          vehicleUseCategory: current.vehicleUseCategory || current.carrierUseCode,
+          coverCode: current.carrierCoverageCode, packageCode: current.carrierPackageCode,
+        }, core));
+        // Cache the full detail, not a partial list DTO, before the next independent write.
+        qc.setQueryData(["policy-detail", policyId], (await api.get<PolicyDetail>("/policies/" + policyId + "/detail")).data);
+        accept(Object.keys(core));
+      }
+      const extended = Object.fromEntries(Object.entries(changes).filter(([key]) => !POLICY_CORE_KEYS.some(field => field === key)));
+      if (Object.keys(extended).length) {
+        const override: Record<string, string | boolean> = {};
+        for (const [key, value] of Object.entries(extended)) {
+          if (!(key in form)) throw new Error("Μη υποστηριζόμενο πεδίο συμβολαίου.");
+          if (typeof form[key as keyof typeof form] === "boolean") {
+            if (!["true", "false"].includes(value)) throw new Error("Επιλέξτε Ναι ή Όχι.");
+            override[key] = value === "true";
+          } else override[key] = value;
+          if (["specsJson", "specialLevelPercentsJson"].includes(key) && value.trim()) {
+            try { JSON.parse(value); } catch { throw new Error("Συμπληρώστε έγκυρα δομημένα στοιχεία JSON."); }
+          }
+        }
+        // Merge against fresh detail after a core save so untouched values cannot be overwritten by a stale form.
+        const current = qc.getQueryData<PolicyDetail>(["policy-detail", policyId]) ?? q.data;
+        const baseline = Object.fromEntries(Object.keys(form).map(key => [key, typeof form[key as keyof typeof form] === "boolean" ? Boolean(current[key as keyof PolicyDetail]) : String(current[key as keyof PolicyDetail] ?? "")]));
+        await save.mutateAsync({ ...baseline, ...override } as Partial<typeof form>); accept(Object.keys(extended));
+      }
+    }
+  });
+  const editing = session.editAll;
+
   const p = q.data;
 
   // Drawer is user-resizable from its left edge — same UX as the app
@@ -530,7 +578,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   const canEdit = !readOnly && (!modalPresentation || editing);
 
   return (
-    <Drawer anchor="right" open={open} onClose={onClose}
+    <PolicyFieldsContext.Provider value={{session, readOnly}}><Drawer anchor="right" open={open} onClose={session.requestClose}
       transitionDuration={modalPresentation ? 0 : undefined}
       ModalProps={modalPresentation ? { sx: { zIndex: 1600 } } : undefined}
       PaperProps={{ sx: modalPresentation ? {
@@ -563,37 +611,13 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
       />
       <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
         {/* Sticky header */}
-        <Box sx={{ p: modalPresentation ? 1.5 : 2.5, borderBottom: "1px solid", borderColor: "divider", bgcolor: "background.paper" }}>
+        <Box sx={{ px: 1.25, py: .9, borderBottom: "1px solid", borderColor: "divider", bgcolor: "#edf3f9" }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between" mb={modalPresentation ? .75 : 1}>
             <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: "0.04em", textTransform: "uppercase", fontWeight: 700 }}>
               {t("policyDetail.header")}
             </Typography>
             <Stack direction="row" spacing={.75} alignItems="center">
-              {modalPresentation && !readOnly && !editing && (
-                <Button
-                  size="small"
-                  variant="contained"
-                  color="success"
-                  startIcon={<EditIcon />}
-                  onClick={() => setEditing(true)}
-                  sx={{ color: "#fff", fontWeight: 800, borderRadius: 1.5, boxShadow: 2, "&:hover": { color: "#fff", bgcolor: "success.dark" } }}
-                >
-                  Επεξεργασία
-                </Button>
-              )}
-              {modalPresentation && !readOnly && editing && (
-                <Button
-                  size="small"
-                  variant="contained"
-                  color="error"
-                  startIcon={<CloseIcon />}
-                  onClick={() => { setEditing(false); if (q.data) resetFormFromPolicy(q.data); }}
-                  sx={{ color: "#fff", fontWeight: 800, borderRadius: 1.5, "&:hover": { color: "#fff", bgcolor: "error.dark" } }}
-                >
-                  Ακύρωση επεξεργασίας
-                </Button>
-              )}
-              <IconButton size="small" onClick={onClose}><CloseIcon /></IconButton>
+              <IconButton size="small" onClick={session.requestClose}><CloseIcon /></IconButton>
             </Stack>
           </Stack>
           {q.isLoading ? <CircularProgress size={20} /> : p ? (
@@ -606,32 +630,6 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
               <Typography color="text.secondary" sx={{ mt: 0.5 }}>
                 {p.customerDisplay} · {p.insuranceCompanyName}
               </Typography>
-              <Stack direction="row" spacing={modalPresentation ? 1.5 : 3} mt={modalPresentation ? 1 : 2} flexWrap="wrap" useFlexGap>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">{t("policyDetail.premium")}</Typography>
-                  <Typography fontWeight={700}>{p.premium.toFixed(2)} {p.currency}</Typography>
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">{t("policyDetail.received")}</Typography>
-                  <Typography fontWeight={700} color="success.main">{p.totalReceived.toFixed(2)}</Typography>
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">{t("policyDetail.outstanding")}</Typography>
-                  <Typography fontWeight={700} color={p.outstanding > 0 ? "error.main" : "text.primary"}>
-                    {p.outstanding.toFixed(2)}
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">Διάρκεια</Typography>
-                  <Typography fontWeight={700}>{contractDurationLabel(p.startDate, p.endDate)}</Typography>
-                </Box>
-                {!readOnly && (
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">{t("policyDetail.commissions")}</Typography>
-                    <Typography fontWeight={700}>{p.totalCommissions.toFixed(2)}</Typography>
-                  </Box>
-                )}
-              </Stack>
               {p.documentCount === 0 && (
                 <Alert severity="warning" sx={{ mt: 1.25, py: .25, fontWeight: 700, "& .MuiAlert-message": { py: .25 }, "& .MuiAlert-action": { alignItems: "center", py: 0 } }} action={
                   <Button color="inherit" size="small" onClick={() => selectTab(modalPresentation ? 4 : 8)}>
@@ -650,318 +648,56 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
             stacked), Ιστορικό + Επικοινωνία collapsed into "Δραστηριότητα"
             (audit timeline + comms feed one under the other). Fewer tabs
             = less mental load per policy for the operator. */}
-        <Tabs
-          value={modalPresentation ? modalTab : tab}
-          onChange={(_, value) => modalPresentation ? selectTab(value) : setTab(value)}
-          variant={modalPresentation ? "standard" : "scrollable"}
-          sx={modalPresentation ? {
-            position: "sticky",
-            top: 0,
-            zIndex: 4,
-            mx: 0,
-            my: 0,
-            mb: 2,
-            px: .5,
-            py: .5,
-            border: "1px solid #263238",
-            borderRadius: 2,
-            bgcolor: "background.paper",
-            boxShadow: "0 3px 10px rgba(15,23,42,.12)",
-            overflow: "visible",
-            "& .MuiTabs-scroller": { overflow: "visible !important" },
-            "& .MuiTabs-flexContainer": { gap: .75, flexWrap: "wrap" },
-            "& .MuiTabs-indicator": { display: "none" },
-            "& .MuiTab-root": {
-              minHeight: 54,
-              minWidth: { xs: 132, md: 168 },
-              flex: { xs: "1 1 45%", sm: "0 1 auto" },
-              px: 1.5,
-              py: .75,
-              border: "1px solid #263238",
-              borderRadius: 1.5,
-              background: "linear-gradient(180deg, #e5e7eb 0%, #b8c0c8 100%) !important",
-              color: "#111827 !important",
-              borderColor: "#263238 !important",
-              opacity: "1 !important",
-              textTransform: "none",
-              fontWeight: 750,
-              fontSize: { xs: ".82rem", md: ".9rem" },
-              lineHeight: 1.25,
-              boxShadow: "inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(15,23,42,.12)",
-              transition: "background .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease",
-              "&:hover": {
-                background: "linear-gradient(180deg, #d4d8de 0%, #9ca6b1 100%) !important",
-                borderColor: "#111827 !important",
-                color: "#0b2545 !important",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,.65), 0 2px 5px rgba(15,23,42,.18)",
-              },
-              "&.Mui-selected": {
-                background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important",
-                borderColor: "#062f63 !important",
-                color: "#fff !important",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,.28), 0 3px 8px rgba(6,47,99,.35)",
-              },
-              // aria-selected is kept as a second selector because the
-              // nested drawer can be rendered inside another Tabs surface.
-              // It guarantees the active contract tab is visibly blue.
-              "&[aria-selected=\"true\"]": {
-                background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important",
-                borderColor: "#062f63 !important",
-                color: "#fff !important",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,.28), 0 3px 8px rgba(6,47,99,.35)",
-              },
-              "&.contract-tab-active": {
-                background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important",
-                borderColor: "#062f63 !important",
-                color: "#fff !important",
-                opacity: "1 !important",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,.28), 0 3px 8px rgba(6,47,99,.35)",
-              },
-              "&.Mui-selected:hover": { background: "linear-gradient(135deg, #084d91 0%, #042b54 100%) !important", color: "#fff !important" },
-              "& .MuiSvgIcon-root": { color: "inherit" },
-            },
-          } : {
-            px: 1,
-            borderBottom: "1px solid",
-            borderColor: "divider",
-            "& .MuiTab-root": { minHeight: 42, py: .5 },
-          }}
-        >
-          {modalPresentation ? <>
-            <Tab value={0} className={modalTab === 0 ? "contract-tab-active" : undefined} onClick={() => selectTab(0)} sx={modalTab === 0 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<InfoOutlinedIcon fontSize="small" />} iconPosition="start" label="Σύνοψη" />
-            <Tab value={1} className={modalTab === 1 ? "contract-tab-active" : undefined} onClick={() => selectTab(1)} sx={modalTab === 1 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<AccountBalanceWalletOutlinedIcon fontSize="small" />} iconPosition="start" label="Οικονομικά" />
-            <Tab value={2} className={modalTab === 2 ? "contract-tab-active" : undefined} onClick={() => selectTab(2)} sx={modalTab === 2 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<DescriptionOutlinedIcon fontSize="small" />} iconPosition="start" label="Στοιχεία συμβολαίου" />
-            <Tab value={3} className={modalTab === 3 ? "contract-tab-active" : undefined} onClick={() => selectTab(3)} sx={modalTab === 3 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<ReceiptLongOutlinedIcon fontSize="small" />} iconPosition="start" label="Κινήσεις" />
-            <Tab value={4} className={modalTab === 4 ? "contract-tab-active" : undefined} onClick={() => selectTab(4)} sx={modalTab === 4 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<HistoryOutlinedIcon fontSize="small" />} iconPosition="start" label="Έγγραφα & ιστορικό" />
-          </> : <>
-            <Tab label={t("policyDetail.tab.summary")} />
-            <Tab label={t("policyDetail.tab.financials")} />
-            <Tab label={t("policyDetail.tab.parties")} />
-            <Tab label={t("policyDetail.tab.renewal")} />
-            <Tab label={t("policyDetail.tab.delivery")} />
-            <Tab label={`${t("policyDetail.tab.endorsements")} (${p?.endorsementCount ?? 0})`} />
-            <Tab label={`${t("policyDetail.tab.claims")} (${p?.claimCount ?? 0})`} />
-            <Tab label={`${t("policyDetail.tab.receipts")} (${p?.receiptCount ?? 0})`} />
-            <Tab label={`PDF Συμβολαίου (${p?.documentCount ?? 0})`} />
-            <Tab label="Δεδομένα συμβολαίου" />
-            <Tab label="Δόσεις" />
-            <Tab label="Δραστηριότητα" />
-          </>}
-        </Tabs>
+        <DetailProfileTabs value={modalPresentation ? modalTab : tab} onChange={value => modalPresentation ? selectTab(value) : setTab(value)} items={modalPresentation ? [
+          {label:"Γενικά",icon:<InfoOutlinedIcon />}, {label:"Οικονομικά",icon:<AccountBalanceWalletOutlinedIcon />},
+          {label:"Στοιχεία συμβολαίου",icon:<DescriptionOutlinedIcon />}, {label:"Κινήσεις",icon:<ReceiptLongOutlinedIcon />},
+          {label:"Έγγραφα & ιστορικό",icon:<HistoryOutlinedIcon />},
+        ] : [
+          {label:"Γενικά",icon:<InfoOutlinedIcon />}, {label:t("policyDetail.tab.financials"),icon:<AccountBalanceWalletOutlinedIcon />},
+          {label:t("policyDetail.tab.parties"),icon:<PersonOutlineIcon />}, {label:t("policyDetail.tab.renewal"),icon:<DescriptionOutlinedIcon />},
+          {label:t("policyDetail.tab.delivery"),icon:<DescriptionOutlinedIcon />}, {label:t("policyDetail.tab.endorsements"),icon:<DescriptionOutlinedIcon />},
+          {label:t("policyDetail.tab.claims"),icon:<DescriptionOutlinedIcon />}, {label:t("policyDetail.tab.receipts"),icon:<ReceiptLongOutlinedIcon />},
+          {label:"PDF Συμβολαίου",icon:<DescriptionOutlinedIcon />}, {label:"Δεδομένα συμβολαίου",icon:<DescriptionOutlinedIcon />},
+          {label:"Δόσεις",icon:<ReceiptLongOutlinedIcon />}, {label:"Δραστηριότητα",icon:<HistoryOutlinedIcon />},
+        ]} />
 
         {/* Scrollable content */}
         <Box sx={{
           flex: 1, overflowY: "auto", p: modalPresentation ? { xs: 1, md: 1.5 } : 3,
-          ...(readOnly ? { "& button, & input, & textarea, & [role=button]": { pointerEvents: "none" } } : {}),
-          ...(modalPresentation && !editing && !readOnly ? {
-            "& input, & textarea, & .MuiSelect-select, & .MuiSwitch-switchBase": { pointerEvents: "none" },
-            "& .MuiInputBase-root": { bgcolor: "rgba(248,250,252,.86)" },
-          } : {}),
           ...(modalPresentation ? {
             "& .policy-kv": { py: .3, minHeight: 28 },
             "& .MuiDivider-root": { my: .75 },
           } : {}),
         }}>
+          <ProfileEditorFeedback session={session} />
           {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
           {saved && <Alert severity="success" sx={{ mb: 2 }}>{t("common.savedOk")}</Alert>}
 
           {!p ? <CircularProgress /> : (
             <>
               {/* SUMMARY */}
-              {showSummary && modalPresentation && (
-                <Stack spacing={1.25}>
-                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.25 }}>
-                    <PolicySummarySection title="Στοιχεία συμβολαίου">
-                      <PolicySummaryLine label={t("policyDetail.policyNumber")} value={p.policyNumber} mono />
-                      <PolicySummaryLine label={t("policyDetail.policyType")} value={policyTypeLabel(p.policyType)} />
-                      <PolicySummaryLine label={t("policyDetail.status")} value={<Chip size="small" color={STATUS_COLOR[p.status]} label={policyStatusLabel(p.status)} />} />
-                      <PolicySummaryLine label={t("policyDetail.startDate")} value={p.startDate} />
-                      <PolicySummaryLine label={t("policyDetail.endDate")} value={p.endDate} />
-                      <PolicySummaryLine label="Διάρκεια" value={contractDurationLabel(p.startDate, p.endDate)} />
-                      <PolicySummaryLine label={t("policyDetail.createdAt")} value={new Date(p.createdAt).toLocaleString("el-GR")} />
-                      {p.updatedAt && <PolicySummaryLine label={t("policyDetail.updatedAt")} value={new Date(p.updatedAt).toLocaleString("el-GR")} />}
-                      {p.createdByName && <PolicySummaryLine label={t("policyDetail.createdBy")} value={p.createdByName} />}
-                      {p.renewedFromPolicyNumber && <PolicySummaryLine label={t("policyDetail.renewedFrom")} value={p.renewedFromPolicyNumber} mono />}
-                    </PolicySummarySection>
-                    <PolicySummarySection title="Πρόσωπα & σύνδεση">
-                      <PolicySummaryLine label={t("policyDetail.customer")} value={p.customerDisplay} />
-                      {p.customerVat && <PolicySummaryLine label="ΑΦΜ πελάτη" value={p.customerVat} mono />}
-                      <PolicySummaryLine label={t("policyDetail.insurer")} value={p.insuranceCompanyName} />
-                      <PolicySummaryLine label={t("policyDetail.producer")} value={p.producerName ?? "—"} />
-                      <PolicySummaryLine label="Συμβαλλόμενος" value={p.contractPartyDisplay || "Ίδιος με τον ασφαλιζόμενο"} />
-                      <PolicySummaryLine label="Προηγούμενη ασφαλιστική" value={p.previousInsuranceCompanyName || "Δεν αναφέρεται"} />
-                    </PolicySummarySection>
-                  </Box>
-
-                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.25 }}>
-                    <PolicySummarySection title="Οικονομική εικόνα">
-                      <PolicySummaryLine label={t("policyDetail.premium")} value={`${p.premium.toFixed(2)} ${p.currency}`} mono />
-                      {p.netPremium !== null && <PolicySummaryLine label="Καθαρά ασφάλιστρα" value={`${p.netPremium.toFixed(2)} ${p.currency}`} mono />}
-                      {p.vatAmount !== null && <PolicySummaryLine label="Φόρος ασφαλίστρων" value={`${p.vatAmount.toFixed(2)} ${p.currency}`} mono />}
-                      <PolicySummaryLine label={t("policyDetail.received")} value={`${p.totalReceived.toFixed(2)} ${p.currency}`} valueColor="success.dark" mono />
-                      <PolicySummaryLine label={t("policyDetail.outstanding")} value={`${p.outstanding.toFixed(2)} ${p.currency}`} valueColor={p.outstanding > 0 ? "error.dark" : undefined} mono />
-                      {!readOnly && <PolicySummaryLine label={t("policyDetail.commissions")} value={`${p.totalCommissions.toFixed(2)} ${p.currency}`} mono />}
-                    </PolicySummarySection>
-                    <PolicySummarySection title="Καλύψεις & όχημα">
-                      {p.covers.length > 0 ? <CoversBreakdown p={p} /> : <Typography variant="body2" color="text.secondary" sx={{ py: .5 }}>Δεν έχουν καταχωρηθεί αναλυτικές καλύψεις.</Typography>}
-                      {(p.vehicleRegistrationPlate || form.vehicleRegistrationPlate) ? (
-                        <>
-                          <Divider sx={{ my: .75 }} />
-                          {!readOnly && <Button size="small" variant="outlined" color="primary" onClick={() => setVehiclePickerOpen(true)} sx={{ mb: .5 }}>Αλλαγή συνδεδεμένου οχήματος</Button>}
-                          <PolicySummaryLine label="Αρ. κυκλοφορίας" value={form.vehicleRegistrationPlate || p.vehicleRegistrationPlate} mono />
-                          {(form.driverVatNumber || p.driverVatNumber) && <PolicySummaryLine label="ΑΦΜ οδηγού" value={form.driverVatNumber || p.driverVatNumber} mono />}
-                          {(form.reasonForCirculation || p.reasonForCirculation) && <PolicySummaryLine label="Λόγος κυκλοφορίας" value={form.reasonForCirculation || p.reasonForCirculation} />}
-                          <Button size="small" variant="contained" color="primary" onClick={() => setVehiclePreviewOpen(true)} sx={{ mt: .75, color: "#fff", fontWeight: 700 }}>Άνοιγμα πλήρους προφίλ οχήματος</Button>
-                        </>
-                      ) : (
-                        <Stack spacing={.75} sx={{ pt: .5 }}>
-                          {!readOnly && <Button size="small" variant="contained" color="primary" onClick={() => setVehiclePickerOpen(true)} sx={{ alignSelf: "flex-start", color: "#fff", fontWeight: 700 }}>Σύνδεση αποθηκευμένου οχήματος</Button>}
-                          <Typography variant="body2" color="error.dark" fontWeight={650}>Δεν έχει συνδεθεί όχημα.</Typography>
-                          <Button size="small" variant="outlined" color="primary" onClick={() => setVehiclePreviewOpen(true)} sx={{ alignSelf: "flex-start" }}>
-                            Άνοιγμα κενής καρτέλας οχήματος
-                          </Button>
-                        </Stack>
-                      )}
-                    </PolicySummarySection>
-                  </Box>
-
-                  <PolicySummarySection title="Πρόσθετα στοιχεία">
-                    {editing ? (
-                      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: 1 }}>
-                        <TextField fullWidth size="small" label="Αρ. αίτησης" value={form.applicationNumber} onChange={e => setForm({ ...form, applicationNumber: e.target.value })} />
-                        <TextField fullWidth size="small" type="date" label="Ημ. έκδοσης" InputLabelProps={{ shrink: true }} value={form.issuedAt} onChange={e => setForm({ ...form, issuedAt: e.target.value })} />
-                        <TextField fullWidth size="small" label="Αρ. κυκλοφορίας" value={form.vehicleRegistrationPlate} onChange={e => setForm({ ...form, vehicleRegistrationPlate: e.target.value.toUpperCase() })} />
-                        <TextField fullWidth size="small" label="ΑΦΜ οδηγού" value={form.driverVatNumber} onChange={e => setForm({ ...form, driverVatNumber: e.target.value })} />
-                        <TextField fullWidth size="small" label="Λόγος κυκλοφορίας" value={form.reasonForCirculation} onChange={e => setForm({ ...form, reasonForCirculation: e.target.value })} />
-                        <SearchableSelect disabled={!canEdit} label="Συμβαλλόμενος" value={form.contractPartyCustomerId} onChange={v => setForm({ ...form, contractPartyCustomerId: v })} emptyLabel="Ίδιος με τον ασφαλιζόμενο" options={(customersLookup.data ?? []).map(c => ({ value: c.id, label: c.companyName || `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() || "—", hint: c.vatNumber ?? undefined }))} />
-                        <SearchableSelect disabled={!canEdit} label="Προηγούμενη ασφαλιστική" value={form.previousInsuranceCompanyId} onChange={v => setForm({ ...form, previousInsuranceCompanyId: v })} emptyLabel="Δεν αναφέρεται" options={(carriersLookup.data ?? []).map(c => ({ value: c.id, label: c.name, hint: c.code }))} />
-                      </Box>
-                    ) : (
-                      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, columnGap: 2 }}>
-                        <PolicySummaryLine label="Αρ. αίτησης" value={form.applicationNumber || "—"} mono />
-                        <PolicySummaryLine label="Ημ. έκδοσης" value={form.issuedAt || "—"} />
-                        <PolicySummaryLine label="ΑΦΜ οδηγού" value={form.driverVatNumber || "—"} mono />
-                        <PolicySummaryLine label="Λόγος κυκλοφορίας" value={form.reasonForCirculation || "—"} />
-                        <PolicySummaryLine label="Συμβαλλόμενος" value={p.contractPartyDisplay || "Ίδιος με τον ασφαλιζόμενο"} />
-                        <PolicySummaryLine label="Προηγούμενη ασφαλιστική" value={p.previousInsuranceCompanyName || "Δεν αναφέρεται"} />
-                      </Box>
-                    )}
-                  </PolicySummarySection>
-
-                  <PolicySummarySection title="Πληρωμές, παράδοση & ανανέωση">
-                    {editing ? (
-                      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: 1 }}>
-                        <TextField select fullWidth size="small" label="Συχνότητα πληρωμής" value={form.paymentFrequency} onChange={e => setForm({ ...form, paymentFrequency: e.target.value })}>{FREQUENCIES.map(f => <MenuItem key={f} value={f}>{FREQUENCY_LABELS[f] ?? f}</MenuItem>)}</TextField>
-                        <TextField select fullWidth size="small" label="Τρόπος είσπραξης" value={form.paymentCollectionMethod} onChange={e => setForm({ ...form, paymentCollectionMethod: e.target.value })}><MenuItem value="">—</MenuItem>{COLLECTION_METHODS.map(m => <MenuItem key={m} value={m}>{COLLECTION_METHODS_LABEL[m]}</MenuItem>)}</TextField>
-                        <TextField fullWidth size="small" type="date" label="Ημ. παράδοσης" InputLabelProps={{ shrink: true }} value={form.deliveredAt} onChange={e => setForm({ ...form, deliveredAt: e.target.value })} />
-                        <TextField fullWidth size="small" label="Παραδόθηκε σε" value={form.deliveredTo} onChange={e => setForm({ ...form, deliveredTo: e.target.value })} />
-                        <TextField select fullWidth size="small" label="Μέθοδος παράδοσης" value={form.deliveryMethod} onChange={e => setForm({ ...form, deliveryMethod: e.target.value })}><MenuItem value="">—</MenuItem>{DELIVERY_METHODS.map(m => <MenuItem key={m} value={m}>{DELIVERY_METHOD_LABELS[m] ?? m}</MenuItem>)}</TextField>
-                        <TextField fullWidth size="small" type="date" label="Επόμενη ανανέωση" InputLabelProps={{ shrink: true }} value={form.nextRenewalDate} onChange={e => setForm({ ...form, nextRenewalDate: e.target.value })} />
-                        <TextField fullWidth size="small" label="Οδηγίες ανανέωσης" value={form.renewalInstructions} onChange={e => setForm({ ...form, renewalInstructions: e.target.value })} sx={{ gridColumn: { sm: "1 / -1" } }} />
-                        <FormControlLabel control={<Switch checked={form.paidDirectlyToCarrier} onChange={e => setForm({ ...form, paidDirectlyToCarrier: e.target.checked })} />} label="Πληρώθηκε απευθείας στην ασφαλιστική" />
-                        <FormControlLabel control={<Switch checked={form.premiumIncludesVat} onChange={e => setForm({ ...form, premiumIncludesVat: e.target.checked })} />} label="Το ασφάλιστρο περιλαμβάνει φόρο" />
-                      </Box>
-                    ) : (
-                      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, columnGap: 2 }}>
-                        <PolicySummaryLine label="Συχνότητα πληρωμής" value={FREQUENCY_LABELS[form.paymentFrequency] ?? form.paymentFrequency} />
-                        <PolicySummaryLine label="Τρόπος είσπραξης" value={form.paymentCollectionMethod ? (COLLECTION_METHODS_LABEL[form.paymentCollectionMethod] ?? form.paymentCollectionMethod) : "—"} />
-                        <PolicySummaryLine label="Ημ. παράδοσης" value={form.deliveredAt || "—"} />
-                        <PolicySummaryLine label="Μέθοδος παράδοσης" value={form.deliveryMethod ? (DELIVERY_METHOD_LABELS[form.deliveryMethod] ?? form.deliveryMethod) : "—"} />
-                        <PolicySummaryLine label="Επόμενη ανανέωση" value={form.nextRenewalDate || p.nextRenewalDate || "—"} />
-                        <PolicySummaryLine label="Πληρωμή στην ασφαλιστική" value={form.paidDirectlyToCarrier ? "Ναι" : "Όχι"} valueColor={form.paidDirectlyToCarrier ? "success.dark" : undefined} />
-                        {form.renewalInstructions && <PolicySummaryLine label="Οδηγίες ανανέωσης" value={form.renewalInstructions} />}
-                      </Box>
-                    )}
-                  </PolicySummarySection>
+              {showSummary && <Stack spacing={.75}>
+                <PolicyProfileFields session={readOnly ? undefined : session} values={session.values} policy={p}
+                  companies={carriersLookup.data ?? []} customers={customersLookup.data ?? []} />
+                <Stack direction="row" spacing={.75} useFlexGap flexWrap="wrap">
+                  <Button size="small" variant="outlined" onClick={() => setCustomerPreviewOpen(true)}>Καρτέλα πελάτη</Button>
+                  <Button size="small" variant="outlined" onClick={() => setVehiclePreviewOpen(true)}>Καρτέλα οχήματος</Button>
+                  {!readOnly && <Button size="small" variant="outlined" onClick={() => setVehiclePickerOpen(true)}>Σύνδεση οχήματος</Button>}
+                  {!readOnly && <Button size="small" variant="outlined" onClick={() => setChangeProducerOpen(true)}>Αλλαγή συνεργάτη</Button>}
                 </Stack>
-              )}
-              {showSummary && !modalPresentation && (
-                <Stack spacing={modalPresentation ? 1 : 2}>
-                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: modalPresentation ? .5 : 0, ...(modalPresentation ? { p: 1.25, bgcolor: "rgba(248,250,252,.85)", border: "1px solid", borderColor: "divider", borderRadius: 1 } : {}) }}>
-                    {modalPresentation && <Typography variant="subtitle2" fontWeight={800} sx={{ gridColumn: "1 / -1", mb: .25, color: "primary.dark" }}>Στοιχεία συμβολαίου</Typography>}
-                    <KV label={t("policyDetail.policyNumber")} value={p.policyNumber} mono />
-                    <KV label={t("policyDetail.policyType")} value={policyTypeLabel(p.policyType)} />
-                    <KV label={t("policyDetail.status")} value={<Chip size="small" color={STATUS_COLOR[p.status]} label={policyStatusLabel(p.status)} />} />
-                    <KV label={t("policyDetail.startDate")} value={p.startDate} />
-                    <KV label={t("policyDetail.endDate")} value={p.endDate} />
-                    <KV label="Διάρκεια" value={contractDurationLabel(p.startDate, p.endDate)} />
-                  </Box>
-                  <Divider sx={modalPresentation ? { display: "none" } : undefined} />
-                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: modalPresentation ? .5 : 0, ...(modalPresentation ? { p: 1.25, bgcolor: "rgba(248,250,252,.85)", border: "1px solid", borderColor: "divider", borderRadius: 1 } : {}) }}>
-                    {modalPresentation && <Typography variant="subtitle2" fontWeight={800} sx={{ gridColumn: "1 / -1", mb: .25, color: "primary.dark" }}>Ιστορικό καταχώρησης</Typography>}
-                    <KV label={t("policyDetail.createdAt")} value={new Date(p.createdAt).toLocaleString("el-GR")} />
-                    {p.updatedAt && <KV label={t("policyDetail.updatedAt")} value={new Date(p.updatedAt).toLocaleString("el-GR")} />}
-                    {p.createdByName && <KV label={t("policyDetail.createdBy")} value={p.createdByName} />}
-                    {p.renewedFromPolicyNumber && (
-                      <KV label={t("policyDetail.renewedFrom")} value={p.renewedFromPolicyNumber} mono />
-                    )}
-                  </Box>
+                <Box sx={profileFieldGridSx}>
+                  <ProfileEditableField label="Δημιουργήθηκε" value={new Date(p.createdAt).toLocaleString("el-GR")} />
+                  <ProfileEditableField label="Ενημερώθηκε" value={p.updatedAt ? new Date(p.updatedAt).toLocaleString("el-GR") : ""} />
+                  <ProfileEditableField label="Δημιουργήθηκε από" value={p.createdByName} />
+                  <ProfileEditableField label="Προηγούμενο συμβόλαιο" value={p.renewedFromPolicyNumber} />
+                </Box>
+              </Stack>}
 
-                  <Divider sx={modalPresentation ? { display: "none" } : undefined} />
-                  <Typography variant="overline" color="text.secondary" fontWeight={700}>
-                    Πρόσθετα στοιχεία
-                  </Typography>
-                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: modalPresentation ? 1 : 2, ...(modalPresentation ? { p: 1.25, bgcolor: "rgba(248,250,252,.85)", border: "1px solid", borderColor: "divider", borderRadius: 1 } : {}) }}>
-                    <TextField fullWidth size="small" label="Αρ. αίτησης"
-                      disabled={!canEdit}
-                      value={form.applicationNumber}
-                      onChange={e => setForm({ ...form, applicationNumber: e.target.value })}
-                      helperText={modalPresentation ? undefined : "Ο αριθμός αίτησης που εκδίδει η εταιρεία πριν το οριστικό policy number."} />
-                    <TextField fullWidth size="small" type="date" label="Ημ. έκδοσης" InputLabelProps={{ shrink: true }}
-                      disabled={!canEdit}
-                      value={form.issuedAt}
-                      onChange={e => setForm({ ...form, issuedAt: e.target.value })}
-                      helperText={modalPresentation ? undefined : "Πότε εκδόθηκε το συμβόλαιο από την εταιρεία."} />
-                    <TextField fullWidth size="small" label="Αρ. κυκλοφορίας"
-                    disabled={!canEdit}
-                    value={form.vehicleRegistrationPlate}
-                    onChange={e => setForm({ ...form, vehicleRegistrationPlate: e.target.value.toUpperCase() })}
-                    helperText={modalPresentation ? undefined : "Πινακίδα οχήματος (μόνο για κλάδο αυτοκινήτου)."} />
-                    <TextField fullWidth size="small" label="ΑΦΜ οδηγού"
-                      disabled={!canEdit}
-                      value={form.driverVatNumber}
-                      onChange={e => setForm({ ...form, driverVatNumber: e.target.value })}
-                      helperText={modalPresentation ? undefined : "Όταν ο οδηγός διαφέρει από τον ασφαλιζόμενο (π.χ. παιδί οδηγεί όχημα γονέα)."} />
-                    <TextField fullWidth size="small" label="Λόγος κυκλοφορίας"
-                      disabled={!canEdit}
-                      value={form.reasonForCirculation}
-                      onChange={e => setForm({ ...form, reasonForCirculation: e.target.value })}
-                      placeholder="π.χ. Ιδιωτική, Επαγγελματική, Ταξί, Ασθενοφόρο"
-                      helperText={modalPresentation ? undefined : "Διαφορετικό από τη χρήση οχήματος (ΕΙΧ/ΦΔΧ) — αφορά τον σκοπό χρήσης."} />
-                  </Box>
-                  <Button size="small" variant="outlined" color="primary" onClick={() => setVehiclePreviewOpen(true)} sx={{ alignSelf: "flex-start" }}>
-                    {form.vehicleRegistrationPlate || p.vehicleRegistrationPlate
-                      ? `Προβολή πλήρους καρτέλας οχήματος · ${form.vehicleRegistrationPlate || p.vehicleRegistrationPlate}`
-                      : "Άνοιγμα κενής καρτέλας οχήματος"}
-                  </Button>
-                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: modalPresentation ? 1 : 2, ...(modalPresentation ? { p: 1.25, bgcolor: "rgba(248,250,252,.85)", border: "1px solid", borderColor: "divider", borderRadius: 1 } : {}) }}>
-                  <SearchableSelect
-                    disabled={!canEdit}
-                    label="Συμβαλλόμενος (αν διαφέρει από τον ασφαλιζόμενο)"
-                    value={form.contractPartyCustomerId}
-                    onChange={(v) => setForm({ ...form, contractPartyCustomerId: v })}
-                    emptyLabel="— Ίδιος με τον ασφαλιζόμενο —"
-                    options={(customersLookup.data ?? []).map(c => ({
-                      value: c.id,
-                      label: c.companyName || `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() || "—",
-                      hint: c.vatNumber ?? undefined
-                    }))}
-                    helperText={modalPresentation ? undefined : "Το πρόσωπο που υπογράφει τη σύμβαση και έχει την υποχρέωση καταβολής."} />
-                  <SearchableSelect
-                    disabled={!canEdit}
-                    label="Προηγούμενη ασφαλιστική εταιρεία"
-                    value={form.previousInsuranceCompanyId}
-                    onChange={(v) => setForm({ ...form, previousInsuranceCompanyId: v })}
-                    emptyLabel="— Δεν αναφέρεται —"
-                    options={(carriersLookup.data ?? []).map(c => ({
-                      value: c.id, label: c.name, hint: c.code
-                    }))}
-                    helperText={modalPresentation ? undefined : "Από πού μεταφέρθηκε το συμβόλαιο. Χρησιμοποιείται για churn / win-back analytics."} />
-                  </Box>
-                </Stack>
-              )}
+              {showContract && <Box sx={profileFieldGridSx}>
+                <ProfileEditableField label="Σημειώσεις συμβολαίου" value={p.policyNotes} />
+                <TextField profileKey="specsJson" label="Παραμετρικά στοιχεία (JSON)" value={form.specsJson} multiline />
+              </Box>}
 
-              {/* FINANCIALS */}
               {showFinancials && modalPresentation && (
                 <Stack spacing={1.25}>
                   <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.25 }}>
@@ -976,23 +712,14 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                       <PolicySummaryLine label={t("policyDetail.outstanding")} value={`${p.outstanding.toFixed(2)} ${p.currency}`} valueColor={p.outstanding > 0 ? "error.dark" : undefined} mono />
                     </PolicySummarySection>
                     <PolicySummarySection title="Είσπραξη & ρυθμίσεις">
-                      {editing ? (
+                      {(
                         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1 }}>
-                          <TextField select fullWidth size="small" label={t("policyDetail.paymentFrequency")} value={form.paymentFrequency} onChange={e => setForm({ ...form, paymentFrequency: e.target.value })}>{FREQUENCIES.map(f => <MenuItem key={f} value={f}>{FREQUENCY_LABELS[f] ?? f}</MenuItem>)}</TextField>
-                          <TextField select fullWidth size="small" label="Τρόπος είσπραξης" value={form.paymentCollectionMethod} onChange={e => setForm({ ...form, paymentCollectionMethod: e.target.value })}><MenuItem value="">—</MenuItem>{COLLECTION_METHODS.map(m => <MenuItem key={m} value={m}>{COLLECTION_METHODS_LABEL[m]}</MenuItem>)}</TextField>
-                          <TextField type="number" fullWidth size="small" label={t("policyDetail.specialCommission")} value={form.specialCommissionPercent} onChange={e => setForm({ ...form, specialCommissionPercent: e.target.value })} />
-                          <FormControlLabel control={<Switch checked={form.paidDirectlyToCarrier} onChange={e => setForm({ ...form, paidDirectlyToCarrier: e.target.checked })} />} label="Πληρωμή απευθείας στην ασφαλιστική" />
-                          <FormControlLabel control={<Switch checked={form.premiumIncludesVat} onChange={e => setForm({ ...form, premiumIncludesVat: e.target.checked })} />} label="Περιλαμβάνει φόρο" />
+                          <TextField profileKey="paymentFrequency" select fullWidth size="small" label={t("policyDetail.paymentFrequency")} value={form.paymentFrequency} onChange={e => setForm({ ...form, paymentFrequency: e.target.value })}>{FREQUENCIES.map(f => <MenuItem key={f} value={f}>{FREQUENCY_LABELS[f] ?? f}</MenuItem>)}</TextField>
+                          <TextField profileKey="paymentCollectionMethod" select fullWidth size="small" label="Τρόπος είσπραξης" value={form.paymentCollectionMethod} onChange={e => setForm({ ...form, paymentCollectionMethod: e.target.value })}><MenuItem value="">—</MenuItem>{COLLECTION_METHODS.map(m => <MenuItem key={m} value={m}>{COLLECTION_METHODS_LABEL[m]}</MenuItem>)}</TextField>
+                          <TextField profileKey="specialCommissionPercent" type="number" fullWidth size="small" label={t("policyDetail.specialCommission")} value={form.specialCommissionPercent} onChange={e => setForm({ ...form, specialCommissionPercent: e.target.value })} />
+                          <PolicyBooleanField profileKey="paidDirectlyToCarrier" label="Πληρωμή απευθείας στην ασφαλιστική" />
+                          <PolicyBooleanField profileKey="premiumIncludesVat" label="Περιλαμβάνει φόρο" />
                         </Box>
-                      ) : (
-                        <>
-                          <PolicySummaryLine label="Συχνότητα" value={FREQUENCY_LABELS[form.paymentFrequency] ?? form.paymentFrequency} />
-                          <PolicySummaryLine label="Τρόπος είσπραξης" value={form.paymentCollectionMethod ? (COLLECTION_METHODS_LABEL[form.paymentCollectionMethod] ?? form.paymentCollectionMethod) : "—"} />
-                          <PolicySummaryLine label="Ειδική προμήθεια" value={form.specialCommissionPercent ? `${form.specialCommissionPercent}%` : "—"} />
-                          <PolicySummaryLine label="Πληρωμή στην ασφαλιστική" value={form.paidDirectlyToCarrier ? "Ναι" : "Όχι"} valueColor={form.paidDirectlyToCarrier ? "success.dark" : undefined} />
-                          <PolicySummaryLine label="Περιλαμβάνει φόρο" value={form.premiumIncludesVat ? "Ναι" : "Όχι"} />
-                          {!readOnly && <PolicySummaryLine label={t("policyDetail.totalCommissions")} value={`${p.totalCommissions.toFixed(2)} ${p.currency}`} mono />}
-                        </>
                       )}
                     </PolicySummarySection>
                   </Box>
@@ -1000,7 +727,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                     <PolicySettlementPanel policy={p} readOnly={readOnly} onSettle={setSettlementMode} />
                     <BridgeVsParametrizationCard policy={p} matrix={commissionMatrix.data} matrixLoading={commissionMatrix.isLoading} onCompute={() => commissionMatrix.refetch()} />
                     <Divider sx={{ my: 1 }} />
-                    <PolicyCommissionMatrixTab loading={commissionMatrix.isLoading} matrix={commissionMatrix.data} currency={p.currency} readOnly={!canEdit} overrideJson={form.specialLevelPercentsJson} onOverrideChange={next => setForm({ ...form, specialLevelPercentsJson: next })} onSave={() => save.mutate()} saving={save.isPending} fallback={{ premium: p.premium, totalCommissions: p.totalCommissions, currency: p.currency }} />
+                    <PolicyCommissionMatrixTab loading={commissionMatrix.isLoading} matrix={commissionMatrix.data} currency={p.currency} readOnly={!canEdit} overrideJson={form.specialLevelPercentsJson} onOverrideChange={next => { setForm({ ...form, specialLevelPercentsJson: next }); session.change("specialLevelPercentsJson", next); }} onSave={() => { void session.commit("specialLevelPercentsJson", form.specialLevelPercentsJson).catch(() => {}); }} saving={save.isPending} fallback={{ premium: p.premium, totalCommissions: p.totalCommissions, currency: p.currency }} />
                   </PolicySummarySection>
                   {p.covers.length > 0 && <PolicySummarySection title="Αναλυτικές καλύψεις"><CoversBreakdown p={p} /></PolicySummarySection>}
                 </Stack>
@@ -1043,30 +770,23 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                       operator can spot bad data before it feeds commission
                       calculations. */}
                   {p.covers && p.covers.length > 0 && <CoversBreakdown p={p} />}
-                  <TextField select fullWidth label={t("policyDetail.paymentFrequency")} value={form.paymentFrequency}
+                  <TextField profileKey="paymentFrequency" select fullWidth label={t("policyDetail.paymentFrequency")} value={form.paymentFrequency}
                     disabled={!canEdit}
                     onChange={e => setForm({ ...form, paymentFrequency: e.target.value })}>
                     {FREQUENCIES.map(f => <MenuItem key={f} value={f}>{FREQUENCY_LABELS[f] ?? f}</MenuItem>)}
                   </TextField>
-                  <TextField select fullWidth label="Τρόπος είσπραξης" value={form.paymentCollectionMethod}
+                  <TextField profileKey="paymentCollectionMethod" select fullWidth label="Τρόπος είσπραξης" value={form.paymentCollectionMethod}
                     disabled={!canEdit}
                     onChange={e => setForm({ ...form, paymentCollectionMethod: e.target.value })}>
                     <MenuItem value="">—</MenuItem>
                     {COLLECTION_METHODS.map(m => <MenuItem key={m} value={m}>{COLLECTION_METHODS_LABEL[m]}</MenuItem>)}
                   </TextField>
-                  <FormControlLabel
-                    control={<Switch disabled={!canEdit} checked={form.paidDirectlyToCarrier}
-                      onChange={e => setForm({ ...form, paidDirectlyToCarrier: e.target.checked })} />}
-                    label="Ο πελάτης πλήρωσε απευθείας στην ασφαλιστική"
-                  />
+                  <PolicyBooleanField profileKey="paidDirectlyToCarrier" label="Ο πελάτης πλήρωσε απευθείας στην ασφαλιστική" />
                   <Typography variant="caption" color="text.secondary" sx={{ mt: -1.5 }}>
                     Η πληρωμή δεν περνά από το ταμείο του γραφείου και δεν εμφανίζεται ως εκκρεμής οφειλή προς την ασφαλιστική.
                   </Typography>
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <Switch disabled={!canEdit} checked={form.premiumIncludesVat} onChange={e => setForm({ ...form, premiumIncludesVat: e.target.checked })} />
-                    <Typography>Το ασφάλιστρο περιλαμβάνει φόρο ασφαλίστρων</Typography>
-                  </Stack>
-                  <TextField type="number" fullWidth label={t("policyDetail.specialCommission")}
+                  <PolicyBooleanField profileKey="premiumIncludesVat" label="Το ασφάλιστρο περιλαμβάνει φόρο ασφαλίστρων" />
+                  <TextField profileKey="specialCommissionPercent" type="number" fullWidth label={t("policyDetail.specialCommission")}
                     disabled={!canEdit}
                     value={form.specialCommissionPercent}
                     onChange={e => setForm({ ...form, specialCommissionPercent: e.target.value })}
@@ -1095,8 +815,8 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                     currency={p.currency}
                     readOnly={!canEdit}
                     overrideJson={form.specialLevelPercentsJson}
-                    onOverrideChange={(next) => setForm({ ...form, specialLevelPercentsJson: next })}
-                    onSave={() => save.mutate()}
+                    onOverrideChange={(next) => { setForm({ ...form, specialLevelPercentsJson: next }); session.change("specialLevelPercentsJson", next); }}
+                    onSave={() => { void session.commit("specialLevelPercentsJson", form.specialLevelPercentsJson).catch(() => {}); }}
                     saving={save.isPending}
                     fallback={{
                       premium: p.premium,
@@ -1131,24 +851,15 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                   </Box>
 
                   <PolicySummarySection title="Ανανέωση, παράδοση & καλύψεις">
-                    {editing ? (
+                    {(
                       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: 1 }}>
-                        <TextField size="small" type="date" label={t("policyDetail.nextRenewal")} InputLabelProps={{ shrink: true }} value={form.nextRenewalDate} onChange={e => setForm({ ...form, nextRenewalDate: e.target.value })} />
-                        <TextField size="small" type="date" label={t("policyDetail.deliveredAt")} InputLabelProps={{ shrink: true }} value={form.deliveredAt} onChange={e => setForm({ ...form, deliveredAt: e.target.value })} />
-                        <TextField size="small" label={t("policyDetail.deliveredTo")} value={form.deliveredTo} onChange={e => setForm({ ...form, deliveredTo: e.target.value })} />
-                        <TextField select size="small" label={t("policyDetail.deliveryMethod")} value={form.deliveryMethod} onChange={e => setForm({ ...form, deliveryMethod: e.target.value })}><MenuItem value="">—</MenuItem>{DELIVERY_METHODS.map(m => <MenuItem key={m} value={m}>{DELIVERY_METHOD_LABELS[m] ?? m}</MenuItem>)}</TextField>
-                        <TextField size="small" label={t("policyDetail.renewalInstructions")} value={form.renewalInstructions} onChange={e => setForm({ ...form, renewalInstructions: e.target.value })} sx={{ gridColumn: { sm: "1 / -1" } }} />
-                        <FormControlLabel control={<Switch checked={form.retainCommissionsOnRenewal} onChange={e => setForm({ ...form, retainCommissionsOnRenewal: e.target.checked })} />} label={t("policyDetail.retainCommissions")} />
-                        <FormControlLabel control={<Switch checked={form.retainDocumentNumberOnRenewal} onChange={e => setForm({ ...form, retainDocumentNumberOnRenewal: e.target.checked })} />} label={t("policyDetail.retainDocNumber")} />
-                      </Box>
-                    ) : (
-                      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, columnGap: 2 }}>
-                        <PolicySummaryLine label="Επόμενη ανανέωση" value={form.nextRenewalDate || p.nextRenewalDate || "—"} />
-                        <PolicySummaryLine label="Ημ. παράδοσης" value={form.deliveredAt || "—"} />
-                        <PolicySummaryLine label="Παραδόθηκε σε" value={form.deliveredTo || "—"} />
-                        <PolicySummaryLine label="Μέθοδος παράδοσης" value={form.deliveryMethod ? (DELIVERY_METHOD_LABELS[form.deliveryMethod] ?? form.deliveryMethod) : "—"} />
-                        <PolicySummaryLine label="Διατήρηση προμηθειών" value={form.retainCommissionsOnRenewal ? "Ναι" : "Όχι"} />
-                        <PolicySummaryLine label="Οδηγίες ανανέωσης" value={form.renewalInstructions || "—"} />
+                        <TextField profileKey="nextRenewalDate" size="small" type="date" label={t("policyDetail.nextRenewal")} InputLabelProps={{ shrink: true }} value={form.nextRenewalDate} onChange={e => setForm({ ...form, nextRenewalDate: e.target.value })} />
+                        <TextField profileKey="deliveredAt" size="small" type="date" label={t("policyDetail.deliveredAt")} InputLabelProps={{ shrink: true }} value={form.deliveredAt} onChange={e => setForm({ ...form, deliveredAt: e.target.value })} />
+                        <TextField profileKey="deliveredTo" size="small" label={t("policyDetail.deliveredTo")} value={form.deliveredTo} onChange={e => setForm({ ...form, deliveredTo: e.target.value })} />
+                        <TextField profileKey="deliveryMethod" select size="small" label={t("policyDetail.deliveryMethod")} value={form.deliveryMethod} onChange={e => setForm({ ...form, deliveryMethod: e.target.value })}><MenuItem value="">—</MenuItem>{DELIVERY_METHODS.map(m => <MenuItem key={m} value={m}>{DELIVERY_METHOD_LABELS[m] ?? m}</MenuItem>)}</TextField>
+                        <TextField profileKey="renewalInstructions" size="small" label={t("policyDetail.renewalInstructions")} value={form.renewalInstructions} onChange={e => setForm({ ...form, renewalInstructions: e.target.value })} sx={{ gridColumn: { sm: "1 / -1" } }} />
+                        <PolicyBooleanField profileKey="retainCommissionsOnRenewal" label={t("policyDetail.retainCommissions")} />
+                        <PolicyBooleanField profileKey="retainDocumentNumberOnRenewal" label={t("policyDetail.retainDocNumber")} />
                       </Box>
                     )}
                   </PolicySummarySection>
@@ -1191,16 +902,16 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                         Ανανέωση, παράδοση και καλύψεις
                       </Typography>
                       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: 1 }}>
-                        <TextField size="small" type="date" label={t("policyDetail.nextRenewal")} InputLabelProps={{ shrink: true }}
+                        <TextField profileKey="nextRenewalDate" size="small" type="date" label={t("policyDetail.nextRenewal")} InputLabelProps={{ shrink: true }}
                           disabled={!canEdit}
                           value={form.nextRenewalDate} onChange={e => setForm({ ...form, nextRenewalDate: e.target.value })} />
-                        <TextField size="small" type="date" label={t("policyDetail.deliveredAt")} InputLabelProps={{ shrink: true }}
+                        <TextField profileKey="deliveredAt" size="small" type="date" label={t("policyDetail.deliveredAt")} InputLabelProps={{ shrink: true }}
                           disabled={!canEdit}
                           value={form.deliveredAt} onChange={e => setForm({ ...form, deliveredAt: e.target.value })} />
-                        <TextField size="small" label={t("policyDetail.deliveredTo")} value={form.deliveredTo}
+                        <TextField profileKey="deliveredTo" size="small" label={t("policyDetail.deliveredTo")} value={form.deliveredTo}
                           disabled={!canEdit}
                           onChange={e => setForm({ ...form, deliveredTo: e.target.value })} />
-                        <TextField select size="small" label={t("policyDetail.deliveryMethod")} value={form.deliveryMethod}
+                        <TextField profileKey="deliveryMethod" select size="small" label={t("policyDetail.deliveryMethod")} value={form.deliveryMethod}
                           disabled={!canEdit}
                           onChange={e => setForm({ ...form, deliveryMethod: e.target.value })}>
                           <MenuItem value="">—</MenuItem>
@@ -1208,10 +919,10 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                         </TextField>
                       </Box>
                       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} flexWrap="wrap" useFlexGap>
-                        <FormControlLabel control={<Switch disabled={!canEdit} checked={form.retainCommissionsOnRenewal} onChange={e => setForm({ ...form, retainCommissionsOnRenewal: e.target.checked })} />} label={t("policyDetail.retainCommissions")} />
-                        <FormControlLabel control={<Switch disabled={!canEdit} checked={form.retainDocumentNumberOnRenewal} onChange={e => setForm({ ...form, retainDocumentNumberOnRenewal: e.target.checked })} />} label={t("policyDetail.retainDocNumber")} />
+                        <PolicyBooleanField profileKey="retainCommissionsOnRenewal" label={t("policyDetail.retainCommissions")} />
+                        <PolicyBooleanField profileKey="retainDocumentNumberOnRenewal" label={t("policyDetail.retainDocNumber")} />
                       </Stack>
-                      <TextField size="small" fullWidth multiline minRows={2} label={t("policyDetail.renewalInstructions")}
+                      <TextField profileKey="renewalInstructions" size="small" fullWidth multiline minRows={2} label={t("policyDetail.renewalInstructions")}
                         disabled={!canEdit}
                         value={form.renewalInstructions} onChange={e => setForm({ ...form, renewalInstructions: e.target.value })} />
                       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1 }}>
@@ -1232,21 +943,12 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
               {/* RENEWAL */}
               {tab === 3 && (
                 <Stack spacing={2.5}>
-                  <TextField type="date" fullWidth label={t("policyDetail.nextRenewal")} InputLabelProps={{ shrink: true }}
+                  <TextField profileKey="nextRenewalDate" type="date" fullWidth label={t("policyDetail.nextRenewal")} InputLabelProps={{ shrink: true }}
                     value={form.nextRenewalDate} onChange={e => setForm({ ...form, nextRenewalDate: e.target.value })} />
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <Switch checked={form.retainCommissionsOnRenewal} onChange={e => setForm({ ...form, retainCommissionsOnRenewal: e.target.checked })} />
-                    <Typography>{t("policyDetail.retainCommissions")}</Typography>
-                  </Stack>
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <Switch checked={form.retainDocumentNumberOnRenewal} onChange={e => setForm({ ...form, retainDocumentNumberOnRenewal: e.target.checked })} />
-                    <Typography>{t("policyDetail.retainDocNumber")}</Typography>
-                  </Stack>
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <Switch checked={form.retainSpecialCommissionsOnRenewal} onChange={e => setForm({ ...form, retainSpecialCommissionsOnRenewal: e.target.checked })} />
-                    <Typography>{t("policyDetail.retainSpecialCommissions")}</Typography>
-                  </Stack>
-                  <TextField fullWidth multiline rows={3} label={t("policyDetail.renewalInstructions")}
+                  <PolicyBooleanField profileKey="retainCommissionsOnRenewal" label={t("policyDetail.retainCommissions")} />
+                  <PolicyBooleanField profileKey="retainDocumentNumberOnRenewal" label={t("policyDetail.retainDocNumber")} />
+                  <PolicyBooleanField profileKey="retainSpecialCommissionsOnRenewal" label={t("policyDetail.retainSpecialCommissions")} />
+                  <TextField profileKey="renewalInstructions" fullWidth multiline rows={3} label={t("policyDetail.renewalInstructions")}
                     value={form.renewalInstructions} onChange={e => setForm({ ...form, renewalInstructions: e.target.value })}
                     placeholder={t("policyDetail.renewalInstructionsPlaceholder")} />
                 </Stack>
@@ -1255,16 +957,16 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
               {/* DELIVERY */}
               {tab === 4 && (
                 <Stack spacing={2.5}>
-                  <TextField type="date" fullWidth label={t("policyDetail.deliveredAt")} InputLabelProps={{ shrink: true }}
+                  <TextField profileKey="deliveredAt" type="date" fullWidth label={t("policyDetail.deliveredAt")} InputLabelProps={{ shrink: true }}
                     value={form.deliveredAt} onChange={e => setForm({ ...form, deliveredAt: e.target.value })} />
-                  <TextField fullWidth label={t("policyDetail.deliveredTo")} value={form.deliveredTo}
+                  <TextField profileKey="deliveredTo" fullWidth label={t("policyDetail.deliveredTo")} value={form.deliveredTo}
                     onChange={e => setForm({ ...form, deliveredTo: e.target.value })} />
-                  <TextField select fullWidth label={t("policyDetail.deliveryMethod")} value={form.deliveryMethod}
+                  <TextField profileKey="deliveryMethod" select fullWidth label={t("policyDetail.deliveryMethod")} value={form.deliveryMethod}
                     onChange={e => setForm({ ...form, deliveryMethod: e.target.value })}>
                     <MenuItem value="">—</MenuItem>
                     {DELIVERY_METHODS.map(m => <MenuItem key={m} value={m}>{DELIVERY_METHOD_LABELS[m] ?? m}</MenuItem>)}
                   </TextField>
-                  <TextField select fullWidth label="Τρόπος πληρωμής" value={form.paymentCollectionMethod}
+                  <TextField profileKey="paymentCollectionMethod" select fullWidth label="Τρόπος πληρωμής" value={form.paymentCollectionMethod}
                     onChange={e => setForm({ ...form, paymentCollectionMethod: e.target.value })}
                     helperText="Πώς εισπράττεται το ασφάλιστρο από τον πελάτη.">
                     <MenuItem value="">—</MenuItem>
@@ -1388,6 +1090,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                       Επικοινωνία
                     </Typography>
                     <PolicyCommunicationsTab
+                      readOnly={readOnly}
                       policyId={p.id}
                       loading={communications.isLoading}
                       rows={communications.data ?? []}
@@ -1400,23 +1103,9 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
           )}
         </Box>
 
-        {/* Sticky footer with save (Summary now editable via ALIS-parity fields). */}
-        {((!modalPresentation && tab >= 0 && tab <= 4) || (modalPresentation && editing)) && (
-          <Box sx={{ p: modalPresentation ? 1 : 2, borderTop: "1px solid", borderColor: "divider" }}>
-            <Stack direction="row" spacing={1} justifyContent="flex-end">
-              {modalPresentation && editing ? (
-                <Button color="error" variant="contained" startIcon={<CloseIcon />} onClick={() => { setEditing(false); if (q.data) resetFormFromPolicy(q.data); }} sx={{ color: "#fff", fontWeight: 800 }}>
-                  Ακύρωση επεξεργασίας
-                </Button>
-              ) : <Button onClick={onClose}>{t("common.cancel")}</Button>}
-              {!readOnly && (!modalPresentation || editing) && (
-                <Button variant="contained" color={modalPresentation ? "success" : "primary"} startIcon={<SaveIcon />} disabled={save.isPending} onClick={() => save.mutate()} sx={modalPresentation ? { color: "#fff", fontWeight: 800, "&:hover": { color: "#fff", bgcolor: "success.dark" } } : undefined}>
-                  {save.isPending ? <CircularProgress size={18} /> : t("common.save")}
-                </Button>
-              )}
-            </Stack>
-          </Box>
-        )}
+        <Box sx={{ px: 1.25, py: .6, borderTop: "1px solid", borderColor: "divider", display: "flex", justifyContent: "flex-end" }}>
+          {!readOnly && p ? <ProfileEditorActions session={session} label="συμβολαίου" /> : <Button variant="contained" color="error" onClick={session.requestClose}>Κλείσιμο</Button>}
+        </Box>
       </Box>
       <PropagateChangesDialog
         open={!!propagateChanges}
@@ -1499,7 +1188,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
           }}
         />
       )}
-    </Drawer>
+    </Drawer></PolicyFieldsContext.Provider>
   );
 }
 
@@ -1703,7 +1392,7 @@ function ChangeProducerDialog({ open, onClose, policyId, policyNumber, currentPr
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} color="error" variant="contained">Άκυρο</Button>
-        <Button variant="contained" disabled={!newProducerId || save.isPending} onClick={() => save.mutate()}>
+        <Button variant="contained" disabled={!newProducerId || save.isPending} onClick={() => save.mutate(undefined)}>
           {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}
         </Button>
       </DialogActions>
@@ -1834,46 +1523,16 @@ function nodeCopyText(value: React.ReactNode): string {
 }
 
 function KV({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
-  const copyText = nodeCopyText(value);
-  return (
-    <Box className="policy-kv" sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(118px, .45fr) 1fr", sm: "minmax(145px, .52fr) 1fr" }, gap: 1, py: .35, alignItems: "baseline", borderBottom: "1px solid", borderColor: "divider", "&:last-child": { borderBottom: 0 } }}>
-      <Typography variant="caption" color="text.secondary">{label}</Typography>
-      {copyText ? (
-        <InlineValueField
-          plain compact hideLabel label={label} value={copyText} displayValue={value} mono={mono} copyValue={copyText}
-          onRequestEdit={() => window.dispatchEvent(new Event("kalypsis:policy-edit-request"))}
-        />
-      ) : <Typography variant="body2" sx={{ fontFamily: mono ? "monospace" : undefined, fontWeight: 650, wordBreak: "break-word" }}>{value}</Typography>}
-    </Box>
-  );
+  const link = isValidElement<{ href?: string }>(value) ? value.props.href : undefined;
+  return <ProfileEditableField label={label} value={nodeCopyText(value)} mono={mono} link={link} />;
 }
-
 function PolicySummarySection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <Box sx={{ p: 1.25, bgcolor: "rgba(248,250,252,.85)", border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
-      <Typography variant="subtitle2" fontWeight={800} sx={{ mb: .7, color: "primary.dark" }}>{title}</Typography>
-      {children}
-    </Box>
-  );
+  return <Box sx={{ p: .75, bgcolor: "#edf3f9", border: "1px solid #d6e3f0", borderRadius: 1.25 }}><Typography variant="subtitle2" fontWeight={800} sx={{ mb: .5 }}>{title}</Typography>{children}</Box>;
 }
-
-function PolicySummaryLine({ label, value, mono, valueColor }: { label: string; value: React.ReactNode; mono?: boolean; valueColor?: string }) {
-  const textValue = nodeCopyText(value);
-  const missing = textValue.trim() === "" || textValue === "—" || textValue === "Δεν αναφέρεται" || textValue === "Δεν έχει καταχωρηθεί";
-  return (
-    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(118px, .45fr) 1fr", sm: "minmax(135px, .5fr) 1fr" }, gap: 1, py: .35, alignItems: "baseline", borderBottom: "1px solid", borderColor: "divider", "&:last-child": { borderBottom: 0 } }}>
-      <Typography variant="caption" color="text.secondary">{label}</Typography>
-      {textValue ? (
-        <InlineValueField
-          plain compact hideLabel label={label} value={textValue} displayValue={value} mono={mono}
-          valueColor={valueColor}
-          onRequestEdit={() => window.dispatchEvent(new Event("kalypsis:policy-edit-request"))}
-        />
-      ) : <Typography variant="body2" fontWeight={650} sx={{ fontFamily: mono ? "monospace" : undefined, color: valueColor ?? (missing ? "error.dark" : undefined), wordBreak: "break-word", whiteSpace: "pre-wrap" }}>{value}</Typography>}
-    </Box>
-  );
+function PolicySummaryLine({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean; valueColor?: string }) {
+  const link = isValidElement<{ href?: string }>(value) ? value.props.href : undefined;
+  return <ProfileEditableField label={label} value={nodeCopyText(value)} mono={mono} link={link} />;
 }
-
 function settlementAmount(value: number | undefined, currency: string) {
   return `${(value ?? 0).toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
 }
@@ -2036,7 +1695,7 @@ function PolicySettlementDialog({ open, mode, policy, onClose, onSaved }: {
       </DialogContent>
       <DialogActions>
         <Button color="error" variant="contained" onClick={onClose} disabled={save.isPending}>Ακύρωση</Button>
-        <Button variant="contained" color="success" onClick={() => save.mutate()} disabled={save.isPending}>
+        <Button variant="contained" color="success" onClick={() => save.mutate(undefined)} disabled={save.isPending}>
           {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}
         </Button>
       </DialogActions>
@@ -3118,7 +2777,7 @@ function PolicyCommunicationsTab({ policyId, loading, rows, readOnly = false, on
               value={form.body} onChange={e => setForm({ ...form, body: e.target.value })} />
             <Stack direction="row" spacing={1} justifyContent="flex-end">
               <Button onClick={() => setCreating(false)} color="error" variant="contained">Ακύρωση</Button>
-              <Button variant="contained" onClick={() => save.mutate()}
+              <Button variant="contained" onClick={() => save.mutate(undefined)}
                 disabled={readOnly || save.isPending || !form.subject.trim()}>
                 {save.isPending ? <CircularProgress size={18} /> : "Καταχώρηση"}
               </Button>
@@ -3527,4 +3186,58 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
       <Typography sx={{ fontWeight: bold ? 700 : 500 }}>{value}</Typography>
     </Stack>
   );
+}
+
+
+const PolicyFieldsContext = createContext<{ session: ProfileFieldSession; readOnly: boolean } | null>(null);
+function TextField(props: React.ComponentProps<typeof MuiTextField> & { profileKey?: string }) {
+  const context = useContext(PolicyFieldsContext);
+  const { profileKey, ...original } = props;
+  if (!context || !profileKey) return <MuiTextField {...original} />;
+  const options = props.select ? Children.toArray(props.children).flatMap(child => isValidElement<{ value?: unknown; children?: React.ReactNode }>(child) ? [{value: String(child.props.value ?? ""), label: nodeCopyText(child.props.children)}] : []) : undefined;
+  return <ProfileEditableField label={nodeCopyText(props.label)} field={context.readOnly ? undefined : profileKey} session={context.readOnly ? undefined : context.session}
+    value={context.session.values[profileKey]} options={options} multiline={props.multiline} type={["date","number","email"].includes(String(props.type)) ? props.type as "date"|"number"|"email" : "text"} />;
+}
+function SearchableSelect(props: React.ComponentProps<typeof OriginalSearchableSelect<string>> & { profileKey?: string }) {
+  const context = useContext(PolicyFieldsContext);
+  const { profileKey, ...original } = props;
+  if (!context || !profileKey) return <OriginalSearchableSelect {...original} />;
+  return <ProfileEditableField label={props.label} field={context.readOnly ? undefined : profileKey} session={context.readOnly ? undefined : context.session} value={context.session.values[profileKey]}
+    options={[{value:"", label: props.emptyLabel ?? "Δεν έχει οριστεί"}, ...props.options]} />;
+}
+function PolicyBooleanField({profileKey, label}: {profileKey: string; label: string}) {
+  const context = useContext(PolicyFieldsContext);
+  return <ProfileEditableField label={label} field={context && !context.readOnly ? profileKey : undefined} session={context && !context.readOnly ? context.session : undefined}
+    value={context?.session.values[profileKey]} options={[{value:"true",label:"Ναι"}, {value:"false",label:"Όχι"}]} />;
+}
+
+export function PolicyProfileFields({session, values, policy, companies, customers}: {
+  session?: ProfileFieldSession; values: Record<string,string>; policy: PolicyDetail;
+  companies: {id:string; name:string}[]; customers: {id:string; firstName?:string|null; lastName?:string|null; companyName?:string|null}[];
+}) {
+  const field = (key:string,label:string,extra: Partial<React.ComponentProps<typeof ProfileEditableField>> = {}) =>
+    <ProfileEditableField key={key} label={label} field={session ? key : undefined} session={session} value={values[key]} {...extra} />;
+  const carrierOptions = companies.map(row => ({value:row.id,label:row.name}));
+  if (!carrierOptions.some(option => option.value === policy.insuranceCompanyId)) carrierOptions.push({value:policy.insuranceCompanyId,label:policy.insuranceCompanyName});
+  const types = ["Auto","Home","Health","Life","Business","Travel","Other"].map(value => ({value,label:policyTypeLabel(value)}));
+  if (values.policyType && !types.some(option => option.value === values.policyType)) types.push({value:values.policyType,label:values.policyType});
+  const statuses = Object.keys(POLICY_STATUS_LABELS).map(value => ({value,label:policyStatusLabel(value)}));
+  return <Box sx={profileFieldGridSx}>
+    <ProfileEditableField label="Αριθμός συμβολαίου" value={policy.policyNumber} mono />
+    <ProfileEditableField label="Πελάτης / ασφαλισμένος" value={policy.customerDisplay} />
+    <ProfileEditableField label="ΑΦΜ πελάτη" value={policy.customerVat} mono />
+    {field("insuranceCompanyId","Ασφαλιστική", {options:carrierOptions})}
+    {field("policyType","Κλάδος",{options:types})}
+    {field("status","Κατάσταση",{options:statuses})}
+    {field("startDate","Έναρξη",{type:"date"})}{field("endDate","Λήξη",{type:"date"})}
+    <ProfileEditableField label="Διάρκεια" value={contractDurationLabel(policy.startDate,policy.endDate)} />
+    {field("premium","Μεικτό ασφάλιστρο",{type:"number"})}{field("netPremium","Καθαρό ασφάλιστρο",{type:"number"})}
+    {field("vatAmount","Φόρος ασφαλίστρων",{type:"number"})}{field("currency","Νόμισμα")}
+    <ProfileEditableField label="Συνεργάτης" value={policy.producerName} />
+    {field("applicationNumber","Αριθμός αίτησης")}{field("issuedAt","Ημερομηνία έκδοσης",{type:"date"})}
+    {field("contractPartyCustomerId","Συμβαλλόμενος",{options:[{value:"",label:"Ίδιος με τον ασφαλιζόμενο"}, ...customers.map(row=>({value:row.id,label:row.companyName || [row.firstName,row.lastName].filter(Boolean).join(" ")}))]})}
+    {field("previousInsuranceCompanyId","Προηγούμενη ασφαλιστική",{options:[{value:"",label:"Δεν έχει οριστεί"}, ...carrierOptions]})}
+    {field("vehicleRegistrationPlate","Πινακίδα",{mono:true})}
+    {field("driverVatNumber","ΑΦΜ οδηγού",{mono:true})}{field("reasonForCirculation","Λόγος κυκλοφορίας")}
+  </Box>;
 }

@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import ReportProblemOutlinedIcon from "@mui/icons-material/ReportProblemOutlined";
+import { usePermission } from "../auth/permissions";
+import { DetailProfileTabs } from "../components/profile/DetailProfileTabs";
+import { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback, profileDialogPaperSx, profileFieldGridSx, useProfileFieldEditor, type ProfileFieldSession } from "../components/profile/ProfileFieldEditor";
+import { VEHICLE_SPEC_FIELDS, mergeVehicleSpecs } from "../components/profile/vehicleProfile";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Tooltip, Typography } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -29,6 +36,8 @@ interface VehiclePolicyRow {
 }
 
 interface VehiclePolicyDetail {
+  customerId?: string;
+  customerVat?: string | null;
   id: string;
   policyNumber: string;
   policyType: string;
@@ -117,135 +126,87 @@ function claimStatusLabel(status?: string | null) {
   return canonical ? labels[canonical] : value;
 }
 
-export function VehicleDetailDialog({ open, plate, policyIds, onClose, zIndex, initialEditing = false }: { open: boolean; plate: string; policyIds: string[]; onClose: () => void; zIndex?: number; initialEditing?: boolean }) {
+export function VehicleDetailDialog({ open, plate, policyIds: suppliedPolicyIds, onClose, zIndex, initialEditing = false }: { open: boolean; plate: string; policyIds: string[]; onClose: () => void; zIndex?: number; initialEditing?: boolean }) {
+  // Keep the linked IDs when a plate edit moves this vehicle out of the parent's old plate group.
+  const retained = useRef({ plate, ids: suppliedPolicyIds });
+  if (retained.current.plate !== plate) retained.current = { plate, ids: suppliedPolicyIds };
+  else if (suppliedPolicyIds.length) retained.current.ids = suppliedPolicyIds;
+  const policyIds = suppliedPolicyIds.length ? suppliedPolicyIds : retained.current.ids;
+  const qc = useQueryClient();
+  const canWrite = usePermission("policies.write");
+  const [tab, setTab] = useState(0);
+  const [associationPolicyId, setAssociationPolicyId] = useState("");
+  useEffect(() => { setTab(0); setAssociationPolicyId(""); }, [open, plate]);
+  const queryKey = ["vehicle-detail", plate, policyIds.join(",")];
   const q = useQuery({
-    queryKey: ["vehicle-detail", plate, policyIds.join(",")],
-    enabled: open && policyIds.length > 0,
+    queryKey, enabled: open && policyIds.length > 0,
     queryFn: async () => {
-      const [details, claims] = await Promise.all([
-        Promise.all(policyIds.map(id => api.get<VehiclePolicyDetail>(`/policies/${id}/detail`).then(response => response.data))),
-        api.get<any[]>("/claims").then(response => response.data)
-      ]);
-      const claimRows = claims.filter(claim => policyIds.includes(String(claim.policyId)));
-      return { details, claims: claimRows };
+      const details = await Promise.all(policyIds.map(id => api.get<VehiclePolicyDetail>(`/policies/${id}/detail`).then(response => response.data)));
+      return { details };
     }
   });
-  const details = q.data?.details ?? [];
-  const first = details[0];
-  const qc = useQueryClient();
-  const [editing, setEditing] = useState(false);
-  const [associationPolicyId, setAssociationPolicyId] = useState("");
-  const [form, setForm] = useState({ plate: "", use: "", driverVat: "", reason: "", characteristic: "", deductible: "", position: "", specsJson: "", notes: "" });
-  const [vehicleSpecs, setVehicleSpecs] = useState<Record<string, string>>({});
-  useEffect(() => {
-    if (open) setEditing(initialEditing);
-  }, [open, initialEditing]);
-  useEffect(() => {
-    const d = q.data?.details?.[0];
-    if (!d) return;
-    setForm({
-      plate: d.vehicleRegistrationPlate ?? plate,
-      use: d.vehicleUseCategory ?? d.carrierUseCode ?? "",
-      driverVat: d.driverVatNumber ?? "",
-      reason: d.reasonForCirculation ?? "",
-      characteristic: d.characteristic ?? "",
-      deductible: d.deductible == null ? "" : String(d.deductible),
-      position: d.position ?? "",
-      specsJson: d.specsJson ?? "",
-      notes: d.policyNotes ?? ""
-    });
-    const parsed = parseSpecs(d.specsJson);
-    const editableKeys = ["make", "model", "year", "vin", "engineCapacity", "taxableHorsepower", "estimatedValue", "purchaseDate", "condition", "ownerCount", "youngDriver", "sunroof", "color", "seats"];
-    setVehicleSpecs(Object.fromEntries(editableKeys.map(key => [key, parsed[key] == null ? "" : String(parsed[key])] )));
-  }, [q.data, plate]);
+  const claimsQ = useQuery({
+    queryKey: ["vehicle-claims", policyIds.join(",")], enabled: open && tab === 3 && policyIds.length > 0,
+    queryFn: async () => (await api.get<any[]>("/claims")).data.filter(claim => policyIds.includes(String(claim.policyId))),
+  });
+  const details = q.data?.details ?? [], first = details[0];
   const invalidateVehicle = () => {
-    void qc.invalidateQueries({ queryKey: ["vehicle-detail", plate, policyIds.join(",")] });
-    void qc.invalidateQueries({ queryKey: ["customer-vehicles-all"] });
-    void qc.invalidateQueries({ queryKey: ["customer-vehicles"] });
+    for (const key of [queryKey, ["customer-vehicles-all"], ["customer-vehicles"], ["policies"], ["policy-detail"]]) void qc.invalidateQueries({ queryKey: key });
   };
-  const updateVehicle = useMutation({
-    mutationFn: async () => api.patch(`/policies/${first?.id}/vehicle`, {
-      vehicleRegistrationPlate: form.plate.trim() || null,
-      vehicleUseCategory: form.use.trim() || null,
-      driverVatNumber: form.driverVat.trim() || null,
-      reasonForCirculation: form.reason.trim() || null,
-      characteristic: form.characteristic.trim() || null,
-      deductible: form.deductible.trim() ? Number(form.deductible) : null,
-      position: form.position.trim() || null,
-      specsJson: (() => {
-        let existing: Record<string, unknown> = {};
-        try { existing = form.specsJson.trim() ? JSON.parse(form.specsJson) as Record<string, unknown> : {}; } catch { /* preserve invalid JSON as editable text below */ }
-        const merged = { ...existing, ...Object.fromEntries(Object.entries(vehicleSpecs).filter(([, value]) => value.trim() !== "")) };
-        return Object.keys(merged).length ? JSON.stringify(merged) : null;
-      })(),
-      notes: form.notes.trim() || null,
-      replaceDetails: true,
-      clearVehicleRegistrationPlate: !form.plate.trim()
-    }),
-    onSuccess: () => { setEditing(false); invalidateVehicle(); }
+  const specs = parseSpecs(first?.specsJson);
+  const values = Object.fromEntries([
+    ["vehicleRegistrationPlate", first?.vehicleRegistrationPlate ?? plate],
+    ["vehicleUseCategory", first?.vehicleUseCategory ?? first?.carrierUseCode ?? ""],
+    ["reasonForCirculation", first?.reasonForCirculation ?? ""],
+    ...VEHICLE_SPEC_FIELDS.map(([key]) => ["spec:" + key, String(specs[key] ?? "")]),
+  ]);
+  const session = useProfileFieldEditor({
+    sessionKey: open ? plate + ":" + policyIds.join(",") : "", initialEditing: initialEditing && canWrite, values, refresh: invalidateVehicle, onClose,
+    write: async (changes, accept) => {
+      if (!canWrite || !first) throw new Error("Δεν επιτρέπεται η επεξεργασία οχήματος.");
+      if (!Object.keys(changes).length) return;
+      const latest = qc.getQueryData<{ details: VehiclePolicyDetail[] }>(queryKey)?.details[0] ?? first;
+      const pick = (key: string, fallback?: string | null) => changes[key] === undefined ? fallback ?? null : changes[key].trim() || null;
+      const specChanges = Object.fromEntries(Object.entries(changes).filter(([key]) => key.startsWith("spec:")).map(([key, value]) => [key.slice(5), value]));
+      const saved = (await api.patch<VehiclePolicyDetail>(`/policies/${latest.id}/vehicle`, {
+        vehicleRegistrationPlate: pick("vehicleRegistrationPlate", latest.vehicleRegistrationPlate),
+        vehicleUseCategory: pick("vehicleUseCategory", latest.vehicleUseCategory ?? latest.carrierUseCode),
+        reasonForCirculation: pick("reasonForCirculation", latest.reasonForCirculation),
+        driverVatNumber: latest.customerVat ?? null,
+        // The endpoint replaces all details: preserve contract-only data, never expose it as vehicle data.
+        characteristic: latest.characteristic, deductible: latest.deductible, position: latest.position, notes: latest.policyNotes,
+        specsJson: Object.keys(specChanges).length ? mergeVehicleSpecs(latest.specsJson, specChanges) : latest.specsJson,
+        replaceDetails: true, clearVehicleRegistrationPlate: changes.vehicleRegistrationPlate !== undefined && !changes.vehicleRegistrationPlate.trim(),
+      })).data;
+      qc.setQueryData(queryKey, (previous: typeof q.data) => previous ? { ...previous, details: previous.details.map(row => row.id === saved.id ? saved : row) } : previous);
+      accept(Object.keys(changes));
+    }
   });
-  const removeVehicle = useMutation({
-    mutationFn: async (policyId: string) => api.patch(`/policies/${policyId}/vehicle`, { clearVehicleRegistrationPlate: true }),
-    onSuccess: invalidateVehicle
-  });
-  const removeAllVehicle = useMutation({
-    mutationFn: async () => Promise.all(policyIds.map(id => api.patch(`/policies/${id}/vehicle`, { clearVehicleRegistrationPlate: true }))),
-    onSuccess: () => { invalidateVehicle(); onClose(); }
-  });
-  const availableQ = useQuery({
-    queryKey: ["vehicle-association-policies", plate],
-    enabled: open,
-    queryFn: async () => (await api.get<VehiclePolicyRow[]>("/policies", { params: { type: "Auto" } })).data
-  });
-  const associate = useMutation({
-    mutationFn: async (policyId: string) => api.patch(`/policies/${policyId}/vehicle`, { vehicleRegistrationPlate: plate }),
-    onSuccess: () => { setAssociationPolicyId(""); invalidateVehicle(); }
-  });
-  const specs = details.reduce<Record<string, unknown>>((all, detail) => ({ ...all, ...parseSpecs(detail.specsJson) }), {});
-  const specEntries = Object.entries(specs).filter(([, value]) => value !== null && value !== undefined && value !== "");
-  const specLabel: Record<string, string> = {
-    taxableHorsepower: "Φορολογήσιμοι ίπποι", taxableHp: "Φορολογήσιμοι ίπποι", taxable_horsepower: "Φορολογήσιμοι ίπποι", horsepower: "Ιπποδύναμη (HP)",
-    engineCapacity: "Κυβισμός", vin: "VIN / αριθμός πλαισίου", make: "Μάρκα", model: "Μοντέλο", year: "Έτος κατασκευής",
-    color: "Χρώμα", seats: "Θέσεις", usage: "Χρήση", estimatedValue: "Εκτιμώμενη αξία", purchaseDate: "Ημερομηνία αγοράς",
-    condition: "Κατάσταση οχήματος", ownerCount: "Αριθμός ιδιοκτητών", youngDriver: "Νέος οδηγός / παιδί", sunroof: "Ηλιοροφή"
-  };
-  const total = (key: keyof VehiclePolicyDetail) => details.reduce((sum, detail) => sum + (Number(detail[key]) || 0), 0);
-  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg" sx={zIndex ? { zIndex } : undefined}>
-    <DialogTitle sx={{ px: 1.5, py: 1.25 }}><Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ xs: "stretch", sm: "center" }} justifyContent="space-between"><Stack direction="row" spacing={1} alignItems="center"><DirectionsCarIcon color="primary" /> <Box><Typography variant="h6" fontWeight={800}>Καρτέλα οχήματος · {plate || "Χωρίς πινακίδα"}</Typography><Typography variant="caption" color="text.secondary">Συγκεντρωμένα στοιχεία από όλα τα σχετικά συμβόλαια</Typography></Box></Stack><Button size="small" variant="contained" color={editing ? "error" : "success"} sx={{ color: "#fff", fontWeight: 800 }} startIcon={<EditIcon />} onClick={() => setEditing(value => !value)} disabled={!first}>{editing ? "Ακύρωση επεξεργασίας" : "Επεξεργασία"}</Button></Stack></DialogTitle>
-    <DialogContent dividers sx={{ p: 1.25 }}>
+  const removeVehicle = useMutation({ mutationFn: async (policyId: string) => api.patch(`/policies/${policyId}/vehicle`, { clearVehicleRegistrationPlate: true }), onSuccess: invalidateVehicle });
+  const removeAllVehicle = useMutation({ mutationFn: async () => Promise.all(policyIds.map(id => api.patch(`/policies/${id}/vehicle`, { clearVehicleRegistrationPlate: true }))), onSuccess: () => { invalidateVehicle(); onClose(); } });
+  const availableQ = useQuery({ queryKey: ["vehicle-association-policies", plate], enabled: open && canWrite, queryFn: async () => (await api.get<VehiclePolicyRow[]>("/policies", { params: { type: "Auto" } })).data });
+  const associate = useMutation({ mutationFn: async (policyId: string) => api.patch(`/policies/${policyId}/vehicle`, { vehicleRegistrationPlate: first?.vehicleRegistrationPlate ?? plate }), onSuccess: () => { setAssociationPolicyId(""); invalidateVehicle(); } });
+  const owners = [...new Map(details.map(row => [row.customerId ?? row.customerDisplay, row])).values()];
+  return <Dialog open={open} onClose={session.requestClose} fullWidth maxWidth="xl" PaperProps={{ sx: profileDialogPaperSx }} sx={zIndex ? { zIndex } : undefined}>
+    <DialogTitle sx={{ px: 1.25, py: .9, bgcolor: "#0b305c", color: "#fff" }}><Stack direction="row" gap={1} alignItems="center"><DirectionsCarIcon /><Typography variant="h6" fontWeight={800}>{first?.vehicleRegistrationPlate || plate || "Χωρίς πινακίδα"}</Typography></Stack></DialogTitle>
+    <DialogContent dividers sx={{ p: { xs: .65, md: 1.25 }, minHeight: 0 }}>
+      <DetailProfileTabs value={tab} onChange={setTab} items={[
+        { label: "Γενικά", icon: <DirectionsCarIcon /> }, { label: "Ιδιοκτήτες", icon: <PersonOutlineIcon /> },
+        { label: "Συμβόλαια", icon: <DescriptionOutlinedIcon /> }, { label: "Ζημιές", icon: <ReportProblemOutlinedIcon /> },
+      ]} />
+      <ProfileEditorFeedback session={session} />
       {q.isLoading && <Box sx={{ p: 4, textAlign: "center" }}><CircularProgress /></Box>}
       {q.isError && <Alert severity="error">{extractErrorMessage(q.error)}</Alert>}
-      {!q.isLoading && !q.isError && first && <Stack spacing={1}>
-        {editing && <Card variant="outlined" sx={{ p: 1.25 }}>
-          <Typography variant="subtitle1" fontWeight={800} sx={{ mb: 1 }}>Επεξεργασία στοιχείων οχήματος</Typography>
-          <Stack spacing={1}>
-            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" }, gap: 1 }}>
-              <TextField label="Πινακίδα" value={form.plate} onChange={e => setForm(current => ({ ...current, plate: e.target.value }))} />
-              <TextField label="Χρήση / κατηγορία" value={form.use} onChange={e => setForm(current => ({ ...current, use: e.target.value }))} />
-              <TextField label="ΑΦΜ οδηγού" value={form.driverVat} onChange={e => setForm(current => ({ ...current, driverVat: e.target.value }))} />
-              <TextField label="Λόγος κυκλοφορίας" value={form.reason} onChange={e => setForm(current => ({ ...current, reason: e.target.value }))} />
-              <TextField label="Χαρακτηριστικό" value={form.characteristic} onChange={e => setForm(current => ({ ...current, characteristic: e.target.value }))} />
-              <TextField label="Απαλλαγή" type="number" value={form.deductible} onChange={e => setForm(current => ({ ...current, deductible: e.target.value }))} />
-              <TextField label="Θέση / spot" value={form.position} onChange={e => setForm(current => ({ ...current, position: e.target.value }))} />
-            </Box>
-            <Typography variant="subtitle2" fontWeight={800}>Πρόσθετα στοιχεία για έκδοση και τιμολόγηση</Typography>
-            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" }, gap: 1 }}>
-              {([["make", "Μάρκα"], ["model", "Μοντέλο"], ["year", "Έτος κατασκευής"], ["vin", "VIN / αριθμός πλαισίου"], ["engineCapacity", "Κυβισμός (cc)"], ["taxableHorsepower", "Φορολογήσιμοι ίπποι"], ["estimatedValue", "Εκτιμώμενη αξία"], ["purchaseDate", "Ημερομηνία αγοράς"], ["ownerCount", "Αριθμός ιδιοκτητών"], ["color", "Χρώμα"], ["seats", "Θέσεις"]] as [string, string][]).map(([key, label]) => <TextField key={key} label={label} type={key === "purchaseDate" ? "date" : undefined} value={vehicleSpecs[key] ?? ""} onChange={e => setVehicleSpecs(current => ({ ...current, [key]: e.target.value }))} InputLabelProps={key === "purchaseDate" ? { shrink: true } : undefined} />)}
-              <TextField select label="Κατάσταση οχήματος" value={vehicleSpecs.condition ?? ""} onChange={e => setVehicleSpecs(current => ({ ...current, condition: e.target.value }))}><MenuItem value="">Δεν έχει οριστεί</MenuItem><MenuItem value="Καινούργιο">Καινούργιο</MenuItem><MenuItem value="Μεταχειρισμένο">Μεταχειρισμένο</MenuItem></TextField>
-              <TextField select label="Νέος οδηγός / οδηγεί παιδί" value={vehicleSpecs.youngDriver ?? ""} onChange={e => setVehicleSpecs(current => ({ ...current, youngDriver: e.target.value }))}><MenuItem value="">Δεν έχει οριστεί</MenuItem><MenuItem value="Ναι">Ναι</MenuItem><MenuItem value="Όχι">Όχι</MenuItem></TextField>
-              <TextField select label="Ηλιοροφή" value={vehicleSpecs.sunroof ?? ""} onChange={e => setVehicleSpecs(current => ({ ...current, sunroof: e.target.value }))}><MenuItem value="">Δεν έχει οριστεί</MenuItem><MenuItem value="Ναι">Ναι</MenuItem><MenuItem value="Όχι">Όχι</MenuItem></TextField>
-            </Box>
-            <TextField label="Τεχνικά στοιχεία (JSON)" value={form.specsJson} onChange={e => setForm(current => ({ ...current, specsJson: e.target.value }))} multiline minRows={3} helperText={'Προαιρετικά, π.χ. {"make":"Toyota","model":"Yaris"}'} />
-            <TextField label="Σημειώσεις οχήματος" value={form.notes} onChange={e => setForm(current => ({ ...current, notes: e.target.value }))} multiline minRows={2} />
-            {updateVehicle.isError && <Alert severity="error">{extractErrorMessage(updateVehicle.error)}</Alert>}
-            <Button variant="contained" color="success" sx={{ color: "#fff", fontWeight: 800 }} startIcon={<EditIcon />} onClick={() => updateVehicle.mutate()} disabled={updateVehicle.isPending}>{updateVehicle.isPending ? "Αποθήκευση…" : "Αποθήκευση στοιχείων"}</Button>
-          </Stack>
-        </Card>}
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" }, gap: 0.75 }}>
-          {[["Ιδιοκτήτης / πελάτης", first.customerDisplay], ["Πινακίδα", (first.vehicleRegistrationPlate ?? plate) || "—"], ["Χρήση", first.vehicleUseCategory ?? first.carrierUseCode ?? "—"], ["Λόγος κυκλοφορίας", first.reasonForCirculation ?? "—"], ["ΑΦΜ οδηγού", first.driverVatNumber ?? "—"], ["Χαρακτηριστικό", first.characteristic ?? "—"], ["Απαλλαγή", money(first.deductible, first.currency)], ["Θέση / spot", first.position ?? "—"], ["Τρόπος είσπραξης", first.paymentCollectionMethod ?? "—"], ["Πληρωμή απευθείας στην ασφαλιστική", first.paidDirectlyToCarrier ? "Ναι" : "Όχι"]].map(([label, value]) => <Box key={label} sx={{ p: 0.9, bgcolor: "background.default", borderRadius: 1 }}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography fontWeight={700} noWrap>{value}</Typography></Box>)}
-        </Box>
-        <Card variant="outlined" sx={{ p: 1.25 }}><Typography variant="subtitle1" fontWeight={800} sx={{ mb: 0.75 }}>Τεχνικά στοιχεία οχήματος</Typography>{specEntries.length === 0 ? <Typography color="text.secondary">Δεν έχουν σταλεί τεχνικά στοιχεία από την ασφαλιστική. Μπορούν να αποθηκευτούν στο πεδίο παραμετρικών του συμβολαίου.</Typography> : <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" }, gap: 0.75 }}>{specEntries.map(([key, value]) => <Box key={key}><Typography variant="caption" color="text.secondary">{specLabel[key] ?? specLabel[key.split(".").pop() ?? ""] ?? key}</Typography><Typography fontWeight={600} noWrap>{typeof value === "object" ? JSON.stringify(value) : String(value)}</Typography></Box>)}</Box>}</Card>
-        <Card variant="outlined" sx={{ p: 1.25 }}><Typography variant="subtitle1" fontWeight={800} sx={{ mb: 0.75 }}>Κόστος, φόροι και εισπράξεις</Typography><Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(3, minmax(0, 1fr))", md: "repeat(5, minmax(0, 1fr))" }, gap: 0.75 }}>{[["Μεικτά", total("premium")], ["Καθαρά", total("netPremium")], ["Φόρος / ΦΠΑ", total("vatAmount")], ["Χαρτόσημο", total("stampDutyAmount")], ["Ασφαλιστική εισφορά", total("insuranceContributionAmount")], ["Λοιπές επιβαρύνσεις", total("otherChargesAmount")], ["Εισπράξεις", total("totalReceived")], ["Υπόλοιπο", total("outstanding")], ["Προμήθειες", total("totalCommissions")]].map(([label, value]) => <Box key={label}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography fontWeight={800}>{money(Number(value), first.currency)}</Typography></Box>)}</Box><Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75 }}>Οι φόροι και οι προμήθειες προέρχονται από τα επιμέρους συμβόλαια· δεν υπολογίζονται ξανά στην καρτέλα.</Typography></Card>
+      {tab === 3 && claimsQ.isLoading && <CircularProgress size={22} />}
+      {tab === 3 && claimsQ.isError && <Alert severity="error">Δεν φορτώθηκαν οι συνδεδεμένες ζημιές. {extractErrorMessage(claimsQ.error)}</Alert>}
+      {[removeVehicle, removeAllVehicle, associate].map((mutation, index) => mutation.isError ? <Alert key={index} severity="error">{extractErrorMessage(mutation.error)}</Alert> : null)}
+      {first && tab === 0 && <VehicleProfileFields session={canWrite ? session : undefined} values={values} owner={first.customerDisplay} ownerVat={first.customerVat} />}
+      {tab === 1 && <Stack spacing={.75}>{owners.map(owner => <Box key={owner.customerId ?? owner.customerDisplay} sx={profileFieldGridSx}>
+        <ProfileEditableField label="Ιδιοκτήτης / πελάτης" value={owner.customerDisplay} />
+        <ProfileEditableField label="ΑΦΜ ιδιοκτήτη" value={owner.customerVat} mono />
+        {owner.customerId && <Button component={RouterLink} to={"/app/customers/" + owner.customerId} size="small">Καρτέλα πελάτη</Button>}
+      </Box>)}</Stack>}
+      {first && tab === 2 && <Box sx={{ overflowX: "auto", "& .MuiButton-root": { display: canWrite ? undefined : "none" } }}>
         <Card variant="outlined" sx={{ p: 1.25 }}>
           <Typography variant="subtitle1" fontWeight={800} sx={{ mb: 1 }}>Σύνδεση συμβολαίου με το όχημα</Typography>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ xs: "stretch", sm: "center" }}>
@@ -253,21 +214,37 @@ export function VehicleDetailDialog({ open, plate, policyIds, onClose, zIndex, i
               <MenuItem value="">Επιλέξτε συμβόλαιο…</MenuItem>
               {(availableQ.data ?? []).filter(policy => !policyIds.includes(policy.id)).map(policy => <MenuItem key={policy.id} value={policy.id}>{policy.policyNumber} · {policy.customerDisplay ?? "Πελάτης"} · {policy.insuranceCompanyName}</MenuItem>)}
             </TextField>
-            <Button variant="contained" onClick={() => associationPolicyId && associate.mutate(associationPolicyId)} disabled={!associationPolicyId || associate.isPending}>{associate.isPending ? "Σύνδεση…" : "Σύνδεση"}</Button>
+            <Button variant="contained" onClick={() => associationPolicyId && associate.mutate(associationPolicyId)} disabled={!canWrite || !associationPolicyId || associate.isPending}>{associate.isPending ? "Σύνδεση…" : "Σύνδεση"}</Button>
           </Stack>
           <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>Η σύνδεση ενημερώνει μόνο την πινακίδα του επιλεγμένου συμβολαίου. Δεν αλλάζει οικονομικά, καλύψεις ή ζημιές.</Typography>
           {associate.isError && <Alert severity="error" sx={{ mt: 1 }}>{extractErrorMessage(associate.error)}</Alert>}
         </Card>
         <Card variant="outlined" sx={{ p: 1.25 }}><Typography variant="subtitle1" fontWeight={800} sx={{ mb: 0.75 }}>Ασφαλιστήρια</Typography><Table size="small"><TableHead><TableRow><TableCell>Συμβόλαιο</TableCell><TableCell>Ασφαλιστική</TableCell><TableCell>Ισχύς</TableCell><TableCell>Κατάσταση</TableCell><TableCell align="right">Μεικτά</TableCell><TableCell /></TableRow></TableHead><TableBody>{details.map(detail => <TableRow key={detail.id}><TableCell>{detail.policyNumber}</TableCell><TableCell>{detail.insuranceCompanyName}</TableCell><TableCell>{detail.startDate} → {detail.endDate}</TableCell><TableCell><Chip size="small" label={vehicleStatusLabel(detail.status)} /></TableCell><TableCell align="right">{money(detail.premium, detail.currency)}</TableCell><TableCell align="right"><Button size="small" color="error" startIcon={<DeleteOutlineIcon />} onClick={() => { if (window.confirm("Να αφαιρεθεί το όχημα από αυτό το συμβόλαιο; Το συμβόλαιο και τα οικονομικά του δεν διαγράφονται.")) removeVehicle.mutate(detail.id); }}>Αφαίρεση</Button></TableCell></TableRow>)}</TableBody></Table></Card>
-        <Card variant="outlined" sx={{ p: 1.25 }}><Typography variant="subtitle1" fontWeight={800} sx={{ mb: 0.75 }}>Ζημιές</Typography>{(q.data?.claims ?? []).length === 0 ? <Typography color="text.secondary">Δεν υπάρχουν καταχωρημένες ζημιές για το όχημα.</Typography> : <Table size="small"><TableHead><TableRow><TableCell>Αρ. ζημιάς</TableCell><TableCell>Ημερομηνία</TableCell><TableCell>Κατάσταση</TableCell><TableCell align="right">Διεκδίκηση</TableCell><TableCell align="right">Έγκριση</TableCell></TableRow></TableHead><TableBody>{(q.data?.claims ?? []).map(claim => <TableRow key={claim.id}><TableCell>{claim.claimNumber ?? "—"}</TableCell><TableCell>{claim.incidentDate ?? "—"}</TableCell><TableCell><Chip size="small" label={claimStatusLabel(claim.status)} /></TableCell><TableCell align="right">{money(claim.claimedAmount, first.currency)}</TableCell><TableCell align="right">{money(claim.approvedAmount, first.currency)}</TableCell></TableRow>)}</TableBody></Table>}</Card>
-        {details.some(detail => detail.paidOnCredit || detail.paymentPromisedOn || detail.creditReason || detail.policyNotes) && <Card variant="outlined" sx={{ p: 1.25 }}><Typography variant="subtitle1" fontWeight={800}>Πληρωμές & σημειώσεις</Typography>{details.map(detail => <Box key={detail.id} sx={{ mt: 0.75 }}><Typography fontWeight={700}>{detail.policyNumber}</Typography><Typography variant="body2">{detail.paidOnCredit ? "Πληρωμή επί πιστώσει" : ""}{detail.paymentPromisedOn ? ` · Υπόσχεση πληρωμής: ${detail.paymentPromisedOn}` : ""}{detail.creditReason ? ` · ${detail.creditReason}` : ""}</Typography>{detail.policyNotes && <Typography variant="body2" color="text.secondary">{detail.policyNotes}</Typography>}</Box>)}</Card>}
-      </Stack>}
+
+      </Box>}
+      {first && tab === 3 && <Box sx={{ overflowX: "auto" }}>        <Card variant="outlined" sx={{ p: 1.25 }}><Typography variant="subtitle1" fontWeight={800} sx={{ mb: 0.75 }}>Ζημιές</Typography>{(claimsQ.data ?? []).length === 0 ? <Typography color="text.secondary">Δεν υπάρχουν καταχωρημένες ζημιές για το όχημα.</Typography> : <Table size="small"><TableHead><TableRow><TableCell>Αρ. ζημιάς</TableCell><TableCell>Ημερομηνία</TableCell><TableCell>Κατάσταση</TableCell><TableCell align="right">Διεκδίκηση</TableCell><TableCell align="right">Έγκριση</TableCell></TableRow></TableHead><TableBody>{(claimsQ.data ?? []).map(claim => <TableRow key={claim.id}><TableCell>{claim.claimNumber ?? "—"}</TableCell><TableCell>{claim.incidentDate ?? "—"}</TableCell><TableCell><Chip size="small" label={claimStatusLabel(claim.status)} /></TableCell><TableCell align="right">{money(claim.claimedAmount, first.currency)}</TableCell><TableCell align="right">{money(claim.approvedAmount, first.currency)}</TableCell></TableRow>)}</TableBody></Table>}</Card></Box>}
     </DialogContent>
-    <DialogActions sx={{ justifyContent: "space-between" }}>
-      <Button color="error" startIcon={<DeleteOutlineIcon />} onClick={() => { if (window.confirm("Να διαγραφεί η συσχέτιση του οχήματος από όλα τα συμβόλαια; Τα συμβόλαια, οι ζημιές και τα οικονομικά τους δεν διαγράφονται.")) removeAllVehicle.mutate(); }} disabled={!first || removeAllVehicle.isPending}>{removeAllVehicle.isPending ? "Διαγραφή…" : "Διαγραφή οχήματος"}</Button>
-      <Button color="error" variant="contained" sx={{ color: "#fff", fontWeight: 800 }} onClick={onClose}>Κλείσιμο</Button>
+    <DialogActions sx={{ px: 1.25, py: .6, justifyContent: "space-between", flexWrap: "wrap", gap: .75 }}>
+      {canWrite && <Button color="error" startIcon={<DeleteOutlineIcon />} disabled={!first || session.dirty || session.busy || removeAllVehicle.isPending} onClick={() => { if (window.confirm("Να αφαιρεθεί η συσχέτιση οχήματος; Τα συμβόλαια και οι ζημιές δεν διαγράφονται.")) removeAllVehicle.mutate(); }}>Αφαίρεση συσχέτισης</Button>}
+      {canWrite && first ? <ProfileEditorActions session={session} label="οχήματος" /> : <Button color="error" variant="contained" onClick={session.requestClose}>Κλείσιμο</Button>}
     </DialogActions>
   </Dialog>;
+}
+
+export function VehicleProfileFields({ session, values, owner, ownerVat }: { session?: ProfileFieldSession; values: Record<string, string>; owner?: string; ownerVat?: string | null }) {
+  const field = (key: string, label: string, extra: Partial<React.ComponentProps<typeof ProfileEditableField>> = {}) =>
+    <ProfileEditableField key={key} field={session ? key : undefined} session={session} value={values[key]} label={label} {...extra} />;
+  return <Box sx={profileFieldGridSx}>
+    {field("vehicleRegistrationPlate", "Πινακίδα", { mono: true })}
+    {field("vehicleUseCategory", "Χρήση / κατηγορία")}
+    {field("reasonForCirculation", "Λόγος κυκλοφορίας")}
+    <ProfileEditableField label="Ιδιοκτήτης / πελάτης" value={owner} />
+    <ProfileEditableField label="ΑΦΜ ιδιοκτήτη (αυτόματο)" value={ownerVat} mono />
+    {VEHICLE_SPEC_FIELDS.map(([key, label]) => field("spec:" + key, label, {
+      multiline: key === "vehicleNotes", type: key === "purchaseDate" ? "date" : "text",
+      options: key === "sunroof" || key === "youngDriver" ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Ναι", label: "Ναι" }, { value: "Όχι", label: "Όχι" }, { value: "true", label: "Ναι" }, { value: "false", label: "Όχι" }] : key === "condition" ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Καινούργιο", label: "Καινούργιο" }, { value: "Μεταχειρισμένο", label: "Μεταχειρισμένο" }] : undefined,
+    }))}
+  </Box>;
 }
 
 function LegacyCustomerVehiclesPage() {
@@ -343,7 +320,7 @@ const emptyVehicleForm = (policyId = ""): AddVehicleForm => ({
   ownerCount: "", use: "", color: "", seats: "", notes: ""
 });
 
-function AddVehicleDialog({ open, rows, onClose, onSaved }: { open: boolean; rows: VehiclePolicyRow[]; onClose: () => void; onSaved: () => void }) {
+function AddVehicleDialog({ open, rows, onClose, onSaved }: { open: boolean; rows: VehiclePolicyRow[]; onClose: () => void; onSaved: (plate: string) => void }) {
   const [form, setForm] = useState<AddVehicleForm>(() => emptyVehicleForm(rows[0]?.id));
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -355,15 +332,18 @@ function AddVehicleDialog({ open, rows, onClose, onSaved }: { open: boolean; row
         make: form.make.trim(), model: form.model.trim(), year: form.year.trim(), vin: form.vin.trim(),
         engineCapacity: form.engineCapacity.trim(), taxableHorsepower: form.taxableHorsepower.trim(),
         estimatedValue: form.estimatedValue.trim(), purchaseDate: form.purchaseDate, condition: form.condition,
-        ownerCount: form.ownerCount.trim(), use: form.use.trim(), color: form.color.trim(), seats: form.seats.trim()
+        ownerCount: form.ownerCount.trim(), color: form.color.trim(), seats: form.seats.trim(), vehicleNotes: form.notes.trim()
       };
       Object.keys(specs).forEach(key => { if (!specs[key]) delete specs[key]; });
+      const current = (await api.get<VehiclePolicyDetail>(`/policies/${form.policyId}/detail`)).data;
       return api.patch(`/policies/${form.policyId}/vehicle`, {
         vehicleRegistrationPlate: form.plate.trim(), vehicleUseCategory: form.use.trim() || null,
-        specsJson: JSON.stringify(specs), notes: form.notes.trim() || null, replaceDetails: true
+        driverVatNumber: current.customerVat ?? null, reasonForCirculation: current.reasonForCirculation,
+        characteristic: current.characteristic, deductible: current.deductible, position: current.position, notes: current.policyNotes,
+        specsJson: mergeVehicleSpecs(current.specsJson, specs), replaceDetails: true
       });
     },
-    onSuccess: onSaved,
+    onSuccess: () => onSaved(form.plate.trim().toUpperCase()),
     onError: e => setError(extractErrorMessage(e))
   });
   const set = <K extends keyof AddVehicleForm>(key: K, value: AddVehicleForm[K]) => setForm(current => ({ ...current, [key]: value }));
@@ -615,7 +595,7 @@ export function CustomerVehiclesPage() {
       <TablePagination component="div" count={filteredRows.length} page={page} onPageChange={(_, next) => setPage(next)} rowsPerPage={rowsPerPage} onRowsPerPageChange={event => { setRowsPerPage(Number(event.target.value)); setPage(0); }} rowsPerPageOptions={[10, 25, 50, 100]} labelRowsPerPage="Ανά σελίδα" labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`} />
     </Card>}
     <VehicleDetailDialog open={selectedVehicle !== null} plate={selectedVehicle?.plate ?? ""} initialEditing={selectedVehicle?.edit ?? false} policyIds={sourceRows.filter(row => (row.vehicleRegistrationPlate ?? "") === (selectedVehicle?.plate ?? "")).map(row => row.id)} onClose={() => setSelectedVehicle(null)} />
-    <AddVehicleDialog open={addOpen} rows={sourceRows} onClose={() => setAddOpen(false)} onSaved={() => { setAddOpen(false); void qc.invalidateQueries({ queryKey: ["customer-vehicles-all"] }); void qc.invalidateQueries({ queryKey: ["customer-vehicles"] }); }} />
+    <AddVehicleDialog open={addOpen} rows={sourceRows} onClose={() => setAddOpen(false)} onSaved={plate => { setAddOpen(false); setSelectedVehicle({ plate, edit: false }); void qc.invalidateQueries({ queryKey: ["customer-vehicles-all"] }); void qc.invalidateQueries({ queryKey: ["customer-vehicles"] }); }} />
     <Dialog open={statsOpen} onClose={() => setStatsOpen(false)} fullWidth maxWidth="lg">
       <DialogTitle sx={{ pb: 1 }}>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} justifyContent="space-between" alignItems={{ sm: "center" }}>

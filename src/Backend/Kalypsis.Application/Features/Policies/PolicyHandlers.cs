@@ -487,6 +487,8 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
 
         var (updUseEnum, updUseRaw) = VehicleUseCategorySplit.Parse(b.VehicleUseCategory);
         var (updBranchEnum, updBranchRaw) = PolicyTypeSplit.Parse(b.PolicyType);
+        var mappingsChanged = !string.Equals(p.CarrierPackageCode, b.PackageCode?.Trim(), StringComparison.Ordinal)
+            || !string.Equals(p.CarrierCoverageCode, b.CoverCode?.Trim(), StringComparison.Ordinal);
         p.InsuranceCompanyId = b.InsuranceCompanyId;
         p.ProducerId = updProducerId;
         p.PolicyType = updBranchEnum;
@@ -503,7 +505,9 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
         p.VatAmount = b.VatAmount;
         p.Currency = string.IsNullOrWhiteSpace(b.Currency) ? "EUR" : b.Currency.Trim().ToUpperInvariant();
         p.Status = b.Status;
-        p.SpecsJson = PolicySpecsJsonHelper.MergeCodes(p.SpecsJson, b.CoverCode, b.PackageCode);
+        // A profile edit unrelated to mappings must not reserialize technical JSON.
+        if (mappingsChanged)
+            p.SpecsJson = PolicySpecsJsonHelper.MergeCodes(p.SpecsJson, b.CoverCode, b.PackageCode);
         p.ApplicationNumber = string.IsNullOrWhiteSpace(b.ApplicationNumber) ? null : b.ApplicationNumber.Trim();
         p.ContractPartyCustomerId = updPartyCustId;
         p.PreviousInsuranceCompanyId = updPrevCarrier;

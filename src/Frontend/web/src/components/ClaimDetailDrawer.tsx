@@ -1,3 +1,6 @@
+import { DetailProfileTabs } from "./profile/DetailProfileTabs";
+import { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback, profileDialogPaperSx, profileFieldGridSx, useProfileFieldEditor, type ProfileFieldSession } from "./profile/ProfileFieldEditor";
+import { CLAIM_FIELDS, claimUpdatePayload } from "./profile/claimProfile";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Alert,
@@ -12,22 +15,15 @@ import {
   DialogTitle,
   Grid,
   IconButton,
-  InputAdornment,
-  MenuItem,
   Stack,
-  Tab,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableRow,
-  Tabs,
-  TextField,
   Typography,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import EditIcon from "@mui/icons-material/Edit";
-import SaveIcon from "@mui/icons-material/Save";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import DirectionsCarOutlinedIcon from "@mui/icons-material/DirectionsCarOutlined";
@@ -35,10 +31,10 @@ import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalance
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { api, extractErrorMessage } from "../api/client";
+import { api } from "../api/client";
 import { money, date, dateTime } from "../utils/format";
 import { EntityAuditTimeline } from "./EntityAuditTimeline";
 
@@ -206,7 +202,7 @@ function claimStatusLabel(status: string | null | undefined, t: TFunction) {
 }
 
 const PROFILE_TABS = [
-  { label: "Σύνοψη", icon: <InfoOutlinedIcon fontSize="small" /> },
+  { label: "Γενικά", icon: <InfoOutlinedIcon fontSize="small" /> },
   {
     label: "Στοιχεία ζημιάς",
     icon: <DescriptionOutlinedIcon fontSize="small" />,
@@ -231,7 +227,7 @@ export function ClaimDetailDrawer({
   open,
   onClose,
   canEdit = false,
-  onEdit,
+  onEdit: _onEdit,
   onSaved,
 }: {
   claim: ClaimRow | null;
@@ -243,33 +239,8 @@ export function ClaimDetailDrawer({
 }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState(0);
-  const [editMode, setEditMode] = useState(false);
   const [snapshot, setSnapshot] = useState<ClaimRow | null>(claim);
-  const [form, setForm] = useState({
-    incidentDate: "",
-    reportedDate: "",
-    claimedAmount: 0,
-    approvedAmount: 0,
-    description: "",
-    status: "Reported",
-  });
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setSnapshot(claim);
-    setTab(0);
-    setEditMode(false);
-    if (claim)
-      setForm({
-        incidentDate: claim.incidentDate,
-        reportedDate: claim.reportedDate,
-        claimedAmount: claim.claimedAmount ?? 0,
-        approvedAmount: claim.approvedAmount ?? 0,
-        description: claim.description ?? "",
-        status: claim.status,
-      });
-  }, [claim?.id, open]);
-
+  useEffect(() => { setSnapshot(claim); setTab(0); }, [claim?.id, open]);
   const profileQ = useQuery({
     queryKey: ["claim-profile", claim?.id],
     enabled: open && !!claim?.id,
@@ -337,35 +308,25 @@ export function ClaimDetailDrawer({
     },
   });
 
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      if (!snapshot) throw new Error("Δεν επιλέχθηκε ζημιά.");
-      const updated = (
-        await api.put<ClaimRow>(`/claims/${snapshot.id}`, {
-          incidentDate: form.incidentDate,
-          reportedDate: form.reportedDate,
-          claimedAmount: form.claimedAmount > 0 ? form.claimedAmount : null,
-          approvedAmount: form.approvedAmount > 0 ? form.approvedAmount : null,
-          description: form.description.trim() || null,
-        })
-      ).data;
-      if (form.status !== snapshot.status) {
-        return (
-          await api.post<ClaimRow>(`/claims/${snapshot.id}/status`, {
-            status: form.status,
-            approvedAmount:
-              form.approvedAmount > 0 ? form.approvedAmount : null,
-          })
-        ).data;
+  const qc = useQueryClient();
+  const session = useProfileFieldEditor({
+    sessionKey: open ? claim?.id ?? "" : "", values: Object.fromEntries(CLAIM_FIELDS.map(([key]) => [key, String(snapshot?.[key] ?? "")])), onClose,
+    refresh: () => { void qc.invalidateQueries({ queryKey: ["claim-profile", claim?.id] }); void qc.invalidateQueries({ queryKey: ["claims"] }); onSaved?.(); },
+    write: async (changes, accept) => {
+      if (!canEdit || !snapshot) throw new Error("Δεν επιτρέπεται η επεξεργασία ζημιάς.");
+      if (!Object.keys(changes).length) return;
+      const body = claimUpdatePayload({ ...snapshot }, changes);
+      const baseKeys = Object.keys(changes).filter(key => key !== "status");
+      let updated = snapshot;
+      if (baseKeys.length) {
+        updated = { ...snapshot, ...(await api.put<ClaimRow>("/claims/" + snapshot.id, body)).data };
+        setSnapshot(updated); accept(baseKeys);
       }
-      return updated;
-    },
-    onSuccess: (updated) => {
-      setSnapshot(updated);
-      setEditMode(false);
-      onSaved?.();
-    },
-    onError: (e) => setError(extractErrorMessage(e)),
+      if (changes.status !== undefined && changes.status !== updated.status) {
+        const saved = (await api.post<ClaimRow>("/claims/" + snapshot.id + "/status", { status: changes.status, approvedAmount: body.approvedAmount })).data;
+        setSnapshot({ ...updated, ...saved }); accept(["status"]);
+      } else if (changes.status !== undefined) accept(["status"]);
+    }
   });
 
   const policy = profileQ.data?.policy;
@@ -412,17 +373,10 @@ export function ClaimDetailDrawer({
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={session.requestClose}
       fullWidth
       maxWidth="xl"
-      PaperProps={{
-        sx: {
-          height: { xs: "100vh", md: "calc(100vh - 32px)" },
-          maxHeight: "none",
-          m: { xs: 0, md: 2 },
-          borderRadius: { xs: 0, md: 2.5 },
-        },
-      }}
+      PaperProps={{ sx: profileDialogPaperSx }}
     >
       <DialogTitle sx={{ py: 1.5, borderBottom: 1, borderColor: "divider" }}>
         <Stack
@@ -472,25 +426,7 @@ export function ClaimDetailDrawer({
             </Typography>
           </Box>
           <Stack direction="row" spacing={1} alignItems="center">
-            {canEdit && (
-              <Button
-                startIcon={editMode ? <SaveIcon /> : <EditIcon />}
-                variant="contained"
-                color={editMode ? "primary" : "success"}
-                onClick={() =>
-                  editMode
-                    ? saveMutation.mutate()
-                    : onEdit
-                      ? onEdit(snapshot)
-                      : setEditMode(true)
-                }
-                disabled={saveMutation.isPending}
-                sx={{ color: "#fff", fontWeight: 800 }}
-              >
-                {editMode ? "Αποθήκευση" : "Επεξεργασία ζημιάς"}
-              </Button>
-            )}
-            <IconButton onClick={onClose} aria-label="Κλείσιμο">
+            <IconButton onClick={session.requestClose} aria-label="Κλείσιμο">
               <CloseIcon />
             </IconButton>
           </Stack>
@@ -504,27 +440,8 @@ export function ClaimDetailDrawer({
           "& .MuiTypography-root": { lineHeight: 1.3 },
         }}
       >
-        <Tabs
-          value={tab}
-          onChange={(_, next) => setTab(next)}
-          variant="scrollable"
-          allowScrollButtonsMobile
-          sx={profileTabsSx}
-        >
-          {PROFILE_TABS.map((item) => (
-            <Tab
-              key={item.label}
-              icon={item.icon}
-              iconPosition="start"
-              label={item.label}
-            />
-          ))}
-        </Tabs>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-            {error}
-          </Alert>
-        )}
+        <DetailProfileTabs value={tab} onChange={setTab} items={PROFILE_TABS} />
+        <ProfileEditorFeedback session={session} />
         {profileQ.isLoading && (
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />
@@ -541,20 +458,17 @@ export function ClaimDetailDrawer({
             {tab === 0 && (
               <SummaryTab
                 claim={snapshot}
+                session={canEdit ? session : undefined}
                 policy={policy}
                 customer={customer}
                 customerName={customerName}
-                statusLabel={statusLabel}
-                fmt={fmt}
                 onOpen={openLink}
               />
             )}
             {tab === 1 && (
               <ClaimFieldsTab
                 claim={snapshot}
-                editMode={editMode}
-                form={form}
-                setForm={setForm}
+                session={canEdit ? session : undefined}
                 t={t}
                 fmt={fmt}
               />
@@ -593,75 +507,12 @@ export function ClaimDetailDrawer({
           </>
         )}
       </DialogContent>
-      <DialogActions
-        sx={{
-          borderTop: 1,
-          borderColor: "divider",
-          justifyContent: "space-between",
-        }}
-      >
-        <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-          Κάθε ζημιά συνδέεται με το συμβόλαιο, τον πελάτη και τα οικονομικά
-          της.
-        </Typography>
-        <Button
-          color="error"
-          variant="contained"
-          startIcon={<CloseIcon />}
-          onClick={onClose}
-          sx={{ color: "#fff", fontWeight: 800 }}
-        >
-          Κλείσιμο καρτέλας
-        </Button>
+      <DialogActions sx={{ px: 1.25, py: .6 }}>
+        {canEdit ? <ProfileEditorActions session={session} label="ζημιάς" /> : <Button color="error" variant="contained" onClick={session.requestClose}>Κλείσιμο</Button>}
       </DialogActions>
     </Dialog>
   );
 }
-
-const profileTabsSx = {
-  position: "sticky",
-  top: 0,
-  zIndex: 4,
-  mb: 2,
-  px: 0.5,
-  py: 0.5,
-  border: "1px solid #263238",
-  borderRadius: 2,
-  bgcolor: "#fff",
-  boxShadow: "0 3px 10px rgba(15,23,42,.12)",
-  overflow: "visible",
-  "& .MuiTabs-scroller": { overflow: "visible !important" },
-  "& .MuiTabs-flexContainer": { gap: 0.75, flexWrap: "wrap" },
-  "& .MuiTabs-indicator": { display: "none" },
-  "& .MuiTab-root": {
-    minHeight: 52,
-    minWidth: { xs: 150, md: 172 },
-    px: 1.2,
-    py: 0.65,
-    border: "1px solid #263238",
-    borderRadius: 1.5,
-    background: "linear-gradient(180deg,#e5e7eb 0%,#b8c0c8 100%) !important",
-    color: "#111827 !important",
-    opacity: "1 !important",
-    textTransform: "none",
-    fontWeight: 800,
-    fontSize: { xs: ".78rem", md: ".88rem" },
-    transition:
-      "background .18s ease,color .18s ease,border-color .18s ease,box-shadow .18s ease",
-    "&:hover": {
-      background: "linear-gradient(180deg,#d4d8de 0%,#9ca6b1 100%) !important",
-      color: "#0b2545 !important",
-      borderColor: "#111827 !important",
-      transform: "none",
-    },
-    "&.Mui-selected": {
-      background: "linear-gradient(135deg,#0b5cad 0%,#063b73 100%) !important",
-      color: "#fff !important",
-      borderColor: "#062f63 !important",
-      boxShadow: "0 3px 8px rgba(6,47,99,.35)",
-    },
-  },
-};
 
 function Panel({
   title,
@@ -719,47 +570,8 @@ function InfoGrid({ children }: { children: ReactNode }) {
     </Grid>
   );
 }
-function InfoItem({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: ReactNode;
-  color?: string;
-}) {
-  return (
-    <Grid item xs={12} sm={6} md={3}>
-      <Box
-        sx={{
-          px: 1,
-          py: 0.65,
-          minHeight: 52,
-          bgcolor: "#f5f8fb",
-          border: "1px solid #e0e7ef",
-          borderRadius: 1.25,
-        }}
-      >
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ display: "block", fontWeight: 700 }}
-        >
-          {label}
-        </Typography>
-        <Typography
-          sx={{
-            mt: 0.15,
-            fontWeight: 750,
-            color: color ?? "#162235",
-            wordBreak: "break-word",
-          }}
-        >
-          {value || "—"}
-        </Typography>
-      </Box>
-    </Grid>
-  );
+function InfoItem({ label, value, color }: { label: string; value: ReactNode; color?: string }) {
+  return <Grid item xs={12} md={6}><Box sx={{ color }}><ProfileEditableField label={label} value={typeof value === "string" || typeof value === "number" ? String(value) : undefined} /></Box></Grid>;
 }
 function KPI({
   label,
@@ -817,45 +629,22 @@ function EmptyState({ text }: { text: string }) {
 
 function SummaryTab({
   claim,
+  session,
   policy,
   customer,
   customerName,
-  statusLabel,
-  fmt,
   onOpen,
 }: {
   claim: ClaimRow;
+  session?: ProfileFieldSession;
   policy: PolicyDetail | null | undefined;
   customer: CustomerDetail | null | undefined;
   customerName: string;
-  statusLabel: string;
-  fmt: (value: number | null | undefined) => string;
   onOpen: (path: string) => void;
 }) {
   return (
     <Stack spacing={1}>
-      <InfoGrid>
-        <Grid item xs={12} sm={6} md={3}>
-          <KPI
-            label="Αιτούμενο ποσό"
-            value={fmt(claim.claimedAmount)}
-            color="#b45309"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <KPI
-            label="Εγκεκριμένο ποσό"
-            value={fmt(claim.approvedAmount)}
-            color="#15803d"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <KPI label="Ημερομηνία συμβάντος" value={date(claim.incidentDate)} />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <KPI label="Κατάσταση" value={statusLabel} color="#0b5cad" />
-        </Grid>
-      </InfoGrid>
+      <ClaimProfileFields claim={claim} session={session} />
       <Panel
         title="Σύνδεση ζημιάς"
         icon={<DescriptionOutlinedIcon />}
@@ -935,151 +724,9 @@ function SummaryTab({
   );
 }
 
-function ClaimFieldsTab({
-  claim,
-  editMode,
-  form,
-  setForm,
-  t,
-  fmt,
-}: {
-  claim: ClaimRow;
-  editMode: boolean;
-  form: {
-    incidentDate: string;
-    reportedDate: string;
-    claimedAmount: number;
-    approvedAmount: number;
-    description: string;
-    status: string;
-  };
-  setForm: (value: any) => void;
-  t: TFunction;
-  fmt: (value: number | null | undefined) => string;
-}) {
-  if (editMode)
-    return (
-      <Panel title="Επεξεργασία ζημιάς" icon={<EditIcon />}>
-        <Grid container spacing={1.5}>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              type="date"
-              label="Ημερομηνία συμβάντος"
-              InputLabelProps={{ shrink: true }}
-              value={form.incidentDate}
-              onChange={(e) =>
-                setForm({ ...form, incidentDate: e.target.value })
-              }
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              type="date"
-              label="Ημερομηνία δήλωσης"
-              InputLabelProps={{ shrink: true }}
-              value={form.reportedDate}
-              onChange={(e) =>
-                setForm({ ...form, reportedDate: e.target.value })
-              }
-            />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <TextField
-              fullWidth
-              type="number"
-              label="Αιτούμενο ποσό"
-              value={form.claimedAmount}
-              onChange={(e) =>
-                setForm({ ...form, claimedAmount: Number(e.target.value) })
-              }
-              InputProps={{
-                endAdornment: <InputAdornment position="end">€</InputAdornment>,
-              }}
-            />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <TextField
-              fullWidth
-              type="number"
-              label="Εγκεκριμένο ποσό"
-              value={form.approvedAmount}
-              onChange={(e) =>
-                setForm({ ...form, approvedAmount: Number(e.target.value) })
-              }
-              InputProps={{
-                endAdornment: <InputAdornment position="end">€</InputAdornment>,
-              }}
-            />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <TextField
-              fullWidth
-              select
-              label="Κατάσταση"
-              value={form.status}
-              onChange={(e) => setForm({ ...form, status: e.target.value })}
-            >
-              {[
-                "Reported",
-                "UnderReview",
-                "Approved",
-                "Rejected",
-                "Paid",
-                "Closed",
-              ].map((s) => (
-                <MenuItem key={s} value={s}>
-                  {t(`claims.statuses.${s}`, s)}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              multiline
-              minRows={5}
-              label="Περιγραφή"
-              value={form.description}
-              onChange={(e) =>
-                setForm({ ...form, description: e.target.value })
-              }
-            />
-          </Grid>
-        </Grid>
-      </Panel>
-    );
-  return (
-    <Stack spacing={1}>
-      <Panel
-        title="Βασικά στοιχεία και ημερομηνίες"
-        icon={<DescriptionOutlinedIcon />}
-      >
-        <InfoGrid>
-          <InfoItem label="Αριθμός ζημιάς" value={claim.claimNumber} />
-          <InfoItem
-            label="Ημερομηνία συμβάντος"
-            value={date(claim.incidentDate)}
-          />
-          <InfoItem
-            label="Ημερομηνία δήλωσης"
-            value={date(claim.reportedDate)}
-          />
-          <InfoItem
-            label="Κατάσταση"
-            value={claimStatusLabel(claim.status, t)}
-          />
-          <InfoItem
-            label="Δημιουργία εγγραφής"
-            value={claim.createdAt ? dateTime(claim.createdAt) : "—"}
-          />
-          <InfoItem
-            label="Αιτούμενο / εγκεκριμένο"
-            value={`${fmt(claim.claimedAmount)} / ${fmt(claim.approvedAmount)}`}
-          />
-        </InfoGrid>
-      </Panel>
+function ClaimFieldsTab({ claim, session }: { claim: ClaimRow; session?: ProfileFieldSession; t: TFunction; fmt: (value: number | null | undefined) => string }) {
+  return (<Stack spacing={1}>
+    <ClaimProfileFields claim={claim} session={session} />
       <Panel
         title="ΥΣΑΕ και ασφαλιστική διαχείριση"
         icon={<InfoOutlinedIcon />}
@@ -1590,4 +1237,16 @@ function HistoryTab({
       </Panel>
     </Stack>
   );
+}
+
+
+export function ClaimProfileFields({ claim, session }: { claim: ClaimRow; session?: ProfileFieldSession }) {
+  const statuses = ["Reported", "UnderReview", "Approved", "Rejected", "Paid", "Closed"];
+  const { t } = useTranslation();
+  return <Box sx={profileFieldGridSx}>
+    <ProfileEditableField label="Αριθμός ζημιάς" value={claim.claimNumber} mono />
+    {CLAIM_FIELDS.map(([key, label]) => <ProfileEditableField key={key} field={session ? key : undefined} session={session} label={label} value={String(claim[key] ?? "")}
+      type={key.endsWith("Date") ? "date" : key.endsWith("Amount") ? "number" : "text"} multiline={key === "description"}
+      options={key === "status" ? statuses.map(value => ({value, label: claimStatusLabel(value, t)})) : undefined} />)}
+  </Box>;
 }
