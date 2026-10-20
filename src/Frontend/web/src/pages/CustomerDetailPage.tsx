@@ -210,27 +210,32 @@ const COMMUNICATION_KINDS = ["Note", "Phone", "Email", "Meeting", "Sms", "WalkIn
 const CUSTOMER_PROFILE_TAB_LABELS = [
   { label: "Γενικά", icon: <InfoOutlinedIcon fontSize="small" /> },
   { label: "Επικοινωνία", icon: <ContactPhoneIcon fontSize="small" /> },
-  { label: "Ασφάλιση & οικονομικά", icon: <DirectionsCarIcon fontSize="small" /> },
-  { label: "Εκκρεμή & ζημιές", icon: <AccountBalanceWalletOutlinedIcon fontSize="small" /> },
-  { label: "Έγγραφα & ιστορικό", icon: <FolderIcon fontSize="small" /> },
+  { label: "Ασφάλιση", icon: <DirectionsCarIcon fontSize="small" /> },
+  { label: "Οικονομικά", icon: <AccountBalanceWalletOutlinedIcon fontSize="small" /> },
+  { label: "Εκκρεμή", icon: <InfoOutlinedIcon fontSize="small" /> },
+  { label: "Ζημιές", icon: <DeleteOutlineIcon fontSize="small" /> },
+  { label: "Έγγραφα", icon: <FolderIcon fontSize="small" /> },
+  { label: "Ιστορικό", icon: <HistoryIcon fontSize="small" /> },
 ];
 
 function CustomerProfileTabs({ value, onChange }: { value: number; onChange: (value: number) => void }) {
-  return <Tabs value={value} onChange={(_, next: number) => onChange(next)} variant="standard" sx={{
-    position: "sticky", top: 0, zIndex: 4, mb: 1, px: .35, py: .35,
-    border: "1px solid", borderColor: "divider", borderRadius: 2,
-    bgcolor: "background.paper", boxShadow: "0 3px 10px rgba(15,23,42,.12)",
-    overflow: "hidden", "& .MuiTabs-scroller": { overflowX: "auto !important", overflowY: "hidden" },
-    "& .MuiTabs-flexContainer": { gap: .5, flexWrap: { xs: "nowrap", lg: "wrap" } },
+  return <Tabs value={value} onChange={(_, next: number) => onChange(next)} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile sx={{
+    position: "sticky", top: 0, zIndex: 4, mb: .75, px: .25, py: .25,
+    border: "1px solid", borderColor: "divider", borderRadius: 1.25,
+    bgcolor: "background.paper", boxShadow: "0 2px 8px rgba(15,23,42,.12)",
+    overflow: "hidden", "& .MuiTabs-scroller": { overflowX: "auto !important", overflowY: "hidden", scrollbarWidth: "thin" },
+    "& .MuiTabs-flexContainer": { gap: .35, flexWrap: "nowrap", alignItems: "center" },
+    "& .MuiTabs-scrollButtons": { width: { xs: 24, sm: 28 }, color: "#0b5cad", "&.Mui-disabled": { opacity: .25 } },
     "& .MuiTabs-indicator": { display: "none" },
     "& .MuiTab-root": {
-      minHeight: 42, minWidth: { xs: 108, md: 145 }, px: { xs: .9, md: 1.1 }, py: .45,
-      border: "1px solid #263238", borderRadius: 1.5,
+      minHeight: 36, height: 36, minWidth: { xs: 94, sm: 104, md: 116 }, px: { xs: .7, md: .85 }, py: .25,
+      border: "1px solid #263238", borderRadius: .8,
       background: "linear-gradient(180deg, #e5e7eb 0%, #b8c0c8 100%) !important",
-      color: "#111827 !important", borderColor: "#263238 !important", opacity: "1 !important", textTransform: "none", fontWeight: 750, fontSize: { xs: ".72rem", md: ".78rem" }, whiteSpace: "nowrap",
+      color: "#111827 !important", borderColor: "#263238 !important", opacity: "1 !important", textTransform: "none", fontWeight: 750, fontSize: { xs: ".68rem", md: ".74rem" }, lineHeight: 1.05, whiteSpace: "nowrap", boxSizing: "border-box", overflow: "visible",
+      "& .MuiTab-iconWrapper, & .MuiTab-icon": { fontSize: { xs: 16, md: 17 }, marginRight: .35, marginBottom: 0 },
       transition: "background .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease",
       "&:hover": { background: "linear-gradient(180deg, #d4d8de 0%, #9ca6b1 100%) !important", color: "#0b2545 !important", borderColor: "#111827 !important", transform: "none" },
-      "&.Mui-selected": { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", color: "#fff !important", borderColor: "#062f63 !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" },
+      "&.Mui-selected": { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", color: "#fff !important", borderColor: "#062f63 !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)", "& .MuiSvgIcon-root": { color: "#fff !important" } },
     },
   }}>{CUSTOMER_PROFILE_TAB_LABELS.map(item => <Tab key={item.label} icon={item.icon} iconPosition="start" label={item.label} />)}</Tabs>;
 }
@@ -253,6 +258,9 @@ function CustomerTabLayout({ children }: { children: React.ReactNode }) {
       pr: { xs: .15, md: .4 },
       pb: .25,
       "& > *": { minWidth: 0, minHeight: 0, m: "0 !important" },
+      "& .MuiCard-root": { borderRadius: 1.15 },
+      "& .MuiTableCell-root": { py: .55, px: .75, whiteSpace: "normal", overflowWrap: "anywhere" },
+      "& .MuiTypography-h6": { fontSize: { xs: "1rem", md: "1.08rem" } },
     }}>
       {children}
     </Box>
@@ -391,10 +399,32 @@ export function CustomerDetailPage() {
 
       {showEditor && tab === 0 && <CustomerEditorDialog open customer={customer} onClose={() => { setShowEditor(false); setEditorSave(null); setEditorSaving(false); }} onSaveReady={registerEditorSave} />}
       {tab === 0 && !showEditor && <OverviewTab customer={customer} />}
-      {tab === 1 && <CustomerTabLayout><CommunicationsTab customerId={id} /><CustomerNotificationsTab customerId={id} /><ContactsTab customerId={id} customerType={customer.type} /><FamilyNeedsTab customerId={id} /></CustomerTabLayout>}
-      {tab === 2 && <CustomerTabLayout><CustomerPoliciesTab customerId={id} /><CustomerVehiclesTab customerId={id} /><CustomerAccountTab customerId={id} /><CustomerProducersSummary customerId={id} /></CustomerTabLayout>}
-      {tab === 3 && <CustomerTabLayout><CustomerClaimsTab customerId={id} /><InsuranceOpportunitiesTab customerId={id} /></CustomerTabLayout>}
-      {tab === 4 && <CustomerTabLayout><GdprActionsTab customerId={id} /><CustomerStatisticsTab customerId={id} /></CustomerTabLayout>}
+      {tab === 1 && <CustomerTabLayout>
+        <Box sx={{ gridColumn: { lg: "1 / -1" } }}><CommunicationsTab customerId={id} /></Box>
+        <CustomerNotificationsTab customerId={id} />
+        <ContactsTab customerId={id} customerType={customer.type} />
+        <FamilyNeedsTab customerId={id} />
+      </CustomerTabLayout>}
+      {tab === 2 && <CustomerTabLayout>
+        <CustomerPoliciesTab customerId={id} />
+        <CustomerVehiclesTab customerId={id} />
+      </CustomerTabLayout>}
+      {tab === 3 && <CustomerTabLayout>
+        <CustomerAccountTab customerId={id} />
+        <CustomerProducersSummary customerId={id} />
+      </CustomerTabLayout>}
+      {tab === 4 && <CustomerTabLayout>
+        <Box sx={{ gridColumn: { lg: "1 / -1" } }}><InsuranceOpportunitiesTab customerId={id} /></Box>
+      </CustomerTabLayout>}
+      {tab === 5 && <CustomerTabLayout>
+        <Box sx={{ gridColumn: { lg: "1 / -1" } }}><CustomerClaimsTab customerId={id} /></Box>
+      </CustomerTabLayout>}
+      {tab === 6 && <CustomerTabLayout>
+        <Box sx={{ gridColumn: { lg: "1 / -1" } }}><GdprActionsTab customerId={id} /></Box>
+      </CustomerTabLayout>}
+      {tab === 7 && <CustomerTabLayout>
+        <Box sx={{ gridColumn: { lg: "1 / -1" } }}><CustomerStatisticsTab customerId={id} /></Box>
+      </CustomerTabLayout>}
       </Box>
       </DialogContent>
       <DialogActions sx={{ borderTop: 1, borderColor: "divider", px: { xs: .75, md: 1.25 }, py: .55, gap: .65, flexWrap: "wrap", justifyContent: "space-between", "& .MuiButton-root": { minHeight: 32, px: { xs: .9, md: 1.1 }, fontSize: { xs: ".72rem", md: ".78rem" } } }}>
@@ -461,15 +491,15 @@ function CustomerAccountTab({ customerId }: { customerId: string }) {
   const a = q.data!;
   const balanceColor = a.balance > 0 ? "error.main" : a.balance < 0 ? "success.main" : "text.primary";
   return (
-    <Stack spacing={2}>
-      <Card variant="outlined" sx={{ p: 2 }}>
+    <Stack spacing={.75}>
+      <Card variant="outlined" sx={{ p: 1 }}>
         <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "center" }} flexWrap="wrap" useFlexGap>
           <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }} value={from} onChange={e => setFrom(e.target.value)} />
           <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }} value={to} onChange={e => setTo(e.target.value)} />
           <Typography variant="caption" color="text.secondary">Το φίλτρο επηρεάζει τις κινήσεις και τους μηνιαίους υπολογισμούς.</Typography>
         </Stack>
       </Card>
-      <Card variant="outlined" sx={{ p: 2.5 }}>
+      <Card variant="outlined" sx={{ p: 1.25 }}>
         <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap>
           <Box><Typography variant="caption" color="text.secondary">Χρεώσεις</Typography><Typography fontWeight={800}>{fmt(a.totalCharges)} €</Typography></Box>
           <Box><Typography variant="caption" color="text.secondary">Εισπράξεις</Typography><Typography fontWeight={800} color="success.main">{fmt(a.totalCredits)} €</Typography></Box>
@@ -485,18 +515,18 @@ function CustomerAccountTab({ customerId }: { customerId: string }) {
       {!a.isPaymentOverdue && a.overdueCount > 0 && <Alert severity="warning">Ο πελάτης έχει ληξιπρόθεσμες δόσεις συμβολαίων. Δημιουργείται ειδοποίηση στον διαχειριστή από το ωριαίο σύστημα υπενθυμίσεων.</Alert>}
       {a.installments.length > 0 && (
         <Card variant="outlined">
-          <Typography sx={{ p: 2, pb: 0 }} fontWeight={800}>Δόσεις και ημερομηνίες εξόφλησης</Typography>
+          <Typography sx={{ p: 1, pb: 0 }} fontWeight={800}>Δόσεις και ημερομηνίες εξόφλησης</Typography>
           <Table size="small"><TableHead><TableRow><TableCell>Συμβόλαιο</TableCell><TableCell>Λήξη πληρωμής</TableCell><TableCell align="right">Ποσό</TableCell><TableCell>Κατάσταση</TableCell></TableRow></TableHead>
             <TableBody>{a.installments.map(i => <TableRow key={i.id}><TableCell sx={{ fontFamily: "monospace" }}>{i.policyNumber}</TableCell><TableCell>{i.dueDate}</TableCell><TableCell align="right">{fmt(i.amount)} €</TableCell><TableCell>{i.paidAt ? <Chip size="small" color="success" label={`Εξοφλήθηκε ${i.paidAt}`} /> : <Chip size="small" color={i.isOverdue ? "error" : "warning"} label={i.isOverdue ? `Καθυστέρηση ${i.daysLate} ημέρες` : "Εκκρεμεί"} />}</TableCell></TableRow>)}</TableBody>
           </Table>
         </Card>
       )}
       <Card variant="outlined">
-        <Typography sx={{ p: 2, pb: 0 }} fontWeight={800}>Κινήσεις καρτέλας</Typography>
-        {a.entries.length === 0 ? <Typography sx={{ p: 2 }} color="text.secondary">Δεν υπάρχουν οικονομικές κινήσεις.</Typography> :
+          <Typography sx={{ p: 1, pb: 0 }} fontWeight={800}>Κινήσεις καρτέλας</Typography>
+        {a.entries.length === 0 ? <Typography sx={{ p: 1 }} color="text.secondary">Δεν υπάρχουν οικονομικές κινήσεις.</Typography> :
           <Table size="small"><TableHead><TableRow><TableCell>Ημερομηνία</TableCell><TableCell>Αιτιολογία</TableCell><TableCell>Συμβόλαιο</TableCell><TableCell align="right">Ποσό</TableCell></TableRow></TableHead><TableBody>{a.entries.map(e => <TableRow key={e.id}><TableCell>{e.date}</TableCell><TableCell>{e.kind === "CustomerCharge" ? "Χρέωση" : e.kind === "CustomerCredit" ? "Είσπραξη" : e.kind}{e.description ? ` · ${e.description}` : ""}</TableCell><TableCell sx={{ fontFamily: "monospace" }}>{e.policyNumber ?? "—"}</TableCell><TableCell align="right" sx={{ color: e.kind === "CustomerCharge" ? "error.main" : "success.main", fontWeight: 700 }}>{e.kind === "CustomerCharge" ? "+" : "−"}{fmt(e.amount)} {e.currency}</TableCell></TableRow>)}</TableBody></Table>}
       </Card>
-      {a.monthly.length > 0 && <Card variant="outlined"><Typography sx={{ p: 2, pb: 0 }} fontWeight={800}>Υπόλοιπο ανά μήνα</Typography><Table size="small"><TableHead><TableRow><TableCell>Μήνας</TableCell><TableCell align="right">Χρεώσεις</TableCell><TableCell align="right">Εισπράξεις</TableCell><TableCell align="right">Υπόλοιπο</TableCell></TableRow></TableHead><TableBody>{a.monthly.map(m => <TableRow key={`${m.year}-${m.month}`}><TableCell>{String(m.month).padStart(2, "0")}/{m.year}</TableCell><TableCell align="right">{fmt(m.charges)} €</TableCell><TableCell align="right">{fmt(m.credits)} €</TableCell><TableCell align="right" sx={{ fontWeight: 800 }}>{fmt(m.balance)} €</TableCell></TableRow>)}</TableBody></Table></Card>}
+      {a.monthly.length > 0 && <Card variant="outlined"><Typography sx={{ p: 1, pb: 0 }} fontWeight={800}>Υπόλοιπο ανά μήνα</Typography><Table size="small"><TableHead><TableRow><TableCell>Μήνας</TableCell><TableCell align="right">Χρεώσεις</TableCell><TableCell align="right">Εισπράξεις</TableCell><TableCell align="right">Υπόλοιπο</TableCell></TableRow></TableHead><TableBody>{a.monthly.map(m => <TableRow key={`${m.year}-${m.month}`}><TableCell>{String(m.month).padStart(2, "0")}/{m.year}</TableCell><TableCell align="right">{fmt(m.charges)} €</TableCell><TableCell align="right">{fmt(m.credits)} €</TableCell><TableCell align="right" sx={{ fontWeight: 800 }}>{fmt(m.balance)} €</TableCell></TableRow>)}</TableBody></Table></Card>}
     </Stack>
   );
 }
@@ -589,7 +619,7 @@ function CustomerVehiclesTab({ customerId, compact = false }: { customerId: stri
   if (q.isError) return <Alert severity="error">{extractErrorMessage(q.error)}</Alert>;
   const rows = q.data ?? [];
   return (
-    <Card variant="outlined" sx={{ p: compact ? 1.25 : 2.5 }}>
+    <Card variant="outlined" sx={{ p: compact ? .75 : 1 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: compact ? 0.75 : 1.5 }}>
         <Box><Typography variant={compact ? "subtitle1" : "h6"} fontWeight={800}>Οχήματα πελάτη</Typography><Typography variant="body2" color="text.secondary">Αυτόματη προβολή από τα συμβόλαια αυτοκινήτου.</Typography></Box>
         <Stack direction="row" spacing={0.75} alignItems="center">
@@ -783,14 +813,14 @@ function CustomerStatisticsTab({ customerId }: { customerId: string }) {
     return [key === "premium" || key === "charges" || key === "credits" || key === "balance" ? `${formatMoney(numeric)} €` : String(value ?? 0), key === "premium" ? "Μεικτά" : key === "contracts" ? "Συμβόλαια" : key === "charges" ? "Χρεώσεις" : key === "credits" ? "Εισπράξεις" : "Υπόλοιπο"];
   };
   const chartCard = (title: string, children: React.ReactNode) => (
-    <Card variant="outlined" sx={{ p: 1.5, minWidth: 0 }}>
-      <Typography fontWeight={800} sx={{ mb: 1 }}>{title}</Typography>
-      <Box sx={{ width: "100%", height: 250 }}>{children}</Box>
+    <Card variant="outlined" sx={{ p: 1, minWidth: 0 }}>
+      <Typography fontWeight={800} sx={{ mb: .5, fontSize: { xs: ".85rem", md: ".92rem" } }}>{title}</Typography>
+      <Box sx={{ width: "100%", height: { xs: 185, md: 210 } }}>{children}</Box>
     </Card>
   );
 
   return (
-    <Stack spacing={1.5}>
+    <Stack spacing={.75}>
       <Box>
         <Typography variant="h6" fontWeight={800}>Στατιστικά πελάτη</Typography>
         <Typography variant="body2" color="text.secondary">Παραγωγή, οικονομική εικόνα, συμβόλαια και πορεία χαρτοφυλακίου.</Typography>
@@ -828,7 +858,7 @@ function CustomerPoliciesTab({ customerId }: { customerId: string }) {
   const rows = q.data ?? [];
   if (rows.length === 0) return <Alert severity="info">Δεν υπάρχουν συμβόλαια.</Alert>;
   return (
-    <Stack spacing={3}>
+    <Stack spacing={.75}>
       <RenewalTimeline policies={rows} />
       <Card variant="outlined">
         <Table size="small">
@@ -888,11 +918,11 @@ function RenewalTimeline({ policies }: { policies: TimelinePolicy[] }) {
   const colorFor = (days: number) =>
     days < 30 ? "error" : days < 90 ? "warning" : "success";
   return (
-    <Card variant="outlined" sx={{ p: 2 }}>
+    <Card variant="outlined" sx={{ p: 1 }}>
       <Typography variant="overline" color="text.secondary" fontWeight={700}>
         Χρονογραμμή ανανεώσεων
       </Typography>
-      <Stack spacing={1} sx={{ mt: 1 }}>
+      <Stack spacing={.5} sx={{ mt: .5 }}>
         {upcoming.map(({ p, days }) => {
           const label = days < 0
             ? `Έληξε πριν ${Math.abs(days)} μέρες`
@@ -900,7 +930,7 @@ function RenewalTimeline({ policies }: { policies: TimelinePolicy[] }) {
             : `Σε ${days} μέρες`;
           return (
             <Stack key={p.id} direction="row" alignItems="center" spacing={1.5}
-              sx={{ p: 1, borderLeft: 4, borderColor: `${colorFor(days)}.main`, bgcolor: "background.default", borderRadius: 1 }}>
+              sx={{ p: .7, borderLeft: 4, borderColor: `${colorFor(days)}.main`, bgcolor: "background.default", borderRadius: 1 }}>
               <Chip size="small" color={colorFor(days)} label={label} sx={{ fontWeight: 700, minWidth: 130 }} />
               <Typography sx={{ fontFamily: "monospace" }}>{p.policyNumber}</Typography>
               <Typography color="text.secondary" sx={{ flex: 1 }}>
@@ -1476,65 +1506,74 @@ function CommunicationsTab({ customerId }: { customerId: string }) {
   });
 
   return (
-    <Box>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-        <Typography variant="h6">Ιστορικό επικοινωνίας</Typography>
-        <Button variant="contained" onClick={() => setOpen(true)}>+ Νέα καταχώρηση</Button>
+    <Card variant="outlined" sx={{ p: { xs: .75, md: 1 }, bgcolor: "#f8fafc", borderColor: "#d6e3f0" }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" gap={1} sx={{ mb: .75 }}>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="subtitle1" fontWeight={800}>Ιστορικό επικοινωνίας</Typography>
+          <Typography variant="caption" color="text.secondary">Συγκεντρωμένες επαφές και σημειώσεις πελάτη.</Typography>
+        </Box>
+        <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)} sx={{ flexShrink: 0 }}>Νέα καταχώρηση</Button>
       </Stack>
 
-      {err && <Alert severity="error" onClose={() => setErr(null)} sx={{ mb: 2 }}>{err}</Alert>}
+      {err && <Alert severity="error" onClose={() => setErr(null)} sx={{ mb: .75, py: 0 }}>{err}</Alert>}
 
-      {q.isLoading ? <CircularProgress /> : q.data?.length === 0 ? (
-        <Card variant="outlined" sx={{ p: 4, textAlign: "center", color: "text.secondary" }}>
+      {q.isLoading ? <CircularProgress size={22} /> : q.data?.length === 0 ? (
+        <Box sx={{ p: 2, textAlign: "center", color: "text.secondary", border: "1px dashed #b9cce0", borderRadius: 1.25 }}>
           Δεν υπάρχει καμία καταχωρημένη αλληλεπίδραση ακόμη.
-        </Card>
+        </Box>
       ) : (
-        <Stack spacing={1.5}>
-          {q.data?.map((c) => (
-            <Card key={c.id} variant="outlined" sx={{ p: 2 }}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Chip size="small" label={c.kind} color="primary" variant="outlined" />
-                  <Chip size="small" label={c.direction} variant="outlined" />
-                  {c.outcome !== "None" && <Chip size="small" label={c.outcome} variant="outlined" />}
-                </Stack>
-                <Typography variant="caption" color="text.secondary">{formatDate(c.occurredAt)}</Typography>
+        <Box sx={{ display: "grid", gap: .5 }}>
+          {q.data?.map((c, index) => (
+            <Box key={c.id} sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", sm: "minmax(170px, .38fr) minmax(0, 1fr) auto" },
+              alignItems: "center",
+              gap: .75,
+              p: .7,
+              border: "1px solid #dce5ef",
+              borderRadius: .9,
+              bgcolor: index % 2 === 0 ? "#fff" : "#f0f2f5",
+              minWidth: 0,
+            }}>
+              <Stack direction="row" spacing={.45} useFlexGap flexWrap="wrap" alignItems="center" sx={{ minWidth: 0 }}>
+                <Chip size="small" label={c.kind} color="primary" variant="outlined" sx={{ height: 24 }} />
+                <Chip size="small" label={c.direction} variant="outlined" sx={{ height: 24 }} />
+                {c.outcome !== "None" && <Chip size="small" label={c.outcome} variant="outlined" sx={{ height: 24 }} />}
               </Stack>
-              <Typography sx={{ mt: 1, fontWeight: 700 }}>{c.subject}</Typography>
-              {c.body && <Typography sx={{ mt: 0.5, whiteSpace: "pre-wrap", fontSize: 14 }}>{c.body}</Typography>}
-              {c.relatedPolicyNumber && (
-                <Typography variant="caption" sx={{ mt: 1, display: "block" }}>
-                  Συμβόλαιο: {c.relatedPolicyNumber}
-                </Typography>
-              )}
-            </Card>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="body2" fontWeight={750} sx={{ overflowWrap: "anywhere" }}>{c.subject}</Typography>
+                {c.body && <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: .15, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{c.body}</Typography>}
+                {c.relatedPolicyNumber && <Typography variant="caption" color="primary.main" sx={{ display: "block", mt: .2 }}>Συμβόλαιο: {c.relatedPolicyNumber}</Typography>}
+              </Box>
+              <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: "nowrap", textAlign: { sm: "right" } }}>{formatDate(c.occurredAt)}</Typography>
+            </Box>
           ))}
-        </Stack>
+        </Box>
       )}
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Νέα καταχώρηση επικοινωνίας</DialogTitle>
+        <DialogTitle sx={{ pb: 1 }}>Νέα καταχώρηση επικοινωνίας</DialogTitle>
         <DialogContent>
-          <Stack spacing={2} mt={1}>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: 1, mt: .25 }}>
             <SearchableTextField label="Τύπος" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
               {COMMUNICATION_KINDS.map((k) => <MenuItem key={k} value={k}>{String(t(`communicationKind.${k}`, k))}</MenuItem>)}
             </SearchableTextField>
             <SearchableTextField label="Κατεύθυνση" value={form.direction} onChange={(e) => setForm({ ...form, direction: e.target.value })}>
               {["Internal", "Inbound", "Outbound"].map((d) => <MenuItem key={d} value={d}>{String(t(`communicationDirection.${d}`, d))}</MenuItem>)}
             </SearchableTextField>
-            <TextField required label="Θέμα" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
-            <TextField multiline rows={4} label="Σώμα / σημειώσεις" value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
+            <TextField required label="Θέμα" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} sx={{ gridColumn: { sm: "1 / -1" } }} />
+            <TextField multiline rows={4} label="Σώμα / σημειώσεις" value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} sx={{ gridColumn: { sm: "1 / -1" } }} />
             <TextField type="number" label="Διάρκεια (sec)" value={form.durationSeconds} onChange={(e) => setForm({ ...form, durationSeconds: e.target.value })} />
-          </Stack>
+          </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ pt: 0.5 }}>
           <Button onClick={() => setOpen(false)} color="error" variant="contained">Άκυρο</Button>
           <Button variant="contained" onClick={() => create.mutate()} disabled={create.isPending || !form.subject.trim()}>
             Καταχώρηση
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </Card>
   );
 }
 
@@ -2551,15 +2590,15 @@ function GdprActionsTab({ customerId }: { customerId: string }) {
 
   return (
     <Box>
-      <Typography variant="h6" sx={{ mb: 2 }}>GDPR ενέργειες</Typography>
+      <Typography variant="h6" sx={{ mb: .75 }}>GDPR ενέργειες</Typography>
       {err && <Alert severity="error" onClose={() => setErr(null)} sx={{ mb: 2 }}>{err}</Alert>}
       {ok && <Alert severity="success" onClose={() => setOk(null)} sx={{ mb: 2 }}>{ok}</Alert>}
 
       <CustomerGdprFormSigningPanel customerId={customerId} />
 
-      <Card variant="outlined" sx={{ p: 3, mb: 2 }}>
+      <Card variant="outlined" sx={{ p: 1, mb: .75 }}>
         <Typography fontWeight={700}>Δικαίωμα πρόσβασης / φορητότητας</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: .75 }}>
           Κατεβάστε όλα τα δεδομένα του πελάτη σε JSON.
         </Typography>
         <Button variant="contained" startIcon={<DownloadIcon />}
@@ -2568,9 +2607,9 @@ function GdprActionsTab({ customerId }: { customerId: string }) {
         </Button>
       </Card>
 
-      <Card variant="outlined" sx={{ p: 3, borderColor: "warning.light" }}>
+      <Card variant="outlined" sx={{ p: 1, borderColor: "warning.light" }}>
         <Typography fontWeight={700} color="error">Δικαίωμα διαγραφής (anonymization)</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: .75 }}>
           Τα προσωπικά πεδία αντικαθίστανται με placeholders και ο πελάτης σημαίνεται ως «Blocked».
           Δεν επιτρέπεται αν υπάρχουν ενεργά συμβόλαια.
         </Typography>
