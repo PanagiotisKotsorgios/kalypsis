@@ -1,7 +1,9 @@
-import { Box, Card, CircularProgress, Stack, Typography } from "@mui/material";
+import { Alert, Box, Card, CircularProgress, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { dateTime } from "../utils/format";
+import { AuditFieldChanges } from "./audit/AuditFieldChanges";
+import type { AuditFieldChange } from "./audit/auditValues";
 
 interface AuditRow {
   id: string;
@@ -11,12 +13,14 @@ interface AuditRow {
   entityId: string;
   userId: string | null;
   userDisplayName?: string | null;
+  userEmail?: string | null;
+  changes?: AuditFieldChange[];
   createdAt: string;
   ipAddress?: string | null;
   metadata?: string | null;
 }
 interface PageResult {
-  rows: AuditRow[];
+  items: AuditRow[];
   totalCount: number;
 }
 
@@ -54,7 +58,8 @@ export function EntityAuditTimeline({ entityName, entityId }: { entityName: stri
   if (q.isLoading) return (
     <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}><CircularProgress size={20} /></Box>
   );
-  const rows = q.data?.rows ?? [];
+  if (q.isError) return <Alert severity="error">Δεν ήταν δυνατή η φόρτωση του ιστορικού μεταβολών.</Alert>;
+  const rows = q.data?.items ?? [];
   if (rows.length === 0) return (
     <Card variant="outlined" sx={{ p: 3, textAlign: "center" }}>
       <Typography variant="body2" color="text.secondary">
@@ -85,10 +90,11 @@ export function EntityAuditTimeline({ entityName, entityId }: { entityName: stri
               <Typography variant="caption" color="text.secondary">{dateTime(r.createdAt)}</Typography>
             </Stack>
             <Typography variant="caption" color="text.secondary">
-              {r.userDisplayName ?? "Σύστημα"}
+              {r.userDisplayName ?? r.userEmail ?? "Σύστημα"}
               {r.category && ` · ${r.category}`}
               {i === 0 && <Typography component="span" variant="caption" sx={{ ml: 1, color: "primary.main", fontWeight: 700 }}>(πιο πρόσφατο)</Typography>}
             </Typography>
+            <AuditFieldChanges changes={r.changes} />
           </Box>
         );
       })}

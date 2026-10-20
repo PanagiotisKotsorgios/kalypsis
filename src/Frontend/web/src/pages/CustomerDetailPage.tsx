@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
-  Autocomplete,
   Box,
   Button,
   Card,
@@ -26,7 +25,8 @@ import {
   TableRow,
   Tabs,
   TextField,
-  Typography
+  Typography,
+  useMediaQuery
 } from "@mui/material";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -57,6 +57,7 @@ import { useAuth } from "../auth/AuthContext";
 import { VehicleDetailDialog, vehicleStatusLabel } from "./CustomerVehiclesPage";
 import { InlineValueField, type InlineValueOption } from "../components/InlineValueField";
 import { persistCustomerEdits, type CustomerDrafts } from "../components/customer/customerEditSession";
+import { customerDraftErrors, customerFieldError, fieldMaxLength } from "../components/customer/customerValidation";
 
 interface CustomerDto {
   id: string;
@@ -295,6 +296,13 @@ export function CustomerDetailPage() {
     mutationFn: async ({ changes }: { changes: CustomerDrafts; finish?: boolean }) => {
       const current = qc.getQueryData<CustomerDto>(["customer", id]) ?? customerQ.data;
       if (!current) throw new Error("Δεν έχει φορτωθεί η καρτέλα πελάτη.");
+      const errors = customerDraftErrors(changes);
+      // Validate cross-field dates against persisted values too, without blocking
+      // an unrelated edit because of pre-existing legacy invalid data.
+      if ("driverLicenseIssueDate" in changes || "driverLicenseExpiryDate" in changes) {
+        errors.push(...customerDraftErrors({ driverLicenseIssueDate: current.driverLicenseIssueDate, driverLicenseExpiryDate: current.driverLicenseExpiryDate, ...changes }));
+      }
+      if (errors.length) throw new Error([...new Set(errors)].join(" "));
       return persistCustomerEdits(current, changes,
         async (latest, primary) => {
           const [key, value] = Object.entries(primary)[0];
@@ -438,7 +446,7 @@ export function CustomerDetailPage() {
       </Stack>
 
       <CustomerProfileTabs value={tab} onChange={setTab} />
-      {saveFields.isError && <Alert severity="error" sx={{ mb: .75, flexShrink: 0 }}>{extractErrorMessage(saveFields.error)} Οι μη αποθηκευμένες αλλαγές παραμένουν διαθέσιμες για διόρθωση ή νέα προσπάθεια.</Alert>}
+      {saveFields.isError && <Alert severity="error" sx={{ mb: .75, flexShrink: 0 }}>{extractErrorMessage(saveFields.error, saveFields.error instanceof Error ? saveFields.error.message : "Η αποθήκευση απέτυχε.")} Οι μη αποθηκευμένες αλλαγές παραμένουν διαθέσιμες για διόρθωση ή νέα προσπάθεια.</Alert>}
 
       {tab === 0 && <DesktopCustomerFields customer={customer} editing={fieldEditing} />}
       {tab === 1 && <CustomerTabLayout>
@@ -513,7 +521,6 @@ export function CustomerDetailPage() {
         {popup === "producers" && <CustomerProducersSummary customerId={id} />}
         {popup === "statistics" && <CustomerStatisticsTab customerId={id} />}
         {popup === "family" && <Stack spacing={1.5}>
-          <DesktopCustomerFields customer={customer} section="additional" editing={fieldEditing} />
           <FamilyNeedsTab customerId={id} />
         </Stack>}
       </CustomerPopup>
@@ -1199,7 +1206,12 @@ interface CustomerFieldEditing {
   onCommitField: (key: keyof CustomerDto, value: string) => Promise<void>;
 }
 
-function DesktopCustomerFields({ customer, section = "general", editing }: { customer: CustomerDto; section?: "general" | "contact" | "additional"; editing: CustomerFieldEditing }) {
+export function DesktopCustomerFields({ customer, section = "general", editing }: { customer: CustomerDto; section?: "general" | "contact"; editing: CustomerFieldEditing }) {
+  const wide = useMediaQuery("(min-width:1200px)");
+  const occupations = useQuery({ queryKey: ["lookup", "occupations"], enabled: section === "general",
+    queryFn: async () => (await api.get<Array<{ name: string }>>("/lookups/occupations")).data });
+  const nationalities = useQuery({ queryKey: ["lookup", "nationalities"], enabled: section === "general",
+    queryFn: async () => (await api.get<Array<{ name: string }>>("/lookups/nationalities")).data });
   const dash = "—";
   const dateTime = customer.createdAt ? new Date(customer.createdAt).toLocaleString("el-GR", { dateStyle: "short", timeStyle: "short" }) : dash;
   const typeLabel = customer.type === "Company" ? "Νομικό πρόσωπο" : "Φυσικό πρόσωπο";
@@ -1225,10 +1237,9 @@ function DesktopCustomerFields({ customer, section = "general", editing }: { cus
     { label: "Πόλη", key: "city", value: customer.city },
     { label: "Τηλέφωνο", key: "phone", value: customer.phone },
     { label: "Κινητό τηλ.", key: "mobilePhone", value: customer.mobilePhone },
-    { label: "Επάγγελμα", key: "occupation", value: customer.occupation },
-    { label: "Διεύθυνση εργασίας", key: "employer", value: customer.employer },
-    { label: "Κατηγορία επαγγέλματος", key: "activityCode", value: customer.activityCode },
-    { label: "Νομός / περιφέρεια", value: customer.region },
+    { label: "Επάγγελμα / κλάδος", key: "occupation", value: customer.occupation },
+    { label: "Εργοδότης / επιχείρηση", key: "employer", value: customer.employer },
+    { label: "Κωδ. δραστηριότητας", key: "activityCode", value: customer.activityCode },
     { label: "Ταχ. κώδικας", key: "postalCode", value: customer.postalCode },
     { label: "Σημ. πελάτη", key: "notes", value: customer.notes },
   ];
@@ -1265,7 +1276,9 @@ function DesktopCustomerFields({ customer, section = "general", editing }: { cus
     { label: "Φύλο", key: "gender", value: customer.gender, displayValue: ({ Male: "Άνδρας", Female: "Γυναίκα", Other: "Άλλο", PreferNotToSay: "Δεν επιθυμεί να δηλώσει" } as Record<string, string>)[customer.gender ?? ""] || customer.gender || dash,
       options: [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Male", label: "Άνδρας" }, { value: "Female", label: "Γυναίκα" }, { value: "Other", label: "Άλλο" }, { value: "PreferNotToSay", label: "Δεν επιθυμεί να δηλώσει" }] },
     { label: "Εθνικότητα", key: "nationality", value: customer.nationality },
-    { label: "Οικογενειακή κατάσταση", key: "maritalStatus", value: customer.maritalStatus },
+    { label: "Οικογενειακή κατάσταση", key: "maritalStatus", value: customer.maritalStatus,
+      displayValue: ({ Single: "Άγαμος / άγαμη", Married: "Έγγαμος / έγγαμη", Divorced: "Διαζευγμένος / διαζευγμένη", Widowed: "Χήρος / χήρα", Other: "Άλλο" } as Record<string, string>)[customer.maritalStatus ?? ""] || customer.maritalStatus || dash,
+      options: [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Single", label: "Άγαμος / άγαμη" }, { value: "Married", label: "Έγγαμος / έγγαμη" }, { value: "Divorced", label: "Διαζευγμένος / διαζευγμένη" }, { value: "Widowed", label: "Χήρος / χήρα" }, { value: "Other", label: "Άλλο" }] },
     { label: "Διαβατήριο", key: "passportNumber", value: customer.passportNumber },
     { label: "Πατρώνυμο", key: "fatherName", value: customer.fatherName },
     { label: "Μητρώνυμο", key: "motherName", value: customer.motherName },
@@ -1277,24 +1290,27 @@ function DesktopCustomerFields({ customer, section = "general", editing }: { cus
     { label: "URL φωτογραφίας", key: "photoUrl", value: customer.photoUrl },
     { label: "Ζώνη", key: "zone", value: customer.zone },
     { label: "Αριθμός διπλώματος", key: "driverLicenseNumber", value: customer.driverLicenseNumber },
-    { label: "Κατηγορία διπλώματος", key: "driverLicenseClass", value: customer.driverLicenseClass },
+    { label: "Κατηγορία διπλώματος", key: "driverLicenseClass", value: customer.driverLicenseClass,
+      options: [{ value: "", label: "Δεν έχει οριστεί" }, ...["ΑΜ", "Α1", "Α2", "Α", "Β", "ΒΕ", "Γ", "ΓΕ", "Δ", "ΔΕ"].map(value => ({ value, label: value }))] },
     { label: "Έκδοση διπλώματος", key: "driverLicenseIssueDate", value: customer.driverLicenseIssueDate, type: "date" },
     { label: "Λήξη διπλώματος", key: "driverLicenseExpiryDate", value: customer.driverLicenseExpiryDate, type: "date" },
     { label: "Ημ. εξόφλησης", key: "paymentDueDate", value: customer.paymentDueDate, type: "date" },
   ];
 
-  // Balance the General sheet instead of leaving six empty rows in one column.
-  // The single-column reading order remains the same on narrow screens.
-  const generalFields = section === "additional" ? additional : [...left, ...right];
-  const midpoint = Math.ceil(generalFields.length / 2);
-  const columns = section === "contact" ? [contactLeft, contactRight] : [generalFields.slice(0, midpoint), generalFields.slice(midpoint)];
+  // One canonical editor per field: profile and licence details now live in
+  // General, not in a second form with a separate save workflow.
+  const generalFields = [...left, ...right, ...additional];
+  const columnCount = wide ? 3 : 2;
+  const columnSize = Math.ceil(generalFields.length / columnCount);
+  const columns = section === "contact" ? [contactLeft, contactRight]
+    : Array.from({ length: columnCount }, (_, index) => generalFields.slice(index * columnSize, (index + 1) * columnSize));
 
   const renderField = (field: DesktopCustomerField) => {
     const stored = field.key ? customer[field.key] : field.value;
     const raw = typeof stored === "string" || typeof stored === "number" ? stored : stored == null ? "" : String(stored);
     const display = field.displayValue ?? (field.value || dash);
     return (
-      <Box key={field.label} sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(104px, .36fr) minmax(0, 1fr)", sm: "132px minmax(0, 1fr)" }, alignItems: "center", minHeight: 32, gap: .5 }}>
+      <Box key={field.label} data-customer-field={field.key ?? field.label} sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(104px, .36fr) minmax(0, 1fr)", sm: "132px minmax(0, 1fr)" }, alignItems: "center", minHeight: 32, gap: .5 }}>
         <Typography variant="caption" sx={{ color: "#506783", fontWeight: 700, lineHeight: 1.15, pr: .35 }}>{field.label}</Typography>
         <InlineValueField
           label={field.label}
@@ -1303,6 +1319,10 @@ function DesktopCustomerFields({ customer, section = "general", editing }: { cus
           displayValue={display}
           options={field.options}
           type={field.type}
+          suggestions={field.key === "occupation" ? (occupations.data ?? []).map(item => item.name) : field.key === "nationality" ? (nationalities.data ?? []).map(item => item.name) : undefined}
+          validate={field.key ? value => customerFieldError(field.key!, value) : undefined}
+          maxLength={field.key ? fieldMaxLength(field.key) : undefined}
+          inputMode={field.key?.toLowerCase().includes("phone") ? "tel" : field.type === "email" ? "email" : field.key === "vatNumber" || field.key === "amka" || field.key === "postalCode" ? "numeric" : undefined}
           valueColor="#193653"
           compact
           hideLabel
@@ -1319,7 +1339,7 @@ function DesktopCustomerFields({ customer, section = "general", editing }: { cus
 
   return (
     <Box sx={{ bgcolor: "#edf3f9", border: "1px solid #d6e3f0", borderRadius: 1.25, p: { xs: .5, md: .75 }, minHeight: 0, overflow: section === "general" ? "auto" : "visible", flexShrink: section === "general" ? 1 : 0 }}>
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(0, 1fr) minmax(0, 1fr)" }, columnGap: { xs: 0, md: 1 }, alignItems: "start" }}>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))", lg: `repeat(${section === "general" ? 3 : 2}, minmax(0, 1fr))` }, columnGap: { xs: 0, md: 1 }, alignItems: "start" }}>
         {columns.map((fields, index) => <Stack key={index} spacing={.25}>{fields.map(renderField)}</Stack>)}
       </Box>
     </Box>
@@ -1650,8 +1670,6 @@ function FamilyNeedsTab({ customerId }: { customerId: string }) {
 
   return (
     <Stack spacing={0.75}>
-      <CustomerProfileCard customerId={customerId} profile={q.data.profile} />
-      <DriverLicenseCard customerId={customerId} />
       <CustomerNeedsCard customerId={customerId} needs={q.data.needs} />
       <FamilyMembersCard customerId={customerId} members={q.data.family} />
       <CommunicationsCard customerId={customerId} />
@@ -1801,178 +1819,6 @@ function CommunicationsCard({ customerId }: { customerId: string }) {
   );
 }
 
-function DriverLicenseCard({ customerId }: { customerId: string }) {
-  const qc = useQueryClient();
-  const q = useQuery({
-    queryKey: ["driver-license", customerId],
-    queryFn: async () => (await api.get<{ number: string | null; class: string | null;
-      issueDate: string | null; expiryDate: string | null }>(`/customers/${customerId}/driver-license`)).data
-  });
-  const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ number: "", class: "", issueDate: "", expiryDate: "" });
-  const [err, setErr] = useState<string | null>(null);
-  useEffect(() => {
-    if (q.data) setForm({
-      number: q.data.number ?? "", class: q.data.class ?? "",
-      issueDate: q.data.issueDate ?? "", expiryDate: q.data.expiryDate ?? ""
-    });
-  }, [q.data]);
-  const save = useMutation({
-    mutationFn: async () => api.put(`/customers/${customerId}/driver-license`, {
-      number: form.number || null, class: form.class || null,
-      issueDate: form.issueDate || null, expiryDate: form.expiryDate || null
-    }),
-    onSuccess: () => { setEditing(false); setErr(null); void qc.invalidateQueries({ queryKey: ["driver-license", customerId] }); },
-    onError: e => setErr(extractErrorMessage(e))
-  });
-  return (
-    <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 }, bgcolor: "rgba(248,250,252,0.92)" }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.75 }}>
-        <Box sx={{ px: 0.75, py: 0.5, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}><Typography variant="subtitle2" fontWeight={800}>Δίπλωμα οδήγησης</Typography>
-          <Typography variant="caption" color="text.secondary">
-            Χρησιμοποιείται στις ασφαλίσεις αυτοκινήτου και στη λίστα επιτρεπτών οδηγών.
-          </Typography></Box>
-        <Button size="small" startIcon={<EditIcon />} onClick={() => setEditing(!editing)} color="error" variant="contained">{editing ? "Ακύρωση" : "Επεξεργασία"}</Button>
-      </Stack>
-      {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
-      {editing ? (
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} flexWrap="wrap" useFlexGap>
-          <TextField label="Αριθμός" value={form.number}
-            onChange={e => setForm({ ...form, number: e.target.value })} sx={{ flex: 1, minWidth: 200 }} />
-          <SearchableTextField label="Κατηγορία" value={form.class}
-            onChange={e => setForm({ ...form, class: e.target.value })} sx={{ width: 160 }}>
-            <MenuItem value="">—</MenuItem>
-            {["ΑΜ", "Α1", "Α2", "Α", "Β", "ΒΕ", "Γ", "ΓΕ", "Δ", "ΔΕ"].map(k =>
-              <MenuItem key={k} value={k}>{k}</MenuItem>)}
-          </SearchableTextField>
-          <TextField type="date" label="Έκδοση" InputLabelProps={{ shrink: true }}
-            value={form.issueDate} onChange={e => setForm({ ...form, issueDate: e.target.value })} sx={{ width: 180 }} />
-          <TextField type="date" label="Λήξη" InputLabelProps={{ shrink: true }}
-            value={form.expiryDate} onChange={e => setForm({ ...form, expiryDate: e.target.value })} sx={{ width: 180 }} />
-          <Box sx={{ width: "100%" }}>
-            <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending}>Αποθήκευση</Button>
-          </Box>
-        </Stack>
-      ) : (
-        <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(4, 1fr)" } }}>
-          <ProfileValue label="Αριθμός" value={q.data?.number ?? null} />
-          <ProfileValue label="Κατηγορία" value={q.data?.class ?? null} />
-          <ProfileValue label="Έκδοση" value={q.data?.issueDate ?? null} />
-          <ProfileValue label="Λήξη" value={q.data?.expiryDate ?? null} />
-        </Box>
-      )}
-    </Card>
-  );
-}
-
-function CustomerProfileCard({ customerId, profile }: { customerId: string; profile: FamilyProfile["profile"] }) {
-  const qc = useQueryClient();
-  const [editing, setEditing] = useState(false);
-  // Reference-catalog lookups feed the two free-text-lite fields the operators
-  // actually fill in every day. Kept lazy — only fetched when the operator
-  // starts editing the profile card.
-  const occupationsQ = useQuery({
-    queryKey: ["lookup", "occupations"],
-    enabled: editing,
-    queryFn: async () => (await api.get<Array<{ id: string; name: string; category?: string | null }>>("/lookups/occupations")).data
-  });
-  const nationalitiesQ = useQuery({
-    queryKey: ["lookup", "nationalities"],
-    enabled: editing,
-    queryFn: async () => (await api.get<Array<{ id: string; iso2: string; name: string }>>("/lookups/nationalities")).data
-  });
-  const [form, setForm] = useState({
-    maritalStatus: "", occupation: "", employer: "", mobilePhone: "", notes: "",
-    fatherName: "", motherName: "", spouseName: "",
-    nationality: "", zone: "", activityCode: ""
-  });
-  const [err, setErr] = useState<string | null>(null);
-  useEffect(() => setForm({
-    maritalStatus: profile.maritalStatus ?? "", occupation: profile.occupation ?? "", employer: profile.employer ?? "",
-    mobilePhone: profile.mobilePhone ?? "", notes: profile.notes ?? "",
-    fatherName: profile.fatherName ?? "", motherName: profile.motherName ?? "", spouseName: profile.spouseName ?? "",
-    nationality: profile.nationality ?? "", zone: profile.zone ?? "", activityCode: profile.activityCode ?? ""
-  }), [profile]);
-  const save = useMutation({
-    mutationFn: async () => api.put(`/customers/${customerId}/family/profile`, form),
-    onSuccess: () => { setEditing(false); setErr(null); void qc.invalidateQueries({ queryKey: ["customer-family", customerId] }); },
-    onError: e => setErr(extractErrorMessage(e))
-  });
-
-  return (
-    <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 }, bgcolor: "rgba(248,250,252,0.92)" }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.75 }}>
-        <Box sx={{ px: 0.75, py: 0.5, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}><Typography variant="subtitle2" fontWeight={800}>Προφίλ και οικογενειακή κατάσταση</Typography>
-          <Typography variant="caption" color="text.secondary">Τα στοιχεία αυτά χρησιμοποιούνται στα φίλτρα πελατών, στα ασφαλιστικά έντυπα και στις προτάσεις κάλυψης.</Typography></Box>
-        <Button size="small" startIcon={<EditIcon />} onClick={() => setEditing(!editing)} color="error" variant="contained">{editing ? "Ακύρωση" : "Επεξεργασία"}</Button>
-      </Stack>
-      {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
-      {editing ? (
-        <Stack spacing={1.5}>
-          <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
-            <SearchableTextField label="Οικογενειακή κατάσταση" value={form.maritalStatus} onChange={e => setForm({ ...form, maritalStatus: e.target.value })} fullWidth>
-              <MenuItem value="">—</MenuItem>
-              {["Single", "Married", "Divorced", "Widowed", "Other"].map(status => <MenuItem key={status} value={status}>{status}</MenuItem>)}
-            </SearchableTextField>
-            <Autocomplete
-              freeSolo fullWidth
-              options={(occupationsQ.data ?? []).map(o => o.name)}
-              value={form.occupation}
-              onChange={(_, v) => setForm({ ...form, occupation: v ?? "" })}
-              onInputChange={(_, v) => setForm({ ...form, occupation: v })}
-              renderInput={(p) => <TextField {...p} label="Επάγγελμα / κλάδος"
-                helperText="Ελεύθερο κείμενο ή επιλογή από τον κατάλογο «Επαγγέλματα» (Λίστες & Καταλόγοι)." />}
-            />
-            <TextField label="Εργοδότης / επιχείρηση" value={form.employer} onChange={e => setForm({ ...form, employer: e.target.value })} fullWidth />
-          </Stack>
-          <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
-            <TextField label="Πατρώνυμο" value={form.fatherName} onChange={e => setForm({ ...form, fatherName: e.target.value })} fullWidth
-              helperText="Απαιτείται για MyDATA και ασφαλιστικά έντυπα." />
-            <TextField label="Μητρώνυμο" value={form.motherName} onChange={e => setForm({ ...form, motherName: e.target.value })} fullWidth />
-            <TextField label="Όνομα συζύγου" value={form.spouseName} onChange={e => setForm({ ...form, spouseName: e.target.value })} fullWidth
-              helperText="Ελεύθερο κείμενο. Για δομημένη σχέση χρησιμοποιήστε την ενότητα Οικογένεια." />
-          </Stack>
-          <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
-            <Autocomplete
-              freeSolo fullWidth
-              options={(nationalitiesQ.data ?? []).map(n => n.name)}
-              value={form.nationality}
-              onChange={(_, v) => setForm({ ...form, nationality: v ?? "" })}
-              onInputChange={(_, v) => setForm({ ...form, nationality: v })}
-              renderInput={(p) => <TextField {...p} label="Εθνικότητα" placeholder="π.χ. Ελληνική" />}
-            />
-            <TextField label="Ζώνη" value={form.zone} onChange={e => setForm({ ...form, zone: e.target.value })} fullWidth
-              helperText="Γεωγραφική ή εμπορική ζώνη για πολιτικές τιμολόγησης." />
-            <TextField label="Κωδικός δραστηριότητας" value={form.activityCode} onChange={e => setForm({ ...form, activityCode: e.target.value })} fullWidth
-              placeholder="π.χ. ΚΑΔ" />
-          </Stack>
-          <TextField label="Κινητό" value={form.mobilePhone} onChange={e => setForm({ ...form, mobilePhone: e.target.value })} fullWidth />
-          <TextField label="Σημειώσεις πελάτη" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} multiline rows={3} fullWidth />
-          <Stack direction="row" justifyContent="flex-end"><Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending}>Αποθήκευση</Button></Stack>
-        </Stack>
-      ) : (
-        <Box sx={{ display: "grid", gap: 0.5, gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(3, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" } }}>
-          <ProfileValue label="Οικογενειακή κατάσταση" value={profile.maritalStatus} />
-          <ProfileValue label="Επάγγελμα / κλάδος" value={profile.occupation} />
-          <ProfileValue label="Εργοδότης / επιχείρηση" value={profile.employer} />
-          <ProfileValue label="Κινητό" value={profile.mobilePhone ?? profile.phone} />
-          <ProfileValue label="Πατρώνυμο" value={profile.fatherName} />
-          <ProfileValue label="Μητρώνυμο" value={profile.motherName} />
-          <ProfileValue label="Όνομα συζύγου" value={profile.spouseName} />
-          <ProfileValue label="Εθνικότητα" value={profile.nationality} />
-          <ProfileValue label="Ζώνη" value={profile.zone} />
-          <ProfileValue label="Κωδ. δραστηριότητας" value={profile.activityCode} />
-          {profile.notes && <Box sx={{ gridColumn: "1/-1" }}><ProfileValue label="Σημειώσεις" value={profile.notes} /></Box>}
-        </Box>
-      )}
-    </Card>
-  );
-}
-
-function ProfileValue({ label, value }: { label: string; value?: string | null }) {
-  const missing = !value || value === "—";
-  return <Box sx={{ p: 0.65, minWidth: 0, minHeight: 42, borderRadius: 0.9, bgcolor: missing ? "rgba(211,47,47,0.055)" : "rgba(46,125,50,0.065)", border: "1px solid", borderColor: missing ? "rgba(211,47,47,0.2)" : "rgba(46,125,50,0.2)" }}><Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.66rem", lineHeight: 1.1 }}>{label}</Typography><Typography fontWeight={700} color={missing ? "error.dark" : "success.dark"} sx={{ wordBreak: "break-word", fontSize: "0.78rem", lineHeight: 1.2 }}>{value || "—"}</Typography></Box>;
-}
 
 function CustomerNeedsCard({ customerId, needs }: { customerId: string; needs: CustomerNeed[] }) {
   const qc = useQueryClient();

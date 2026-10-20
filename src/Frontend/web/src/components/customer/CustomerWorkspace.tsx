@@ -10,6 +10,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link as RouterLink } from "react-router-dom";
 import { api, extractErrorMessage } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
+import { AuditFieldChanges } from "../audit/AuditFieldChanges";
+import type { AuditFieldChange } from "../audit/auditValues";
 
 export function CustomerPopup({ open, title, onClose, children, wide = false }: {
   open: boolean; title: string; onClose: () => void; children: ReactNode; wide?: boolean;
@@ -221,7 +223,7 @@ export function CustomerObligations({ customerId }: { customerId: string }) {
   </Stack>;
 }
 
-interface HistoryRow { id: string; date: string; kind: string; title: string; reference?: string | null; details?: string | null }
+interface HistoryRow { id: string; date: string; kind: string; title: string; reference?: string | null; details?: string | null; changes?: AuditFieldChange[] | null }
 const historyKinds: Record<string, string> = { customer: "Στοιχεία πελάτη", policy: "Συμβόλαια", endorsement: "Πρόσθετες πράξεις", cancellation: "Ακυρώσεις", communication: "Επικοινωνίες", claim: "Ζημιές", receipt: "Εισπράξεις", credit: "Πιστωτικά", consent: "Συγκαταθέσεις", document: "Έγγραφα", task: "Εργασίες" };
 export function CustomerHistory({ customerId }: { customerId: string }) {
   const [search, setSearch] = useState("");
@@ -259,7 +261,8 @@ export function CustomerHistory({ customerId }: { customerId: string }) {
         </TableRow>)}
       </DataTable><Pagination size="small" count={Math.ceil(q.data.total / q.data.pageSize)} page={q.data.page} onChange={(_, value) => setPage(value)} /></>}
     <CustomerPopup open={!!selected} title={selected?.title ?? "Λεπτομέρειες"} onClose={() => setSelected(null)}>
-      <Typography fontWeight={700}>{selected?.reference}</Typography><Typography sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", mt: 1 }}>{selected?.details || "Δεν υπάρχουν πρόσθετες καταγεγραμμένες λεπτομέρειες."}</Typography>
+      <Typography fontWeight={700}>{selected?.reference}</Typography>
+      {selected?.changes?.length ? <AuditFieldChanges changes={selected.changes} /> : <Typography sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", mt: 1 }}>{selected?.details || "Δεν υπάρχουν πρόσθετες καταγεγραμμένες λεπτομέρειες."}</Typography>}
     </CustomerPopup>
   </Stack>;
 }

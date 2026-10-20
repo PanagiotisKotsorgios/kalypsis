@@ -187,6 +187,7 @@ public class UpdateCustomerProfileHandler : IRequestHandler<UpdateCustomerProfil
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var customer = await CustomerFamilyQueries.RequireCustomer(_db, tenantId, request.CustomerId, ct);
+        ContactValueRules.Ensure("MobilePhone", request.Body.MobilePhone, customer.MobilePhone, changedOnly: true);
         customer.MaritalStatus = CustomerFamilyQueries.TrimOrNull(request.Body.MaritalStatus);
         customer.Occupation = CustomerFamilyQueries.TrimOrNull(request.Body.Occupation);
         customer.Employer = CustomerFamilyQueries.TrimOrNull(request.Body.Employer);

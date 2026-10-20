@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
 using Kalypsis.Application.Features.Users;
@@ -9,13 +8,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Kalypsis.Application.Features.Customers;
 
-public record CustomerHistoryRow(string Id, DateTime Date, string Kind, string Title, string? Reference, string? Details);
+public record CustomerHistoryRow(string Id, DateTime Date, string Kind, string Title, string? Reference, string? Details,
+    IReadOnlyList<AuditFieldChange>? Changes = null);
 public record CustomerHistoryPage(IReadOnlyList<CustomerHistoryRow> Items, int Total, int Page, int PageSize);
 public record GetCustomerHistoryQuery(Guid CustomerId, string? Search, string? Kind, DateTime? From, DateTime? To, int Page = 1)
     : IRequest<CustomerHistoryPage>;
 
 /// <summary>Customer-scoped history. Explicit tenant and office scope retain archived records.
-/// Audit payload values are deliberately not exposed by this customer-readable endpoint.</summary>
+/// Only allowlisted, non-sensitive field changes of accessible entities are exposed.</summary>
 public class CustomerHistoryHandler(IAppDbContext db, ICurrentUser current)
     : IRequestHandler<GetCustomerHistoryQuery, CustomerHistoryPage>
 {
@@ -101,7 +101,7 @@ public class CustomerHistoryHandler(IAppDbContext db, ICurrentUser current)
         }
         var ids = subjects.Keys.ToArray();
         var logs = await db.AuditLogs.AsNoTracking().Where(a => a.TenantId == tenant && ids.Contains(a.EntityId))
-            .Select(a => new { a.Id, a.CreatedAt, a.EntityId, a.EntityName, a.Action, a.NewValues }).ToListAsync(ct);
+            .Select(a => new { a.Id, a.CreatedAt, a.EntityId, a.EntityName, a.Action, a.OldValues, a.NewValues }).ToListAsync(ct);
         var rows = new List<CustomerHistoryRow>();
         rows.AddRange(additional);
         rows.Add(new("customer-" + customer.Id, customer.CreatedAt, "customer", "Καταχώρηση πελάτη", customer.CustomerNumber, null));
@@ -122,14 +122,17 @@ public class CustomerHistoryHandler(IAppDbContext db, ICurrentUser current)
             };
             // Creation snapshots already appear above; audit rows add changes rather than duplicate them.
             if (action == "Δημιουργία") continue;
-            rows.Add(new("audit-" + log.Id, log.CreatedAt, subject.Kind, action, subject.Reference, ChangedFields(log.NewValues)));
+            var changes = AuditChangeReader.Read(log.OldValues, log.NewValues, knownFieldsOnly: true, entityName: log.EntityName);
+            rows.Add(new("audit-" + log.Id, log.CreatedAt, subject.Kind, action, subject.Reference,
+                changes.Count == 0 ? null : "Πεδία αλλαγής: " + string.Join(", ", changes.Select(c => c.Label)), changes));
         }
         IEnumerable<CustomerHistoryRow> filtered = rows;
         if (request.From is DateTime from) filtered = filtered.Where(r => r.Date >= from);
         if (request.To is DateTime to) filtered = filtered.Where(r => r.Date <= to);
         if (!string.IsNullOrWhiteSpace(request.Kind)) filtered = filtered.Where(r => r.Kind == request.Kind);
         if (!string.IsNullOrWhiteSpace(request.Search))
-            filtered = filtered.Where(r => $"{r.Title} {r.Reference} {r.Details}".Contains(request.Search.Trim(), StringComparison.OrdinalIgnoreCase));
+            filtered = filtered.Where(r => $"{r.Title} {r.Reference} {r.Details} {string.Join(" ", r.Changes?.Select(c => $"{c.Before} {c.After}") ?? [])}"
+                .Contains(request.Search.Trim(), StringComparison.OrdinalIgnoreCase));
         var ordered = filtered.OrderByDescending(r => r.Date).ThenBy(r => r.Id).ToArray();
         const int size = 30;
         var page = Math.Clamp(request.Page, 1, Math.Max(1, (ordered.Length + size - 1) / size));
@@ -147,33 +150,4 @@ public class CustomerHistoryHandler(IAppDbContext db, ICurrentUser current)
             (bypassOffice || p.AgencyOfficeScopeId == office || (headquarters && p.AgencyOfficeScopeId == null)));
     }
 
-    private static string? ChangedFields(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json)) return null;
-        try
-        {
-            using var document = JsonDocument.Parse(json);
-            if (document.RootElement.ValueKind != JsonValueKind.Object) return null;
-            var fields = document.RootElement.EnumerateObject().Select(p => p.Name)
-                .Where(n => n is not ("UpdatedAt" or "CreatedAt" or "TenantId" or "Id" or "AgencyOfficeScopeId"))
-                .Select(n => FieldLabels.GetValueOrDefault(n, n));
-            return "Πεδία αλλαγής: " + string.Join(", ", fields);
-        }
-        catch (JsonException) { return null; }
-    }
-
-    private static readonly Dictionary<string, string> FieldLabels = new()
-    {
-        ["FirstName"] = "Όνομα", ["LastName"] = "Επώνυμο", ["CompanyName"] = "Επωνυμία", ["Status"] = "Κατάσταση",
-        ["Type"] = "Τύπος", ["VatNumber"] = "ΑΦΜ", ["Email"] = "Email", ["Phone"] = "Τηλέφωνο",
-        ["MobilePhone"] = "Κινητό", ["AltPhone"] = "Άλλο τηλέφωνο", ["Address"] = "Διεύθυνση",
-        ["City"] = "Πόλη", ["PostalCode"] = "Τ.Κ.", ["Region"] = "Περιφέρεια", ["Notes"] = "Σημειώσεις",
-        ["BirthDate"] = "Ημ. γέννησης", ["Occupation"] = "Επάγγελμα", ["TaxOffice"] = "ΔΟΥ",
-        ["PolicyNumber"] = "Αριθμός συμβολαίου", ["Premium"] = "Ασφάλιστρο", ["StartDate"] = "Έναρξη",
-        ["EndDate"] = "Λήξη", ["Description"] = "Περιγραφή", ["Subject"] = "Θέμα", ["Body"] = "Κείμενο",
-        ["Kind"] = "Είδος", ["Direction"] = "Κατεύθυνση", ["Outcome"] = "Αποτέλεσμα",
-        ["OccurredAt"] = "Ημερομηνία επικοινωνίας", ["DeletedAt"] = "Διαγραφή", ["Amount"] = "Ποσό",
-        ["RelatedPolicyId"] = "Σύνδεση συμβολαίου", ["RelatedPolicyNumber"] = "Συμβόλαιο", ["DurationSeconds"] = "Διάρκεια",
-        ["ThirdPhone"] = "3ο τηλέφωνο", ["SecondaryMobilePhone"] = "2ο κινητό", ["SecondaryEmail"] = "2ο email",
-    };
 }

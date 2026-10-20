@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
-import { Box, IconButton, MenuItem, TextField, Tooltip, Typography } from "@mui/material";
+import { Autocomplete, Box, IconButton, MenuItem, TextField, Tooltip, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -21,6 +21,10 @@ interface InlineValueFieldProps {
   onCommit?: (value: string) => void | Promise<void>;
   onRequestEdit?: () => void;
   options?: InlineValueOption[];
+  suggestions?: string[];
+  validate?: (value: string) => string | undefined;
+  maxLength?: number;
+  inputMode?: "text" | "tel" | "email" | "numeric" | "url";
   type?: "text" | "date" | "email" | "number";
   mono?: boolean;
   valueColor?: string;
@@ -56,6 +60,10 @@ export function InlineValueField({
   onCommit,
   onRequestEdit,
   options,
+  suggestions,
+  validate,
+  maxLength,
+  inputMode,
   type = "text",
   mono = false,
   valueColor,
@@ -75,6 +83,7 @@ export function InlineValueField({
   const [localDraft, setLocalDraft] = useState(raw);
   const editing = localEditing || (editMode && !!onCommit);
   const draft = draftValue ?? localDraft;
+  const validationError = editing ? validate?.(draft) : undefined;
   const setDraft = (next: string) => { setLocalDraft(next); onDraftChange?.(next); };
   const [copied, setCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
@@ -125,6 +134,7 @@ export function InlineValueField({
 
   const saveEdit = async () => {
     if (disabled) return;
+    if (validationError) { inputRef.current?.focus(); return; }
     if (!onCommit || draft === raw) {
       setEditing(false);
       return;
@@ -221,11 +231,27 @@ export function InlineValueField({
             {!options.some(option => option.value === draft) && <MenuItem value={draft}>{draft === raw ? displayValue ?? (draft || "—") : draft}</MenuItem>}
             {options.map(option => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
           </TextField>
+        ) : suggestions ? (
+          <Autocomplete freeSolo options={suggestions} inputValue={draft} value={draft || null}
+            disabled={disabled} onInputChange={(_, next) => setDraft(next)}
+            onChange={(_, next) => setDraft(next ?? "")}
+            sx={{ "& .MuiInputBase-root": { minHeight: compact ? 30 : 32, py: 0 }, "& input": { fontSize: ".8rem" } }}
+            onKeyDown={event => {
+              if (event.key === "Enter" && !inputRef.current?.getAttribute("aria-activedescendant")) { event.preventDefault(); void saveEdit(); }
+              if (event.key === "Escape") cancelEdit();
+            }}
+            renderInput={params => <TextField {...params} size="small" inputRef={inputRef}
+              error={!!validationError} helperText={validationError}
+              inputProps={{ ...params.inputProps, "aria-label": label, maxLength }}
+            />}
+          />
         ) : (
           <TextField
             autoFocus={!editMode && draftValue === undefined}
             disabled={disabled}
-            inputProps={{ "aria-label": label }}
+            inputProps={{ "aria-label": label, maxLength, inputMode }}
+            error={!!validationError}
+            helperText={validationError}
             size="small"
             fullWidth
             type={type}
@@ -258,7 +284,7 @@ export function InlineValueField({
                   size="small"
                   aria-label={`Αποθήκευση ${label}`}
                   onClick={() => void saveEdit()}
-                  disabled={disabled || !onCommit}
+                  disabled={disabled || !onCommit || !!validationError}
                   sx={{ width: 30, height: 30, borderRadius: .5, color: "#fff", bgcolor: "#159b59", border: "1px solid #0f7f49", "&:hover": { bgcolor: "#0d7d46" } }}
                 >
                   <SaveOutlinedIcon sx={{ fontSize: 17 }} />

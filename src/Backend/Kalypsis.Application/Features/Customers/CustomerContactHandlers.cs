@@ -57,6 +57,8 @@ public class CreateContactHandler : IRequestHandler<CreateContactCommand, Custom
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var customer = await _db.Customers.FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Id == request.CustomerId, ct)
             ?? throw AppException.NotFound("Πελάτης");
+        ContactValueRules.Ensure("Email", request.Body.Email);
+        ContactValueRules.Ensure("Phone", request.Body.Phone);
 
         if (request.Body.IsPrimary)
         {
@@ -102,6 +104,9 @@ public class UpdateContactHandler : IRequestHandler<UpdateContactCommand, Custom
         var c = await _db.CustomerContacts
             .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.CustomerId == request.CustomerId && x.Id == request.ContactId, ct)
             ?? throw AppException.NotFound("Επαφή");
+
+        ContactValueRules.Ensure("Email", request.Body.Email, c.Email, changedOnly: true);
+        ContactValueRules.Ensure("Phone", request.Body.Phone, c.Phone, changedOnly: true);
 
         if (request.Body.IsPrimary && !c.IsPrimary)
         {

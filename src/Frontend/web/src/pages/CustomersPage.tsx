@@ -61,6 +61,7 @@ import { QuickFilterBar } from "../components/QuickFilterBar";
 import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
 import { BulkImportDialog, type BulkImportResult } from "../components/BulkImportDialog";
 import { SavedReportsButton } from "../components/SavedReportsButton";
+import { customerDraftErrors, customerFieldError } from "../components/customer/customerValidation";
 
 type CustomerType = "Individual" | "Company";
 type CustomerStatus = "Prospect" | "Active" | "Inactive" | "Churned" | "Blocked";
@@ -848,9 +849,11 @@ function CreateCustomerDialog({
 }) {
   const { t } = useTranslation();
   const [form, setForm] = useState<CreateBody>(() => newCustomerForm(initialStatus));
+  const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [formTab, setFormTab] = useState(0);
   useEffect(() => {
     if (open) {
+      setValidationMessage(null);
       setFormTab(0);
       setForm(initialCustomer ? {
         type: initialCustomer.type, status: initialCustomer.status,
@@ -891,6 +894,11 @@ function CreateCustomerDialog({
       driverLicenseIssueDate: form.driverLicenseIssueDate || undefined, driverLicenseExpiryDate: form.driverLicenseExpiryDate || undefined,
       source: form.source || undefined, tagsJson: form.tagsJson || undefined, photoUrl: form.photoUrl || undefined
     };
+    const changed = Object.fromEntries(Object.entries(payload).filter(([field, value]) =>
+      !initialCustomer || value !== (initialCustomer as unknown as Record<string, unknown>)[field]));
+    const errors = customerDraftErrors(changed);
+    if (errors.length) { setValidationMessage(errors.join(" ")); return; }
+    setValidationMessage(null);
     onSubmit(payload);
   };
 
@@ -904,6 +912,7 @@ function CreateCustomerDialog({
     >
       <DialogTitle sx={{ py: 1.25 }}>{initialCustomer ? "Επεξεργασία πελάτη" : t("customers.createTitle")}</DialogTitle>
       <DialogContent sx={{ p: { xs: 1.5, md: 2 } }}>
+        {validationMessage && <Alert severity="error" sx={{ mb: 1 }}>{validationMessage}</Alert>}
         {!initialCustomer ? (
           <Stack spacing={1.25}>
             <Alert severity="info" sx={{ py: 0.5 }}>
@@ -932,12 +941,12 @@ function CreateCustomerDialog({
             ) : (
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                 <TextField required fullWidth label={t("customers.companyName")} value={form.companyName ?? ""} onChange={e => setForm({ ...form, companyName: e.target.value })} InputProps={{ startAdornment: <InputAdornment position="start"><BusinessOutlinedIcon fontSize="small" /></InputAdornment> }} />
-                <TextField fullWidth label={t("customers.vatNumber")} value={form.vatNumber ?? ""} onChange={e => setForm({ ...form, vatNumber: e.target.value })} InputProps={{ startAdornment: <InputAdornment position="start"><BadgeOutlinedIcon fontSize="small" /></InputAdornment> }} />
+                <TextField fullWidth label={t("customers.vatNumber")} value={form.vatNumber ?? ""} onChange={e => setForm({ ...form, vatNumber: e.target.value })} inputProps={{ maxLength: 9, inputMode: "numeric" }} error={!!customerFieldError("vatNumber", form.vatNumber)} helperText={customerFieldError("vatNumber", form.vatNumber)} InputProps={{ startAdornment: <InputAdornment position="start"><BadgeOutlinedIcon fontSize="small" /></InputAdornment> }} />
               </Stack>
             )}
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-              <TextField fullWidth type="email" label={t("customers.email")} value={form.email ?? ""} onChange={e => setForm({ ...form, email: e.target.value })} InputProps={{ startAdornment: <InputAdornment position="start"><EmailOutlinedIcon fontSize="small" /></InputAdornment> }} />
-              <TextField fullWidth label={t("customers.phone")} value={form.phone ?? ""} onChange={e => setForm({ ...form, phone: e.target.value })} InputProps={{ startAdornment: <InputAdornment position="start"><PhoneOutlinedIcon fontSize="small" /></InputAdornment> }} />
+              <TextField fullWidth type="email" label={t("customers.email")} value={form.email ?? ""} onChange={e => setForm({ ...form, email: e.target.value })} inputProps={{ maxLength: 254 }} error={!!customerFieldError("email", form.email)} helperText={customerFieldError("email", form.email)} InputProps={{ startAdornment: <InputAdornment position="start"><EmailOutlinedIcon fontSize="small" /></InputAdornment> }} />
+              <TextField fullWidth type="tel" label={t("customers.phone")} value={form.phone ?? ""} onChange={e => setForm({ ...form, phone: e.target.value })} inputProps={{ maxLength: 40 }} error={!!customerFieldError("phone", form.phone)} helperText={customerFieldError("phone", form.phone)} InputProps={{ startAdornment: <InputAdornment position="start"><PhoneOutlinedIcon fontSize="small" /></InputAdornment> }} />
               <TextField fullWidth label={t("customers.city")} value={form.city ?? ""} onChange={e => setForm({ ...form, city: e.target.value })} InputProps={{ startAdornment: <InputAdornment position="start"><LocationCityIcon fontSize="small" /></InputAdornment> }} />
             </Stack>
           </Stack>

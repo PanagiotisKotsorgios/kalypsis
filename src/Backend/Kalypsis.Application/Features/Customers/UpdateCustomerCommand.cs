@@ -19,6 +19,8 @@ public sealed class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustome
         var c = await _db.Customers.FirstOrDefaultAsync(x => x.Id == command.CustomerId && x.TenantId == tenantId, ct)
             ?? throw AppException.NotFound("Customer");
         var r = command.Request;
+        // Legacy invalid values may remain unchanged; new/changed values must be valid.
+        CustomerInputValidation.Ensure(r, c);
         c.Type = r.Type; c.Status = r.Status;
         c.FirstName = r.FirstName?.Trim(); c.LastName = r.LastName?.Trim(); c.CompanyName = r.CompanyName?.Trim();
         c.VatNumber = r.VatNumber?.Trim(); c.Email = string.IsNullOrWhiteSpace(r.Email) ? null : r.Email.Trim().ToLowerInvariant();

@@ -56,6 +56,7 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
             ?? throw AppException.Forbidden();
 
         var r = request.Request;
+        CustomerInputValidation.Ensure(r);
         var email = string.IsNullOrWhiteSpace(r.Email) ? null : r.Email.Trim().ToLowerInvariant();
 
         if (r.CreatePortalAccount && !await _packages.HasAsync(tenantId, PackageCode.Crm, cancellationToken))

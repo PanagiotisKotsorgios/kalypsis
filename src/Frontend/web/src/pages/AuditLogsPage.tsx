@@ -41,6 +41,8 @@ import { SearchableTextField } from "../components/SearchableTextField";
 import { printTable } from "../utils/printableTable";
 import { exportRowsCsv } from "../utils/exportCsv";
 import { date } from "../utils/format";
+import { AuditFieldChanges } from "../components/audit/AuditFieldChanges";
+import type { AuditFieldChange } from "../components/audit/auditValues";
 
 interface AuditLog {
   id: string;
@@ -57,6 +59,7 @@ interface AuditLog {
   metadata: string | null;
   oldValues: string | null;
   newValues: string | null;
+  changes?: AuditFieldChange[];
   ipAddress: string | null;
   userAgent: string | null;
   createdAt: string;
@@ -400,8 +403,7 @@ export function AuditLogsPage() {
               <DetailRow label="IP" value={detail.ipAddress ?? "Δεν διατέθηκε"} />
               {detail.userAgent && <DetailRow label="Συσκευή / browser" value={detail.userAgent} />}
               <Divider />
-              <JsonBlock title="Πριν τη μεταβολή" value={detail.oldValues} tone="error" />
-              <JsonBlock title="Μετά τη μεταβολή" value={detail.newValues} tone="success" />
+              <AuditFieldChanges changes={detail.changes} />
               <JsonBlock title="Τεχνικό πλαίσιο" value={detail.metadata} tone="info" />
             </Stack>
           )}

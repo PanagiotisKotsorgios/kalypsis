@@ -144,6 +144,12 @@ public class CustomerWorkspaceTests
         Assert.Contains(result.Items, r => r.Kind == "endorsement" && r.Reference == "PP-TEST");
         Assert.DoesNotContain(result.Items, r => r.Reference == "OTHER");
         Assert.DoesNotContain(result.Items, r => r.Details?.Contains("Αλλαγμένο") == true);
+        var changedName = Assert.Single(result.Items.SelectMany(r => r.Changes ?? []), c => c.Field == "FirstName");
+        Assert.Equal("Δοκιμή", changedName.Before);
+        Assert.Equal("Αλλαγμένο", changedName.After);
+        Assert.True(changedName.BeforeRecorded && changedName.AfterRecorded);
+        Assert.Contains((await handler.Handle(new(customer.Id, "Αλλαγμένο", null, null, null), default)).Items,
+            row => row.Changes?.Any(change => change.Field == "FirstName") == true);
         var filtered = await handler.Handle(new(customer.Id, "PP-TEST", "endorsement", null, null, 999), default);
         Assert.Single(filtered.Items);
         Assert.Equal(1, filtered.Page);

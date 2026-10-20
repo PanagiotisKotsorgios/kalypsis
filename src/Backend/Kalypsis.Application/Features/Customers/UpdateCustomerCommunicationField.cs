@@ -18,6 +18,9 @@ public class UpdateCustomerCommunicationFieldValidator : AbstractValidator<Updat
         RuleFor(x => x.Body.Value).MaximumLength(40).When(x => x.Body.Field != "secondaryEmail");
         RuleFor(x => x.Body.Value).MaximumLength(256).When(x => x.Body.Field == "secondaryEmail");
         RuleFor(x => x.Body.Value).EmailAddress().When(x => x.Body.Field == "secondaryEmail" && !string.IsNullOrWhiteSpace(x.Body.Value));
+        RuleFor(x => x.Body).Custom((body, context) => {
+            if (ContactValueRules.Error(body.Field, body.Value) is { } error) context.AddFailure("Value", error);
+        });
     }
 }
 
@@ -31,6 +34,7 @@ public class UpdateCustomerCommunicationFieldHandler(IAppDbContext db, ICurrentU
         var customer = await db.Customers.FirstOrDefaultAsync(c => c.Id == request.CustomerId && c.TenantId == tenant && c.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Πελάτης");
         var value = string.IsNullOrWhiteSpace(request.Body.Value) ? null : request.Body.Value.Trim();
+        ContactValueRules.Ensure(request.Body.Field, value);
         switch (request.Body.Field)
         {
             case "thirdPhone": customer.ThirdPhone = value; break;

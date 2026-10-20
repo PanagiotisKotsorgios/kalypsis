@@ -1,3 +1,5 @@
+using Kalypsis.Application.Common;
+
 namespace Kalypsis.Application.Features.Audit;
 
 public record AuditLogDto(
@@ -17,7 +19,10 @@ public record AuditLogDto(
     string? NewValues,
     string? IpAddress,
     string? UserAgent,
-    DateTime CreatedAt);
+    DateTime CreatedAt)
+{
+    public IReadOnlyList<AuditFieldChange> Changes => AuditChangeReader.Read(OldValues, NewValues, entityName: EntityName);
+}
 
 public record AuditLogPageDto(
     IReadOnlyList<AuditLogDto> Items,
