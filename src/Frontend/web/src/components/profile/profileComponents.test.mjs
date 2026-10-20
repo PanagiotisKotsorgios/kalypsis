@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createElement, Children, isValidElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createServer } from "vite";
+import { readFile } from "node:fs/promises";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 test("production profiles reuse client fields, pencil/save actions and compact tabs; filters retain API payloads", async () => {
@@ -47,8 +48,10 @@ test("production profiles reuse client fields, pencil/save actions and compact t
     nodes.find(node => node.props.children === "Κλείσιμο").props.onClick();
     assert.deepEqual(events.slice(-3), ["saveAll", "cancel", "close"]);
     assert.equal(render(ProfileEditorFeedback, { session: { ...session, error: "Αποτυχία δοκιμής" } }).includes("μη αποθηκευμένες"), true);
-    const nav = render(WorkspaceProfileTabs, { value: 0, onChange() {}, statistics: true });
-    for (const label of ["Γενικά", "Παραγωγή &amp; συμβόλαια", "Επικοινωνία", "Στατιστικά"]) assert.equal(nav.includes(label), true, label);
+    const nav = render(WorkspaceProfileTabs, { value: 0, onChange() {}, splitWorkspace: true });
+    for (const label of ["Γενικά", "Παραγωγή", "Επικοινωνία", "Έγγραφα", "Πεδία"]) assert.equal(nav.includes(label), true, label);
+    assert.equal(nav.includes("Παραγωγή &amp; συμβόλαια"), false);
+    assert.equal(nav.includes(">Στατιστικά<"), false);
     assert.equal(nav.includes("height:36px"), true);
     assert.equal(nav.includes("height:54px"), false);
 
@@ -93,5 +96,19 @@ test("production profiles reuse client fields, pencil/save actions and compact t
     assert.equal(payload.name, "Δοκιμή"); assert.equal(payload.isShared, true); assert.deepEqual(JSON.parse(payload.filtersJson), filters);
     assert.throws(() => savedFilterPayload("customers", {}, "  ", false));
     assert.throws(() => savedFilterPayload("customers", {}, "x".repeat(201), false));
+
+    const companySource = await readFile(new URL("../../pages/ProductionCompaniesAgenciesPage.tsx", import.meta.url), "utf8");
+    assert.equal(companySource.includes('label: "Παραγωγή & συμβόλαια"'), false);
+    assert.equal(companySource.includes('title="Όλα τα συμβόλαια εταιρείας"'), false);
+    assert.equal(companySource.includes('title="Όλα τα συμβόλαια στην εταιρεία"'), true);
+    assert.equal(companySource.includes('label="Από ημερομηνία έναρξης"'), true);
+    assert.equal(companySource.includes('label="Έως ημερομηνία έναρξης"'), true);
+    assert.equal(companySource.split("<TablePagination").length >= 3, true);
+    assert.equal(companySource.includes('label="Κωδικός από γέφυρα"'), true);
+    for (const removed of ["Κλάδος / τύπος συμβολαίου (προαιρετικό)", "Κατηγορία χρήσης οχήματος (προαιρετικό)", "Γονικός κωδικός"]) assert.equal(companySource.includes(`label="${removed}"`), false, removed);
+    assert.equal(companySource.includes('>Τελευταίες επικοινωνίες ({communications.length})</Button>'), true);
+    assert.equal(companySource.includes('label: "Έγγραφα & πεδία"'), true);
+    assert.equal(companySource.includes('label: "Έγγραφα"'), true);
+    assert.equal(companySource.includes('label: "Πεδία"'), true);
   } finally { client.clear(); await server.close(); }
 });
