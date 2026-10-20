@@ -38,6 +38,69 @@ public class CreateCommunicationBodyValidator : AbstractValidator<CreateCommunic
     {
         RuleFor(x => x.Subject).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Body).MaximumLength(4000);
+        RuleFor(x => x.Kind).IsInEnum();
+        RuleFor(x => x.Direction).IsInEnum();
+        RuleFor(x => x.Outcome).IsInEnum();
+        RuleFor(x => x.DurationSeconds).GreaterThanOrEqualTo(0);
+    }
+}
+
+public record UpdateCommunicationCommand(Guid CustomerId, Guid CommunicationId, CreateCommunicationBody Body)
+    : IRequest<CommunicationDto>;
+
+public class UpdateCommunicationValidator : AbstractValidator<UpdateCommunicationCommand>
+{
+    public UpdateCommunicationValidator() => RuleFor(x => x.Body).SetValidator(new CreateCommunicationBodyValidator());
+}
+
+public record DeleteCommunicationCommand(Guid CustomerId, Guid CommunicationId) : IRequest;
+
+public class UpdateCommunicationHandler : IRequestHandler<UpdateCommunicationCommand, CommunicationDto>,
+    IRequestHandler<DeleteCommunicationCommand>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    private readonly IDateTimeProvider _clock;
+    public UpdateCommunicationHandler(IAppDbContext db, ICurrentUser current, IDateTimeProvider clock)
+    { _db = db; _current = current; _clock = clock; }
+
+    private async Task<CommunicationLog> Find(Guid customerId, Guid communicationId, CancellationToken ct)
+    {
+        var tenant = _current.TenantId ?? throw AppException.Forbidden();
+        if (!await _db.Customers.AnyAsync(c => c.Id == customerId && c.TenantId == tenant && c.DeletedAt == null, ct))
+            throw AppException.NotFound("Πελάτης");
+        return await _db.CommunicationLogs.FirstOrDefaultAsync(c =>
+            c.Id == communicationId && c.CustomerId == customerId && c.TenantId == tenant && c.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Επικοινωνία");
+    }
+
+    public async Task<CommunicationDto> Handle(UpdateCommunicationCommand request, CancellationToken ct)
+    {
+        var log = await Find(request.CustomerId, request.CommunicationId, ct);
+        string? number = null;
+        if (request.Body.RelatedPolicyId is Guid policyId)
+            number = await _db.Policies.Where(p => p.Id == policyId && p.CustomerId == request.CustomerId &&
+                p.TenantId == log.TenantId && p.DeletedAt == null).Select(p => p.PolicyNumber).FirstOrDefaultAsync(ct)
+                ?? throw AppException.NotFound("Συμβόλαιο πελάτη");
+        log.Kind = request.Body.Kind;
+        log.Direction = request.Body.Direction;
+        log.Outcome = request.Body.Outcome;
+        log.OccurredAt = request.Body.OccurredAt ?? log.OccurredAt;
+        log.DurationSeconds = request.Body.DurationSeconds;
+        log.Subject = request.Body.Subject.Trim();
+        log.Body = request.Body.Body?.Trim();
+        log.RelatedPolicyId = request.Body.RelatedPolicyId;
+        log.RelatedPolicyNumber = number;
+        await _db.SaveChangesAsync(ct);
+        return new(log.Id, log.CustomerId, log.UserId, log.Kind, log.Direction, log.Outcome,
+            log.OccurredAt, log.DurationSeconds, log.Subject, log.Body, log.RelatedPolicyNumber, log.RelatedPolicyId);
+    }
+
+    public async Task Handle(DeleteCommunicationCommand request, CancellationToken ct)
+    {
+        var log = await Find(request.CustomerId, request.CommunicationId, ct);
+        log.DeletedAt = _clock.UtcNow;
+        await _db.SaveChangesAsync(ct);
     }
 }
 
@@ -121,6 +184,11 @@ public class CreatePolicyCommunicationHandler : IRequestHandler<CreatePolicyComm
 
 public record CreateCommunicationCommand(Guid CustomerId, CreateCommunicationBody Body) : IRequest<CommunicationDto>;
 
+public class CreateCommunicationValidator : AbstractValidator<CreateCommunicationCommand>
+{
+    public CreateCommunicationValidator() => RuleFor(x => x.Body).SetValidator(new CreateCommunicationBodyValidator());
+}
+
 public class CreateCommunicationHandler : IRequestHandler<CreateCommunicationCommand, CommunicationDto>
 {
     private readonly IAppDbContext _db;
@@ -140,9 +208,9 @@ public class CreateCommunicationHandler : IRequestHandler<CreateCommunicationCom
         if (request.Body.RelatedPolicyId.HasValue)
         {
             linkedNumber = await _db.Policies
-                .Where(p => p.TenantId == tenantId && p.Id == request.Body.RelatedPolicyId.Value)
+                .Where(p => p.TenantId == tenantId && p.Id == request.Body.RelatedPolicyId.Value && p.CustomerId == request.CustomerId && p.DeletedAt == null)
                 .Select(p => p.PolicyNumber)
-                .FirstOrDefaultAsync(ct);
+                .FirstOrDefaultAsync(ct) ?? throw AppException.NotFound("Συμβόλαιο πελάτη");
         }
 
         var log = new CommunicationLog

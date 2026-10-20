@@ -20,6 +20,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableContainer,
   TableHead,
   TableRow,
   Tabs,
@@ -42,6 +43,8 @@ import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalance
 import ContactPhoneIcon from "@mui/icons-material/ContactPhone";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import FolderIcon from "@mui/icons-material/Folder";
+import BarChartIcon from "@mui/icons-material/BarChart";
+import { CustomerCommunicationManager, CustomerHistory, CustomerObligations, CustomerPopup } from "../components/customer/CustomerWorkspace";
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
@@ -136,18 +139,6 @@ interface ConsentRow {
   version?: string;
 }
 
-interface CommunicationRow {
-  id: string;
-  kind: string;
-  direction: string;
-  outcome: string;
-  occurredAt: string;
-  durationSeconds?: number | null;
-  subject: string;
-  body?: string | null;
-  relatedPolicyNumber?: string | null;
-}
-
 interface ContactRow {
   id: string;
   firstName: string;
@@ -155,6 +146,7 @@ interface ContactRow {
   role?: string;
   email?: string;
   phone?: string;
+  notes?: string;
   isPrimary: boolean;
 }
 
@@ -205,12 +197,11 @@ const CONSENT_TYPES_MARKETING = [
   "DataSharingPartners"
 ];
 
-const COMMUNICATION_KINDS = ["Note", "Phone", "Email", "Meeting", "Sms", "WalkIn"];
-
 const CUSTOMER_PROFILE_TAB_LABELS = [
   { label: "Γενικά", icon: <InfoOutlinedIcon fontSize="small" /> },
   { label: "Επικοινωνία", icon: <ContactPhoneIcon fontSize="small" /> },
-  { label: "Ασφάλιση", icon: <DirectionsCarIcon fontSize="small" /> },
+  { label: "Συμβόλαια", icon: <FolderIcon fontSize="small" /> },
+  { label: "Οχήματα", icon: <DirectionsCarIcon fontSize="small" /> },
   { label: "Οικονομικά", icon: <AccountBalanceWalletOutlinedIcon fontSize="small" /> },
   { label: "Εκκρεμή", icon: <InfoOutlinedIcon fontSize="small" /> },
   { label: "Ζημιές", icon: <DeleteOutlineIcon fontSize="small" /> },
@@ -220,7 +211,7 @@ const CUSTOMER_PROFILE_TAB_LABELS = [
 
 function CustomerProfileTabs({ value, onChange }: { value: number; onChange: (value: number) => void }) {
   return <Tabs value={value} onChange={(_, next: number) => onChange(next)} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile sx={{
-    position: "sticky", top: 0, zIndex: 4, mb: .75, px: .25, py: .25,
+    position: "sticky", top: 0, zIndex: 4, mb: .75, px: .25, py: .5, flexShrink: 0, minHeight: 44,
     border: "1px solid", borderColor: "divider", borderRadius: 1.25,
     bgcolor: "background.paper", boxShadow: "0 2px 8px rgba(15,23,42,.12)",
     overflow: "hidden", "& .MuiTabs-scroller": { overflowX: "auto !important", overflowY: "hidden", scrollbarWidth: "thin" },
@@ -249,10 +240,10 @@ function CustomerTabLayout({ children }: { children: React.ReactNode }) {
   return (
     <Box sx={{
       display: "grid",
-      gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "repeat(2, minmax(0, 1fr))" },
+      gridTemplateColumns: "minmax(0, 1fr)",
       alignItems: "start",
       gap: { xs: .75, md: 1 },
-      maxHeight: "calc(100dvh - 226px)",
+      flex: 1, minHeight: 0, alignContent: "start",
       overflowY: "auto",
       overflowX: "hidden",
       pr: { xs: .15, md: .4 },
@@ -273,6 +264,7 @@ export function CustomerDetailPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [tab, setTab] = useState(0);
+  const [popup, setPopup] = useState<"communications" | "producers" | "statistics" | "family" | null>(null);
   const [showEditor, setShowEditor] = useState(false);
   const [editorSave, setEditorSave] = useState<(() => void) | null>(null);
   const [editorSaving, setEditorSaving] = useState(false);
@@ -347,6 +339,7 @@ export function CustomerDetailPage() {
         mb={.75}
         gap={.75}
         sx={{
+          flexShrink: 0,
           p: { xs: .75, sm: 1, md: 1.15 },
           borderRadius: 1.75,
           color: "#fff",
@@ -388,10 +381,6 @@ export function CustomerDetailPage() {
             <Typography variant="caption" sx={{ color: "rgba(255,255,255,.7)", display: "block" }}>ΑΦΜ</Typography>
             <Typography fontWeight={800}>{customer.vatNumber || "—"}</Typography>
           </Box>
-          <Box sx={{ pl: .8, borderLeft: "1px solid rgba(255,255,255,.25)", minWidth: { xs: 120, sm: 138 } }}>
-            <Typography variant="caption" sx={{ color: "rgba(255,255,255,.7)", display: "block" }}>Εξωτερικός κωδικός</Typography>
-            <Typography fontWeight={800}>—</Typography>
-          </Box>
         </Stack>
       </Stack>
 
@@ -400,30 +389,35 @@ export function CustomerDetailPage() {
       {showEditor && tab === 0 && <CustomerEditorDialog open customer={customer} onClose={() => { setShowEditor(false); setEditorSave(null); setEditorSaving(false); }} onSaveReady={registerEditorSave} />}
       {tab === 0 && !showEditor && <OverviewTab customer={customer} />}
       {tab === 1 && <CustomerTabLayout>
-        <Box sx={{ gridColumn: { lg: "1 / -1" } }}><CommunicationsTab customerId={id} /></Box>
-        <CustomerNotificationsTab customerId={id} />
+        <Stack direction="row" useFlexGap flexWrap="wrap" gap={1}>
+          <Button size="small" variant="contained" startIcon={<HistoryIcon />} onClick={() => setPopup("communications")}>Ιστορικό επικοινωνίας</Button>
+          <Button size="small" variant="outlined" startIcon={<PersonOutlineIcon />} onClick={() => setPopup("family")}>Οικογένεια & πρόσθετα στοιχεία</Button>
+        </Stack>
+        <DesktopCustomerFields customer={customer} section="contact" />
         <ContactsTab customerId={id} customerType={customer.type} />
-        <FamilyNeedsTab customerId={id} />
+        <Box><Typography variant="subtitle2" sx={{ mb: .5 }}>Ειδοποιήσεις</Typography><CustomerNotificationsTab customerId={id} /></Box>
       </CustomerTabLayout>}
       {tab === 2 && <CustomerTabLayout>
         <CustomerPoliciesTab customerId={id} />
-        <CustomerVehiclesTab customerId={id} />
       </CustomerTabLayout>}
       {tab === 3 && <CustomerTabLayout>
-        <CustomerAccountTab customerId={id} />
-        <CustomerProducersSummary customerId={id} />
+        <CustomerVehiclesTab customerId={id} />
       </CustomerTabLayout>}
       {tab === 4 && <CustomerTabLayout>
-        <Box sx={{ gridColumn: { lg: "1 / -1" } }}><InsuranceOpportunitiesTab customerId={id} /></Box>
+        <Box><Button size="small" variant="outlined" startIcon={<PersonOutlineIcon />} onClick={() => setPopup("producers")}>Συνεργάτες πελάτη</Button></Box>
+        <CustomerAccountTab customerId={id} />
       </CustomerTabLayout>}
       {tab === 5 && <CustomerTabLayout>
-        <Box sx={{ gridColumn: { lg: "1 / -1" } }}><CustomerClaimsTab customerId={id} /></Box>
+        <CustomerObligations customerId={id} />
       </CustomerTabLayout>}
       {tab === 6 && <CustomerTabLayout>
-        <Box sx={{ gridColumn: { lg: "1 / -1" } }}><GdprActionsTab customerId={id} /></Box>
+        <Box sx={{ gridColumn: { lg: "1 / -1" } }}><CustomerClaimsTab customerId={id} /></Box>
       </CustomerTabLayout>}
       {tab === 7 && <CustomerTabLayout>
-        <Box sx={{ gridColumn: { lg: "1 / -1" } }}><CustomerStatisticsTab customerId={id} /></Box>
+        <Box sx={{ gridColumn: { lg: "1 / -1" } }}><GdprActionsTab customerId={id} /></Box>
+      </CustomerTabLayout>}
+      {tab === 8 && <CustomerTabLayout>
+        <CustomerHistory customerId={id} />
       </CustomerTabLayout>}
       </Box>
       </DialogContent>
@@ -434,7 +428,7 @@ export function CustomerDetailPage() {
             Η οικονομική εικόνα υπολογίζεται από τις κινήσεις της εφαρμογής.
           </Typography>
         </Stack>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={0.75} sx={{ flex: "0 0 auto" }}>
+        <Stack direction="row" useFlexGap flexWrap="wrap" spacing={0.75} sx={{ flex: "0 1 auto" }}>
           {canManageCustomer && !showEditor && (
             <Button startIcon={<EditIcon />} variant="contained" color="success" onClick={() => { setTab(0); setShowEditor(true); }} sx={{ color: "#fff", fontWeight: 800 }}>
               Επεξεργασία πελάτη
@@ -450,14 +444,20 @@ export function CustomerDetailPage() {
               </Button>
             </>
           )}
-          <Button startIcon={<ContactPhoneIcon />} variant="contained" color="primary" onClick={() => setTab(1)} sx={{ color: "#fff", fontWeight: 800 }}>
-            Επικοινωνία
+          <Button startIcon={<BarChartIcon />} variant="outlined" onClick={() => setPopup("statistics")}>
+            Στατιστικά
           </Button>
           <Button component={RouterLink} to="/app/customers" color="error" variant="contained" startIcon={<CloseIcon />} sx={{ color: "#fff", fontWeight: 800 }}>
             Κλείσιμο
           </Button>
         </Stack>
       </DialogActions>
+      <CustomerPopup open={popup !== null} onClose={() => setPopup(null)} title={({ communications: "Ιστορικό επικοινωνίας", producers: "Συνεργάτες πελάτη", statistics: "Στατιστικά πελάτη", family: "Οικογένεια & πρόσθετα στοιχεία" })[popup ?? "communications"]} wide={popup === "statistics"}>
+        {popup === "communications" && <CustomerCommunicationManager customerId={id} />}
+        {popup === "producers" && <CustomerProducersSummary customerId={id} />}
+        {popup === "statistics" && <CustomerStatisticsTab customerId={id} />}
+        {popup === "family" && <FamilyNeedsTab customerId={id} />}
+      </CustomerPopup>
     </Dialog>
   );
 }
@@ -609,6 +609,8 @@ interface CustomerVehicleRow {
 }
 
 function CustomerVehiclesTab({ customerId, compact = false }: { customerId: string; compact?: boolean }) {
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("");
   const [selectedPlate, setSelectedPlate] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const q = useQuery({
@@ -618,19 +620,27 @@ function CustomerVehiclesTab({ customerId, compact = false }: { customerId: stri
   if (q.isLoading) return <Card variant="outlined" sx={{ p: 2 }}><CircularProgress size={22} /></Card>;
   if (q.isError) return <Alert severity="error">{extractErrorMessage(q.error)}</Alert>;
   const rows = q.data ?? [];
+  const visibleRows = rows.filter(row => (!status || row.status === status) &&
+    `${row.vehicleRegistrationPlate ?? ""} ${row.policyNumber} ${row.insuranceCompanyName}`.toLocaleLowerCase("el-GR").includes(search.trim().toLocaleLowerCase("el-GR")));
   return (
     <Card variant="outlined" sx={{ p: compact ? .75 : 1 }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: compact ? 0.75 : 1.5 }}>
+      <Stack direction="row" useFlexGap flexWrap="wrap" gap={1} justifyContent="space-between" alignItems="center" sx={{ mb: compact ? 0.75 : 1.5 }}>
         <Box><Typography variant={compact ? "subtitle1" : "h6"} fontWeight={800}>Οχήματα πελάτη</Typography><Typography variant="body2" color="text.secondary">Αυτόματη προβολή από τα συμβόλαια αυτοκινήτου.</Typography></Box>
         <Stack direction="row" spacing={0.75} alignItems="center">
           <Button size="small" variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => setAddOpen(true)}>Νέο όχημα</Button>
           <Chip size="small" icon={<DirectionsCarIcon />} label={`${rows.length} συμβόλαια`} />
         </Stack>
       </Stack>
-      {rows.length === 0 ? <Alert severity="info">Δεν έχει καταχωρηθεί ακόμη συμβόλαιο αυτοκινήτου ή πινακίδα για τον πελάτη.</Alert> : (
-        <Table size="small">
+      <Stack direction="row" useFlexGap flexWrap="wrap" gap={1} sx={{ mb: 1 }}>
+        <TextField size="small" label="Πινακίδα, συμβόλαιο ή ασφαλιστική" value={search} onChange={e => setSearch(e.target.value)} sx={{ flex: "1 1 220px" }} />
+        <TextField select size="small" label="Κατάσταση" value={status} onChange={e => setStatus(e.target.value)} sx={{ minWidth: 160 }}><MenuItem value="">Όλες</MenuItem>
+          {[...new Set(rows.map(r => r.status))].map(s => <MenuItem key={s} value={s}>{vehicleStatusLabel(s)}</MenuItem>)}
+        </TextField>
+      </Stack>
+      {visibleRows.length === 0 ? <Alert severity="info">{rows.length ? "Δεν βρέθηκαν οχήματα με αυτά τα φίλτρα." : "Δεν έχει καταχωρηθεί ακόμη συμβόλαιο αυτοκινήτου ή πινακίδα για τον πελάτη."}</Alert> : (
+        <TableContainer tabIndex={0}><Table size="small">
           <TableHead><TableRow><TableCell>Πινακίδα</TableCell><TableCell>Συμβόλαιο</TableCell><TableCell>Ασφαλιστική</TableCell><TableCell>Ισχύς</TableCell><TableCell align="right">Ασφάλιστρο</TableCell><TableCell>Κατάσταση</TableCell><TableCell /></TableRow></TableHead>
-          <TableBody>{rows.map(row => <TableRow key={row.id} hover>
+          <TableBody>{visibleRows.map(row => <TableRow key={row.id} hover>
             <TableCell sx={{ fontFamily: "monospace", fontWeight: 800 }}>{row.vehicleRegistrationPlate ?? "—"}</TableCell>
             <TableCell><Button size="small" component={RouterLink} to={`/app/policies?focus=${row.id}`}>{row.policyNumber}</Button></TableCell>
             <TableCell>{row.insuranceCompanyName}</TableCell>
@@ -639,7 +649,7 @@ function CustomerVehiclesTab({ customerId, compact = false }: { customerId: stri
             <TableCell><Chip size="small" label={vehicleStatusLabel(row.status)} /></TableCell>
             <TableCell><Button size="small" onClick={() => setSelectedPlate(row.vehicleRegistrationPlate ?? "")}>Καρτέλα</Button></TableCell>
           </TableRow>)}</TableBody>
-        </Table>
+        </Table></TableContainer>
       )}
       <VehicleDetailDialog open={selectedPlate !== null} plate={selectedPlate ?? ""} policyIds={rows.filter(row => (row.vehicleRegistrationPlate ?? "") === (selectedPlate ?? "")).map(row => row.id)} onClose={() => setSelectedPlate(null)} />
       <AddCustomerVehicleDialog open={addOpen} rows={rows} onClose={() => setAddOpen(false)} onSaved={() => { setAddOpen(false); void q.refetch(); }} />
@@ -744,22 +754,25 @@ interface CustomerStatisticsPolicy {
 function CustomerStatisticsTab({ customerId }: { customerId: string }) {
   const summaryQ = useQuery({
     queryKey: ["customer-summary", customerId],
+    refetchInterval: 30000,
     queryFn: async () => (await api.get<CustomerSummary>(`/customers/${customerId}/summary`)).data,
     enabled: !!customerId
   });
   const policiesQ = useQuery({
     queryKey: ["customer-statistics-policies", customerId],
+    refetchInterval: 30000,
     queryFn: async () => (await api.get<CustomerStatisticsPolicy[]>("/policies", { params: { customerId } })).data,
     enabled: !!customerId
   });
   const accountQ = useQuery({
     queryKey: ["customer-account", customerId, "statistics"],
+    refetchInterval: 30000,
     retry: false,
     queryFn: async () => (await api.get<CustomerAccount>(`/customers/${customerId}/account`)).data,
     enabled: !!customerId
   });
 
-  const policies = policiesQ.data ?? [];
+  const policies = useMemo(() => (policiesQ.data ?? []).filter(p => p.status !== "Prospect"), [policiesQ.data]);
   const premiumByMonth = useMemo(() => {
     const totals = new Map<string, { label: string; premium: number; contracts: number }>();
     for (const policy of policies) {
@@ -826,6 +839,8 @@ function CustomerStatisticsTab({ customerId }: { customerId: string }) {
         <Typography variant="body2" color="text.secondary">Παραγωγή, οικονομική εικόνα, συμβόλαια και πορεία χαρτοφυλακίου.</Typography>
       </Box>
       <CustomerSummaryCard customerId={customerId} />
+      <Typography variant="caption" color="text.secondary">Αυτόματη ενημέρωση κάθε 30 δευτερόλεπτα όσο το παράθυρο παραμένει ανοιχτό.</Typography>
+      {accountQ.isError && <Alert severity="warning">Η οικονομική ανάλυση δεν είναι διαθέσιμη: {extractErrorMessage(accountQ.error)}</Alert>}
       {summary && <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" }, gap: 1 }}>
         {[
           ["Ενεργά συμβόλαια", `${summary.activePolicyCount} / ${summary.totalPolicyCount}`, "#0b5cad"],
@@ -835,7 +850,7 @@ function CustomerStatisticsTab({ customerId }: { customerId: string }) {
         ].map(([label, value, color]) => <Card key={label} variant="outlined" sx={{ p: 1.25, borderTop: `3px solid ${color}` }}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography fontWeight={900}>{value}</Typography></Card>)}
       </Box>}
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }, gap: 1.5 }}>
-        {chartCard("Παραγωγή ανά μήνα", premiumByMonth.length === 0 ? <Typography color="text.secondary">Δεν υπάρχουν δεδομένα συμβολαίων.</Typography> : <ResponsiveContainer width="100%" height="100%"><LineChart data={premiumByMonth}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="label" /><YAxis /><ChartTooltip formatter={formatChartValue} /><Legend formatter={name => name === "premium" ? "Μεικτά" : "Συμβόλαια"} /><Line type="monotone" dataKey="premium" stroke="#0b5cad" strokeWidth={3} dot /><Line type="monotone" dataKey="contracts" stroke="#2e7d32" strokeWidth={2} yAxisId="right" /></LineChart></ResponsiveContainer>)}
+        {chartCard("Παραγωγή ανά μήνα", premiumByMonth.length === 0 ? <Typography color="text.secondary">Δεν υπάρχουν δεδομένα συμβολαίων.</Typography> : <ResponsiveContainer width="100%" height="100%"><LineChart data={premiumByMonth}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="label" /><YAxis /><YAxis yAxisId="right" orientation="right" allowDecimals={false} /><ChartTooltip formatter={formatChartValue} /><Legend formatter={name => name === "premium" ? "Μεικτά" : "Συμβόλαια"} /><Line type="monotone" dataKey="premium" stroke="#0b5cad" strokeWidth={3} dot /><Line type="monotone" dataKey="contracts" stroke="#2e7d32" strokeWidth={2} yAxisId="right" /></LineChart></ResponsiveContainer>)}
         {chartCard("Μεικτά ανά κλάδο", typeData.length === 0 ? <Typography color="text.secondary">Δεν υπάρχουν δεδομένα κλάδων.</Typography> : <ResponsiveContainer width="100%" height="100%"><BarChart data={typeData}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" /><YAxis /><ChartTooltip formatter={formatChartValue} /><Legend formatter={name => name === "premium" ? "Μεικτά" : "Συμβόλαια"} /><Bar dataKey="premium" fill="#1976d2" radius={[5, 5, 0, 0]} /><Bar dataKey="contracts" fill="#66bb6a" radius={[5, 5, 0, 0]} /></BarChart></ResponsiveContainer>)}
         {chartCard("Οικονομική πορεία ανά μήνα", monthlyAccount.length === 0 ? <Typography color="text.secondary">Δεν υπάρχουν οικονομικές κινήσεις.</Typography> : <ResponsiveContainer width="100%" height="100%"><LineChart data={monthlyAccount}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="label" /><YAxis /><ChartTooltip formatter={formatChartValue} /><Legend formatter={name => name === "charges" ? "Χρεώσεις" : name === "credits" ? "Εισπράξεις" : "Υπόλοιπο"} /><Line type="monotone" dataKey="charges" stroke="#c62828" strokeWidth={2} /><Line type="monotone" dataKey="credits" stroke="#2e7d32" strokeWidth={2} /><Line type="monotone" dataKey="balance" stroke="#0b5cad" strokeWidth={3} /></LineChart></ResponsiveContainer>)}
         {chartCard("Κατάσταση συμβολαίων", statusData.length === 0 ? <Typography color="text.secondary">Δεν υπάρχουν συμβόλαια.</Typography> : <ResponsiveContainer width="100%" height="100%"><BarChart data={statusData}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" /><YAxis allowDecimals={false} /><ChartTooltip /><Bar dataKey="contracts" name="Συμβόλαια" fill="#0b5cad" radius={[5, 5, 0, 0]} /></BarChart></ResponsiveContainer>)}
@@ -847,6 +862,11 @@ function CustomerStatisticsTab({ customerId }: { customerId: string }) {
 /* ---------- Policies tab ---------- */
 
 function CustomerPoliciesTab({ customerId }: { customerId: string }) {
+  const { t } = useTranslation();
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("");
+  const [type, setType] = useState("");
+  const [timeline, setTimeline] = useState(false);
   const q = useQuery({
     queryKey: ["customer-policies", customerId],
     queryFn: async () => (await api.get<{
@@ -855,13 +875,25 @@ function CustomerPoliciesTab({ customerId }: { customerId: string }) {
     }[]>("/policies", { params: { customerId } })).data
   });
   if (q.isLoading) return <CircularProgress />;
+  if (q.isError) return <Alert severity="error">{extractErrorMessage(q.error)}</Alert>;
   const rows = q.data ?? [];
-  if (rows.length === 0) return <Alert severity="info">Δεν υπάρχουν συμβόλαια.</Alert>;
+  const visibleRows = rows.filter(p => (!status || p.status === status) && (!type || p.policyType === type) &&
+    `${p.policyNumber} ${p.insuranceCompanyName} ${p.policyType}`.toLocaleLowerCase("el-GR").includes(search.trim().toLocaleLowerCase("el-GR")));
   return (
     <Stack spacing={.75}>
-      <RenewalTimeline policies={rows} />
+      <Stack direction="row" useFlexGap flexWrap="wrap" gap={1}>
+        <TextField size="small" label="Αναζήτηση συμβολαίου / ασφαλιστικής" value={search} onChange={e => setSearch(e.target.value)} sx={{ flex: "1 1 230px" }} />
+        <TextField select size="small" label="Κατάσταση" value={status} onChange={e => setStatus(e.target.value)} sx={{ minWidth: 150 }}>
+          <MenuItem value="">Όλες</MenuItem>{[...new Set(rows.map(r => r.status))].map(s => <MenuItem key={s} value={s}>{vehicleStatusLabel(s)}</MenuItem>)}
+        </TextField>
+        <TextField select size="small" label="Κλάδος" value={type} onChange={e => setType(e.target.value)} sx={{ minWidth: 140 }}>
+          <MenuItem value="">Όλοι</MenuItem>{[...new Set(rows.map(r => r.policyType))].map(s => <MenuItem key={s} value={s}>{String(t(`policyType.${s}`, s))}</MenuItem>)}
+        </TextField>
+        <Button size="small" variant="outlined" onClick={() => setTimeline(true)}>Ανανεώσεις</Button>
+      </Stack>
+      <Typography variant="caption">{visibleRows.length} από {rows.length} συμβόλαια</Typography>
       <Card variant="outlined">
-        <Table size="small">
+        <TableContainer tabIndex={0}><Table size="small">
           <TableHead><TableRow>
             <TableCell>Αρ.Συμβ.</TableCell>
             <TableCell>Εταιρία</TableCell>
@@ -872,22 +904,26 @@ function CustomerPoliciesTab({ customerId }: { customerId: string }) {
             <TableCell />
           </TableRow></TableHead>
           <TableBody>
-            {rows.map(p => (
+            {visibleRows.length === 0 && <TableRow><TableCell colSpan={7}>Δεν βρέθηκαν συμβόλαια.</TableCell></TableRow>}
+            {visibleRows.map(p => (
               <TableRow key={p.id} hover>
                 <TableCell sx={{ fontFamily: "monospace" }}>{p.policyNumber}</TableCell>
                 <TableCell>{p.insuranceCompanyName}</TableCell>
-                <TableCell>{p.policyType}</TableCell>
+                <TableCell>{String(t(`policyType.${p.policyType}`, p.policyType))}</TableCell>
                 <TableCell>{p.startDate} → {p.endDate}</TableCell>
                 <TableCell align="right">{p.premium.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {p.currency}</TableCell>
-                <TableCell><Chip size="small" label={p.status} /></TableCell>
+                <TableCell><Chip size="small" label={vehicleStatusLabel(p.status)} /></TableCell>
                 <TableCell>
                   <Button size="small" component={RouterLink} to={`/app/policies?focus=${p.id}`}>Προβολή</Button>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
-        </Table>
+        </Table></TableContainer>
       </Card>
+      <CustomerPopup open={timeline} title="Χρονογραμμή ανανεώσεων" onClose={() => setTimeline(false)}>
+        {rows.some(p => p.status === "Active" || p.status === "PendingRenewal") ? <RenewalTimeline policies={rows} /> : <Alert severity="info">Δεν υπάρχουν συμβόλαια προς ανανέωση.</Alert>}
+      </CustomerPopup>
     </Stack>
   );
 }
@@ -1250,7 +1286,7 @@ type DesktopCustomerField = {
   options?: InlineValueOption[];
 };
 
-function DesktopCustomerFields({ customer }: { customer: CustomerDto }) {
+function DesktopCustomerFields({ customer, section = "general" }: { customer: CustomerDto; section?: "general" | "contact" }) {
   const qc = useQueryClient();
   const inlineUpdate = useMutation({
     mutationFn: async ({ key, value }: { key: keyof CustomerDto; value: string }) =>
@@ -1263,7 +1299,6 @@ function DesktopCustomerFields({ customer }: { customer: CustomerDto }) {
   });
   const dash = "—";
   const dateTime = customer.createdAt ? new Date(customer.createdAt).toLocaleString("el-GR", { dateStyle: "short", timeStyle: "short" }) : dash;
-  const contactMethod = customer.email ? "e-mail" : customer.phone || customer.mobilePhone ? "Τηλέφωνο" : dash;
   const typeLabel = customer.type === "Company" ? "Νομικό πρόσωπο" : "Φυσικό πρόσωπο";
   const statusLabel = ({ Prospect: "Πιθανός πελάτης", Active: "Ενεργός πελάτης", Inactive: "Ανενεργός", Churned: "Απώλεια", Blocked: "Αποκλεισμένος" } as Record<string, string>)[customer.status] ?? customer.status;
   const typeOptions: InlineValueOption[] = [
@@ -1291,26 +1326,32 @@ function DesktopCustomerFields({ customer }: { customer: CustomerDto }) {
     { label: "Διεύθυνση εργασίας", key: "employer", value: customer.employer },
     { label: "Κατηγορία επαγγέλματος", key: "activityCode", value: customer.activityCode },
     { label: "Νομός / περιφέρεια", value: customer.region },
-    { label: "Ζώνη", key: "zone", value: customer.zone },
     { label: "Ταχ. κώδικας", key: "postalCode", value: customer.postalCode },
     { label: "Σημ. πελάτη", key: "notes", value: customer.notes },
   ];
   const right: DesktopCustomerField[] = [
     { label: "Ημ. δημιουργίας", value: dateTime },
     { label: "Ημ. ενημέρωσης", value: dash },
-    { label: "Εξωτερικός κωδικός", value: dash },
     { label: "Δ.Ο.Υ.", key: "taxOffice", value: customer.taxOffice },
     { label: "Αριθ. ταυτότητας", key: "idNumber", value: customer.idNumber },
-    { label: "Τρόπος επικοινωνίας", value: contactMethod },
     { label: "e-mail", key: "email", value: customer.email, type: "email" },
-    { label: "e-mail 2", value: dash },
-    { label: "Επώνυμο στην κλήση", value: customer.lastName },
-    { label: "Όνομα στην κλήση", value: customer.firstName },
     { label: "Τύπος προσώπου", key: "type", value: customer.type, displayValue: typeLabel, options: typeOptions },
     { label: "Επωνυμία νομ. προσώπου", key: "companyName", value: customer.companyName },
     { label: "ΑΜΚΑ", key: "amka", value: customer.amka },
-    { label: "Κέντρο επιρροής", value: dash },
     { label: "Κατάσταση", key: "status", value: customer.status, displayValue: statusLabel, options: statusOptions },
+  ];
+
+  const contactLeft: DesktopCustomerField[] = [
+    { label: "Email", key: "email", value: customer.email, type: "email" },
+    { label: "Τηλέφωνο", key: "phone", value: customer.phone },
+    { label: "Κινητό", key: "mobilePhone", value: customer.mobilePhone },
+    { label: "Άλλο τηλέφωνο", key: "altPhone", value: customer.altPhone },
+  ];
+  const contactRight: DesktopCustomerField[] = [
+    { label: "Διεύθυνση", key: "address", value: customer.address },
+    { label: "Πόλη", key: "city", value: customer.city },
+    { label: "Ταχ. κώδικας", key: "postalCode", value: customer.postalCode },
+    { label: "Περιφέρεια", key: "region", value: customer.region },
   ];
 
   const renderField = (field: DesktopCustomerField) => {
@@ -1338,10 +1379,10 @@ function DesktopCustomerFields({ customer }: { customer: CustomerDto }) {
   };
 
   return (
-    <Box sx={{ bgcolor: "#edf3f9", border: "1px solid #d6e3f0", borderRadius: 1.25, p: { xs: .5, md: .75 }, overflow: "auto", maxHeight: "min(650px, calc(100dvh - 218px))" }}>
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(0, 1fr) minmax(0, 1fr)" }, columnGap: { xs: 0, lg: 1 }, alignItems: "start" }}>
-        <Stack spacing={.25}>{left.map(renderField)}</Stack>
-        <Stack spacing={.25}>{right.map(renderField)}</Stack>
+    <Box sx={{ bgcolor: "#edf3f9", border: "1px solid #d6e3f0", borderRadius: 1.25, p: { xs: .5, md: .75 }, minHeight: 0, overflow: section === "general" ? "auto" : "visible", flexShrink: section === "contact" ? 0 : 1 }}>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(0, 1fr) minmax(0, 1fr)" }, columnGap: { xs: 0, md: 1 }, alignItems: "start" }}>
+        <Stack spacing={.25}>{(section === "contact" ? contactLeft : left).map(renderField)}</Stack>
+        <Stack spacing={.25}>{(section === "contact" ? contactRight : right).map(renderField)}</Stack>
       </Box>
     </Box>
   );
@@ -1418,7 +1459,7 @@ function CustomerEditorDialog({ open, customer, onClose, onSaveReady }: { open: 
           {field("Μητρώνυμο", "motherName")}{field("Σύζυγος / σύντροφος", "spouseName")}
         </>)}
         {editorSection("Εργασία & εταιρικά στοιχεία", <>
-          {field("Επάγγελμα", "occupation")}{field("Εργοδότης", "employer")}{field("Κωδικός δραστηριότητας", "activityCode")}{field("Ζώνη", "zone")}
+          {field("Επάγγελμα", "occupation")}{field("Εργοδότης", "employer")}{field("Κωδικός δραστηριότητας", "activityCode")}
           {field("ΑΦΜ", "vatNumber")}{field("ΔΟΥ", "taxOffice")}{field("ΓΕΜΗ", "gemiNumber")}{field("Νομική μορφή", "legalForm")}
           {field("Πηγή", "source")}{field("Ετικέτες", "tagsJson", { placeholder: "π.χ. premium, εταιρεία" })}{field("URL φωτογραφίας", "photoUrl")}
         </>)}
@@ -1445,7 +1486,7 @@ function CustomerEditorDialog({ open, customer, onClose, onSaveReady }: { open: 
         {field("Μητρώνυμο", "motherName")}{field("Σύζυγος / σύντροφος", "spouseName")}
       </Box>}
       {tab === 2 && <Box sx={editorGridSx}>
-        {field("Επάγγελμα", "occupation")}{field("Εργοδότης", "employer")}{field("Κωδικός δραστηριότητας", "activityCode")}{field("Ζώνη", "zone")}
+        {field("Επάγγελμα", "occupation")}{field("Εργοδότης", "employer")}{field("Κωδικός δραστηριότητας", "activityCode")}
         {field("ΑΦΜ", "vatNumber")}{field("ΔΟΥ", "taxOffice")}{field("ΓΕΜΗ", "gemiNumber")}{field("Νομική μορφή", "legalForm")}
         {field("Αριθμός διπλώματος", "driverLicenseNumber")}{field("Κατηγορία διπλώματος", "driverLicenseClass")}{field("Έκδοση", "driverLicenseIssueDate", { type: "date" })}{field("Λήξη", "driverLicenseExpiryDate", { type: "date" })}
         {field("Πηγή", "source")}{field("Ετικέτες", "tagsJson", { placeholder: "π.χ. premium, εταιρεία" })}{field("URL φωτογραφίας", "photoUrl")}
@@ -1466,116 +1507,6 @@ function customerEditForm(customer: CustomerDto): CustomerEditForm {
   return { ...result, type: customer.type, status: customer.status };
 }
 
-/* ---------- Communications ---------- */
-
-function CommunicationsTab({ customerId }: { customerId: string }) {
-  const { t } = useTranslation();
-  const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const q = useQuery({
-    queryKey: ["customer-communications", customerId],
-    queryFn: async () => (await api.get<CommunicationRow[]>(`/customers/${customerId}/communications`)).data
-  });
-
-  const [form, setForm] = useState({
-    kind: "Note",
-    direction: "Internal",
-    outcome: "None",
-    subject: "",
-    body: "",
-    durationSeconds: ""
-  });
-
-  const create = useMutation({
-    mutationFn: async () => api.post(`/customers/${customerId}/communications`, {
-      kind: form.kind,
-      direction: form.direction,
-      outcome: form.outcome,
-      subject: form.subject.trim(),
-      body: form.body.trim(),
-      occurredAt: new Date().toISOString(),
-      durationSeconds: form.durationSeconds ? Number(form.durationSeconds) : null
-    }),
-    onSuccess: () => {
-      setOpen(false);
-      setForm({ kind: "Note", direction: "Internal", outcome: "None", subject: "", body: "", durationSeconds: "" });
-      void qc.invalidateQueries({ queryKey: ["customer-communications", customerId] });
-    },
-    onError: (e) => setErr(extractErrorMessage(e))
-  });
-
-  return (
-    <Card variant="outlined" sx={{ p: { xs: .75, md: 1 }, bgcolor: "#f8fafc", borderColor: "#d6e3f0" }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" gap={1} sx={{ mb: .75 }}>
-        <Box sx={{ minWidth: 0 }}>
-          <Typography variant="subtitle1" fontWeight={800}>Ιστορικό επικοινωνίας</Typography>
-          <Typography variant="caption" color="text.secondary">Συγκεντρωμένες επαφές και σημειώσεις πελάτη.</Typography>
-        </Box>
-        <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)} sx={{ flexShrink: 0 }}>Νέα καταχώρηση</Button>
-      </Stack>
-
-      {err && <Alert severity="error" onClose={() => setErr(null)} sx={{ mb: .75, py: 0 }}>{err}</Alert>}
-
-      {q.isLoading ? <CircularProgress size={22} /> : q.data?.length === 0 ? (
-        <Box sx={{ p: 2, textAlign: "center", color: "text.secondary", border: "1px dashed #b9cce0", borderRadius: 1.25 }}>
-          Δεν υπάρχει καμία καταχωρημένη αλληλεπίδραση ακόμη.
-        </Box>
-      ) : (
-        <Box sx={{ display: "grid", gap: .5 }}>
-          {q.data?.map((c, index) => (
-            <Box key={c.id} sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", sm: "minmax(170px, .38fr) minmax(0, 1fr) auto" },
-              alignItems: "center",
-              gap: .75,
-              p: .7,
-              border: "1px solid #dce5ef",
-              borderRadius: .9,
-              bgcolor: index % 2 === 0 ? "#fff" : "#f0f2f5",
-              minWidth: 0,
-            }}>
-              <Stack direction="row" spacing={.45} useFlexGap flexWrap="wrap" alignItems="center" sx={{ minWidth: 0 }}>
-                <Chip size="small" label={c.kind} color="primary" variant="outlined" sx={{ height: 24 }} />
-                <Chip size="small" label={c.direction} variant="outlined" sx={{ height: 24 }} />
-                {c.outcome !== "None" && <Chip size="small" label={c.outcome} variant="outlined" sx={{ height: 24 }} />}
-              </Stack>
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="body2" fontWeight={750} sx={{ overflowWrap: "anywhere" }}>{c.subject}</Typography>
-                {c.body && <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: .15, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{c.body}</Typography>}
-                {c.relatedPolicyNumber && <Typography variant="caption" color="primary.main" sx={{ display: "block", mt: .2 }}>Συμβόλαιο: {c.relatedPolicyNumber}</Typography>}
-              </Box>
-              <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: "nowrap", textAlign: { sm: "right" } }}>{formatDate(c.occurredAt)}</Typography>
-            </Box>
-          ))}
-        </Box>
-      )}
-
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle sx={{ pb: 1 }}>Νέα καταχώρηση επικοινωνίας</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: 1, mt: .25 }}>
-            <SearchableTextField label="Τύπος" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
-              {COMMUNICATION_KINDS.map((k) => <MenuItem key={k} value={k}>{String(t(`communicationKind.${k}`, k))}</MenuItem>)}
-            </SearchableTextField>
-            <SearchableTextField label="Κατεύθυνση" value={form.direction} onChange={(e) => setForm({ ...form, direction: e.target.value })}>
-              {["Internal", "Inbound", "Outbound"].map((d) => <MenuItem key={d} value={d}>{String(t(`communicationDirection.${d}`, d))}</MenuItem>)}
-            </SearchableTextField>
-            <TextField required label="Θέμα" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} sx={{ gridColumn: { sm: "1 / -1" } }} />
-            <TextField multiline rows={4} label="Σώμα / σημειώσεις" value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} sx={{ gridColumn: { sm: "1 / -1" } }} />
-            <TextField type="number" label="Διάρκεια (sec)" value={form.durationSeconds} onChange={(e) => setForm({ ...form, durationSeconds: e.target.value })} />
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ pt: 0.5 }}>
-          <Button onClick={() => setOpen(false)} color="error" variant="contained">Άκυρο</Button>
-          <Button variant="contained" onClick={() => create.mutate()} disabled={create.isPending || !form.subject.trim()}>
-            Καταχώρηση
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Card>
-  );
-}
 
 /* ---------- Consents ---------- */
 
@@ -1756,7 +1687,7 @@ function ContactsTab({ customerId, customerType }: { customerId: string; custome
       role: c.role ?? "",
       email: c.email ?? "",
       phone: c.phone ?? "",
-      notes: "",
+      notes: c.notes ?? "",
       isPrimary: c.isPrimary
     });
     setOpen(true);
@@ -2324,13 +2255,6 @@ function OpportunitiesCard({ opportunities }: { opportunities: FamilyProfile["op
     <Box sx={{ px: 0.75, py: 0.5, mb: 0.75, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}><Typography variant="subtitle2" fontWeight={800}>Προτεινόμενες καλύψεις</Typography><Typography variant="caption" color="text.secondary">Παράγονται από την καταχωρημένη περιουσία/ανάγκη όταν δεν υπάρχει ενεργό συμβόλαιο του αντίστοιχου κλάδου.</Typography></Box>
     {opportunities.length === 0 ? <Alert severity="success">Δεν υπάρχουν ανοικτές προτάσεις με βάση τα σημερινά στοιχεία.</Alert> : <Stack spacing={1}>{opportunities.map((opportunity, index) => <Alert key={`${opportunity.customerId}-${opportunity.needKind}-${index}`} severity="warning"><strong>{opportunity.customerName}</strong>{opportunity.relationship ? ` (${RELATION_LABEL[opportunity.relationship] ?? opportunity.relationship})` : ""}: {NEED_LABEL[opportunity.needKind] ?? opportunity.needKind} — {opportunity.needTitle}. {opportunity.reason}</Alert>)}</Stack>}
   </Card>;
-}
-
-function InsuranceOpportunitiesTab({ customerId }: { customerId: string }) {
-  const q = useQuery({ queryKey: ["customer-family", customerId], queryFn: async () => (await api.get<FamilyProfile>(`/customers/${customerId}/family`)).data });
-  if (q.isLoading) return <CircularProgress />;
-  if (q.isError || !q.data) return <Alert severity="error">{q.isError ? extractErrorMessage(q.error) : "Δεν φορτώθηκαν προτάσεις."}</Alert>;
-  return <OpportunitiesCard opportunities={q.data.opportunities} />;
 }
 
 /* ---------- GDPR actions (export + anonymize) ---------- */

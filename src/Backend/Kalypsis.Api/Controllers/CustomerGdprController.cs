@@ -1,4 +1,5 @@
 using Kalypsis.Application.Features.Communications;
+using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Features.Consents;
 using Kalypsis.Application.Features.Gdpr;
 using MediatR;
@@ -49,6 +50,20 @@ public class CustomerGdprController : ControllerBase
     [HttpGet("export")]
     public async Task<ActionResult<CustomerExportDto>> Export(Guid customerId, CancellationToken ct)
         => Ok(await _m.Send(new ExportCustomerDataQuery(customerId), ct));
+
+    [HttpPut("communications/{communicationId:guid}")]
+    [RequirePermission("customers.write")]
+    public async Task<ActionResult<CommunicationDto>> UpdateCommunication(
+        Guid customerId, Guid communicationId, [FromBody] CreateCommunicationBody body, CancellationToken ct)
+        => Ok(await _m.Send(new UpdateCommunicationCommand(customerId, communicationId, body), ct));
+
+    [HttpDelete("communications/{communicationId:guid}")]
+    [RequirePermission("customers.write")]
+    public async Task<IActionResult> DeleteCommunication(Guid customerId, Guid communicationId, CancellationToken ct)
+    {
+        await _m.Send(new DeleteCommunicationCommand(customerId, communicationId), ct);
+        return NoContent();
+    }
 
     [HttpPost("anonymize")]
     public async Task<ActionResult> Anonymize(Guid customerId, CancellationToken ct)

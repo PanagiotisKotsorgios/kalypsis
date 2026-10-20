@@ -43,6 +43,14 @@ public class CustomersController : ControllerBase
     public async Task<ActionResult<CustomerSummaryDto>> Summary(Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new GetCustomerSummaryQuery(id), ct));
 
+    [HttpGet("{id:guid}/history")]
+    [Authorize(Policy = "AgencyStaff")]
+    [RequirePermission("customers.read")]
+    public async Task<ActionResult<CustomerHistoryPage>> History(Guid id, [FromQuery] string? search,
+        [FromQuery] string? kind, [FromQuery] DateTime? from, [FromQuery] DateTime? to,
+        [FromQuery] int page = 1, CancellationToken ct = default)
+        => Ok(await _mediator.Send(new GetCustomerHistoryQuery(id, search, kind, from, to, page), ct));
+
     /// <summary>
     /// Customer account card: charges, receipts, open/overdue instalments and
     /// payment-behaviour statistics. It is derived from the journal and can

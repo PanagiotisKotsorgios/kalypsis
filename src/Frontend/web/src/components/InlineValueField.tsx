@@ -260,9 +260,19 @@ export function InlineValueField({
                   aria-label={`Αντιγραφή ${label}`}
                   onClick={() => void copy()}
                   disabled={!clipboardText.trim()}
-                  sx={{ width: 30, height: 30, borderRadius: .5, color: "#087ceB", bgcolor: "#e7f3fc", border: "1px solid #b6d6ed", "&:hover": { bgcolor: "#d1e9f8" } }}
+                  sx={{
+                    width: 30, height: 30, borderRadius: .5,
+                    color: copied ? "#fff" : "#087ceb",
+                    bgcolor: copied ? "#159b59" : "#e7f3fc",
+                    border: "1px solid", borderColor: copied ? "#0f7f49" : "#b6d6ed",
+                    transition: "background-color 180ms, color 180ms",
+                    animation: copied ? "copy-confirm 350ms ease-out" : "none",
+                    "@keyframes copy-confirm": { "0%": { transform: "scale(.85)" }, "60%": { transform: "scale(1.12)" }, "100%": { transform: "scale(1)" } },
+                    "@media (prefers-reduced-motion: reduce)": { animation: "none" },
+                    "&:hover": { bgcolor: copied ? "#0f7f49" : "#d1e9f8" },
+                  }}
                 >
-                  <ContentCopyOutlinedIcon sx={{ fontSize: 17 }} />
+                  {copied ? <CheckCircleIcon sx={{ fontSize: 17 }} /> : <ContentCopyOutlinedIcon sx={{ fontSize: 17 }} />}
                 </IconButton>
               </Tooltip>
               <Tooltip title={onCommit || onRequestEdit ? "Επεξεργασία" : "Μη επεξεργάσιμο"}>
