@@ -161,6 +161,9 @@ public static class DataSeeder
             ("producers", "ProfessionalLicenseNumber"), ("producers", "SecondaryEmail"),
             ("producers", "SecondaryPhone"), ("producers", "TaxId"), ("producers", "TaxOffice"),
             ("producers", "Website")
+        ]),
+        ("20261020120000_AddCustomerAdditionalCommunicationChannels", [
+            ("customers", "ThirdPhone"), ("customers", "SecondaryMobilePhone"), ("customers", "SecondaryEmail")
         ])
     ];
 

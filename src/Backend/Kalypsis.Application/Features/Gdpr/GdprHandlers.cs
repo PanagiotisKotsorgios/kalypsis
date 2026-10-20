@@ -48,7 +48,7 @@ public class ExportCustomerDataHandler : IRequestHandler<ExportCustomerDataQuery
             {
                 c.Id, c.CustomerNumber, c.Type, c.Status, c.FirstName, c.LastName, c.CompanyName,
                 c.VatNumber, c.TaxOffice, c.GemiNumber, c.LegalForm,
-                c.Email, c.Phone, c.AltPhone, c.MobilePhone,
+                c.Email, c.Phone, c.AltPhone, c.MobilePhone, c.ThirdPhone, c.SecondaryMobilePhone, c.SecondaryEmail,
                 c.Amka, c.IdNumber, c.PassportNumber,
                 c.Address, c.City, c.PostalCode, c.Region,
                 c.BirthDate, c.Gender, c.MaritalStatus, c.Occupation, c.Employer,
@@ -134,6 +134,9 @@ public class AnonymizeCustomerHandler : IRequestHandler<AnonymizeCustomerCommand
         customer.Phone = null;
         customer.AltPhone = null;
         customer.MobilePhone = null;
+        customer.ThirdPhone = null;
+        customer.SecondaryMobilePhone = null;
+        customer.SecondaryEmail = null;
         customer.Amka = null;
         customer.IdNumber = null;
         customer.PassportNumber = null;

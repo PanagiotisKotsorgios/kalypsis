@@ -46,7 +46,10 @@ public record CustomerDto(
     DateOnly? DriverLicenseExpiryDate = null,
     string? Source = null,
     string? TagsJson = null,
-    string? PhotoUrl = null);
+    string? PhotoUrl = null,
+    string? ThirdPhone = null,
+    string? SecondaryMobilePhone = null,
+    string? SecondaryEmail = null);
 
 public record CreateCustomerRequest(
     CustomerType Type,

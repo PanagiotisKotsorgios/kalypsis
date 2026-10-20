@@ -174,5 +174,6 @@ public class CustomerHistoryHandler(IAppDbContext db, ICurrentUser current)
         ["Kind"] = "Είδος", ["Direction"] = "Κατεύθυνση", ["Outcome"] = "Αποτέλεσμα",
         ["OccurredAt"] = "Ημερομηνία επικοινωνίας", ["DeletedAt"] = "Διαγραφή", ["Amount"] = "Ποσό",
         ["RelatedPolicyId"] = "Σύνδεση συμβολαίου", ["RelatedPolicyNumber"] = "Συμβόλαιο", ["DurationSeconds"] = "Διάρκεια",
+        ["ThirdPhone"] = "3ο τηλέφωνο", ["SecondaryMobilePhone"] = "2ο κινητό", ["SecondaryEmail"] = "2ο email",
     };
 }

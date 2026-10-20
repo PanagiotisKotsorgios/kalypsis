@@ -43,6 +43,16 @@ public class CustomersController : ControllerBase
     public async Task<ActionResult<CustomerSummaryDto>> Summary(Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new GetCustomerSummaryQuery(id), ct));
 
+    [HttpPatch("{id:guid}/communication-field")]
+    [Authorize(Policy = "AgencyStaff")]
+    [RequirePermission("customers.write")]
+    public async Task<ActionResult<CustomerDto>> UpdateCommunicationField(Guid id,
+        [FromBody] CustomerCommunicationFieldBody body, CancellationToken ct)
+    {
+        await _mediator.Send(new UpdateCustomerCommunicationField(id, body), ct);
+        return Ok(await _mediator.Send(new GetCustomerQuery(id), ct));
+    }
+
     [HttpGet("{id:guid}/history")]
     [Authorize(Policy = "AgencyStaff")]
     [RequirePermission("customers.read")]

@@ -42,6 +42,6 @@ public sealed class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustome
             c.Nationality, c.Zone, c.ActivityCode, c.TaxOffice, c.GemiNumber, c.LegalForm, c.AltPhone,
             c.MobilePhone, c.Amka, c.IdNumber, c.PassportNumber, c.Region, c.Gender, c.MaritalStatus, c.Employer,
             c.DriverLicenseNumber, c.DriverLicenseClass, c.DriverLicenseIssueDate, c.DriverLicenseExpiryDate,
-            c.Source, c.TagsJson, c.PhotoUrl);
+            c.Source, c.TagsJson, c.PhotoUrl, c.ThirdPhone, c.SecondaryMobilePhone, c.SecondaryEmail);
     }
 }

@@ -87,6 +87,9 @@ interface CustomerDto {
   legalForm?: string | null;
   altPhone?: string | null;
   mobilePhone?: string | null;
+  thirdPhone?: string | null;
+  secondaryMobilePhone?: string | null;
+  secondaryEmail?: string | null;
   amka?: string | null;
   idNumber?: string | null;
   passportNumber?: string | null;
@@ -246,6 +249,7 @@ function CustomerTabLayout({ children }: { children: React.ReactNode }) {
       flex: 1, minHeight: 0, alignContent: "start",
       overflowY: "auto",
       overflowX: "hidden",
+      pt: 1.5,
       pr: { xs: .15, md: .4 },
       pb: .25,
       "& > *": { minWidth: 0, minHeight: 0, m: "0 !important" },
@@ -492,7 +496,7 @@ function CustomerAccountTab({ customerId }: { customerId: string }) {
   const balanceColor = a.balance > 0 ? "error.main" : a.balance < 0 ? "success.main" : "text.primary";
   return (
     <Stack spacing={.75}>
-      <Card variant="outlined" sx={{ p: 1 }}>
+      <Card variant="outlined" sx={{ px: 1, pt: 2, pb: 1 }}>
         <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "center" }} flexWrap="wrap" useFlexGap>
           <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }} value={from} onChange={e => setFrom(e.target.value)} />
           <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }} value={to} onChange={e => setTo(e.target.value)} />
@@ -889,7 +893,7 @@ function CustomerPoliciesTab({ customerId }: { customerId: string }) {
         <TextField select size="small" label="Κλάδος" value={type} onChange={e => setType(e.target.value)} sx={{ minWidth: 140 }}>
           <MenuItem value="">Όλοι</MenuItem>{[...new Set(rows.map(r => r.policyType))].map(s => <MenuItem key={s} value={s}>{String(t(`policyType.${s}`, s))}</MenuItem>)}
         </TextField>
-        <Button size="small" variant="outlined" onClick={() => setTimeline(true)}>Ανανεώσεις</Button>
+        <Button size="small" variant="contained" color="success" onClick={() => setTimeline(true)} sx={{ color: "#fff", "&:hover": { bgcolor: "success.dark", color: "#fff" } }}>Χρονογραμμή ανανεώσεων</Button>
       </Stack>
       <Typography variant="caption">{visibleRows.length} από {rows.length} συμβόλαια</Typography>
       <Card variant="outlined">
@@ -1289,8 +1293,11 @@ type DesktopCustomerField = {
 function DesktopCustomerFields({ customer, section = "general" }: { customer: CustomerDto; section?: "general" | "contact" }) {
   const qc = useQueryClient();
   const inlineUpdate = useMutation({
-    mutationFn: async ({ key, value }: { key: keyof CustomerDto; value: string }) =>
-      (await api.put<CustomerDto>(`/customers/${customer.id}`, customerInlinePayload(customer, key, value))).data,
+    mutationFn: async ({ key, value }: { key: keyof CustomerDto; value: string }) => {
+      if (key === "thirdPhone" || key === "secondaryMobilePhone" || key === "secondaryEmail")
+        return (await api.patch<CustomerDto>(`/customers/${customer.id}/communication-field`, { field: key, value })).data;
+      return (await api.put<CustomerDto>(`/customers/${customer.id}`, customerInlinePayload(customer, key, value))).data;
+    },
     onSuccess: updated => {
       qc.setQueryData(["customer", customer.id], updated);
       void qc.invalidateQueries({ queryKey: ["customer", customer.id] });
@@ -1342,17 +1349,26 @@ function DesktopCustomerFields({ customer, section = "general" }: { customer: Cu
   ];
 
   const contactLeft: DesktopCustomerField[] = [
-    { label: "Email", key: "email", value: customer.email, type: "email" },
     { label: "Τηλέφωνο", key: "phone", value: customer.phone },
+    { label: "2ο τηλέφωνο", key: "altPhone", value: customer.altPhone },
+    { label: "3ο τηλέφωνο", key: "thirdPhone", value: customer.thirdPhone },
     { label: "Κινητό", key: "mobilePhone", value: customer.mobilePhone },
-    { label: "Άλλο τηλέφωνο", key: "altPhone", value: customer.altPhone },
+    { label: "2ο κινητό", key: "secondaryMobilePhone", value: customer.secondaryMobilePhone },
   ];
   const contactRight: DesktopCustomerField[] = [
+    { label: "Email", key: "email", value: customer.email, type: "email" },
+    { label: "2ο email", key: "secondaryEmail", value: customer.secondaryEmail, type: "email" },
     { label: "Διεύθυνση", key: "address", value: customer.address },
     { label: "Πόλη", key: "city", value: customer.city },
     { label: "Ταχ. κώδικας", key: "postalCode", value: customer.postalCode },
     { label: "Περιφέρεια", key: "region", value: customer.region },
   ];
+
+  // Balance the General sheet instead of leaving six empty rows in one column.
+  // The single-column reading order remains the same on narrow screens.
+  const generalFields = [...left, ...right];
+  const midpoint = Math.ceil(generalFields.length / 2);
+  const columns = section === "contact" ? [contactLeft, contactRight] : [generalFields.slice(0, midpoint), generalFields.slice(midpoint)];
 
   const renderField = (field: DesktopCustomerField) => {
     const stored = field.key ? customer[field.key] : field.value;
@@ -1380,9 +1396,9 @@ function DesktopCustomerFields({ customer, section = "general" }: { customer: Cu
 
   return (
     <Box sx={{ bgcolor: "#edf3f9", border: "1px solid #d6e3f0", borderRadius: 1.25, p: { xs: .5, md: .75 }, minHeight: 0, overflow: section === "general" ? "auto" : "visible", flexShrink: section === "contact" ? 0 : 1 }}>
+      {inlineUpdate.isError && <Alert severity="error" sx={{ mb: .75 }}>{extractErrorMessage(inlineUpdate.error)}</Alert>}
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(0, 1fr) minmax(0, 1fr)" }, columnGap: { xs: 0, md: 1 }, alignItems: "start" }}>
-        <Stack spacing={.25}>{(section === "contact" ? contactLeft : left).map(renderField)}</Stack>
-        <Stack spacing={.25}>{(section === "contact" ? contactRight : right).map(renderField)}</Stack>
+        {columns.map((fields, index) => <Stack key={index} spacing={.25}>{fields.map(renderField)}</Stack>)}
       </Box>
     </Box>
   );

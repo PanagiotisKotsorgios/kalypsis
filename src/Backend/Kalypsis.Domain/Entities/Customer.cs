@@ -40,6 +40,9 @@ public class Customer : TenantEntity
     public string? Phone { get; set; }
     public string? AltPhone { get; set; }
     public string? MobilePhone { get; set; }
+    public string? ThirdPhone { get; set; }
+    public string? SecondaryMobilePhone { get; set; }
+    public string? SecondaryEmail { get; set; }
 
     // ΑΜΚΑ / αριθμός ταυτότητας / διαβατήριο — sensitive, encrypted at deployment time.
     public string? Amka { get; set; }

@@ -18,7 +18,7 @@ export function CustomerPopup({ open, title, onClose, children, wide = false }: 
   return <Dialog open={open} onClose={onClose} fullWidth maxWidth={wide ? "lg" : "md"}
     aria-labelledby={titleId} PaperProps={{ sx: { m: { xs: 1, sm: 2 }, width: "calc(100% - 16px)", maxHeight: "calc(100dvh - 24px)", bgcolor: "#edf3f9", borderRadius: 2 } }}>
     <DialogTitle id={titleId} sx={{ py: 1.25, color: "#102d55", fontSize: "1.1rem", fontWeight: 800 }}>{title}</DialogTitle>
-    <DialogContent dividers sx={{ p: { xs: 1, sm: 1.5 }, minWidth: 0 }}>{children}</DialogContent>
+    <DialogContent dividers sx={{ px: { xs: 1, sm: 1.5 }, pt: 2, pb: { xs: 1, sm: 1.5 }, minWidth: 0 }}>{children}</DialogContent>
     <DialogActions><Button variant="contained" color="error" startIcon={<CloseIcon />} onClick={onClose}>Κλείσιμο</Button></DialogActions>
   </Dialog>;
 }

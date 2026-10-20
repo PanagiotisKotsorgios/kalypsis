@@ -5,6 +5,8 @@ using Kalypsis.Application.Features.Customers;
 using Kalypsis.Domain.Entities;
 using Kalypsis.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Xunit;
 
 namespace Kalypsis.Tests;
@@ -203,5 +205,104 @@ public class CustomerWorkspaceTests
         public bool IsPlatformLevel => false;
         public bool IsImpersonating => false;
         public bool AgencyOfficeIsHeadquarters => false;
+    }
+
+    [Fact]
+    public async Task Additional_channels_are_saved_cleared_and_preserved_by_standard_customer_edits()
+    {
+        var tenant = Guid.NewGuid();
+        var current = TestScaffold.AgencyStaff(tenant);
+        await using var db = TestScaffold.NewDb(current, TestScaffold.Clock);
+        var customer = Customer(tenant);
+        customer.Email = "primary@example.test";
+        customer.Phone = "2101234567";
+        customer.MobilePhone = "6912345678";
+        db.Customers.Add(customer);
+        await db.SaveChangesAsync();
+        var handler = new UpdateCustomerCommunicationFieldHandler(db, current);
+        await handler.Handle(new(customer.Id, new("thirdPhone", " 2109876543 ")), default);
+        await handler.Handle(new(customer.Id, new("secondaryMobilePhone", "6999999999")), default);
+        await handler.Handle(new(customer.Id, new("secondaryEmail", " SECONDARY@Example.Test ")), default);
+        var get = new GetCustomerQueryHandler(db, current);
+        var saved = await get.Handle(new(customer.Id), default);
+        Assert.Equal("2109876543", saved.ThirdPhone);
+        Assert.Equal("6999999999", saved.SecondaryMobilePhone);
+        Assert.Equal("secondary@example.test", saved.SecondaryEmail);
+        Assert.Equal("primary@example.test", saved.Email);
+        Assert.Equal("2101234567", saved.Phone);
+        var regularEdit = new CreateCustomerRequest(customer.Type, "Νέο όνομα", customer.LastName,
+            customer.CompanyName, customer.VatNumber, customer.Email, customer.Phone, customer.Address,
+            customer.City, customer.PostalCode, customer.BirthDate, customer.Notes, false);
+        var edited = await new UpdateCustomerCommandHandler(db, current).Handle(new(customer.Id, regularEdit), default);
+        Assert.Equal(saved.ThirdPhone, edited.ThirdPhone);
+        Assert.Equal(saved.SecondaryEmail, edited.SecondaryEmail);
+        await handler.Handle(new(customer.Id, new("thirdPhone", "")), default);
+        Assert.Null((await get.Handle(new(customer.Id), default)).ThirdPhone);
+        Assert.Equal("6999999999", customer.SecondaryMobilePhone);
+    }
+
+    [Fact]
+    public async Task Additional_channels_enforce_customer_scope_and_validate_input()
+    {
+        var tenant = Guid.NewGuid();
+        var current = TestScaffold.AgencyStaff(tenant);
+        var clock = TestScaffold.Clock;
+        var database = Guid.NewGuid().ToString();
+        Guid id;
+        await using (var seed = TestScaffold.NewDb(current, clock, database))
+        {
+            var customer = Customer(tenant); id = customer.Id;
+            seed.Customers.Add(customer); await seed.SaveChangesAsync();
+        }
+        var other = TestScaffold.AgencyStaff(Guid.NewGuid());
+        await using var db = TestScaffold.NewDb(other, clock, database);
+        await Assert.ThrowsAsync<AppException>(() => new UpdateCustomerCommunicationFieldHandler(db, other)
+            .Handle(new(id, new("thirdPhone", "123")), default));
+        var validator = new UpdateCustomerCommunicationFieldValidator();
+        Assert.False(validator.Validate(new UpdateCustomerCommunicationField(id, new("notes", "not allowed"))).IsValid);
+        Assert.False(validator.Validate(new UpdateCustomerCommunicationField(id, new("secondaryEmail", "invalid email"))).IsValid);
+        Assert.False(validator.Validate(new UpdateCustomerCommunicationField(id, new("thirdPhone", new string('1', 41)))).IsValid);
+        Assert.True(validator.Validate(new UpdateCustomerCommunicationField(id, new("secondaryEmail", ""))).IsValid);
+    }
+
+    [Fact]
+    public async Task Anonymization_erases_additional_channels()
+    {
+        var tenant = Guid.NewGuid();
+        var current = TestScaffold.AgencyStaff(tenant);
+        await using var db = TestScaffold.NewDb(current, TestScaffold.Clock);
+        var customer = Customer(tenant);
+        customer.ThirdPhone = "2101234567"; customer.SecondaryMobilePhone = "6912345678";
+        customer.SecondaryEmail = "private@example.test";
+        db.Customers.Add(customer); await db.SaveChangesAsync();
+        await new Kalypsis.Application.Features.Gdpr.AnonymizeCustomerHandler(db, current, TestScaffold.Clock)
+            .Handle(new(customer.Id), default);
+        Assert.Null(customer.ThirdPhone);
+        Assert.Null(customer.SecondaryMobilePhone);
+        Assert.Null(customer.SecondaryEmail);
+    }
+
+    [Fact]
+    public void Additional_channel_migration_only_adds_nullable_customer_columns()
+    {
+        var migration = new Kalypsis.Infrastructure.Persistence.Migrations.AddCustomerAdditionalCommunicationChannels();
+        Assert.Equal(3, migration.UpOperations.Count);
+        Assert.All(migration.UpOperations, operation =>
+        {
+            var column = Assert.IsType<Microsoft.EntityFrameworkCore.Migrations.Operations.AddColumnOperation>(operation);
+            Assert.Equal("customers", column.Table);
+            Assert.True(column.IsNullable);
+        });
+        TestScaffold.EnsureEncryptorBooted();
+        var options = new DbContextOptionsBuilder<Kalypsis.Infrastructure.Persistence.AppDbContext>()
+            .UseMySql("Server=127.0.0.1;Database=kalypsis_test;User=test;Password=unused",
+                new MySqlServerVersion(new Version(8, 0, 36))).Options;
+        using var db = new Kalypsis.Infrastructure.Persistence.AppDbContext(options, TestScaffold.AgencyStaff(Guid.NewGuid()), TestScaffold.Clock);
+        // Generate only; this never connects to or modifies a database.
+        var script = db.GetService<IMigrator>().GenerateScript("20261011161137_AddInsureOneBrandedLogin",
+            "20261020120000_AddCustomerAdditionalCommunicationChannels");
+        Assert.Contains("ADD `ThirdPhone`", script);
+        Assert.Contains("ADD `SecondaryMobilePhone`", script);
+        Assert.Contains("ADD `SecondaryEmail`", script);
     }
 }

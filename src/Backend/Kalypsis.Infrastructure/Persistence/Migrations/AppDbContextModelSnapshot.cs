@@ -4619,6 +4619,18 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Property<string>("SpouseName")
                         .HasColumnType("longtext");
 
+                    b.Property<string>("SecondaryEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)");
+
+                    b.Property<string>("SecondaryMobilePhone")
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<string>("ThirdPhone")
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
+
                     b.Property<int>("Status")
                         .HasColumnType("int");
 

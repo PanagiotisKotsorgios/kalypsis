@@ -24,6 +24,9 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         b.Property(x => x.Phone).HasMaxLength(40);
         b.Property(x => x.AltPhone).HasMaxLength(40);
         b.Property(x => x.MobilePhone).HasMaxLength(40);
+        b.Property(x => x.ThirdPhone).HasMaxLength(40);
+        b.Property(x => x.SecondaryMobilePhone).HasMaxLength(40);
+        b.Property(x => x.SecondaryEmail).HasMaxLength(256);
         b.Property(x => x.Amka).HasMaxLength(32);
         b.Property(x => x.IdNumber).HasMaxLength(32);
         b.Property(x => x.PassportNumber).HasMaxLength(32);
