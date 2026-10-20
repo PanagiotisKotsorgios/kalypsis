@@ -217,22 +217,46 @@ const CUSTOMER_PROFILE_TAB_LABELS = [
 
 function CustomerProfileTabs({ value, onChange }: { value: number; onChange: (value: number) => void }) {
   return <Tabs value={value} onChange={(_, next: number) => onChange(next)} variant="standard" sx={{
-    position: "sticky", top: 0, zIndex: 4, mb: 2, px: .5, py: .5,
+    position: "sticky", top: 0, zIndex: 4, mb: 1, px: .35, py: .35,
     border: "1px solid", borderColor: "divider", borderRadius: 2,
     bgcolor: "background.paper", boxShadow: "0 3px 10px rgba(15,23,42,.12)",
-    overflow: "visible", "& .MuiTabs-scroller": { overflow: "visible !important" },
-    "& .MuiTabs-flexContainer": { gap: .75, flexWrap: "wrap" },
+    overflow: "hidden", "& .MuiTabs-scroller": { overflowX: "auto !important", overflowY: "hidden" },
+    "& .MuiTabs-flexContainer": { gap: .5, flexWrap: { xs: "nowrap", lg: "wrap" } },
     "& .MuiTabs-indicator": { display: "none" },
     "& .MuiTab-root": {
-      minHeight: 54, minWidth: { xs: 132, md: 168 }, px: 1.5, py: .75,
+      minHeight: 42, minWidth: { xs: 108, md: 145 }, px: { xs: .9, md: 1.1 }, py: .45,
       border: "1px solid #263238", borderRadius: 1.5,
       background: "linear-gradient(180deg, #e5e7eb 0%, #b8c0c8 100%) !important",
-      color: "#111827 !important", borderColor: "#263238 !important", opacity: "1 !important", textTransform: "none", fontWeight: 750,
+      color: "#111827 !important", borderColor: "#263238 !important", opacity: "1 !important", textTransform: "none", fontWeight: 750, fontSize: { xs: ".72rem", md: ".78rem" }, whiteSpace: "nowrap",
       transition: "background .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease",
       "&:hover": { background: "linear-gradient(180deg, #d4d8de 0%, #9ca6b1 100%) !important", color: "#0b2545 !important", borderColor: "#111827 !important", transform: "none" },
       "&.Mui-selected": { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", color: "#fff !important", borderColor: "#062f63 !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" },
     },
   }}>{CUSTOMER_PROFILE_TAB_LABELS.map(item => <Tab key={item.label} icon={item.icon} iconPosition="start" label={item.label} />)}</Tabs>;
+}
+
+/**
+ * Shared compact surface for the secondary customer tabs. Keeping one grid
+ * and one scroll container makes every tab behave consistently at desktop,
+ * tablet and mobile widths without changing any of the tab's data logic.
+ */
+function CustomerTabLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <Box sx={{
+      display: "grid",
+      gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "repeat(2, minmax(0, 1fr))" },
+      alignItems: "start",
+      gap: { xs: .75, md: 1 },
+      maxHeight: "calc(100dvh - 226px)",
+      overflowY: "auto",
+      overflowX: "hidden",
+      pr: { xs: .15, md: .4 },
+      pb: .25,
+      "& > *": { minWidth: 0, minHeight: 0, m: "0 !important" },
+    }}>
+      {children}
+    </Box>
+  );
 }
 
 export function CustomerDetailPage() {
@@ -297,19 +321,26 @@ export function CustomerDetailPage() {
       fullWidth
       maxWidth="xl"
       onClose={() => navigate("/app/customers")}
-      PaperProps={{ sx: { height: { xs: "100vh", md: "calc(100vh - 32px)" }, maxHeight: "none", m: { xs: 0, md: 2 } } }}
+      PaperProps={{ sx: {
+        width: { xs: "100vw", sm: "min(1120px, calc(100vw - 20px))", lg: "min(1500px, calc(100vw - 32px))" },
+        height: { xs: "100dvh", sm: "min(820px, calc(100dvh - 20px))", lg: "min(900px, calc(100dvh - 32px))" },
+        maxHeight: "calc(100dvh - 12px)",
+        m: { xs: 0, sm: 1, lg: 2 },
+        borderRadius: { xs: 0, sm: 2 },
+        overflow: "hidden",
+      } }}
     >
-      <DialogContent dividers sx={{ p: { xs: 1, md: 1.75 }, "& .MuiTypography-root": { lineHeight: 1.25 } }}>
-      <Box>
+      <DialogContent dividers sx={{ p: { xs: .65, sm: 1, md: 1.25 }, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column", "& .MuiTypography-root": { lineHeight: 1.25 } }}>
+      <Box sx={{ minHeight: 0, flex: 1, display: "flex", flexDirection: "column" }}>
       <Stack
         direction={{ xs: "column", lg: "row" }}
         justifyContent="space-between"
         alignItems={{ xs: "stretch", lg: "center" }}
-        mb={1.5}
-        gap={1.5}
+        mb={.75}
+        gap={.75}
         sx={{
-          p: { xs: 1.25, md: 1.75 },
-          borderRadius: 2.25,
+          p: { xs: .75, sm: 1, md: 1.15 },
+          borderRadius: 1.75,
           color: "#fff",
           background: "linear-gradient(135deg, #092b56 0%, #0b5cad 52%, #1591c8 100%)",
           boxShadow: "0 8px 22px rgba(9,43,86,.22)",
@@ -318,17 +349,17 @@ export function CustomerDetailPage() {
       >
         <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0, flex: 1 }}>
           <Box sx={{
-            width: 50, height: 50, flex: "0 0 auto", borderRadius: "50%",
+            width: { xs: 38, sm: 42 }, height: { xs: 38, sm: 42 }, flex: "0 0 auto", borderRadius: "50%",
             display: "grid", placeItems: "center", fontSize: 24, fontWeight: 900,
             bgcolor: "rgba(255,255,255,.16)", border: "1px solid rgba(255,255,255,.42)",
           }}>
-            <PersonOutlineIcon sx={{ fontSize: 34 }} />
+            <PersonOutlineIcon sx={{ fontSize: { xs: 25, sm: 29 } }} />
           </Box>
           <Box sx={{ minWidth: 0 }}>
-            <Typography variant="h4" sx={{ fontWeight: 850, lineHeight: 1.1, overflowWrap: "anywhere" }}>
+            <Typography variant="h5" sx={{ fontWeight: 850, lineHeight: 1.1, overflowWrap: "anywhere", fontSize: { xs: "1.15rem", sm: "1.35rem", md: "1.55rem" } }}>
               {displayName}
             </Typography>
-            <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mt: 0.75 }}>
+            <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap" sx={{ mt: 0.35 }}>
               <Chip
                 size="small"
                 label={customer.status === "Prospect" ? "Πιθανός πελάτης" : "Ενεργός πελάτης"}
@@ -340,16 +371,16 @@ export function CustomerDetailPage() {
             </Stack>
           </Box>
         </Stack>
-        <Stack direction="row" spacing={1.25} useFlexGap flexWrap="wrap" sx={{ alignItems: "stretch" }}>
-          <Box sx={{ pl: 1.25, borderLeft: "1px solid rgba(255,255,255,.25)", minWidth: 140 }}>
+        <Stack direction="row" spacing={.75} useFlexGap flexWrap="wrap" sx={{ alignItems: "stretch" }}>
+          <Box sx={{ pl: .8, borderLeft: "1px solid rgba(255,255,255,.25)", minWidth: { xs: 112, sm: 126 } }}>
             <Typography variant="caption" sx={{ color: "rgba(255,255,255,.7)", display: "block" }}>Κωδικός πελάτη</Typography>
             <Typography fontWeight={800}>{customer.customerNumber}</Typography>
           </Box>
-          <Box sx={{ pl: 1.25, borderLeft: "1px solid rgba(255,255,255,.25)", minWidth: 110 }}>
+          <Box sx={{ pl: .8, borderLeft: "1px solid rgba(255,255,255,.25)", minWidth: { xs: 86, sm: 102 } }}>
             <Typography variant="caption" sx={{ color: "rgba(255,255,255,.7)", display: "block" }}>ΑΦΜ</Typography>
             <Typography fontWeight={800}>{customer.vatNumber || "—"}</Typography>
           </Box>
-          <Box sx={{ pl: 1.25, borderLeft: "1px solid rgba(255,255,255,.25)", minWidth: 150 }}>
+          <Box sx={{ pl: .8, borderLeft: "1px solid rgba(255,255,255,.25)", minWidth: { xs: 120, sm: 138 } }}>
             <Typography variant="caption" sx={{ color: "rgba(255,255,255,.7)", display: "block" }}>Εξωτερικός κωδικός</Typography>
             <Typography fontWeight={800}>—</Typography>
           </Box>
@@ -360,13 +391,13 @@ export function CustomerDetailPage() {
 
       {showEditor && tab === 0 && <CustomerEditorDialog open customer={customer} onClose={() => { setShowEditor(false); setEditorSave(null); setEditorSaving(false); }} onSaveReady={registerEditorSave} />}
       {tab === 0 && !showEditor && <OverviewTab customer={customer} />}
-      {tab === 1 && <Stack spacing={2}><CommunicationsTab customerId={id} /><CustomerNotificationsTab customerId={id} /><ContactsTab customerId={id} customerType={customer.type} /><FamilyNeedsTab customerId={id} /></Stack>}
-      {tab === 2 && <Stack spacing={2}><CustomerPoliciesTab customerId={id} /><CustomerVehiclesTab customerId={id} /><CustomerAccountTab customerId={id} /><CustomerProducersSummary customerId={id} /></Stack>}
-      {tab === 3 && <Stack spacing={2}><CustomerClaimsTab customerId={id} /><InsuranceOpportunitiesTab customerId={id} /></Stack>}
-      {tab === 4 && <Stack spacing={2}><GdprActionsTab customerId={id} /><CustomerStatisticsTab customerId={id} /></Stack>}
+      {tab === 1 && <CustomerTabLayout><CommunicationsTab customerId={id} /><CustomerNotificationsTab customerId={id} /><ContactsTab customerId={id} customerType={customer.type} /><FamilyNeedsTab customerId={id} /></CustomerTabLayout>}
+      {tab === 2 && <CustomerTabLayout><CustomerPoliciesTab customerId={id} /><CustomerVehiclesTab customerId={id} /><CustomerAccountTab customerId={id} /><CustomerProducersSummary customerId={id} /></CustomerTabLayout>}
+      {tab === 3 && <CustomerTabLayout><CustomerClaimsTab customerId={id} /><InsuranceOpportunitiesTab customerId={id} /></CustomerTabLayout>}
+      {tab === 4 && <CustomerTabLayout><GdprActionsTab customerId={id} /><CustomerStatisticsTab customerId={id} /></CustomerTabLayout>}
       </Box>
       </DialogContent>
-      <DialogActions sx={{ borderTop: 1, borderColor: "divider", px: { xs: 1, md: 1.5 }, py: 1, gap: 1, flexWrap: "wrap", justifyContent: "space-between" }}>
+      <DialogActions sx={{ borderTop: 1, borderColor: "divider", px: { xs: .75, md: 1.25 }, py: .55, gap: .65, flexWrap: "wrap", justifyContent: "space-between", "& .MuiButton-root": { minHeight: 32, px: { xs: .9, md: 1.1 }, fontSize: { xs: ".72rem", md: ".78rem" } } }}>
         <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0, flex: "1 1 280px" }}>
           <InfoOutlinedIcon fontSize="small" color="info" />
           <Typography variant="caption" color="text.secondary">
@@ -1257,7 +1288,7 @@ function DesktopCustomerFields({ customer }: { customer: CustomerDto }) {
     const raw = typeof stored === "string" || typeof stored === "number" ? stored : stored == null ? "" : String(stored);
     const display = field.displayValue ?? (field.value || dash);
     return (
-      <Box key={field.label} sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(112px, .38fr) minmax(0, 1fr)", sm: "140px minmax(0, 1fr)" }, alignItems: "center", minHeight: 36, gap: .65 }}>
+      <Box key={field.label} sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(104px, .36fr) minmax(0, 1fr)", sm: "132px minmax(0, 1fr)" }, alignItems: "center", minHeight: 32, gap: .5 }}>
         <Typography variant="caption" sx={{ color: "#506783", fontWeight: 700, lineHeight: 1.15, pr: .35 }}>{field.label}</Typography>
         <InlineValueField
           label={field.label}
@@ -1270,15 +1301,15 @@ function DesktopCustomerFields({ customer }: { customer: CustomerDto }) {
           compact
           hideLabel
           showActions
-          onCommit={field.key ? value => { inlineUpdate.mutate({ key: field.key!, value }); } : undefined}
+          onCommit={field.key ? async value => { await inlineUpdate.mutateAsync({ key: field.key!, value }); } : undefined}
         />
       </Box>
     );
   };
 
   return (
-    <Box sx={{ bgcolor: "#edf3f9", border: "1px solid #d6e3f0", borderRadius: 1.5, p: { xs: .75, md: 1 }, overflow: "auto", maxHeight: "calc(100vh - 250px)" }}>
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(0, 1fr) minmax(0, 1fr)" }, columnGap: { xs: 0, lg: 1.5 }, alignItems: "start" }}>
+    <Box sx={{ bgcolor: "#edf3f9", border: "1px solid #d6e3f0", borderRadius: 1.25, p: { xs: .5, md: .75 }, overflow: "auto", maxHeight: "min(650px, calc(100dvh - 218px))" }}>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(0, 1fr) minmax(0, 1fr)" }, columnGap: { xs: 0, lg: 1 }, alignItems: "start" }}>
         <Stack spacing={.25}>{left.map(renderField)}</Stack>
         <Stack spacing={.25}>{right.map(renderField)}</Stack>
       </Box>
@@ -1336,13 +1367,13 @@ function CustomerEditorDialog({ open, customer, onClose, onSaveReady }: { open: 
     </Card>
   );
   if (!open) return null;
-  return <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 }, "& .MuiTextField-root": { minWidth: 0 } }}>
+  return <Card variant="outlined" sx={{ p: { xs: 0.65, md: 0.9 }, maxHeight: "calc(100dvh - 220px)", overflowY: "auto", overflowX: "hidden", "& .MuiTextField-root": { minWidth: 0 } }}>
     <Stack direction="row" justifyContent="space-between" alignItems="center" gap={1} sx={{ mb: 0.75 }}>
       <Box><Typography variant="subtitle1" fontWeight={800}>Επεξεργασία καρτέλας · {customer.customerNumber}</Typography><Typography variant="caption" color="text.secondary">Τα πεδία επεξεργάζονται απευθείας μέσα στην καρτέλα πελάτη.</Typography></Box>
       <Button size="small" variant="contained" color="error" startIcon={<CloseIcon />} onClick={onClose} sx={{ color: "#fff", fontWeight: 700 }}>Ακύρωση επεξεργασίας</Button>
     </Stack>
       {error && <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>}
-      <Stack spacing={0.75}>
+      <Stack spacing={0.55}>
         {editorSection("Επικοινωνία & διεύθυνση", <>
           {field("Τύπος", "type", { select: ["Individual", "Company"] })}{field("Κατάσταση", "status", { select: ["Prospect", "Active", "Inactive", "Churned", "Blocked"] })}
           {field("Όνομα", "firstName")}{field("Επώνυμο", "lastName")}{field("Επωνυμία", "companyName")}

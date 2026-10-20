@@ -3,6 +3,8 @@ import { Box, IconButton, MenuItem, TextField, Tooltip, Typography } from "@mui/
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
+import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 
 export interface InlineValueOption {
   value: string;
@@ -38,7 +40,8 @@ interface InlineValueFieldProps {
  * • Single click copies the underlying value and briefly shows a green state.
  * • Double click either edits the value in place or opens the page's existing
  *   editor (when only onRequestEdit is supplied).
- * • Enter/blur commits an inline change; Escape cancels it.
+ * • The pencil opens an explicit edit state. Save/Enter commits the draft;
+ *   cancel/Escape restores the original value without an implicit blur-save.
  */
 export function InlineValueField({
   label,
@@ -103,8 +106,21 @@ export function InlineValueField({
     }
   };
 
-  const commit = async () => {
-    if (draft !== raw && onCommit) await onCommit(draft);
+  const saveEdit = async () => {
+    if (!onCommit || draft === raw) {
+      setEditing(false);
+      return;
+    }
+    try {
+      await onCommit(draft);
+      setEditing(false);
+    } catch {
+      // Keep the editor open so the user can correct/retry after a failed save.
+    }
+  };
+
+  const cancelEdit = () => {
+    setDraft(raw);
     setEditing(false);
   };
 
@@ -174,9 +190,11 @@ export function InlineValueField({
             size="small"
             fullWidth
             value={draft}
-            onChange={(event) => { setDraft(event.target.value); void onCommit?.(event.target.value); setEditing(false); }}
-            onBlur={() => void commit()}
-            onKeyDown={(event) => { if (event.key === "Escape") { setDraft(raw); setEditing(false); } }}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") cancelEdit();
+              if (event.key === "Enter") { event.preventDefault(); void saveEdit(); }
+            }}
             inputRef={inputRef}
             sx={{ "& .MuiInputBase-root": { minHeight: 32 }, "& .MuiSelect-select": { py: .45, fontSize: ".8rem" } }}
           >
@@ -192,10 +210,9 @@ export function InlineValueField({
             multiline={multiline}
             minRows={multiline ? 2 : undefined}
             onChange={(event) => setDraft(event.target.value)}
-            onBlur={() => void commit()}
             onKeyDown={(event) => {
-              if (event.key === "Escape") { setDraft(raw); setEditing(false); }
-              if (event.key === "Enter" && !multiline) { event.preventDefault(); void commit(); }
+              if (event.key === "Escape") cancelEdit();
+              if (event.key === "Enter" && !multiline) { event.preventDefault(); void saveEdit(); }
             }}
             inputRef={inputRef}
             InputLabelProps={type === "date" ? { shrink: true } : undefined}
@@ -211,28 +228,56 @@ export function InlineValueField({
       </Box>
       {showActions && (
         <Box sx={{ display: "flex", flex: "0 0 auto", gap: .25 }} onClick={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
-          <Tooltip title={copied ? "Αντιγράφηκε" : "Αντιγραφή"}>
-            <IconButton
-              size="small"
-              aria-label={`Αντιγραφή ${label}`}
-              onClick={() => void copy()}
-              disabled={editing || !clipboardText.trim()}
-              sx={{ width: 30, height: 30, borderRadius: .5, color: "#087ceB", bgcolor: "#e7f3fc", border: "1px solid #b6d6ed", "&:hover": { bgcolor: "#d1e9f8" } }}
-            >
-              <ContentCopyOutlinedIcon sx={{ fontSize: 17 }} />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title={onCommit || onRequestEdit ? "Επεξεργασία" : "Μη επεξεργάσιμο"}>
-            <IconButton
-              size="small"
-              aria-label={`Επεξεργασία ${label}`}
-              onClick={beginEdit}
-              disabled={disabled || (!onCommit && !onRequestEdit)}
-              sx={{ width: 30, height: 30, borderRadius: .5, color: "#936a00", bgcolor: "#fff6dc", border: "1px solid #e4c96b", "&:hover": { bgcolor: "#ffefb8" } }}
-            >
-              <EditOutlinedIcon sx={{ fontSize: 17 }} />
-            </IconButton>
-          </Tooltip>
+          {editing ? (
+            <>
+              <Tooltip title="Αποθήκευση">
+                <IconButton
+                  size="small"
+                  aria-label={`Αποθήκευση ${label}`}
+                  onClick={() => void saveEdit()}
+                  disabled={disabled || !onCommit}
+                  sx={{ width: 30, height: 30, borderRadius: .5, color: "#fff", bgcolor: "#159b59", border: "1px solid #0f7f49", "&:hover": { bgcolor: "#0d7d46" } }}
+                >
+                  <SaveOutlinedIcon sx={{ fontSize: 17 }} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Ακύρωση">
+                <IconButton
+                  size="small"
+                  aria-label={`Ακύρωση επεξεργασίας ${label}`}
+                  onClick={cancelEdit}
+                  sx={{ width: 30, height: 30, borderRadius: .5, color: "#fff", bgcolor: "#64748b", border: "1px solid #475569", "&:hover": { bgcolor: "#475569" } }}
+                >
+                  <CloseOutlinedIcon sx={{ fontSize: 17 }} />
+                </IconButton>
+              </Tooltip>
+            </>
+          ) : (
+            <>
+              <Tooltip title={copied ? "Αντιγράφηκε" : "Αντιγραφή"}>
+                <IconButton
+                  size="small"
+                  aria-label={`Αντιγραφή ${label}`}
+                  onClick={() => void copy()}
+                  disabled={!clipboardText.trim()}
+                  sx={{ width: 30, height: 30, borderRadius: .5, color: "#087ceB", bgcolor: "#e7f3fc", border: "1px solid #b6d6ed", "&:hover": { bgcolor: "#d1e9f8" } }}
+                >
+                  <ContentCopyOutlinedIcon sx={{ fontSize: 17 }} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={onCommit || onRequestEdit ? "Επεξεργασία" : "Μη επεξεργάσιμο"}>
+                <IconButton
+                  size="small"
+                  aria-label={`Επεξεργασία ${label}`}
+                  onClick={beginEdit}
+                  disabled={disabled || (!onCommit && !onRequestEdit)}
+                  sx={{ width: 30, height: 30, borderRadius: .5, color: "#936a00", bgcolor: "#fff6dc", border: "1px solid #e4c96b", "&:hover": { bgcolor: "#ffefb8" } }}
+                >
+                  <EditOutlinedIcon sx={{ fontSize: 17 }} />
+                </IconButton>
+              </Tooltip>
+            </>
+          )}
         </Box>
       )}
       </Box>
