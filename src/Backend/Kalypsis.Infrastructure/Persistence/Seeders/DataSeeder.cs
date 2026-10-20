@@ -2756,6 +2756,7 @@ public static class DataSeeder
             createSql: @"CREATE TABLE IF NOT EXISTS `bridge_code_mappings` (
                 `Id` char(36) NOT NULL,
                 `TenantId` char(36) NOT NULL,
+                `AgencyOfficeScopeId` char(36) CHARACTER SET ascii NULL,
                 `Kind` int NOT NULL,
                 `SourceCarrier` varchar(120) NULL,
                 `RawCode` varchar(200) NOT NULL,
@@ -2769,11 +2770,20 @@ public static class DataSeeder
                 `UpdatedAt` datetime(6) NULL,
                 `DeletedAt` datetime(6) NULL,
                 PRIMARY KEY (`Id`),
-                UNIQUE KEY `IX_bcm_tenant_kind_carrier_raw` (`TenantId`,`Kind`,`SourceCarrier`,`RawCode`),
+                UNIQUE KEY `IX_bridge_code_mappings_TenantId_AgencyOfficeScopeId_Kind_Sourc~` (`TenantId`,`AgencyOfficeScopeId`,`Kind`,`SourceCarrier`,`RawCode`),
                 KEY `IX_bcm_tenant_carrier` (`TenantId`,`SourceCarrier`),
                 KEY `IX_bcm_target_company` (`TargetInsuranceCompanyId`),
                 KEY `IX_bcm_target_param` (`TargetParameterItemId`)
             ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
+        // Safety net for installations where this legacy table was created
+        // outside EF before office scoping was introduced.
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "bridge_code_mappings", column: "AgencyOfficeScopeId",
+            addSql: "ALTER TABLE `bridge_code_mappings` ADD COLUMN `AgencyOfficeScopeId` char(36) CHARACTER SET ascii NULL", ct);
+        await EnsureIndexAsync(db, logger, dbName,
+            table: "bridge_code_mappings", indexName: "IX_bridge_code_mappings_TenantId_AgencyOfficeScopeId_Kind_Sourc~",
+            addSql: "CREATE UNIQUE INDEX `IX_bridge_code_mappings_TenantId_AgencyOfficeScopeId_Kind_Sourc~` ON `bridge_code_mappings` (`TenantId`,`AgencyOfficeScopeId`,`Kind`,`SourceCarrier`,`RawCode`)", ct);
 
         // Producer mapping column — added after v1 so existing tenant
         // databases might not have it yet. The column stays nullable and
