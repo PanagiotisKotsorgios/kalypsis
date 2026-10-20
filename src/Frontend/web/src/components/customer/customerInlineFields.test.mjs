@@ -54,6 +54,13 @@ test("card-wide editing uses the existing field controls without autofocus or ed
       const editable = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(DesktopCustomerFields, { customer, editing: { ...editing, editAll: true } })));
       for (const field of expected) assert.equal(editable.includes(`data-customer-field="${field}"`), true);
       assert.equal(editable.includes("Αποθήκευση Λήξη διπλώματος"), true);
+      const other = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(DesktopCustomerFields, { customer, editing, fieldKeys: [] })));
+      assert.equal(other.includes("Δεν έχουν οριστεί ακόμη πεδία"), true);
+      assert.equal(other.includes("data-customer-field="), false);
+      const subset = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(DesktopCustomerFields, { customer, editing, fieldKeys: ["zone", "source"] })));
+      assert.equal(subset.includes('data-customer-field="zone"'), true);
+      assert.equal(subset.includes('data-customer-field="source"'), true);
+      assert.equal(subset.includes('data-customer-field="firstName"'), false);
       const { AuditFieldChanges } = await server.ssrLoadModule("/src/components/audit/AuditFieldChanges.tsx");
       const history = renderToStaticMarkup(createElement(AuditFieldChanges, { changes: [{ field: "Phone", label: "Τηλέφωνο", before: "2101234567", after: "2109876543", beforeRecorded: true, afterRecorded: true }] }));
       for (const text of ["Πριν", "Μετά", "2101234567", "2109876543"]) assert.equal(history.includes(text), true);

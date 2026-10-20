@@ -45,6 +45,7 @@ import ContactPhoneIcon from "@mui/icons-material/ContactPhone";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import FolderIcon from "@mui/icons-material/Folder";
 import BarChartIcon from "@mui/icons-material/BarChart";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import { CustomerCommunicationManager, CustomerHistory, CustomerObligations, CustomerPopup } from "../components/customer/CustomerWorkspace";
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 import { SearchableSelect } from "../components/SearchableSelect";
@@ -214,6 +215,7 @@ const CUSTOMER_PROFILE_TAB_LABELS = [
   { label: "Ζημιές", icon: <DeleteOutlineIcon fontSize="small" /> },
   { label: "Έγγραφα", icon: <FolderIcon fontSize="small" /> },
   { label: "Ιστορικό", icon: <HistoryIcon fontSize="small" /> },
+  { label: "Λοιπά", icon: <MoreHorizIcon fontSize="small" /> },
 ];
 
 function CustomerProfileTabs({ value, onChange }: { value: number; onChange: (value: number) => void }) {
@@ -480,6 +482,7 @@ export function CustomerDetailPage() {
       {tab === 8 && <CustomerTabLayout>
         <CustomerHistory customerId={id} />
       </CustomerTabLayout>}
+      {tab === 9 && <DesktopCustomerFields customer={customer} editing={fieldEditing} fieldKeys={[]} />}
       </Box>
       </DialogContent>
       <DialogActions sx={{ borderTop: 1, borderColor: "divider", px: { xs: .75, md: 1.25 }, py: .55, gap: .65, flexWrap: "wrap", justifyContent: "space-between", "& .MuiButton-root": { minHeight: 32, px: { xs: .9, md: 1.1 }, fontSize: { xs: ".72rem", md: ".78rem" } } }}>
@@ -490,6 +493,9 @@ export function CustomerDetailPage() {
           </Typography>
         </Stack>
         <Stack direction="row" useFlexGap flexWrap="wrap" spacing={0.75} sx={{ flex: "0 1 auto" }}>
+          <Button startIcon={<BarChartIcon />} variant="outlined" onClick={() => setPopup("statistics")}>
+            Στατιστικά
+          </Button>
           {canManageCustomer && !editAll && (
             <Button startIcon={<EditIcon />} variant="contained" color="success" disabled={saveFields.isPending} onClick={() => { saveFields.reset(); setEditAll(true); }} sx={{ color: "#fff", fontWeight: 800 }}>
               Επεξεργασία πελάτη
@@ -508,9 +514,6 @@ export function CustomerDetailPage() {
               </Button>
             </>
           )}
-          <Button startIcon={<BarChartIcon />} variant="outlined" onClick={() => setPopup("statistics")}>
-            Στατιστικά
-          </Button>
           <Button onClick={requestClose} disabled={saveFields.isPending} color="error" variant="contained" startIcon={<CloseIcon />} sx={{ color: "#fff", fontWeight: 800 }}>
             Κλείσιμο
           </Button>
@@ -1206,7 +1209,11 @@ interface CustomerFieldEditing {
   onCommitField: (key: keyof CustomerDto, value: string) => Promise<void>;
 }
 
-export function DesktopCustomerFields({ customer, section = "general", editing }: { customer: CustomerDto; section?: "general" | "contact"; editing: CustomerFieldEditing }) {
+export function DesktopCustomerFields({ customer, section = "general", editing, fieldKeys }: {
+  customer: CustomerDto; section?: "general" | "contact"; editing: CustomerFieldEditing;
+  /** Reuse the exact same controls for a selected subset without duplicating field metadata. */
+  fieldKeys?: readonly (keyof CustomerDto)[];
+}) {
   const wide = useMediaQuery("(min-width:1200px)");
   const occupations = useQuery({ queryKey: ["lookup", "occupations"], enabled: section === "general",
     queryFn: async () => (await api.get<Array<{ name: string }>>("/lookups/occupations")).data });
@@ -1299,7 +1306,8 @@ export function DesktopCustomerFields({ customer, section = "general", editing }
 
   // One canonical editor per field: profile and licence details now live in
   // General, not in a second form with a separate save workflow.
-  const generalFields = [...left, ...right, ...additional];
+  const allGeneralFields = [...left, ...right, ...additional];
+  const generalFields = fieldKeys === undefined ? allGeneralFields : allGeneralFields.filter(field => field.key && fieldKeys.includes(field.key));
   const columnCount = wide ? 3 : 2;
   const columnSize = Math.ceil(generalFields.length / columnCount);
   const columns = section === "contact" ? [contactLeft, contactRight]
@@ -1339,6 +1347,9 @@ export function DesktopCustomerFields({ customer, section = "general", editing }
 
   return (
     <Box sx={{ bgcolor: "#edf3f9", border: "1px solid #d6e3f0", borderRadius: 1.25, p: { xs: .5, md: .75 }, minHeight: 0, overflow: section === "general" ? "auto" : "visible", flexShrink: section === "general" ? 1 : 0 }}>
+      {fieldKeys?.length === 0 && <Typography role="status" variant="body2" color="text.secondary" sx={{ p: 1 }}>
+        Δεν έχουν οριστεί ακόμη πεδία για την ενότητα «Λοιπά».
+      </Typography>}
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))", lg: `repeat(${section === "general" ? 3 : 2}, minmax(0, 1fr))` }, columnGap: { xs: 0, md: 1 }, alignItems: "start" }}>
         {columns.map((fields, index) => <Stack key={index} spacing={.25}>{fields.map(renderField)}</Stack>)}
       </Box>
