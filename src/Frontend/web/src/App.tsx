@@ -1142,9 +1142,8 @@ export default function App() {
                   <Route path="crm-groups" element={<PackageGate package="Crm"><CrmGroupsPage /></PackageGate>} />
                   <Route path="crm-settings" element={<PackageGate package="Crm"><IntegrationSettingsPage crmOnly /></PackageGate>} />
                   <Route path="intelligence-settings" element={<PackageGate package="Intelligence"><IntegrationSettingsPage aiOnly /></PackageGate>} />
-                  {/* Legacy bookmarks remain valid, but both surfaces now live inside their parent workspaces. */}
+                  {/* Legacy delivery bookmarks remain valid inside the policies workspace. */}
                   <Route path="delivery-tracking" element={<Navigate to="/app/policies" replace />} />
-                  <Route path="document-manager" element={<Navigate to="/app/documents?tab=folders" replace />} />
                   <Route path="partner-portals" element={<PackageGate package="Integrations"><PartnerPortalsPage /></PackageGate>} />
                   <Route path="api-keys" element={<PackageGate package="Integrations"><ApiKeysPage /></PackageGate>} />
                   <Route path="dias" element={<PackageGate package="Integrations"><DiasCodesPage /></PackageGate>} />

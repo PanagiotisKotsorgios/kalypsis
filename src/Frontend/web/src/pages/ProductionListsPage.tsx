@@ -263,29 +263,18 @@ export function ProductionListsPage() {
     { key: "producer",       label: t("productionList.col.producer"), render: r => r.producer ?? "—",  text: r => r.producer ?? "" },
     { key: "type",           label: t("productionList.col.type"),     render: r => <Chip size="small" variant="outlined" label={r.policyType} />, text: r => r.policyType },
     { key: "use",            label: "Χρήση",                           render: r => r.vehicleUseCategory ? <Chip size="small" label={r.vehicleUseCategory} /> : <Box component="span" sx={{ color: "text.disabled" }}>—</Box>, text: r => r.vehicleUseCategory ?? "", defaultOff: true },
-    { key: "cover",          label: "Καλύψεις",                        render: r => {
-      const codes = coverageCodesForRow(r);
-      const summary = codes.length === 0
-        ? <Box component="span" sx={{ color: "text.disabled" }}>—</Box>
-        : codes.length === 1
-          ? <Chip size="small" variant="outlined" label={codes[0]} />
-          : <Chip size="small" color="info" variant="outlined" label={`${codes.length} καλύψεις`} />;
-      return (
-        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ minWidth: 150 }}>
-          {summary}
-          <Button
-            size="small"
-            variant="text"
-            color="primary"
-            startIcon={<InfoOutlinedIcon fontSize="small" />}
-            onClick={() => setCoveragePolicyId(r.policyId)}
-            sx={{ minWidth: 0, px: 0.5, whiteSpace: "nowrap", fontSize: 11 }}
-          >
-            Προβολή
-          </Button>
-        </Stack>
-      );
-    }, text: r => coverageCodesForRow(r).join(", ") },
+    { key: "cover",          label: "Καλύψεις",                        render: r => (
+      <Button
+        size="small"
+        variant="contained"
+        color="success"
+        startIcon={<InfoOutlinedIcon fontSize="small" />}
+        onClick={() => setCoveragePolicyId(r.policyId)}
+        sx={{ minWidth: 0, px: 1.25, whiteSpace: "nowrap", fontSize: 11, color: "common.white" }}
+      >
+        Καλύψεις
+      </Button>
+    ), text: r => coverageCodesForRow(r).join(", ") },
     { key: "status",         label: t("productionList.status"),        render: r => r.status, text: r => r.status, defaultOff: true },
     { key: "gross",          label: t("productionList.col.gross"),    align: "right", render: r => <Box component="span" sx={{ fontWeight: 700 }}>{money(r.gross)}</Box>, text: r => money(r.gross) },
     { key: "net",            label: t("productionList.col.net"),      align: "right", render: r => money(r.net),  text: r => money(r.net) },
@@ -293,30 +282,12 @@ export function ProductionListsPage() {
     { key: "partnerPct",     label: t("productionList.col.partnerPct"), align: "right", render: r => <Box component="span" sx={{ color: "text.secondary" }}>{r.partnerCommissionPercent.toFixed(1)}%</Box>, text: r => `${r.partnerCommissionPercent.toFixed(1)}%` },
     { key: "partner",        label: t("productionList.col.partner"),  align: "right", render: r => <Box component="span" sx={{ color: "warning.main" }}>{money(r.partnerCommission)}</Box>, text: r => money(r.partnerCommission) },
     { key: "agency",         label: "Προμ. έδρας (υπόλοιπο)",          align: "right", render: r => <Box component="span" sx={{ color: "success.main", fontWeight: 700 }}>{money(r.agencyCommission)}</Box>, text: r => money(r.agencyCommission) },
-    { key: "check",          label: "Έλεγχος",                         render: r => r.commissionWarning ? <Chip size="small" color="warning" label="Έλεγχος σύμβασης" title={r.commissionWarning} /> : <Chip size="small" color="success" variant="outlined" label="OK" />, text: r => r.commissionWarning ?? "OK" },
-    // Keep one final, always-visible financial summary column. This makes
-    // the production list immediately useful when the operator hides the
-    // individual money columns: all amounts (including both commission
-    // shares) remain together at the end of each contract row.
-    { key: "totals",         label: "Σύνολα",                          align: "right", render: r => (
-      <Stack spacing={0} sx={{ minWidth: 250, textAlign: "right", lineHeight: 1.15 }}>
-        <Typography variant="caption" sx={{ whiteSpace: "nowrap" }}>
-          Πλήθος <b>1</b> · Μεικτό <b>{money(r.gross)}</b> · Καθαρό <b>{money(r.net)}</b>
-        </Typography>
-        <Typography variant="caption" sx={{ whiteSpace: "nowrap" }}>
-          Προμ. Συνεργάτη <b style={{ color: "#ed6c02" }}>{money(r.partnerCommission)}</b>
-          {` · `}
-          Προμ. Γραφείου <b style={{ color: "#2e7d32" }}>{money(r.agencyCommission)}</b>
-        </Typography>
-      </Stack>
-    ), text: r => `Πλήθος 1 · Μεικτό ${money(r.gross)} · Καθαρό ${money(r.net)} · Προμ. Συνεργάτη ${money(r.partnerCommission)} · Προμ. Γραφείου ${money(r.agencyCommission)}` },
   ];
 
   const pickerDescriptors: ExportColumnDescriptor[] = columns.map((c, i) => ({
     key: c.key, label: c.label,
-    // The policy number and the final financial summary are anchors of the
-    // report, so they remain visible even when the operator hides columns.
-    alwaysOn: i === 0 || c.key === "totals",
+    // The policy number anchors the report and always remains visible.
+    alwaysOn: i === 0,
     defaultOff: c.defaultOff,
   }));
   const selection = useExportColumnSelection("production-lists", pickerDescriptors);

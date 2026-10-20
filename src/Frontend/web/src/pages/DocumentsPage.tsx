@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type SyntheticEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
 import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
 import {
@@ -29,8 +29,6 @@ import {
   TablePagination,
   TableRow,
   TextField,
-  Tab,
-  Tabs,
   Typography
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
@@ -51,9 +49,8 @@ import ArticleIcon from "@mui/icons-material/Article";
 import PersonIcon from "@mui/icons-material/Person";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import LinkIcon from "@mui/icons-material/Link";
-import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 import { api, extractErrorMessage } from "../api/client";
@@ -61,7 +58,6 @@ import { date } from "../utils/format";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { QuickFilterBar } from "../components/QuickFilterBar";
 import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
-import { DocumentManagerPage } from "./DocumentManagerPage";
 
 type DocumentType = "Policy" | "GreenCard" | "Roadside" | "Invoice" | "Other";
 
@@ -111,7 +107,6 @@ interface PolicyLite {
 export function DocumentsPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
   const qc = useQueryClient();
   const canEdit = user?.role === "AgencyAdmin" || user?.role === "AgencyOfficeAdmin" || user?.role === "AgencyUser";
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -130,10 +125,6 @@ export function DocumentsPage() {
   const [type, setType] = useState<DocumentType | "">("");
   const [from, setFrom] = useState<string>("");
   const [to, setTo]     = useState<string>("");
-  const activeTab = searchParams.get("tab") === "folders" ? "folders" : "files";
-  const changeTab = (_: SyntheticEvent, value: string) => {
-    setSearchParams(value === "folders" ? { tab: "folders" } : {});
-  };
 
   const docsQuery = useQuery({
     queryKey: ["documents"],
@@ -189,21 +180,6 @@ export function DocumentsPage() {
   const anyFilterActive = q || type || from || to;
   const clearDocumentFilters = () => { setQ(""); setType(""); setFrom(""); setTo(""); };
 
-  if (activeTab === "folders") {
-    return (
-      <Box>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-          <Box><Typography variant="h4" sx={{ fontWeight: 800 }}>Έγγραφα</Typography><Typography color="text.secondary">Αρχεία και οργανωμένοι φάκελοι σε μία ενιαία καρτέλα.</Typography></Box>
-        </Stack>
-        <Tabs value="folders" onChange={changeTab} sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}>
-          <Tab value="files" icon={<InsertDriveFileIcon fontSize="small" />} iconPosition="start" label="Αρχεία" />
-          <Tab value="folders" icon={<FolderOpenIcon fontSize="small" />} iconPosition="start" label="Φάκελοι εγγράφων" />
-        </Tabs>
-        <DocumentManagerPage embedded />
-      </Box>
-    );
-  }
-
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
@@ -224,11 +200,6 @@ export function DocumentsPage() {
           </Button>
         )}
       </Stack>
-
-      <Tabs value="files" onChange={changeTab} sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}>
-        <Tab value="files" icon={<InsertDriveFileIcon fontSize="small" />} iconPosition="start" label="Αρχεία" />
-        <Tab value="folders" icon={<FolderOpenIcon fontSize="small" />} iconPosition="start" label="Φάκελοι εγγράφων" />
-      </Tabs>
 
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
 
