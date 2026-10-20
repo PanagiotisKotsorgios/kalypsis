@@ -375,10 +375,8 @@ export function CustomersPage() {
     },
     onHide: (key) => customerCols.toggleVisibility(key),
   });
-  // Explicit deleter — the delete endpoint refuses if the customer has
-  // policies / receipts attached; the API's friendly why/fix bubbles up
-  // through extractErrorMessage so the operator sees "Ο πελάτης έχει N
-  // ενεργά συμβόλαια — δεν διαγράφεται." instead of a generic 400.
+  // The API is authoritative: an empty mistaken record can be deleted, while
+  // every customer with operational/history links returns an actionable 409.
   const del = useMutation({
     mutationFn: async (id: string) => api.delete(`/customers/${id}`),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["customers"] }),
@@ -392,7 +390,7 @@ export function CustomersPage() {
       const label = c.type === "Individual"
         ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() || c.customerNumber
         : c.companyName || c.customerNumber;
-      if (confirm(`Διαγραφή πελάτη «${label}»;\n\nΘα αποτύχει αν έχει συμβόλαια ή αποδείξεις.`)) del.mutate(c.id);
+      if (confirm(`Διαγραφή πελάτη «${label}»;\n\nΗ διαγραφή επιτρέπεται μόνο αν δεν υπάρχει συνδεδεμένο ιστορικό ή άλλη διασύνδεση.`)) del.mutate(c.id);
     },
   });
 

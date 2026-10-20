@@ -635,6 +635,7 @@ public class InsuranceCompaniesController : ControllerBase
             ?? throw Kalypsis.Application.Common.AppException.NotFound("Ασφαλιστική");
         if (c.TenantId == null) return BadRequest(new { code = "global_company", message = "Δεν διαγράφεται καθολική ασφαλιστική." });
         if (c.TenantId != _current.TenantId) return Forbid();
+        await EnsureCompanyDeletableAsync(c, ct);
         c.DeletedAt = _clock.UtcNow;
         await _db.SaveChangesAsync(ct);
         return NoContent();
@@ -1041,10 +1042,51 @@ public class InsuranceCompaniesController : ControllerBase
             ?? throw Kalypsis.Application.Common.AppException.NotFound("Ασφαλιστική");
         if (c.TenantId != null)
             return BadRequest(new { code = "not_global", message = "Αυτό το endpoint διαχειρίζεται μόνο καθολικές ασφαλιστικές." });
+        await EnsureCompanyDeletableAsync(c, ct);
         c.DeletedAt = _clock.UtcNow;
         c.IsActive = false;
         await _db.SaveChangesAsync(ct);
         return NoContent();
+    }
+
+    private async Task EnsureCompanyDeletableAsync(
+        Kalypsis.Domain.Entities.InsuranceCompany company, CancellationToken ct)
+    {
+        var id = company.Id;
+        var partnerLinks = await _db.InsuranceCompanyPartners.IgnoreQueryFilters()
+            .CountAsync(x => (x.InsuranceCompanyId == id || x.PartnerInsuranceCompanyId == id) && x.DeletedAt == null, ct);
+        var blockers = new[]
+        {
+            new DeletionBlocker("συμβόλαια", await _db.Policies.IgnoreQueryFilters().CountAsync(x =>
+                (x.InsuranceCompanyId == id || x.PreviousInsuranceCompanyId == id || x.RenewalTransferToCarrierId == id) && x.DeletedAt == null, ct)),
+            new DeletionBlocker("θυγατρικές/συνδεδεμένες εταιρείες", await _db.InsuranceCompanies.IgnoreQueryFilters().CountAsync(x => x.ParentCompanyId == id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("ομαδικά συμβόλαια", await _db.GroupPolicies.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("πληρωμές", await _db.Payments.IgnoreQueryFilters().CountAsync(x => x.BeneficiaryInsuranceCompanyId == id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("οικονομικές κινήσεις", await _db.FinancialMovements.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("πιστωτικά", await _db.CreditNotes.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("κανόνες προμηθειών", await _db.CommissionRules.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("γραμμές εκκαθαρίσεων", await _db.CommissionRunLines.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("εκκαθαρίσεις", await _db.CommissionRuns.IgnoreQueryFilters().CountAsync(x => x.FilterInsuranceCompanyId == id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("καταστάσεις υπερπρομηθειών", await _db.OverCommissionStatements.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("γέφυρες", await _db.CompanyBridges.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("αντιστοιχίσεις γεφυρών", await _db.BridgeCodeMappings.IgnoreQueryFilters().CountAsync(x => x.TargetInsuranceCompanyId == id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("παραμετρικά", await _db.CompanyParameterItems.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("κανόνες προεπιλογών", await _db.DefaultValueRules.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("τιμολόγια", await _db.Tariffs.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("βεβαιώσεις κάλυψης", await _db.CoverNotes.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("αναμενόμενους συντελεστές συνεργατών", await _db.ProducerExpectedRates.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("συνεργασίες εταιρειών", partnerLinks),
+            new DeletionBlocker("φακέλους", await _db.InsuranceCompanyFolders.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("έγγραφα", await _db.InsuranceCompanyDocuments.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("επαφές", await _db.InsuranceCompanyContacts.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("επικοινωνίες", await _db.InsuranceCompanyCommunications.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("προσαρμοσμένα πεδία", await _db.InsuranceCompanyFieldDefinitions.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("ρυθμίσεις γέφυρας", await _db.CarrierBridgeConfigs.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("ενεργοποιήσεις γραφείων", await _db.TenantCarrierOptIns.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("ενεργοποιήσεις γεφυρών υπερπρομηθειών", await _db.TenantOverCommissionBridgeEnables.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("αντιστοιχίσεις υπερπρομηθειών", await _db.TenantOverCommissionBridgeMappings.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
+        };
+        DeletionProtection.ThrowIfBlocked($"ασφαλιστικής εταιρείας «{company.Name}»", blockers);
     }
 
     private InsuranceCompanyExtendedDto ToDto(

@@ -181,15 +181,18 @@ export default function ProductionCompaniesAgenciesPage() {
       for (const id of ids) {
         try {
           await api.delete(kind === "company" ? `/insurance-companies/${id}` : `/agency-offices/${id}`);
-        } catch {
-          failed.push(id);
+        } catch (error) {
+          failed.push(extractErrorMessage(error));
         }
       }
       return failed;
     },
     onSuccess: failed => {
       if (failed.length === 0) setSuccess("Οι εγγραφές διαγράφηκαν επιτυχώς.");
-      if (failed.length > 0) setError(`${failed.length} εγγραφές δεν διαγράφηκαν. Ελέγξτε τα δικαιώματα και δοκιμάστε ξανά.`);
+      if (failed.length > 0) {
+        const uniqueReasons = Array.from(new Set(failed));
+        setError(`${failed.length} εγγραφές δεν διαγράφηκαν. ${uniqueReasons.join(" ")}`);
+      }
       setSelectedCompanyIds(new Set());
       setSelectedOfficeIds(new Set());
       setBulkDeleteKind(null);
@@ -253,7 +256,7 @@ export default function ProductionCompaniesAgenciesPage() {
       <ProductionOfficeProfileDialog open={!!officeProfile} office={officeProfile} onClose={() => setOfficeProfile(null)} onChanged={setOfficeProfile} />
       <Dialog open={!!companyDeleteTarget} onClose={() => setCompanyDeleteTarget(null)} maxWidth="xs" fullWidth>
         <DialogTitle>Διαγραφή ασφαλιστικής εταιρείας</DialogTitle>
-        <DialogContent><Typography>Είστε σίγουρος ότι θέλετε να διαγράψετε την εταιρεία «{companyDeleteTarget?.name}»; Η ενέργεια θα την αποσύρει από το γραφείο.</Typography></DialogContent>
+        <DialogContent><Typography>Είστε σίγουρος ότι θέλετε να διαγράψετε την εταιρεία «{companyDeleteTarget?.name}»; Η διαγραφή επιτρέπεται μόνο αν δεν έχει παραγωγή, συμβόλαια ή άλλο συνδεδεμένο ιστορικό.</Typography></DialogContent>
         <DialogActions><Button onClick={() => setCompanyDeleteTarget(null)}>Ακύρωση</Button><Button color="error" variant="contained" onClick={() => companyDeleteTarget && deleteCompany.mutate(companyDeleteTarget.id)} disabled={deleteCompany.isPending}>Διαγραφή</Button></DialogActions>
       </Dialog>
       <Dialog open={!!officeDeleteTarget} onClose={() => setOfficeDeleteTarget(null)} maxWidth="xs" fullWidth>

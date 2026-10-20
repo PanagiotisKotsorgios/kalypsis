@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FluentValidation;
 using Kalypsis.Application.Common;
+using Microsoft.EntityFrameworkCore;
 
 namespace Kalypsis.Api.Middleware;
 
@@ -50,6 +51,27 @@ public class ExceptionMiddleware
                 severity = ex.Severity,
                 traceId = ctx.TraceIdentifier
             }, new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull }));
+        }
+        // Final safety net for every DELETE endpoint, including legacy hard
+        // deletes that are still protected by a relational foreign key. Core
+        // aggregate roots perform richer preflight checks in their handlers;
+        // this prevents any remaining endpoint from leaking a database 500 or
+        // bypassing referential integrity.
+        catch (DbUpdateException ex) when (HttpMethods.IsDelete(ctx.Request.Method))
+        {
+            _logger.LogWarning(ex, "Delete blocked by a database relationship");
+            ctx.Response.StatusCode = StatusCodes.Status409Conflict;
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.WriteAsync(JsonSerializer.Serialize(new
+            {
+                code = "deletion_blocked_by_dependencies",
+                message = "Η εγγραφή δεν μπορεί να διαγραφεί επειδή συνδέεται με άλλα δεδομένα ή ιστορικό. Διαγράψτε ή μεταφέρετε πρώτα όλες τις σχετικές εγγραφές και μετά επαναλάβετε τη διαγραφή.",
+                title = "Η διαγραφή προστατεύτηκε",
+                why = "Η διαγραφή θα άφηνε ορφανό ή ανακριβές ιστορικό.",
+                fix = "Αφαιρέστε πρώτα τις διασυνδέσεις της εγγραφής.",
+                severity = "warning",
+                traceId = ctx.TraceIdentifier
+            }));
         }
         // Tenant-boundary violation from the SaveChanges guard in AppDbContext.
         // We log loudly (this should never happen in legitimate flows) and

@@ -248,9 +248,11 @@ public class DeletePaymentCommandHandler : IRequestHandler<DeletePaymentCommand,
     public async Task<Unit> Handle(DeletePaymentCommand r, CancellationToken ct)
     {
         var p = await _db.Payments.FirstOrDefaultAsync(x => x.Id == r.Id, ct) ?? throw AppException.NotFound("Payment");
+        DeletionProtection.ThrowIfBlocked($"πληρωμής «{p.Number}»", new[]
+        {
+            new DeletionBlocker("οικονομικές κινήσεις", await _db.FinancialMovements.CountAsync(x => x.PaymentId == p.Id && x.DeletedAt == null, ct)),
+        });
         p.DeletedAt = DateTime.UtcNow;
-        var related = await _db.FinancialMovements.Where(m => m.PaymentId == p.Id).ToListAsync(ct);
-        foreach (var m in related) m.DeletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
         return Unit.Value;
     }

@@ -141,7 +141,13 @@ public sealed class PartnerNetworksController : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
-        var row = await FindNetwork(id, ct); row.DeletedAt = _clock.UtcNow;
+        var row = await FindNetwork(id, ct);
+        DeletionProtection.ThrowIfBlocked($"δικτύου συνεργατών «{row.Name}»", new[]
+        {
+            new DeletionBlocker("μέλη δικτύου", await _db.PartnerNetworkMembers.CountAsync(x => x.PartnerNetworkId == row.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("έγγραφα δικτύου", await _db.PartnerNetworkDocuments.CountAsync(x => x.PartnerNetworkId == row.Id && x.DeletedAt == null, ct)),
+        });
+        row.DeletedAt = _clock.UtcNow;
         await _db.SaveChangesAsync(ct); return NoContent();
     }
 

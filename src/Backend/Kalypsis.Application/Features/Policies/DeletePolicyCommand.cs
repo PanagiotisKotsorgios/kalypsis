@@ -45,7 +45,7 @@ public class DeletePolicyHandler : IRequestHandler<DeletePolicyCommand, DeletePo
             .CountAsync(x => x.PolicyId == policy.Id && x.DeletedAt == null, ct);
         if (claims > 0)
             blockers.Add(new DeletePolicyBlocker("claims", claims,
-                $"Υπάρχουν {claims} καταγεγραμμένες ζημίες για αυτό το συμβόλαιο. Διαγράψτε ή κλείστε πρώτα τις ζημίες."));
+                $"Υπάρχουν {claims} καταγεγραμμένες ζημίες για αυτό το συμβόλαιο. Διαγράψτε πρώτα το σχετικό ιστορικό ζημιών."));
 
         // 3) Commission transactions — locked once posted.
         var commissions = await _db.CommissionTransactions.IgnoreQueryFilters()
@@ -61,27 +61,38 @@ public class DeletePolicyHandler : IRequestHandler<DeletePolicyCommand, DeletePo
             blockers.Add(new DeletePolicyBlocker("documents", documents,
                 $"Υπάρχουν {documents} έγγραφα συνδεδεμένα με το συμβόλαιο. Διαγράψτε πρώτα τα έγγραφα από την καρτέλα του συμβολαίου."));
 
-        // 5) Active cancellation workflows — a Draft/Submitted/Approved
-        // PolicyCancellation on this policy points here via FK. Deleting
-        // the policy would orphan the workflow row and 500 the Approve
-        // endpoint on its .Policy navigation. Rejected/Effective rows
-        // are terminal — safe to leave attached.
-        var activeCancellations = await _db.PolicyCancellations.IgnoreQueryFilters()
-            .CountAsync(x => x.PolicyId == policy.Id && x.DeletedAt == null
-                && x.Status != PolicyCancellationStatus.Rejected
-                && x.Status != PolicyCancellationStatus.Effective, ct);
-        if (activeCancellations > 0)
-            blockers.Add(new DeletePolicyBlocker("cancellations", activeCancellations,
-                $"Υπάρχουν {activeCancellations} ανοιχτές ακυρώσεις σε εξέλιξη. Ολοκληρώστε ή απορρίψτε τις πρώτα από τη σελίδα Ακυρώσεις."));
+        void Add(string kind, int count, string label)
+        {
+            if (count > 0)
+                blockers.Add(new DeletePolicyBlocker(kind, count,
+                    $"Υπάρχουν {count} συνδεδεμένες εγγραφές {label}. Διαγράψτε πρώτα αυτό το ιστορικό και επαναλάβετε τη διαγραφή."));
+        }
 
-        // 6) Draft endorsements — same orphan risk (the Issue endpoint
-        // dereferences .Policy). Issued/Cancelled rows are terminal.
-        var draftEndorsements = await _db.PolicyEndorsements.IgnoreQueryFilters()
-            .CountAsync(x => x.PolicyId == policy.Id && x.DeletedAt == null
-                && x.Status == EndorsementStatus.Draft, ct);
-        if (draftEndorsements > 0)
-            blockers.Add(new DeletePolicyBlocker("endorsements", draftEndorsements,
-                $"Υπάρχουν {draftEndorsements} πρόχειρες πρόσθετες πράξεις. Εκδώστε ή ακυρώστε τις πρώτα από τη σελίδα Πρόσθετες πράξεις."));
+        // Every operational/history relationship is a hard blocker, including
+        // completed workflows. A completed cancellation or endorsement is
+        // still accounting/audit history and must never be orphaned.
+        Add("cancellations", await _db.PolicyCancellations.CountAsync(x => x.PolicyId == policy.Id && x.DeletedAt == null, ct), "ακυρώσεων");
+        Add("endorsements", await _db.PolicyEndorsements.CountAsync(x => x.PolicyId == policy.Id && x.DeletedAt == null, ct), "πρόσθετων πράξεων");
+        Add("receipts", await _db.Receipts.CountAsync(x => x.PolicyId == policy.Id && x.DeletedAt == null, ct), "εισπράξεων");
+        Add("payments", await _db.Payments.CountAsync(x => x.PolicyId == policy.Id && x.DeletedAt == null, ct), "πληρωμών");
+        Add("financial-movements", await _db.FinancialMovements.CountAsync(x => x.PolicyId == policy.Id && x.DeletedAt == null, ct), "οικονομικών κινήσεων");
+        Add("general-financial-entries", await _db.GeneralFinancialEntries.CountAsync(x => x.PolicyId == policy.Id && x.DeletedAt == null, ct), "γενικών οικονομικών εγγραφών");
+        Add("objects", await _db.PolicyObjects.CountAsync(x => x.PolicyId == policy.Id && x.DeletedAt == null, ct), "ασφαλισμένων αντικειμένων/οχημάτων");
+        Add("covers", await _db.PolicyCovers.CountAsync(x => x.PolicyId == policy.Id && x.DeletedAt == null, ct), "καλύψεων");
+        Add("installments", await _db.PolicyInstallments.CountAsync(x => x.PolicyId == policy.Id && x.DeletedAt == null, ct), "δόσεων συμβολαίου");
+        Add("billing-installments", await _db.Installments.CountAsync(x => x.PolicyId == policy.Id && x.DeletedAt == null, ct), "οικονομικών δόσεων");
+        Add("green-cards", await _db.GreenCards.CountAsync(x => x.PolicyId == policy.Id && x.DeletedAt == null, ct), "πράσινων καρτών");
+        Add("credit-notes", await _db.CreditNotes.CountAsync(x => x.PolicyId == policy.Id && x.DeletedAt == null, ct), "πιστωτικών");
+        Add("deliveries", await _db.DeliveryRecords.CountAsync(x => x.PolicyId == policy.Id && x.DeletedAt == null, ct), "παραδόσεων");
+        Add("dias", await _db.DiasCodes.CountAsync(x => x.PolicyId == policy.Id && x.DeletedAt == null, ct), "κωδικών πληρωμής");
+        Add("commission-splits", await _db.PolicyCommissionSplits.CountAsync(x => x.PolicyId == policy.Id && x.DeletedAt == null, ct), "κατανομών προμηθειών");
+        Add("cover-adjustments", await _db.PolicyCoverAdjustments.CountAsync(x => x.PolicyId == policy.Id && x.DeletedAt == null, ct), "ιστορικού προμηθειών καλύψεων");
+        Add("payment-notices", await _db.PaymentNotices.CountAsync(x => x.PolicyId == policy.Id && x.DeletedAt == null, ct), "ειδοποιητηρίων");
+        Add("carrier-orders", await _db.CarrierOrders.CountAsync(x => x.PolicyId == policy.Id && x.DeletedAt == null, ct), "παραγγελιών προς εταιρεία");
+        Add("online-payments", await _db.OnlinePaymentSessions.CountAsync(x => x.PolicyId == policy.Id && x.DeletedAt == null, ct), "online πληρωμών");
+        Add("communications", await _db.CommunicationLogs.CountAsync(x => x.RelatedPolicyId == policy.Id && x.DeletedAt == null, ct), "επικοινωνιών");
+        Add("service-requests", await _db.ServiceRequests.CountAsync(x => x.RelatedPolicyId == policy.Id && x.DeletedAt == null, ct), "αιτημάτων εξυπηρέτησης");
+        Add("applications", await _db.PolicyApplications.CountAsync(x => x.IssuedPolicyId == policy.Id && x.DeletedAt == null, ct), "αιτήσεων έκδοσης");
 
         if (blockers.Count > 0)
             return new DeletePolicyResultDto(false, blockers);

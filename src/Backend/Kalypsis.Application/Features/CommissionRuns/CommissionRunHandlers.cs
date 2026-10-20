@@ -493,6 +493,10 @@ public class DeleteCommissionRunCommandHandler : IRequestHandler<DeleteCommissio
                 why: $"Η εκκαθάριση «{run.Title}» έχει ήδη παράξει κινήσεις στα ταμεία/εκκαθαρίσεις παραγωγών. Η διαγραφή θα διέρρηγνε τη λογιστική ιχνηλάτηση.",
                 fix: "Αν η εκκαθάριση είναι λάθος, αναιρέστε με αντίστροφη εκκαθάριση ή πιστωτικά σημειώματα. Επικοινωνήστε με τον λογιστή σας.",
                 fixLink: "/app/credit-notes");
+        DeletionProtection.ThrowIfBlocked($"εκκαθάρισης «{run.Title}»", new[]
+        {
+            new DeletionBlocker("γραμμές εκκαθάρισης", await _db.CommissionRunLines.CountAsync(x => x.CommissionRunId == run.Id && x.DeletedAt == null, ct)),
+        });
         run.DeletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
         return Unit.Value;

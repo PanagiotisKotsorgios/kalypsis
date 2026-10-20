@@ -328,6 +328,11 @@ public class AgencyOfficesController : ControllerBase
             ?? throw AppException.NotFound("Office");
         if (office.IsHeadquarters)
             return BadRequest(new { code = "cannot_delete_hq", message = "Δεν μπορείτε να διαγράψετε το κεντρικό υποκατάστημα." });
+        DeletionProtection.ThrowIfBlocked($"υποκαταστήματος «{office.Name}»", new[]
+        {
+            new DeletionBlocker("αναθέσεις χρηστών", await _db.UserAgencyOffices.CountAsync(x => x.AgencyOfficeId == office.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("ρυθμίσεις InsureOne", await _db.InsureOneOfficeSettings.CountAsync(x => x.AgencyOfficeId == office.Id && x.DeletedAt == null, ct)),
+        });
         office.DeletedAt = _clock.UtcNow;
         await _db.SaveChangesAsync(ct);
         return NoContent();

@@ -30,28 +30,39 @@ public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerComman
                 && c.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Πελάτης");
 
-        // Refuse if the customer still has active data pointing at them —
-        // policies, claims, receipts, communications. Soft-deleting on top
-        // of live history breaks the "recent policies" queries + audit
-        // trails downstream. The operator can either anonymize (GDPR
-        // endpoint) or wait until the dependents are resolved.
-        var policyCount = await _db.Policies
-            .CountAsync(p => p.CustomerId == request.Id && p.DeletedAt == null, ct);
-        if (policyCount > 0)
-            throw new AppException("customer_has_policies",
-                $"Ο πελάτης έχει {policyCount} ενεργά συμβόλαια — δεν διαγράφεται.", 400,
-                title: "Δεν επιτρέπεται η διαγραφή",
-                why: "Η διαγραφή θα άφηνε τα συμβόλαια χωρίς κάτοχο. Θα κρύβονταν από κάθε λίστα και ο ιστορικός κύκλος ζωής θα διακοπτόταν.",
-                fix: "Διαγράψτε ή μεταφέρετε πρώτα τα συμβόλαια, ή χρησιμοποιήστε την ανωνυμοποίηση (GDPR) αντί για διαγραφή.");
-
-        var receiptCount = await _db.Receipts
-            .CountAsync(r => r.CustomerId == request.Id && r.DeletedAt == null, ct);
-        if (receiptCount > 0)
-            throw new AppException("customer_has_receipts",
-                $"Ο πελάτης έχει {receiptCount} αποδείξεις — δεν διαγράφεται.", 400,
-                title: "Δεν επιτρέπεται η διαγραφή",
-                why: "Οι αποδείξεις πρέπει να παραμείνουν συνδεδεμένες με τον πελάτη τους για λόγους λογιστικού ελέγχου.",
-                fix: "Χρησιμοποιήστε την ανωνυμοποίηση (GDPR) αντί για διαγραφή αν χρειάζεται να αφαιρέσετε προσωπικά δεδομένα.");
+        var relationshipCount = await _db.CustomerRelationships.CountAsync(x =>
+            (x.CustomerId == request.Id || x.RelatedCustomerId == request.Id) && x.DeletedAt == null, ct);
+        var blockers = new[]
+        {
+            new DeletionBlocker("συμβόλαια", await _db.Policies.CountAsync(x =>
+                (x.CustomerId == request.Id || x.ContractPartyCustomerId == request.Id) && x.DeletedAt == null, ct)),
+            new DeletionBlocker("εισπράξεις", await _db.Receipts.CountAsync(x => x.CustomerId == request.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("βεβαιώσεις κάλυψης", await _db.CoverNotes.CountAsync(x => x.CustomerId == request.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("πιστωτικά", await _db.CreditNotes.CountAsync(x => x.CustomerId == request.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("αξιόγραφα", await _db.Securities.CountAsync(x => x.CustomerId == request.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("οικονομικές κινήσεις", await _db.FinancialMovements.CountAsync(x => x.CustomerId == request.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("γενικές οικονομικές εγγραφές", await _db.GeneralFinancialEntries.CountAsync(x => x.CustomerId == request.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("επικοινωνίες", await _db.CommunicationLogs.CountAsync(x => x.CustomerId == request.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("πρόσθετες επαφές", await _db.CustomerContacts.CountAsync(x => x.CustomerId == request.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("οικογενειακές σχέσεις", relationshipCount),
+            new DeletionBlocker("ασφαλιστικές ανάγκες", await _db.CustomerInsuranceNeeds.CountAsync(x => x.CustomerId == request.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("συγκαταθέσεις GDPR", await _db.ConsentRecords.CountAsync(x => x.CustomerId == request.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("υπογεγραμμένα έντυπα", await _db.CustomerFormSignings.CountAsync(x => x.CustomerId == request.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("ραντεβού", await _db.Appointments.CountAsync(x => x.CustomerId == request.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("εργασίες", await _db.AgencyTasks.CountAsync(x => x.CustomerId == request.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("αιτήματα εξυπηρέτησης", await _db.ServiceRequests.CountAsync(x => x.CustomerId == request.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("ευκαιρίες CRM", await _db.CrmOpportunities.CountAsync(x => x.CustomerId == request.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("προσφορές", await _db.Quotes.CountAsync(x => x.CustomerId == request.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("φακέλους εγγράφων", await _db.DocumentFolders.CountAsync(x => x.CustomerId == request.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("προφίλ κινδύνου", await _db.RiskProfiles.CountAsync(x => x.CustomerId == request.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("ειδοποιητήρια πληρωμής", await _db.PaymentNotices.CountAsync(x => x.CustomerId == request.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("online πληρωμές", await _db.OnlinePaymentSessions.CountAsync(x => x.CustomerId == request.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("παραστατικά myDATA", await _db.MyDataInvoices.CountAsync(x => x.CustomerId == request.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("μηνύματα SMS", await _db.SmsLogs.CountAsync(x => x.CustomerId == request.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("μηνύματα Viber", await _db.ViberLogs.CountAsync(x => x.CustomerId == request.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("συνδεδεμένους χρήστες", await _db.Users.CountAsync(x => x.CustomerId == request.Id && x.DeletedAt == null, ct)),
+        };
+        DeletionProtection.ThrowIfBlocked($"πελάτη «{customer.CustomerNumber}»", blockers);
 
         customer.DeletedAt = _clock.UtcNow;
         await _db.SaveChangesAsync(ct);

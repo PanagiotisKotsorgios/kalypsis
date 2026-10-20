@@ -142,6 +142,10 @@ public class DeleteGroupPolicyHandler : IRequestHandler<DeleteGroupPolicyCommand
     {
         var e = await _db.GroupPolicies.FirstOrDefaultAsync(x => x.Id == r.Id, ct)
             ?? throw AppException.NotFound("GroupPolicy");
+        DeletionProtection.ThrowIfBlocked($"ομαδικού συμβολαίου «{e.GroupNumber}»", new[]
+        {
+            new DeletionBlocker("ασφαλισμένα μέλη", await _db.GroupPolicyMembers.CountAsync(x => x.GroupPolicyId == e.Id && x.DeletedAt == null, ct)),
+        });
         e.DeletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
         return Unit.Value;

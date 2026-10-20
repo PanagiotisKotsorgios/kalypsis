@@ -404,6 +404,38 @@ public class DeleteProducerCommandHandler : IRequestHandler<DeleteProducerComman
         var p = await _db.Producers
             .FirstOrDefaultAsync(x => x.Id == request.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Παραγωγός");
+
+        var hierarchyCount = await _db.ProducerHierarchyLinks.CountAsync(x =>
+            (x.ProducerId == p.Id || x.ParentProducerId == p.Id) && x.DeletedAt == null, ct);
+        var blockers = new[]
+        {
+            new DeletionBlocker("συμβόλαια", await _db.Policies.CountAsync(x =>
+                (x.ProducerId == p.Id || x.RenewalTransferToProducerId == p.Id) && x.DeletedAt == null, ct)),
+            new DeletionBlocker("υφιστάμενους συνεργάτες", await _db.Producers.CountAsync(x => x.ParentProducerId == p.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("συνδεδεμένους χρήστες", await _db.Users.CountAsync(x => x.ProducerId == p.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("κινήσεις προμηθειών", await _db.CommissionTransactions.CountAsync(x => x.ProducerId == p.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("γραμμές εκκαθαρίσεων", await _db.CommissionRunLines.CountAsync(x =>
+                (x.ProducerId == p.Id || x.OnBehalfOfProducerId == p.Id) && x.DeletedAt == null, ct)),
+            new DeletionBlocker("εκκαθαρίσεις", await _db.CommissionRuns.CountAsync(x => x.FilterProducerId == p.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("κανόνες προμηθειών", await _db.CommissionRules.CountAsync(x => x.ProducerId == p.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("δηλώσεις προμηθειών", await _db.ProducerCommissionDeclarations.CountAsync(x => x.ProducerId == p.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("αναμενόμενους συντελεστές", await _db.ProducerExpectedRates.CountAsync(x => x.ProducerId == p.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("οικονομικές κινήσεις", await _db.FinancialMovements.CountAsync(x => x.ProducerId == p.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("πληρωμές", await _db.Payments.CountAsync(x => x.BeneficiaryProducerId == p.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("επικοινωνίες", await _db.ProducerCommunicationLogs.CountAsync(x => x.ProducerId == p.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("ραντεβού", await _db.Appointments.CountAsync(x => x.ProducerId == p.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("εργασίες", await _db.AgencyTasks.CountAsync(x => x.ProducerId == p.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("ευκαιρίες CRM", await _db.CrmOpportunities.CountAsync(x => x.ProducerId == p.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("ειδοποιητήρια πληρωμής", await _db.PaymentNotices.CountAsync(x => x.ProducerId == p.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("παραγγελίες εταιρειών", await _db.CarrierOrders.CountAsync(x => x.ProducerId == p.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("πρόσβαση πύλης", await _db.PartnerPortalAccesses.CountAsync(x => x.ProducerId == p.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("ιεραρχικές διασυνδέσεις", hierarchyCount),
+            new DeletionBlocker("πλαφόν", await _db.ProducerPlafonds.CountAsync(x => x.ProducerId == p.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("κινήσεις κουμπαρά", await _db.KoumparasLines.CountAsync(x => x.ProducerId == p.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("καταστάσεις υπερπρομηθειών", await _db.OverCommissionStatements.CountAsync(x => x.ProducerId == p.Id && x.DeletedAt == null, ct)),
+        };
+        DeletionProtection.ThrowIfBlocked($"συνεργάτη «{p.Name}»", blockers);
+
         p.DeletedAt = DateTime.UtcNow;
         p.Status = ProducerStatus.Terminated;
         await _db.SaveChangesAsync(ct);

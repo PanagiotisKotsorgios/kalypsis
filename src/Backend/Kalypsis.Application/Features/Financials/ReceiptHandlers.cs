@@ -189,11 +189,13 @@ public class DeleteReceiptCommandHandler : IRequestHandler<DeleteReceiptCommand,
     public async Task<Unit> Handle(DeleteReceiptCommand r, CancellationToken ct)
     {
         var rc = await _db.Receipts.FirstOrDefaultAsync(x => x.Id == r.Id, ct) ?? throw AppException.NotFound("Receipt");
+        DeletionProtection.ThrowIfBlocked($"είσπραξης «{rc.Number}»", new[]
+        {
+            new DeletionBlocker("οικονομικές κινήσεις", await _db.FinancialMovements.CountAsync(x => x.ReceiptId == rc.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("πιστωτικά", await _db.CreditNotes.CountAsync(x => x.AppliedToReceiptId == rc.Id && x.DeletedAt == null, ct)),
+        });
+
         rc.DeletedAt = DateTime.UtcNow;
-
-        var related = await _db.FinancialMovements.Where(m => m.ReceiptId == rc.Id).ToListAsync(ct);
-        foreach (var m in related) m.DeletedAt = DateTime.UtcNow;
-
         await _db.SaveChangesAsync(ct);
         return Unit.Value;
     }

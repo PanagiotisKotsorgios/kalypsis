@@ -547,7 +547,7 @@ export function ProducersPage() {
       <Dialog open={deleteTarget !== null} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
         <DialogTitle>Επιβεβαίωση διαγραφής συνεργάτη</DialogTitle>
         <DialogContent>
-          Θέλετε να διαγράψετε τον συνεργάτη «{deleteTarget?.name ?? ""}»; Η ενέργεια δεν μπορεί να αναιρεθεί.
+          Θέλετε να διαγράψετε τον συνεργάτη «{deleteTarget?.name ?? ""}»; Η διαγραφή επιτρέπεται μόνο αν δεν έχει συμβόλαια, προμήθειες, χρήστες ή άλλο συνδεδεμένο ιστορικό.
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteTarget(null)}>Ακύρωση</Button>

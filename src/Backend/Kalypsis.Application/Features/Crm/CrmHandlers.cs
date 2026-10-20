@@ -393,6 +393,10 @@ public sealed class DeleteCrmGroupHandler : IRequestHandler<DeleteCrmGroupComman
     {
         var group = await _db.CrmGroups.FirstOrDefaultAsync(x => x.Id == r.Id && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("CRM group");
+        DeletionProtection.ThrowIfBlocked($"ομάδας CRM «{group.Name}»", new[]
+        {
+            new DeletionBlocker("μέλη ομάδας", await _db.CrmGroupMembers.CountAsync(x => x.GroupId == group.Id && x.DeletedAt == null, ct)),
+        });
         group.DeletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
         return Unit.Value;
