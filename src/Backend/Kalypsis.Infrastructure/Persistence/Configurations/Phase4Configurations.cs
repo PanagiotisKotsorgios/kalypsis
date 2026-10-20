@@ -129,7 +129,7 @@ public class BackofficeBridgeConnectionConfiguration : IEntityTypeConfiguration<
 {
     public void Configure(EntityTypeBuilder<BackofficeBridgeConnection> b)
     {
-        b.HasIndex(x => new { x.TenantId, x.Bridge }).IsUnique();
+        b.HasIndex(x => new { x.TenantId, x.AgencyOfficeScopeId, x.Bridge }).IsUnique();
         b.Property(x => x.BaseUrl).HasMaxLength(400);
         b.Property(x => x.AccountCode).HasMaxLength(80);
         b.Property(x => x.UsernameOrClientId).HasMaxLength(160);

@@ -19,6 +19,7 @@ export function ResponsiveFilterPanel({
   quickButtonPlacement = "panel",
   quickOpen: controlledQuickOpen,
   onQuickOpenChange,
+  compactAt = "md",
 }: {
   children: ReactNode;
   quickFilters?: ReactNode;
@@ -30,11 +31,13 @@ export function ResponsiveFilterPanel({
   /** Optional controlled state so a page-level toolbar button can open the drawer. */
   quickOpen?: boolean;
   onQuickOpenChange?: (open: boolean) => void;
+  /** Breakpoint at and below which the full filter form moves into a drawer. */
+  compactAt?: "sm" | "md" | "lg" | "xl";
 }) {
   const theme = useTheme();
   // Treat phones and narrow tablets as compact so dense filter forms never
   // push the actual table far below the fold.
-  const isCompact = useMediaQuery(theme.breakpoints.down("md"));
+  const isCompact = useMediaQuery(theme.breakpoints.down(compactAt));
   const [open, setOpen] = useState(false);
   const [internalQuickOpen, setInternalQuickOpen] = useState(false);
   const quickOpen = controlledQuickOpen ?? internalQuickOpen;

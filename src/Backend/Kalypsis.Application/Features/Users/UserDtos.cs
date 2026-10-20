@@ -11,7 +11,9 @@ public record UserDto(
     Role Role,
     bool IsActive,
     DateTime CreatedAt,
-    DateTime? LastLoginAt);
+    DateTime? LastLoginAt,
+    Guid? AgencyOfficeId,
+    string? AgencyOfficeName);
 
 public record CreateEmployeeRequest(
     string Email,
@@ -19,6 +21,7 @@ public record CreateEmployeeRequest(
     string LastName,
     string? Phone,
     string Password,
-    Role Role);
+    Role Role,
+    Guid? AgencyOfficeId = null);
 
 public record CreateEmployeeResponse(UserDto User);

@@ -29,6 +29,8 @@ export interface SidebarVisibilityItem {
   packages?: readonly PackageCode[];
   /** Keep a core item visible when it is required by the product shell. */
   alwaysVisible?: boolean;
+  /** Listed for Platform Admin planning, but cannot be exposed before implementation is complete. */
+  available?: boolean;
 }
 
 export interface SidebarVisibilitySection {
@@ -119,13 +121,13 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
       { path: "/financials?tab=receipts", label: "Εισπράξεις" },
       { path: "/financials?tab=payments", label: "Πληρωμές" },
       { path: "/advance-payments", label: "Προκαταβολές" },
-      { path: "/bulk-receipts", label: "Εισαγωγή πολλαπλών εισπράξεων" },
-      { path: "/auto-receipt-matching", label: "Αυτόματη είσπραξη ισόποσων" },
-      { path: "/ageing-analysis", label: "Ανάλυση ληξιπρόθεσμων" },
-      { path: "/journal-entries", label: "Λογιστικά άρθρα" },
-      { path: "/commission-certificates", label: "Βεβαιώσεις προμηθειών" },
-      { path: "/carrier-ledger", label: "Λογιστική καρτέλα ασφαλιστικών" },
-      { path: "/statement-mailer", label: "Αποστολή statements" },
+      { path: "/bulk-receipts", label: "Εισαγωγή πολλαπλών εισπράξεων", available: false, detail: "Υπό ανάπτυξη — παραμένει κρυφό από τα γραφεία." },
+      { path: "/auto-receipt-matching", label: "Αυτόματη είσπραξη ισόποσων", available: false, detail: "Υπό ανάπτυξη — παραμένει κρυφό από τα γραφεία." },
+      { path: "/ageing-analysis", label: "Ανάλυση ληξιπρόθεσμων", available: false, detail: "Υπό ανάπτυξη — παραμένει κρυφό από τα γραφεία." },
+      { path: "/journal-entries", label: "Λογιστικά άρθρα", available: false, detail: "Υπό ανάπτυξη — παραμένει κρυφό από τα γραφεία." },
+      { path: "/commission-certificates", label: "Βεβαιώσεις προμηθειών", available: false, detail: "Υπό ανάπτυξη — παραμένει κρυφό από τα γραφεία." },
+      { path: "/carrier-ledger", label: "Λογιστική καρτέλα ασφαλιστικών", available: false, detail: "Υπό ανάπτυξη — παραμένει κρυφό από τα γραφεία." },
+      { path: "/statement-mailer", label: "Αποστολή statements", available: false, detail: "Υπό ανάπτυξη — παραμένει κρυφό από τα γραφεία." },
       { path: "/financial-report", label: "Οικονομική αναφορά" },
       { path: "/producer-statement", label: "Πινάκιο συνεργάτη" }
     ]

@@ -1,8 +1,9 @@
 export const VEHICLE_SPEC_FIELDS = [
   ["make", "Μάρκα"], ["model", "Μοντέλο"], ["year", "Έτος κατασκευής"], ["vin", "VIN / αριθμός πλαισίου"],
-  ["engineCapacity", "Κυβισμός (cc)"], ["taxableHorsepower", "Φορολογήσιμοι ίπποι"], ["estimatedValue", "Εκτιμώμενη αξία"],
+  ["firstRegistrationDate", "Ημ. πρώτης κυκλοφορίας"], ["fuelType", "Καύσιμο"], ["bodyType", "Τύπος αμαξώματος"],
+  ["engineCapacity", "Κυβισμός (cc)"], ["enginePowerKw", "Ισχύς (kW)"], ["taxableHorsepower", "Φορολογήσιμοι ίπποι"], ["estimatedValue", "Εκτιμώμενη αξία"],
   ["purchaseDate", "Ημερομηνία αγοράς"], ["condition", "Κατάσταση οχήματος"], ["ownerCount", "Αριθμός ιδιοκτητών"],
-  ["color", "Χρώμα"], ["seats", "Θέσεις"], ["youngDriver", "Νέος οδηγός"], ["sunroof", "Ηλιοροφή"],
+  ["color", "Χρώμα"], ["seats", "Θέσεις"], ["mileage", "Χιλιόμετρα"], ["youngDriver", "Νέος οδηγός"], ["sunroof", "Ηλιοροφή"],
   ["vehicleNotes", "Σημειώσεις οχήματος"],
 ] as const;
 

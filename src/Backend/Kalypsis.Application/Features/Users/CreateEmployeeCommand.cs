@@ -48,7 +48,9 @@ public class CreateEmployeeCommandHandler : IRequestHandler<CreateEmployeeComman
             throw AppException.Forbidden("Ο Υποδιαχειριστής μπορεί να δημιουργεί μόνο υπαλλήλους του γραφείου του.");
 
         var requestedRole = request.Request.Role;
-        Guid? officeId = _currentUser.AgencyOfficeId;
+        Guid? officeId = _currentUser.Role == Role.AgencyOfficeAdmin
+            ? _currentUser.AgencyOfficeId
+            : request.Request.AgencyOfficeId;
         if (requestedRole != Role.AgencyAdmin && officeId is null)
         {
             officeId = await _db.AgencyOffices
@@ -59,6 +61,14 @@ public class CreateEmployeeCommandHandler : IRequestHandler<CreateEmployeeComman
                 .FirstOrDefaultAsync(cancellationToken);
             if (officeId is null)
                 throw new AppException("office_required", "Δεν υπάρχει ενεργό γραφείο για την ανάθεση του χρήστη.", 400);
+        }
+        if (requestedRole != Role.AgencyAdmin && officeId is Guid selectedOfficeId)
+        {
+            var validOffice = await _db.AgencyOffices.IgnoreQueryFilters().AnyAsync(o =>
+                o.Id == selectedOfficeId && o.TenantId == tenantId && o.DeletedAt == null && o.IsActive,
+                cancellationToken);
+            if (!validOffice)
+                throw new AppException("invalid_office", "Το επιλεγμένο γραφείο δεν είναι ενεργό ή δεν ανήκει στον οργανισμό.", 400);
         }
 
         var email = request.Request.Email.Trim().ToLowerInvariant();
@@ -101,6 +111,10 @@ public class CreateEmployeeCommandHandler : IRequestHandler<CreateEmployeeComman
 
         return new CreateEmployeeResponse(new UserDto(
             user.Id, user.Email, user.FirstName, user.LastName, user.Phone,
-            user.Role, user.IsActive, user.CreatedAt, user.LastLoginAt));
+            user.Role, user.IsActive, user.CreatedAt, user.LastLoginAt,
+            user.AgencyOfficeScopeId,
+            officeId is Guid responseOfficeId
+                ? await _db.AgencyOffices.IgnoreQueryFilters().Where(o => o.Id == responseOfficeId).Select(o => o.Name).FirstOrDefaultAsync(cancellationToken)
+                : null));
     }
 }

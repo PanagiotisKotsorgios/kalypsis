@@ -897,7 +897,7 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "Bridge")
+                    b.HasIndex("TenantId", "AgencyOfficeScopeId", "Bridge")
                         .IsUnique();
 
                     b.ToTable("BackofficeBridgeConnections");
@@ -1560,7 +1560,7 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "Code")
+                    b.HasIndex("TenantId", "AgencyOfficeScopeId", "Code")
                         .IsUnique();
 
                     b.ToTable("branches", (string)null);
@@ -1632,7 +1632,7 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId", "SourceCarrier");
 
-                    b.HasIndex("TenantId", "Kind", "SourceCarrier", "RawCode")
+                    b.HasIndex("TenantId", "AgencyOfficeScopeId", "Kind", "SourceCarrier", "RawCode")
                         .IsUnique();
 
                     b.ToTable("bridge_code_mappings", (string)null);
@@ -4413,7 +4413,7 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "EntityType", "Code")
+                    b.HasIndex("TenantId", "AgencyOfficeScopeId", "EntityType", "Code")
                         .IsUnique();
 
                     b.ToTable("CustomFieldDefinitions");
@@ -4555,9 +4555,18 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
+                    b.Property<bool?>("HasDrivingLicense")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<string>("IdNumber")
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
+
+                    b.Property<bool?>("IsDriver")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool?>("IsNewDriver")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("LastName")
                         .HasMaxLength(100)
@@ -4612,13 +4621,6 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
 
-                    b.Property<string>("Source")
-                        .HasMaxLength(60)
-                        .HasColumnType("varchar(60)");
-
-                    b.Property<string>("SpouseName")
-                        .HasColumnType("longtext");
-
                     b.Property<string>("SecondaryEmail")
                         .HasMaxLength(256)
                         .HasColumnType("varchar(256)");
@@ -4627,18 +4629,12 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("varchar(40)");
 
-                    b.Property<bool?>("HasDrivingLicense")
-                        .HasColumnType("tinyint(1)");
+                    b.Property<string>("Source")
+                        .HasMaxLength(60)
+                        .HasColumnType("varchar(60)");
 
-                    b.Property<bool?>("IsDriver")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool?>("IsNewDriver")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("ThirdPhone")
-                        .HasMaxLength(40)
-                        .HasColumnType("varchar(40)");
+                    b.Property<string>("SpouseName")
+                        .HasColumnType("longtext");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -4653,6 +4649,10 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("char(36)");
+
+                    b.Property<string>("ThirdPhone")
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
 
                     b.Property<int>("Type")
                         .HasColumnType("int");
@@ -8175,7 +8175,7 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "Service", "KeyName")
+                    b.HasIndex("TenantId", "AgencyOfficeScopeId", "Service", "KeyName")
                         .IsUnique();
 
                     b.ToTable("IntegrationSettings");
@@ -8755,7 +8755,7 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "Code")
+                    b.HasIndex("TenantId", "AgencyOfficeScopeId", "Code")
                         .IsUnique();
 
                     b.ToTable("MovementTypes");
@@ -12688,7 +12688,7 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "Code")
+                    b.HasIndex("TenantId", "AgencyOfficeScopeId", "Code")
                         .IsUnique();
 
                     b.ToTable("RegisterTemplates");

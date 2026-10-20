@@ -4,12 +4,14 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import FolderIcon from "@mui/icons-material/Folder";
+import LockClockIcon from "@mui/icons-material/LockClock";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AgencySettingsHubPage } from "./AgencySettingsHubPage";
 import { ProfilePage } from "./ProfilePage";
 import { DocumentationPage } from "./DocumentationPage";
 import { BookkeepingPage } from "./BookkeepingPage";
+import { PeriodLocksPanel } from "./PeriodLocksPanel";
 
 /**
  * Merged agency-settings + personal-profile surface for AgencyAdmin.
@@ -31,6 +33,7 @@ export function AgencyAndProfilePage() {
     if (p === "profile") return "profile";
     if (p === "documentation") return "documentation";
     if (p === "bookkeeping") return "bookkeeping";
+    if (p === "period-locks") return "period-locks";
     return "agency";
   }, [params]);
 
@@ -61,11 +64,14 @@ export function AgencyAndProfilePage() {
           label={t("agencyProfile.tabs.documentation", "Οδηγίες χρήσης")} />
         <Tab value="bookkeeping" icon={<FolderIcon fontSize="small" />} iconPosition="start"
           label={t("agencyProfile.tabs.bookkeeping", "Μηχανογράφιση")} />
+        <Tab value="period-locks" icon={<LockClockIcon fontSize="small" />} iconPosition="start"
+          label="Κλειδώματα περιόδων" />
       </Tabs>
       {active === "agency" && <AgencySettingsHubPage />}
       {active === "profile" && <ProfilePage />}
       {active === "documentation" && <DocumentationPage />}
       {active === "bookkeeping" && <BookkeepingPage />}
+      {active === "period-locks" && <PeriodLocksPanel />}
     </Box>
   );
 }

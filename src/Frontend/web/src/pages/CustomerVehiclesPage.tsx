@@ -204,7 +204,7 @@ export function VehicleDetailDialog({ open, plate, policyIds: suppliedPolicyIds,
       {tab === 1 && <Stack spacing={.75}>{owners.map(owner => <Box key={owner.customerId ?? owner.customerDisplay} sx={profileFieldGridSx}>
         <ProfileEditableField label="Ιδιοκτήτης / πελάτης" value={owner.customerDisplay} />
         <ProfileEditableField label="ΑΦΜ ιδιοκτήτη" value={owner.customerVat} mono />
-        {owner.customerId && <Button component={RouterLink} to={"/app/customers/" + owner.customerId} size="small">Καρτέλα πελάτη</Button>}
+        {owner.customerId && <Button component={RouterLink} to={"/app/customers/" + owner.customerId} size="small" variant="contained" color="success" sx={{ color: "#fff", fontWeight: 800 }}>Καρτέλα πελάτη</Button>}
       </Box>)}</Stack>}
       {first && tab === 2 && <Box sx={{ overflowX: "auto", "& .MuiButton-root": { display: canWrite ? undefined : "none" } }}>
         <Card variant="outlined" sx={{ p: 1.25 }}>
@@ -241,8 +241,8 @@ export function VehicleProfileFields({ session, values, owner, ownerVat }: { ses
     <ProfileEditableField label="Ιδιοκτήτης / πελάτης" value={owner} />
     <ProfileEditableField label="ΑΦΜ ιδιοκτήτη (αυτόματο)" value={ownerVat} mono />
     {VEHICLE_SPEC_FIELDS.map(([key, label]) => field("spec:" + key, label, {
-      multiline: key === "vehicleNotes", type: key === "purchaseDate" ? "date" : "text",
-      options: key === "sunroof" || key === "youngDriver" ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Ναι", label: "Ναι" }, { value: "Όχι", label: "Όχι" }, { value: "true", label: "Ναι" }, { value: "false", label: "Όχι" }] : key === "condition" ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Καινούργιο", label: "Καινούργιο" }, { value: "Μεταχειρισμένο", label: "Μεταχειρισμένο" }] : undefined,
+      multiline: key === "vehicleNotes", type: key === "purchaseDate" || key === "firstRegistrationDate" ? "date" : "text",
+      options: key === "sunroof" || key === "youngDriver" ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Ναι", label: "Ναι" }, { value: "Όχι", label: "Όχι" }, { value: "true", label: "Ναι" }, { value: "false", label: "Όχι" }] : key === "condition" ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Καινούργιο", label: "Καινούργιο" }, { value: "Μεταχειρισμένο", label: "Μεταχειρισμένο" }] : key === "fuelType" ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Βενζίνη", label: "Βενζίνη" }, { value: "Πετρέλαιο", label: "Πετρέλαιο" }, { value: "Υβριδικό", label: "Υβριδικό" }, { value: "Ηλεκτρικό", label: "Ηλεκτρικό" }, { value: "Υγραέριο", label: "Υγραέριο (LPG)" }, { value: "Φυσικό αέριο", label: "Φυσικό αέριο (CNG)" }] : key === "bodyType" ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Hatchback", label: "Hatchback" }, { value: "Sedan", label: "Sedan" }, { value: "SUV", label: "SUV" }, { value: "Station Wagon", label: "Station Wagon" }, { value: "Coupe", label: "Coupe" }, { value: "Cabrio", label: "Cabrio" }, { value: "Van", label: "Van" }, { value: "Pickup", label: "Pickup" }] : undefined,
     }))}
   </Box>;
 }

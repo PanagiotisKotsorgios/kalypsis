@@ -36,7 +36,7 @@ public class BridgeCodeMappingConfiguration : IEntityTypeConfiguration<BridgeCod
 
         // Unique per (tenant, kind, source carrier, raw code) — two mappings
         // for the same raw code inside the same feed would race on import.
-        b.HasIndex(x => new { x.TenantId, x.Kind, x.SourceCarrier, x.RawCode })
+        b.HasIndex(x => new { x.TenantId, x.AgencyOfficeScopeId, x.Kind, x.SourceCarrier, x.RawCode })
             .IsUnique();
         b.HasIndex(x => new { x.TenantId, x.SourceCarrier });
     }

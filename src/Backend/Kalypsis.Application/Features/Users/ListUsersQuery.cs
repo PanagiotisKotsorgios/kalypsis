@@ -30,7 +30,11 @@ public class ListUsersQueryHandler : IRequestHandler<ListUsersQuery, IReadOnlyLi
             .OrderBy(u => u.LastName)
             .Select(u => new UserDto(
                 u.Id, u.Email, u.FirstName, u.LastName, u.Phone,
-                u.Role, u.IsActive, u.CreatedAt, u.LastLoginAt))
+                u.Role, u.IsActive, u.CreatedAt, u.LastLoginAt,
+                u.AgencyOfficeScopeId,
+                u.AgencyOfficeScopeId == null ? null : _db.AgencyOffices
+                    .Where(o => o.Id == u.AgencyOfficeScopeId)
+                    .Select(o => o.Name).FirstOrDefault()))
             .ToListAsync(cancellationToken);
     }
 }

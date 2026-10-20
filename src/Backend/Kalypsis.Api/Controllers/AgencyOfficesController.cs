@@ -141,7 +141,10 @@ public class AgencyOfficesController : ControllerBase
     public record CopyParametricsBody(Guid? SourceOfficeId);
     public record CopyParametricsResult(Guid SourceOfficeId, Guid TargetOfficeId,
         int BranchesCopied, int CommissionRulesCopied, int DefaultRulesCopied,
-        int RenewalRulesCopied, int BonusMalusRulesCopied, int RegisterTemplatesCopied);
+        int RenewalRulesCopied, int BonusMalusRulesCopied, int RegisterTemplatesCopied,
+        int CompanyBridgesCopied, int BridgeMappingsCopied, int BackofficeConnectionsCopied,
+        int IntegrationSettingsCopied, int CustomFieldsCopied, int MovementTypesCopied,
+        int PeriodLocksCopied, int SharedCompanies);
 
     /// <summary>
     /// Copies office-owned configuration from headquarters (or a selected
@@ -173,6 +176,13 @@ public class AgencyOfficesController : ControllerBase
         var renewalsCopied = 0;
         var bonusCopied = 0;
         var templatesCopied = 0;
+        var companyBridgesCopied = 0;
+        var bridgeMappingsCopied = 0;
+        var backofficeConnectionsCopied = 0;
+        var integrationSettingsCopied = 0;
+        var customFieldsCopied = 0;
+        var movementTypesCopied = 0;
+        var periodLocksCopied = 0;
         var sourceScope = source.Id;
         var includeLegacy = source.IsHeadquarters;
 
@@ -258,9 +268,110 @@ public class AgencyOfficesController : ControllerBase
             templatesCopied++;
         }
 
+        // Carrier/company identities and their catalogues are tenant-wide by
+        // design, therefore every office already sees the same companies.
+        // What is office-owned and must be copied is the bridge/configuration
+        // layer around them. Operational runs and imported business rows are
+        // deliberately excluded.
+        var sourceBridges = await _db.CompanyBridges.IgnoreQueryFilters().Where(x => x.TenantId == tenantId && x.DeletedAt == null
+            && (x.AgencyOfficeScopeId == sourceScope || (includeLegacy && x.AgencyOfficeScopeId == null))).ToListAsync(ct);
+        var targetBridges = await _db.CompanyBridges.IgnoreQueryFilters().Where(x => x.TenantId == tenantId
+            && x.AgencyOfficeScopeId == target.Id && x.DeletedAt == null).ToListAsync(ct);
+        foreach (var row in sourceBridges.Where(x => targetBridges.All(t => t.InsuranceCompanyId != x.InsuranceCompanyId
+            || t.Kind != x.Kind || !string.Equals(t.Name, x.Name, StringComparison.OrdinalIgnoreCase))))
+        {
+            _db.CompanyBridges.Add(new CompanyBridge { Id = Guid.NewGuid(), TenantId = tenantId, AgencyOfficeScopeId = target.Id,
+                Name = row.Name, InsuranceCompanyId = row.InsuranceCompanyId, Kind = row.Kind, ConfigJson = row.ConfigJson,
+                IsActive = row.IsActive, AutoSync = row.AutoSync, Notes = row.Notes });
+            companyBridgesCopied++;
+        }
+
+        var sourceMappings = await _db.BridgeCodeMappings.IgnoreQueryFilters().Where(x => x.TenantId == tenantId && x.DeletedAt == null
+            && x.Kind != BridgeMappingKind.Producer
+            && (x.AgencyOfficeScopeId == sourceScope || (includeLegacy && x.AgencyOfficeScopeId == null))).ToListAsync(ct);
+        var targetMappings = await _db.BridgeCodeMappings.IgnoreQueryFilters().Where(x => x.TenantId == tenantId
+            && x.AgencyOfficeScopeId == target.Id && x.DeletedAt == null).ToListAsync(ct);
+        foreach (var row in sourceMappings.Where(x => targetMappings.All(t => t.Kind != x.Kind
+            || !string.Equals(t.SourceCarrier, x.SourceCarrier, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(t.RawCode, x.RawCode, StringComparison.OrdinalIgnoreCase))))
+        {
+            _db.BridgeCodeMappings.Add(new BridgeCodeMapping { Id = Guid.NewGuid(), TenantId = tenantId, AgencyOfficeScopeId = target.Id,
+                Kind = row.Kind, SourceCarrier = row.SourceCarrier, RawCode = row.RawCode, RawLabel = row.RawLabel,
+                TargetInsuranceCompanyId = row.TargetInsuranceCompanyId, TargetParameterItemId = row.TargetParameterItemId,
+                Notes = row.Notes, ConfirmedByUserId = _current.UserId, ConfirmedAt = _clock.UtcNow });
+            bridgeMappingsCopied++;
+        }
+
+        var sourceBackoffice = await _db.BackofficeBridgeConnections.IgnoreQueryFilters().Where(x => x.TenantId == tenantId && x.DeletedAt == null
+            && (x.AgencyOfficeScopeId == sourceScope || (includeLegacy && x.AgencyOfficeScopeId == null))).ToListAsync(ct);
+        var targetBackoffice = await _db.BackofficeBridgeConnections.IgnoreQueryFilters().Where(x => x.TenantId == tenantId
+            && x.AgencyOfficeScopeId == target.Id && x.DeletedAt == null).ToListAsync(ct);
+        foreach (var row in sourceBackoffice.Where(x => targetBackoffice.All(t => t.Bridge != x.Bridge)))
+        {
+            _db.BackofficeBridgeConnections.Add(new BackofficeBridgeConnection { Id = Guid.NewGuid(), TenantId = tenantId, AgencyOfficeScopeId = target.Id,
+                Bridge = row.Bridge, IsEnabled = row.IsEnabled, BaseUrl = row.BaseUrl, AccountCode = row.AccountCode,
+                UsernameOrClientId = row.UsernameOrClientId, SecretEncrypted = row.SecretEncrypted });
+            backofficeConnectionsCopied++;
+        }
+
+        var sourceIntegrations = await _db.IntegrationSettings.IgnoreQueryFilters().Where(x => x.TenantId == tenantId && x.DeletedAt == null
+            && (x.AgencyOfficeScopeId == sourceScope || (includeLegacy && x.AgencyOfficeScopeId == null))).ToListAsync(ct);
+        var targetIntegrations = await _db.IntegrationSettings.IgnoreQueryFilters().Where(x => x.TenantId == tenantId
+            && x.AgencyOfficeScopeId == target.Id && x.DeletedAt == null).ToListAsync(ct);
+        foreach (var row in sourceIntegrations.Where(x => targetIntegrations.All(t => !string.Equals(t.Service, x.Service, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(t.KeyName, x.KeyName, StringComparison.OrdinalIgnoreCase))))
+        {
+            _db.IntegrationSettings.Add(new IntegrationSetting { Id = Guid.NewGuid(), TenantId = tenantId, AgencyOfficeScopeId = target.Id,
+                Service = row.Service, KeyName = row.KeyName, Value = row.Value, IsSecret = row.IsSecret, Notes = row.Notes });
+            integrationSettingsCopied++;
+        }
+
+        var sourceFields = await _db.CustomFieldDefinitions.IgnoreQueryFilters().Where(x => x.TenantId == tenantId && x.DeletedAt == null
+            && (x.AgencyOfficeScopeId == sourceScope || (includeLegacy && x.AgencyOfficeScopeId == null))).ToListAsync(ct);
+        var targetFields = await _db.CustomFieldDefinitions.IgnoreQueryFilters().Where(x => x.TenantId == tenantId
+            && x.AgencyOfficeScopeId == target.Id && x.DeletedAt == null).ToListAsync(ct);
+        foreach (var row in sourceFields.Where(x => targetFields.All(t => !string.Equals(t.EntityType, x.EntityType, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(t.Code, x.Code, StringComparison.OrdinalIgnoreCase))))
+        {
+            _db.CustomFieldDefinitions.Add(new CustomFieldDefinition { Id = Guid.NewGuid(), TenantId = tenantId, AgencyOfficeScopeId = target.Id,
+                EntityType = row.EntityType, Code = row.Code, Label = row.Label, Kind = row.Kind, Options = row.Options,
+                LookupEntity = row.LookupEntity, IsRequired = row.IsRequired, DisplayOrder = row.DisplayOrder,
+                IsActive = row.IsActive, HelpText = row.HelpText });
+            customFieldsCopied++;
+        }
+
+        var sourceMovements = await _db.MovementTypes.IgnoreQueryFilters().Where(x => x.TenantId == tenantId && x.DeletedAt == null
+            && (x.AgencyOfficeScopeId == sourceScope || (includeLegacy && x.AgencyOfficeScopeId == null))).ToListAsync(ct);
+        var targetMovements = await _db.MovementTypes.IgnoreQueryFilters().Where(x => x.TenantId == tenantId
+            && x.AgencyOfficeScopeId == target.Id && x.DeletedAt == null).ToListAsync(ct);
+        foreach (var row in sourceMovements.Where(x => targetMovements.All(t => !string.Equals(t.Code, x.Code, StringComparison.OrdinalIgnoreCase))))
+        {
+            _db.MovementTypes.Add(new MovementType { Id = Guid.NewGuid(), TenantId = tenantId, AgencyOfficeScopeId = target.Id,
+                Code = row.Code, Name = row.Name, Category = row.Category, Party = row.Party,
+                AutoChargeCustomer = row.AutoChargeCustomer, AutoOffsetCarrier = row.AutoOffsetCarrier,
+                GlAccountId = null, ReceiptNumberPrefix = row.ReceiptNumberPrefix, ReceiptPadding = row.ReceiptPadding,
+                IsCashType = row.IsCashType, IsActive = row.IsActive, DisplayOrder = row.DisplayOrder });
+            movementTypesCopied++;
+        }
+
+        var sourceLocks = await _db.PeriodLocks.IgnoreQueryFilters().Where(x => x.TenantId == tenantId && x.DeletedAt == null
+            && (x.AgencyOfficeScopeId == sourceScope || (includeLegacy && x.AgencyOfficeScopeId == null))).ToListAsync(ct);
+        var targetLocks = await _db.PeriodLocks.IgnoreQueryFilters().Where(x => x.TenantId == tenantId
+            && x.AgencyOfficeScopeId == target.Id && x.DeletedAt == null).ToListAsync(ct);
+        foreach (var row in sourceLocks.Where(x => targetLocks.All(t => t.Scope != x.Scope || t.LockedBefore != x.LockedBefore)))
+        {
+            _db.PeriodLocks.Add(new PeriodLock { Id = Guid.NewGuid(), TenantId = tenantId, AgencyOfficeScopeId = target.Id,
+                Scope = row.Scope, LockedBefore = row.LockedBefore, AutoAdvanceDaily = row.AutoAdvanceDaily, Reason = row.Reason });
+            periodLocksCopied++;
+        }
+
         await _db.SaveChangesAsync(ct);
+        var sharedCompanies = await _db.InsuranceCompanies.IgnoreQueryFilters()
+            .CountAsync(x => (x.TenantId == null || x.TenantId == tenantId) && x.DeletedAt == null && x.IsActive, ct);
         return Ok(new CopyParametricsResult(source.Id, target.Id, branchesCopied, commissionCopied, defaultsCopied,
-            renewalsCopied, bonusCopied, templatesCopied));
+            renewalsCopied, bonusCopied, templatesCopied, companyBridgesCopied, bridgeMappingsCopied,
+            backofficeConnectionsCopied, integrationSettingsCopied, customFieldsCopied, movementTypesCopied,
+            periodLocksCopied, sharedCompanies));
     }
 
     [HttpPost]
@@ -332,6 +443,14 @@ public class AgencyOfficesController : ControllerBase
         {
             new DeletionBlocker("αναθέσεις χρηστών", await _db.UserAgencyOffices.CountAsync(x => x.AgencyOfficeId == office.Id && x.DeletedAt == null, ct)),
             new DeletionBlocker("ρυθμίσεις InsureOne", await _db.InsureOneOfficeSettings.CountAsync(x => x.AgencyOfficeId == office.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("πελάτες", await _db.Customers.IgnoreQueryFilters().CountAsync(x => x.TenantId == office.TenantId && x.AgencyOfficeScopeId == office.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("συνεργάτες", await _db.Producers.IgnoreQueryFilters().CountAsync(x => x.TenantId == office.TenantId && x.AgencyOfficeScopeId == office.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("συμβόλαια", await _db.Policies.IgnoreQueryFilters().CountAsync(x => x.TenantId == office.TenantId && x.AgencyOfficeScopeId == office.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("ζημιές", await _db.Claims.IgnoreQueryFilters().CountAsync(x => x.TenantId == office.TenantId && x.AgencyOfficeScopeId == office.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("εισπράξεις", await _db.Receipts.IgnoreQueryFilters().CountAsync(x => x.TenantId == office.TenantId && x.AgencyOfficeScopeId == office.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("πληρωμές", await _db.Payments.IgnoreQueryFilters().CountAsync(x => x.TenantId == office.TenantId && x.AgencyOfficeScopeId == office.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("οικονομικές κινήσεις", await _db.FinancialMovements.IgnoreQueryFilters().CountAsync(x => x.TenantId == office.TenantId && x.AgencyOfficeScopeId == office.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("γέφυρες εταιρειών", await _db.CompanyBridges.IgnoreQueryFilters().CountAsync(x => x.TenantId == office.TenantId && x.AgencyOfficeScopeId == office.Id && x.DeletedAt == null, ct)),
         });
         office.DeletedAt = _clock.UtcNow;
         await _db.SaveChangesAsync(ct);

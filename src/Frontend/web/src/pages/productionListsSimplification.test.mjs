@@ -17,6 +17,20 @@ test("production list keeps a single green coverage action and removes redundant
   assert.equal(source.includes('<FilterAltIcon color="primary" fontSize="small" />'), false);
 });
 
+test("production filters collapse early and their visible fields are user configurable", async () => {
+  const source = await readFile(new URL("./ProductionListsPage.tsx", import.meta.url), "utf8");
+  const picker = await readFile(new URL("../components/FilterVisibilityPicker.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /compactAt="xl"/);
+  assert.match(source, /useFilterVisibility\("production-lists", PRODUCTION_FILTERS\)/);
+  assert.match(source, /<FilterVisibilityPicker filters=\{PRODUCTION_FILTERS\}/);
+  for (const key of ["dateField", "from", "to", "carrier", "producer", "type", "use", "coverage", "package", "status", "groupBy"]) {
+    assert.match(source, new RegExp(`filterVisibility\\.visible\\("${key}"\\)`));
+  }
+  assert.match(picker, /localStorage\.setItem/);
+  assert.match(picker, /Εμφανιζόμενα φίλτρα/);
+});
+
 test("document folders page and legacy route no longer exist", async () => {
   const documents = await readFile(new URL("./DocumentsPage.tsx", import.meta.url), "utf8");
   const app = await readFile(new URL("../App.tsx", import.meta.url), "utf8");

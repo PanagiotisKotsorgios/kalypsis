@@ -53,7 +53,10 @@ interface UserDto {
   isActive: boolean;
   createdAt: string;
   lastLoginAt?: string;
+  agencyOfficeId?: string | null;
+  agencyOfficeName?: string | null;
 }
+interface OfficeOption { id: string; name: string; code: string; isActive: boolean }
 
 interface CreateBody {
   email: string;
@@ -62,6 +65,7 @@ interface CreateBody {
   phone?: string;
   password: string;
   role: "AgencyAdmin" | "AgencyOfficeAdmin" | "AgencyUser";
+  agencyOfficeId?: string | null;
 }
 
 export function EmployeesPage() {
@@ -80,6 +84,11 @@ export function EmployeesPage() {
   const usersQuery = useQuery({
     queryKey: ["users"],
     queryFn: async () => (await api.get<UserDto[]>("/users")).data
+  });
+  const officesQuery = useQuery({
+    queryKey: ["agency-offices", "employee-form"],
+    queryFn: async () => (await api.get<OfficeOption[]>("/agency-offices")).data,
+    enabled: currentUser?.role === "AgencyAdmin" || currentUser?.role === "PlatformAdmin" || currentUser?.role === "PlatformEmployee",
   });
 
   const filteredUsers = useMemo(() => {
@@ -123,6 +132,7 @@ export function EmployeesPage() {
                 { key: "email",     label: "Email" },
                 { key: "phone",     label: "Τηλέφωνο" },
                 { key: "role",      label: "Ρόλος",   map: (u) => t(`roles.${u.role}`, u.role) as string },
+                { key: "agencyOfficeName", label: "Γραφείο" },
                 { key: "isActive",  label: "Ενεργός", map: (u) => u.isActive ? "Ναι" : "Όχι" },
                 { key: "createdAt", label: "Δημιουργήθηκε", map: (u) => date(u.createdAt) },
                 { key: "lastLoginAt", label: "Τελευταία σύνδεση", map: (u) => u.lastLoginAt ? date(u.lastLoginAt) : "" },
@@ -141,6 +151,7 @@ export function EmployeesPage() {
                 { key: "email",     label: "Email" },
                 { key: "phone",     label: "Τηλέφωνο", map: (u) => u.phone ?? "—" },
                 { key: "role",      label: "Ρόλος",   map: (u) => t(`roles.${u.role}`, u.role) as string },
+                { key: "agencyOfficeName", label: "Γραφείο", map: (u) => u.agencyOfficeName ?? "Όλα τα γραφεία" },
                 { key: "isActive",  label: "Κατάσταση", map: (u) => u.isActive ? "Ενεργός" : "Ανενεργός" },
                 { key: "lastLoginAt", label: "Τελευταία σύνδεση", map: (u) => u.lastLoginAt ? date(u.lastLoginAt) : "—" },
               ],
@@ -198,6 +209,7 @@ export function EmployeesPage() {
                   <TableCell>{t("users.email")}</TableCell>
                   <TableCell>{t("users.phone")}</TableCell>
                   <TableCell>{t("users.role")}</TableCell>
+                  <TableCell>Γραφείο</TableCell>
                   <TableCell align="right" />
                 </TableRow>
               </TableHead>
@@ -210,6 +222,7 @@ export function EmployeesPage() {
                     <TableCell>
                       <Chip label={t(`roles.${u.role}`)} size="small" color={u.role === "AgencyAdmin" ? "primary" : u.role === "AgencyOfficeAdmin" ? "warning" : "default"} />
                     </TableCell>
+                    <TableCell>{u.role === "AgencyAdmin" ? <Chip size="small" label="Όλα τα γραφεία" color="primary" variant="outlined" /> : <Chip size="small" label={u.agencyOfficeName ?? "Δεν έχει οριστεί"} color={u.agencyOfficeName ? "default" : "error"} />}</TableCell>
                     <TableCell align="right">
                       <IconButton size="small" color="success" onClick={() => setEditingUser(u)} title="Επεξεργασία υπαλλήλου">
                         <EditIcon fontSize="small" />
@@ -222,7 +235,7 @@ export function EmployeesPage() {
                 ))}
                 {pagedUsers.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5}>
+                    <TableCell colSpan={6}>
                       <Typography color="text.secondary" textAlign="center" py={4}>
                         {t("common.noData")}
                       </Typography>
@@ -252,6 +265,7 @@ export function EmployeesPage() {
         onSubmit={(b) => createMutation.mutate(b)}
         submitting={createMutation.isPending}
         canCreateAdmin={currentUser?.role === "AgencyAdmin" || currentUser?.role === "PlatformAdmin" || currentUser?.role === "PlatformEmployee"}
+        offices={(officesQuery.data ?? []).filter(office => office.isActive)}
       />
 
       <UserPermissionsDialog userId={permsUserId} onClose={() => setPermsUserId(null)} />
@@ -260,6 +274,7 @@ export function EmployeesPage() {
         onClose={() => setEditingUser(null)}
         onSaved={() => { setEditingUser(null); void qc.invalidateQueries({ queryKey: ["users"] }); }}
         canEditAdmin={currentUser?.role === "AgencyAdmin" || currentUser?.role === "PlatformAdmin" || currentUser?.role === "PlatformEmployee"}
+        offices={(officesQuery.data ?? []).filter(office => office.isActive)}
       />
     </Box>
   );
@@ -270,13 +285,15 @@ function CreateDialog({
   onClose,
   onSubmit,
   submitting,
-  canCreateAdmin
+  canCreateAdmin,
+  offices,
 }: {
   open: boolean;
   onClose: () => void;
   onSubmit: (b: CreateBody) => void;
   submitting: boolean;
   canCreateAdmin: boolean;
+  offices: OfficeOption[];
 }) {
   const { t } = useTranslation();
   const [form, setForm] = useState<CreateBody>({
@@ -285,7 +302,8 @@ function CreateDialog({
     lastName: "",
     phone: "",
     password: "",
-    role: "AgencyUser"
+    role: "AgencyUser",
+    agencyOfficeId: "",
   });
 
   return (
@@ -334,6 +352,10 @@ function CreateDialog({
             <MenuItem value="AgencyOfficeAdmin">{t("roles.AgencyOfficeAdmin")}</MenuItem>
             {canCreateAdmin && <MenuItem value="AgencyAdmin">{t("roles.AgencyAdmin")}</MenuItem>}
           </SearchableTextField>
+          {form.role !== "AgencyAdmin" && canCreateAdmin && <SearchableTextField select required label="Γραφείο υπαλλήλου" value={form.agencyOfficeId ?? ""} onChange={e => setForm({ ...form, agencyOfficeId: e.target.value })} fullWidth>
+            <MenuItem value="">Επιλέξτε γραφείο…</MenuItem>
+            {offices.map(office => <MenuItem key={office.id} value={office.id}>{office.name} · {office.code}</MenuItem>)}
+          </SearchableTextField>}
           <PasswordField
             label={t("users.password")}
             value={form.password}
@@ -346,7 +368,7 @@ function CreateDialog({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>{t("common.cancel")}</Button>
-        <Button onClick={() => onSubmit(form)} variant="contained" disabled={submitting}>
+        <Button onClick={() => onSubmit({ ...form, agencyOfficeId: form.role === "AgencyAdmin" ? null : form.agencyOfficeId })} variant="contained" disabled={submitting || (form.role !== "AgencyAdmin" && canCreateAdmin && !form.agencyOfficeId)}>
           {submitting ? <CircularProgress size={18} /> : t("common.create")}
         </Button>
       </DialogActions>
@@ -354,19 +376,20 @@ function CreateDialog({
   );
 }
 
-function EditEmployeeDialog({ user, onClose, onSaved, canEditAdmin }: {
+function EditEmployeeDialog({ user, onClose, onSaved, canEditAdmin, offices }: {
   user: UserDto | null;
   onClose: () => void;
   onSaved: () => void;
   canEditAdmin: boolean;
+  offices: OfficeOption[];
 }) {
   const [form, setForm] = useState({
-    firstName: "", lastName: "", phone: "", role: "AgencyUser" as UserDto["role"], isActive: true,
+    firstName: "", lastName: "", phone: "", role: "AgencyUser" as UserDto["role"], isActive: true, agencyOfficeId: "",
   });
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (user) {
-      setForm({ firstName: user.firstName ?? "", lastName: user.lastName ?? "", phone: user.phone ?? "", role: user.role, isActive: user.isActive });
+      setForm({ firstName: user.firstName ?? "", lastName: user.lastName ?? "", phone: user.phone ?? "", role: user.role, isActive: user.isActive, agencyOfficeId: user.agencyOfficeId ?? "" });
       setError(null);
     }
   }, [user]);
@@ -377,6 +400,7 @@ function EditEmployeeDialog({ user, onClose, onSaved, canEditAdmin }: {
       phone: form.phone.trim() || null,
       role: form.role,
       isActive: form.isActive,
+      agencyOfficeId: form.role === "AgencyAdmin" ? null : form.agencyOfficeId,
     })).data,
     onSuccess: onSaved,
     onError: e => setError(extractErrorMessage(e)),
@@ -399,12 +423,16 @@ function EditEmployeeDialog({ user, onClose, onSaved, canEditAdmin }: {
             <MenuItem value="AgencyOfficeAdmin">Υποδιαχειριστής γραφείου</MenuItem>
             {canEditAdmin && <MenuItem value="AgencyAdmin">Διαχειριστής γραφείου</MenuItem>}
           </SearchableTextField>
+          {form.role !== "AgencyAdmin" && canEditAdmin && <SearchableTextField select required label="Γραφείο υπαλλήλου" value={form.agencyOfficeId} onChange={e => setForm({ ...form, agencyOfficeId: e.target.value })} fullWidth>
+            <MenuItem value="">Επιλέξτε γραφείο…</MenuItem>
+            {offices.map(office => <MenuItem key={office.id} value={office.id}>{office.name} · {office.code}</MenuItem>)}
+          </SearchableTextField>}
           <FormControlLabel control={<Switch checked={form.isActive} onChange={e => setForm({ ...form, isActive: e.target.checked })} />} label="Ενεργός χρήστης" />
         </Stack>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} color="error" variant="outlined">Ακύρωση</Button>
-        <Button variant="contained" color="success" disabled={save.isPending || !user || !form.firstName.trim() || !form.lastName.trim()} onClick={() => save.mutate()}>
+        <Button variant="contained" color="success" disabled={save.isPending || !user || !form.firstName.trim() || !form.lastName.trim() || (form.role !== "AgencyAdmin" && canEditAdmin && !form.agencyOfficeId)} onClick={() => save.mutate()}>
           {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}
         </Button>
       </DialogActions>

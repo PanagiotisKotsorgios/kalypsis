@@ -99,7 +99,6 @@ import AnalyticsIconRC from "@mui/icons-material/Analytics";
 import AccountBalanceIconRC from "@mui/icons-material/AccountBalance";
 import EmailIconRC from "@mui/icons-material/Email";
 import GroupWorkIconRC from "@mui/icons-material/GroupWork";
-import LockClockIconRC from "@mui/icons-material/LockClock";
 import { DashboardPage } from "./pages/DashboardPage";
 import { UnderMaintenancePage } from "./pages/UnderMaintenancePage";
 import { SiteMaintenancePage } from "./pages/SiteMaintenancePage";
@@ -295,13 +294,6 @@ const restoredBackOfficeItems: NavItem[] = [
   { to: "/financials?tab=receipts", labelKey: "nav.receipts", icon: <ReceiptLongIcon />, package: "BackOffice", group: "financials" },
   { to: "/financials?tab=payments", labelKey: "nav.payments", icon: <PaymentsIcon />, package: "BackOffice", group: "financials" },
   { to: "/advance-payments", labelKey: "nav.advance", icon: <AccountBalanceIcon />, package: "BackOffice", group: "financials" },
-  { to: "/bulk-receipts", labelKey: "nav.bulkReceipts", icon: <CloudUploadIcon />, package: "BackOffice", group: "financials" },
-  { to: "/auto-receipt-matching", labelKey: "nav.autoReceiptMatching", icon: <PaymentsIcon />, package: "BackOffice", group: "financials" },
-  { to: "/ageing-analysis", labelKey: "nav.ageingAnalysis", icon: <AnalyticsIcon />, package: "BackOffice", group: "financials" },
-  { to: "/journal-entries", labelKey: "nav.journalEntries", icon: <DescriptionOutlinedIcon />, package: "BackOffice", group: "financials" },
-  { to: "/commission-certificates", labelKey: "nav.commissionCertificates", icon: <ReceiptLongIcon />, package: "BackOffice", group: "financials" },
-  { to: "/carrier-ledger", labelKey: "nav.carrierLedger", icon: <AccountBalanceIcon />, package: "BackOffice", group: "financials" },
-  { to: "/statement-mailer", labelKey: "nav.statementMailer", icon: <EmailIcon />, package: "BackOffice", group: "financials" }
 ];
 
 // Exported so Platform Admin can render a read-only, faithful sidebar preview
@@ -1003,18 +995,7 @@ export default function App() {
                         "Στατιστικά ανά ομάδα",
                       ]} />
                   } />
-                  <Route path="period-locks" element={
-                    <UnderConstructionPage
-                      title="Ημερομηνίες Κλειδωμάτων"
-                      subtitle="Κλείσιμο λογιστικών περιόδων ώστε να μη γίνονται αναδρομικές αλλαγές"
-                      Icon={LockClockIconRC}
-                      points={[
-                        "Κλείδωμα οικονομικών κινήσεων έως δεδομένη ημερομηνία",
-                        "Διαφορετικά κλειδώματα ανά πυλώνα (εισπράξεις, πληρωμές, προμήθειες)",
-                        "Bypass μόνο για AgencyAdmin με audit log",
-                        "Ενσωμάτωση στα «Οικονομικά Αποτελέσματα»",
-                      ]} />
-                  } />
+                  <Route path="period-locks" element={<Navigate to="/app/agency-and-profile?tab=period-locks" replace />} />
                   <Route path="bulk-receipts" element={
                     <UnderConstructionPage
                       title="Εισαγωγή Πολλαπλών Εισπράξεων"

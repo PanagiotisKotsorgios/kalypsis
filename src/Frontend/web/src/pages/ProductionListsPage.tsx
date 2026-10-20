@@ -29,6 +29,7 @@ import { useHeaderContextMenu, type ColumnType } from "../components/TableContex
 import { PolicyDetailDrawer } from "../components/PolicyDetailDrawer";
 import { QuickFilterBar } from "../components/QuickFilterBar";
 import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
+import { FilterVisibilityPicker, useFilterVisibility, type FilterVisibilityDescriptor } from "../components/FilterVisibilityPicker";
 import { printActionSx } from "../components/actionButtonStyles";
 
 interface Carrier { id: string; name: string; isBroker?: boolean; parentCompanyId?: string | null; }
@@ -55,6 +56,13 @@ interface Result {
 }
 
 const STATUSES = ["Prospect", "Draft", "Active", "Expired", "Cancelled", "Renewed", "PendingRenewal"];
+const PRODUCTION_FILTERS: FilterVisibilityDescriptor[] = [
+  { key: "dateField", label: "Πεδίο ημερομηνίας" }, { key: "from", label: "Από" }, { key: "to", label: "Έως" },
+  { key: "carrier", label: "Ασφαλιστική" }, { key: "subcarrier", label: "Υποασφαλιστική" },
+  { key: "producer", label: "Συνεργάτης" }, { key: "type", label: "Κλάδος" }, { key: "use", label: "Χρήση οχήματος" },
+  { key: "coverage", label: "Κάλυψη" }, { key: "package", label: "Πακέτο" }, { key: "status", label: "Κατάσταση" },
+  { key: "groupBy", label: "Ομαδοποίηση" },
+];
 
 interface ParamItem {
   id: string;
@@ -87,6 +95,7 @@ export function ProductionListsPage() {
     status: "", groupBy: "carrier"
   });
   const [quickFiltersOpen, setQuickFiltersOpen] = useState(false);
+  const filterVisibility = useFilterVisibility("production-lists", PRODUCTION_FILTERS);
 
   const carriers = useQuery({
     queryKey: ["carriers-prod-list"],
@@ -544,6 +553,7 @@ export function ProductionListsPage() {
             setAll={selection.setAll}
             reset={selection.reset}
           />
+          <FilterVisibilityPicker filters={PRODUCTION_FILTERS} {...filterVisibility} />
           {/* «Απόκρυψη προμ. έδρας» checkbox removed. The ExportColumnPicker
               above already lets the operator include/exclude any column
               (bridgeComm, agency, both) for both the on-screen table and
@@ -566,6 +576,7 @@ export function ProductionListsPage() {
       </Stack>
 
       <ResponsiveFilterPanel
+        compactAt="xl"
         activeCount={[
           f.insuranceCompanyId, f.producerId, f.policyType, f.vehicleUseCategory,
           f.coverCode, f.packageCode, f.status,
@@ -602,7 +613,7 @@ export function ProductionListsPage() {
               with saved reports. «Πληρωμή» is intentionally omitted for
               now: payments live on Receipts, not Policy, so that filter
               would need a join. */}
-          <SearchableSelect
+          {filterVisibility.visible("dateField") && <SearchableSelect
             label="Πεδίο ημερομηνίας"
             value={f.dateField}
             onChange={(v) => setF({ ...f, dateField: v || "start" })}
@@ -611,12 +622,12 @@ export function ProductionListsPage() {
               { value: "issued", label: "Έκδοση από ασφαλιστική" },
               { value: "recorded", label: "Καταχώρηση στο σύστημα" },
             ]}
-          />
-          <TextField type="date" size="small" InputLabelProps={{ shrink: true }} label={t("productionList.from")}
-            value={f.from} onChange={e => setF({ ...f, from: e.target.value })} />
-          <TextField type="date" size="small" InputLabelProps={{ shrink: true }} label={t("productionList.to")}
-            value={f.to} onChange={e => setF({ ...f, to: e.target.value })} />
-          <SearchableSelect
+          />}
+          {filterVisibility.visible("from") && <TextField type="date" size="small" InputLabelProps={{ shrink: true }} label={t("productionList.from")}
+            value={f.from} onChange={e => setF({ ...f, from: e.target.value })} />}
+          {filterVisibility.visible("to") && <TextField type="date" size="small" InputLabelProps={{ shrink: true }} label={t("productionList.to")}
+            value={f.to} onChange={e => setF({ ...f, to: e.target.value })} />}
+          {filterVisibility.visible("carrier") && <SearchableSelect
             label={t("productionList.carrier")}
             value={f.insuranceCompanyId}
             onChange={(v) => setF({ ...f, insuranceCompanyId: v, policyType: "", vehicleUseCategory: "", coverCode: "", packageCode: "" })}
@@ -624,7 +635,7 @@ export function ProductionListsPage() {
             options={(carriers.data ?? []).filter(c => !c.parentCompanyId).map(c => ({
               value: c.id, label: c.name, hint: c.isBroker ? "πρακτορείο" : undefined,
             }))}
-          />
+          />}
           {(() => {
             const carrierData = carriers.data ?? [];
             const selected = carrierData.find(c => c.id === f.insuranceCompanyId);
@@ -636,7 +647,7 @@ export function ProductionListsPage() {
               : selected?.parentCompanyId
                 ? carrierData.find(c => c.id === selected.parentCompanyId)
                 : null;
-            if (!broker?.isBroker) return null;
+            if (!broker?.isBroker || !filterVisibility.visible("subcarrier")) return null;
             const subs = carrierData.filter(c => c.parentCompanyId === broker.id);
             const subValue = selected?.id !== broker.id ? selected?.id ?? "" : "";
             return (
@@ -649,53 +660,53 @@ export function ProductionListsPage() {
               />
             );
           })()}
-          <SearchableSelect
+          {filterVisibility.visible("producer") && <SearchableSelect
             label={t("productionList.producer")}
             value={f.producerId} onChange={(v) => setF({ ...f, producerId: v })}
             emptyLabel={t("common.all")}
             options={(producers.data ?? []).map(p => ({ value: p.id, label: p.name }))}
-          />
-          <SearchableSelect
+          />}
+          {filterVisibility.visible("type") && <SearchableSelect
             label={t("productionList.type")}
             value={f.policyType} onChange={(v) => setF({ ...f, policyType: v })}
             disabled={branchOptions.length === 0}
             emptyLabel={t("common.all")}
             options={branchOptions.map(o => ({ value: o.value, label: o.label }))}
-          />
-          <SearchableSelect
+          />}
+          {filterVisibility.visible("use") && <SearchableSelect
             label="Χρήση οχήματος"
             value={f.vehicleUseCategory} onChange={(v) => setF({ ...f, vehicleUseCategory: v })}
             disabled={useOptions.length === 0}
             emptyLabel={t("common.all")}
             options={useOptions.map(o => ({ value: o.value, label: o.label }))}
-          />
-          <SearchableSelect
+          />}
+          {filterVisibility.visible("coverage") && <SearchableSelect
             label="Κάλυψη"
             value={f.coverCode} onChange={(v) => setF({ ...f, coverCode: v })}
             disabled={coverageOptions.length === 0}
             emptyLabel={t("common.all")}
             options={coverageOptions.map(o => ({ value: o.value, label: o.label }))}
-          />
-          <SearchableSelect
+          />}
+          {filterVisibility.visible("package") && <SearchableSelect
             label="Πακέτο"
             value={f.packageCode} onChange={(v) => setF({ ...f, packageCode: v })}
             disabled={packageOptions.length === 0}
             emptyLabel={t("common.all")}
             options={packageOptions.map(o => ({ value: o.value, label: o.label }))}
-          />
-          <SearchableTextField size="small" label={t("productionList.status")} value={f.status}
+          />}
+          {filterVisibility.visible("status") && <SearchableTextField size="small" label={t("productionList.status")} value={f.status}
             onChange={e => setF({ ...f, status: e.target.value })}>
             <MenuItem value="">{t("common.all")}</MenuItem>
             {STATUSES.map(s => <MenuItem key={s} value={s}>{String(t(`policies.statuses.${s}`, s))}</MenuItem>)}
-          </SearchableTextField>
-          <SearchableTextField size="small" label={t("productionList.groupBy")} value={f.groupBy}
+          </SearchableTextField>}
+          {filterVisibility.visible("groupBy") && <SearchableTextField size="small" label={t("productionList.groupBy")} value={f.groupBy}
             onChange={e => setF({ ...f, groupBy: e.target.value })}>
             <MenuItem value="">{t("productionList.noGrouping")}</MenuItem>
             <MenuItem value="carrier">{t("productionList.byCarrier")}</MenuItem>
             <MenuItem value="producer">{t("productionList.byProducer")}</MenuItem>
             <MenuItem value="type">{t("productionList.byType")}</MenuItem>
             <MenuItem value="month">{t("productionList.byMonth")}</MenuItem>
-          </SearchableTextField>
+          </SearchableTextField>}
         </Box>
         <Stack direction="row" justifyContent="flex-end" mt={1.5}>
           <Button size="small"

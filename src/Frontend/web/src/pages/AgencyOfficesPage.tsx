@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  Checkbox, FormControlLabel, IconButton, Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow,
+  Checkbox, FormControlLabel, IconButton, MenuItem, Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow,
   TextField, Typography, List, ListItem, ListItemText, LinearProgress
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
@@ -64,12 +64,16 @@ interface CopyParametricsResult {
   sourceOfficeId: string; targetOfficeId: string; branchesCopied: number;
   commissionRulesCopied: number; defaultRulesCopied: number; renewalRulesCopied: number;
   bonusMalusRulesCopied: number; registerTemplatesCopied: number;
+  companyBridgesCopied: number; bridgeMappingsCopied: number; backofficeConnectionsCopied: number;
+  integrationSettingsCopied: number; customFieldsCopied: number; movementTypesCopied: number;
+  periodLocksCopied: number; sharedCompanies: number;
 }
 
 export function AgencyOfficesPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<OfficeDto | null>(null);
   const [assigning, setAssigning] = useState<OfficeDto | null>(null);
@@ -79,6 +83,7 @@ export function AgencyOfficesPage() {
   const yearStartIso = `${new Date().getFullYear()}-01-01`;
   const [overviewFilters, setOverviewFilters] = useState<OverviewFilters>({ from: yearStartIso, to: todayIso });
   const [copyTarget, setCopyTarget] = useState<OfficeDto | null>(null);
+  const [copySourceId, setCopySourceId] = useState("");
   const [managementAction, setManagementAction] = useState<"overview" | "users" | "parametrics" | null>(null);
 
   const q = useQuery({
@@ -103,11 +108,12 @@ export function AgencyOfficesPage() {
   });
   const copy = useMutation({
     mutationFn: async (target: OfficeDto) => (await api.post<CopyParametricsResult>(`/agency-offices/${target.id}/copy-parametrics`, {
-      sourceOfficeId: headquarters?.id ?? null
+      sourceOfficeId: copySourceId || headquarters?.id || null
     })).data,
     onSuccess: result => {
       setCopyTarget(null);
-      setError(`Τα παραμετρικά αντιγράφηκαν: ${result.branchesCopied} κλάδοι, ${result.commissionRulesCopied} κανόνες προμηθειών, ${result.defaultRulesCopied + result.renewalRulesCopied} αυτοματισμοί.`);
+      setError(null);
+      setSuccess(`Η αντιγραφή ολοκληρώθηκε: ${result.branchesCopied} κλάδοι, ${result.commissionRulesCopied} κανόνες προμηθειών, ${result.companyBridgesCopied} γέφυρες, ${result.bridgeMappingsCopied} αντιστοιχίσεις, ${result.integrationSettingsCopied} ρυθμίσεις διασυνδέσεων και ${result.sharedCompanies} κοινές ασφαλιστικές διαθέσιμες.`);
     },
     onError: e => setError(extractErrorMessage(e))
   });
@@ -167,6 +173,7 @@ export function AgencyOfficesPage() {
       </Stack>
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
+      {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>{success}</Alert>}
 
       {q.isLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
@@ -239,7 +246,7 @@ export function AgencyOfficesPage() {
                     </IconButton>
                     {!o.isHeadquarters && headquarters && (
                       <IconButton size="small" color="secondary" title="Αντιγραφή παραμετρικών από το κεντρικό"
-                        onClick={() => setCopyTarget(o)}>
+                        onClick={() => { setCopySourceId(headquarters?.id ?? ""); setCopyTarget(o); }}>
                         <ContentCopyIcon fontSize="small" />
                       </IconButton>
                     )}
@@ -278,7 +285,7 @@ export function AgencyOfficesPage() {
       <OfficeOverviewDialog open={!!overviewOffice} office={overviewOffice} overview={overview.data}
         loading={overview.isLoading} filters={overviewFilters} onFiltersChange={setOverviewFilters}
         onClose={() => setOverviewOffice(null)} />
-      <CopyParametricsDialog open={!!copyTarget} source={headquarters} target={copyTarget}
+      <CopyParametricsDialog open={!!copyTarget} offices={offices} sourceId={copySourceId} onSourceChange={setCopySourceId} target={copyTarget}
         pending={copy.isPending} onClose={() => setCopyTarget(null)} onConfirm={() => copyTarget && copy.mutate(copyTarget)} />
     </Box>
   );
@@ -458,21 +465,27 @@ function MetricComparison({ label, value, color, money, max }: {
   </Box>;
 }
 
-function CopyParametricsDialog({ open, source, target, pending, onClose, onConfirm }: {
-  open: boolean; source?: OfficeDto; target: OfficeDto | null; pending: boolean; onClose: () => void; onConfirm: () => void;
+function CopyParametricsDialog({ open, offices, sourceId, onSourceChange, target, pending, onClose, onConfirm }: {
+  open: boolean; offices: OfficeDto[]; sourceId: string; onSourceChange: (id: string) => void;
+  target: OfficeDto | null; pending: boolean; onClose: () => void; onConfirm: () => void;
 }) {
+  const source = offices.find(office => office.id === sourceId);
   return <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
     <DialogTitle sx={{ fontWeight: 800 }}><Stack direction="row" spacing={1} alignItems="center"><ContentCopyIcon color="secondary" />Αντιγραφή παραμετρικών</Stack></DialogTitle>
     <DialogContent dividers>
+      <TextField select fullWidth size="small" label="Γραφείο προέλευσης" value={sourceId} onChange={event => onSourceChange(event.target.value)} sx={{ mb: 2 }}>
+        {offices.filter(office => office.id !== target?.id).map(office => <MenuItem key={office.id} value={office.id}>{office.name} · {office.code}{office.isHeadquarters ? " · Κεντρικό" : ""}</MenuItem>)}
+      </TextField>
       <Typography variant="body2">
-        Θα αντιγραφούν στο <strong>{target?.name}</strong> οι κλάδοι, οι κανόνες προμηθειών,
-        οι προεπιλογές συμβολαίων, οι κανόνες ανανέωσης, οι κανόνες bonus–malus και τα πρότυπα μητρώων από το <strong>{source?.name ?? "κεντρικό γραφείο"}</strong>.
+        Θα αντιγραφούν στο <strong>{target?.name}</strong> οι κλάδοι, οι κανόνες προμηθειών και ανανέωσης,
+        τα πρότυπα, οι γέφυρες εταιρειών, οι αντιστοιχίσεις κωδικών, οι ρυθμίσεις διασυνδέσεων,
+        τα παραμετρικά πεδία, τα είδη κινήσεων και τα κλειδώματα περιόδων από το <strong>{source?.name ?? "κεντρικό γραφείο"}</strong>.
       </Typography>
-      <Alert severity="info" sx={{ mt: 1.5 }}>Οι υπάρχουσες εγγραφές δεν διπλασιάζονται και οι ασφαλιστικές εταιρείες παραμένουν κοινές για το γραφείο.</Alert>
+      <Alert severity="info" sx={{ mt: 1.5 }}>Οι ασφαλιστικές εταιρείες και οι κατάλογοί τους είναι κοινά παραμετρικά του οργανισμού και είναι ήδη διαθέσιμα σε κάθε γραφείο. Δεν αντιγράφονται πελάτες, συμβόλαια, εισπράξεις, ζημιές, αρχεία ή ιστορικό εκτελέσεων.</Alert>
     </DialogContent>
     <DialogActions>
       <Button onClick={onClose} color="error" variant="contained">Ακύρωση</Button>
-      <Button onClick={onConfirm} color="success" variant="contained" startIcon={pending ? <CircularProgress size={16} color="inherit" /> : <ContentCopyIcon />} disabled={pending || !target || !source}>
+      <Button onClick={onConfirm} color="success" variant="contained" startIcon={pending ? <CircularProgress size={16} color="inherit" /> : <ContentCopyIcon />} disabled={pending || !target || !sourceId || sourceId === target.id}>
         Αντιγραφή
       </Button>
     </DialogActions>

@@ -61,7 +61,7 @@ export function ReconciliationHubPage() {
         Όλα τα εργαλεία οικονομικής ταυτοποίησης και κατανομής προμηθειών του γραφείου σε μία σελίδα —
         από τη μηνιαία ροή του ταμείου μέχρι το ποιος έβγαλε τι, μαζί ή χωριστά με τα πινάκια υπερπρομηθειών.
       </Typography>
-      <Box sx={{ display: "grid", gap: 2.5, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(2,1fr)", lg: "repeat(4,1fr)" } }}>
+      <Box sx={{ display: "grid", gap: 2.5, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, maxWidth: 1180 }}>
         {tiles.filter((t) => isContainerVisible(t.id)).map((t) => (
           <Card key={t.to} variant="outlined" sx={{
             borderRadius: 2.5,

@@ -71,7 +71,7 @@ public class BranchConfiguration : IEntityTypeConfiguration<Branch>
         b.Property(x => x.Description).HasMaxLength(1000);
         b.Property(x => x.FieldsJson).HasColumnType("longtext");
         b.Property(x => x.CoveragesJson).HasColumnType("longtext");
-        b.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
+        b.HasIndex(x => new { x.TenantId, x.AgencyOfficeScopeId, x.Code }).IsUnique();
     }
 }
 

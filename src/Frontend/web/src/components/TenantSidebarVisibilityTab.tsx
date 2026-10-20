@@ -260,12 +260,13 @@ function SidebarVisibilityEditor({
                     </Typography>
                   )}
                   {section.items.map((item) => {
-                    const itemHidden = !item.alwaysVisible && hiddenItems.has(sidebarItemKey(item.path));
+                    const unavailable = item.available === false;
+                    const itemHidden = unavailable || (!item.alwaysVisible && hiddenItems.has(sidebarItemKey(item.path)));
                     return (
                       <ListItem
                         key={item.path}
                         disableGutters
-                        sx={{ px: group ? 1.8 : 1.1, py: 0.15, minHeight: 36, opacity: groupHidden && !item.alwaysVisible ? 0.5 : 1 }}
+                        sx={{ px: group ? 1.8 : 1.1, py: 0.15, minHeight: 36, opacity: unavailable || (groupHidden && !item.alwaysVisible) ? 0.5 : 1 }}
                       >
                         <ListItemIcon sx={{ minWidth: group ? 26 : 30, color: "text.secondary" }}>
                           {group ? <Box sx={{ width: 5, height: 5, borderRadius: "50%", bgcolor: "currentColor" }} /> : <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: "currentColor" }} />}
@@ -278,8 +279,8 @@ function SidebarVisibilityEditor({
                         />
                         <Switch
                           size="small"
-                          checked={item.alwaysVisible || !itemHidden}
-                          disabled={item.alwaysVisible}
+                          checked={!unavailable && (item.alwaysVisible || !itemHidden)}
+                          disabled={item.alwaysVisible || unavailable}
                           inputProps={{ "aria-label": `Εμφάνιση ${item.label}` }}
                           onChange={(_, checked) => onChange(sidebarItemKey(item.path), !checked)}
                         />

@@ -8,7 +8,7 @@ public class IntegrationSettingConfiguration : IEntityTypeConfiguration<Integrat
 {
     public void Configure(EntityTypeBuilder<IntegrationSetting> b)
     {
-        b.HasIndex(x => new { x.TenantId, x.Service, x.KeyName }).IsUnique();
+        b.HasIndex(x => new { x.TenantId, x.AgencyOfficeScopeId, x.Service, x.KeyName }).IsUnique();
         b.Property(x => x.Service).HasMaxLength(40).IsRequired();
         b.Property(x => x.KeyName).HasMaxLength(80).IsRequired();
         b.Property(x => x.Value).HasMaxLength(2000);
@@ -20,7 +20,7 @@ public class CustomFieldDefinitionConfiguration : IEntityTypeConfiguration<Custo
 {
     public void Configure(EntityTypeBuilder<CustomFieldDefinition> b)
     {
-        b.HasIndex(x => new { x.TenantId, x.EntityType, x.Code }).IsUnique();
+        b.HasIndex(x => new { x.TenantId, x.AgencyOfficeScopeId, x.EntityType, x.Code }).IsUnique();
         b.Property(x => x.EntityType).HasMaxLength(40).IsRequired();
         b.Property(x => x.Code).HasMaxLength(60).IsRequired();
         b.Property(x => x.Label).HasMaxLength(160).IsRequired();
@@ -47,7 +47,7 @@ public class MovementTypeConfiguration : IEntityTypeConfiguration<MovementType>
 {
     public void Configure(EntityTypeBuilder<MovementType> b)
     {
-        b.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
+        b.HasIndex(x => new { x.TenantId, x.AgencyOfficeScopeId, x.Code }).IsUnique();
         b.Property(x => x.Code).HasMaxLength(40).IsRequired();
         b.Property(x => x.Name).HasMaxLength(160).IsRequired();
         b.Property(x => x.Category).HasMaxLength(20);
@@ -84,7 +84,7 @@ public class RegisterTemplateConfiguration : IEntityTypeConfiguration<RegisterTe
 {
     public void Configure(EntityTypeBuilder<RegisterTemplate> b)
     {
-        b.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
+        b.HasIndex(x => new { x.TenantId, x.AgencyOfficeScopeId, x.Code }).IsUnique();
         b.Property(x => x.Code).HasMaxLength(40).IsRequired();
         b.Property(x => x.Name).HasMaxLength(200).IsRequired();
         b.Property(x => x.PolicyTypeFilter).HasMaxLength(20);

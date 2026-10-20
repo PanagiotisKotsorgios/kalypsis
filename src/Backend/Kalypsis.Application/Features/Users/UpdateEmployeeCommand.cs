@@ -9,7 +9,8 @@ namespace Kalypsis.Application.Features.Users;
 
 public record UpdateEmployeeRequest(
     string FirstName, string LastName,
-    string? Phone, Role Role, bool IsActive);
+    string? Phone, Role Role, bool IsActive,
+    Guid? AgencyOfficeId = null);
 
 public record UpdateEmployeeCommand(Guid Id, UpdateEmployeeRequest Body) : IRequest<UserDto>;
 
@@ -87,7 +88,7 @@ public class UpdateEmployeeHandler : IRequestHandler<UpdateEmployeeCommand, User
         {
             var officeId = _current.Role == Role.AgencyOfficeAdmin
                 ? _current.AgencyOfficeId
-                : u.AgencyOfficeScopeId ?? _current.AgencyOfficeId;
+                : c.Body.AgencyOfficeId ?? u.AgencyOfficeScopeId ?? _current.AgencyOfficeId;
             if (officeId is null)
             {
                 officeId = await _db.UserAgencyOffices
@@ -97,6 +98,10 @@ public class UpdateEmployeeHandler : IRequestHandler<UpdateEmployeeCommand, User
             }
             if (officeId is null)
                 throw new AppException("office_required", "Ο χρήστης πρέπει να ανήκει σε ενεργό γραφείο.", 400);
+            var validOffice = await _db.AgencyOffices.IgnoreQueryFilters().AnyAsync(o =>
+                o.Id == officeId && o.TenantId == tenantId && o.DeletedAt == null && o.IsActive, ct);
+            if (!validOffice)
+                throw new AppException("invalid_office", "Το επιλεγμένο γραφείο δεν είναι ενεργό ή δεν ανήκει στον οργανισμό.", 400);
             u.AgencyOfficeScopeId = officeId;
             var assignments = await _db.UserAgencyOffices
                 .Where(a => a.UserId == u.Id && a.DeletedAt == null)
@@ -128,7 +133,11 @@ public class UpdateEmployeeHandler : IRequestHandler<UpdateEmployeeCommand, User
 
         await _db.SaveChangesAsync(ct);
         return new UserDto(u.Id, u.Email, u.FirstName, u.LastName, u.Phone,
-            u.Role, u.IsActive, u.CreatedAt, u.LastLoginAt);
+            u.Role, u.IsActive, u.CreatedAt, u.LastLoginAt,
+            u.AgencyOfficeScopeId,
+            u.AgencyOfficeScopeId is Guid responseOfficeId
+                ? await _db.AgencyOffices.IgnoreQueryFilters().Where(o => o.Id == responseOfficeId).Select(o => o.Name).FirstOrDefaultAsync(ct)
+                : null);
     }
 
     private async Task<bool> IsInCurrentOffice(Kalypsis.Domain.Entities.User user, CancellationToken ct)

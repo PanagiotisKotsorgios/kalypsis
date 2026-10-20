@@ -37,15 +37,6 @@ const CATALOGS: CatalogDef[] = [
       { key: "code", label: "Κωδικός" }, { key: "name", label: "Όνομα" },
       { key: "swift", label: "SWIFT" }, { key: "accountIban", label: "IBAN" }, { key: "isActive", label: "Ενεργή" }
     ] },
-  { id: "tax-offices", label: "Δ.Ο.Υ.", endpoint: "/lookups/tax-offices",
-    usedIn: ["Καρτέλα πελάτη: πεδίο Δ.Ο.Υ.", "Έντυπα ΑΑΔΕ / myDATA"],
-    fields: [
-      { key: "code", label: "Κωδικός Δ.Ο.Υ.", required: true },
-      { key: "name", label: "Όνομα", required: true },
-      { key: "city", label: "Πόλη" },
-      { key: "isActive", label: "Ενεργή", type: "checkbox", defaultValue: true }
-    ],
-    columns: [{ key: "code", label: "Κωδ." }, { key: "name", label: "Όνομα" }, { key: "city", label: "Πόλη" }, { key: "isActive", label: "Ενεργή" }] },
   { id: "customer-categories", label: "Κατηγορίες πελατών", endpoint: "/lookups/customer-categories",
     usedIn: ["Λίστα πελατών: φίλτρο κατηγορίας", "Στατιστικά καρτέλας πελάτη"],
     fields: [
@@ -73,45 +64,6 @@ const CATALOGS: CatalogDef[] = [
       { key: "isActive", label: "Ενεργή", type: "checkbox", defaultValue: true }
     ],
     columns: [{ key: "code", label: "Κωδ." }, { key: "name", label: "Όνομα" }, { key: "isActive", label: "Ενεργή" }] },
-  { id: "nationalities", label: "Υπηκοότητες", endpoint: "/lookups/nationalities",
-    usedIn: ["Καρτέλα πελάτη: πεδίο Εθνικότητα (autocomplete)"],
-    fields: [
-      { key: "iso2", label: "ISO2", required: true },
-      { key: "name", label: "Όνομα", required: true },
-      { key: "isActive", label: "Ενεργή", type: "checkbox", defaultValue: true }
-    ],
-    columns: [{ key: "iso2", label: "ISO" }, { key: "name", label: "Όνομα" }, { key: "isActive", label: "Ενεργή" }] },
-  { id: "cities", label: "Πόλεις", endpoint: "/lookups/cities",
-    usedIn: ["Καρτέλα πελάτη / συνεργάτη: πεδίο πόλης", "Παράρτημα διεύθυνσης σε έντυπα"],
-    fields: [
-      { key: "name", label: "Όνομα", required: true },
-      { key: "region", label: "Νομός" },
-      { key: "postalCode", label: "ΤΚ" },
-      { key: "displayOrder", label: "Σειρά", type: "number", defaultValue: 0 }
-    ],
-    columns: [{ key: "name", label: "Όνομα" }, { key: "region", label: "Νομός" }, { key: "postalCode", label: "ΤΚ" }] },
-  { id: "occupations", label: "Επαγγέλματα", endpoint: "/lookups/occupations",
-    usedIn: ["Καρτέλα πελάτη: πεδίο Επάγγελμα / κλάδος (autocomplete)"],
-    fields: [
-      { key: "code", label: "Κωδικός", required: true },
-      { key: "name", label: "Όνομα", required: true },
-      { key: "category", label: "Κατηγορία" },
-      { key: "isActive", label: "Ενεργό", type: "checkbox", defaultValue: true }
-    ],
-    columns: [{ key: "code", label: "Κωδ." }, { key: "name", label: "Όνομα" }, { key: "category", label: "Κατηγορία" }, { key: "isActive", label: "Ενεργό" }] },
-  { id: "cancellation-reasons", label: "Λόγοι ακύρωσης", endpoint: "/cancellation-reasons",
-    usedIn: ["Ακυρώσεις συμβολαίων: λόγος ακύρωσης + αυτόματο πιστωτικό / επιστροφή"],
-    fields: [
-      { key: "code", label: "Κωδικός", required: true },
-      { key: "name", label: "Όνομα", required: true },
-      { key: "triggersRefund", label: "Επιστροφή", type: "checkbox", defaultValue: true },
-      { key: "triggersCreditNote", label: "Πιστωτικό", type: "checkbox", defaultValue: false },
-      { key: "displayOrder", label: "Σειρά", type: "number", defaultValue: 0 },
-      { key: "isActive", label: "Ενεργός", type: "checkbox", defaultValue: true }
-    ],
-    columns: [{ key: "code", label: "Κωδ." }, { key: "name", label: "Όνομα" },
-              { key: "triggersRefund", label: "Επιστροφή" }, { key: "triggersCreditNote", label: "Πιστωτικό" },
-              { key: "isActive", label: "Ενεργός" }] }
 ];
 
 export function ReferenceCatalogsPage() {
