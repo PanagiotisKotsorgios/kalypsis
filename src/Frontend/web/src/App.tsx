@@ -162,7 +162,7 @@ import { TenantDetailPage } from "./pages/TenantDetailPage";
 import { PlatformRegistrationsPage } from "./pages/PlatformRegistrationsPage";
 // PlatformBillingConfigPage + PlatformInvoicesPage are now embedded as
 // tabs inside PlatformFinancePage — imported there, not directly here.
-import { CommissionRunsPage } from "./pages/CommissionRunsPage";
+import { COMMISSION_SETTLEMENTS_URL } from "./pages/producerStatementNavigation";
 import { QuoteBuilderPage } from "./pages/QuoteBuilderPage";
 import { WorkflowRulesPage } from "./pages/WorkflowRulesPage";
 import { ChurnDashboardPage } from "./pages/ChurnDashboardPage";
@@ -1158,7 +1158,7 @@ export default function App() {
                   <Route path="over-commission-bridges" element={<OverCommissionBridgesPage />} />
                   <Route path="goals" element={<PackageGate package="Intelligence"><ProductionGoalsPage /></PackageGate>} />
                   <Route path="production-stats" element={<ProductionStatsPage />} />
-                  <Route path="commission-runs" element={<CommissionRunsPage />} />
+                  <Route path="commission-runs" element={<Navigate to={COMMISSION_SETTLEMENTS_URL} replace />} />
                   <Route path="company-bridges" element={<Navigate to="/app/carrier-bridges-hub" replace />} />
                   <Route path="insurance-companies" element={<InsuranceCompaniesPage />} />
                   <Route path="companies-agencies" element={<CompaniesAndAgenciesPage />} />

@@ -44,7 +44,7 @@ interface LineDto {
 interface CompanyLite { id: string; name: string; isBroker?: boolean; parentCompanyId?: string | null; }
 interface ProducerLite { id: string; name: string; }
 
-export function CommissionRunsPage() {
+export function CommissionRunsPage({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [err, setErr] = useState<string | null>(null);
@@ -143,12 +143,12 @@ export function CommissionRunsPage() {
 
   return (
     <Box>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
-        <Box>
+      <Stack direction="row" justifyContent={embedded ? "flex-end" : "space-between"} alignItems="center" mb={embedded ? 1 : 3} flexWrap="wrap" gap={2}>
+        {!embedded && <Box>
           <Typography variant="h4" sx={{ fontWeight: 800 }}>{t("commissionRuns.title")}</Typography>
           <Typography color="text.secondary">{t("commissionRuns.subtitle")}</Typography>
-        </Box>
-        <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>
+        </Box>}
+        <Button startIcon={<AddIcon />} variant="contained" size={embedded ? "small" : "large"} onClick={() => setCreateOpen(true)}>
           {t("commissionRuns.create")}
         </Button>
       </Stack>
@@ -323,9 +323,9 @@ export function CommissionRunsPage() {
       {rowMenu.menu}
 
       <CreateDialog open={createOpen} onClose={() => setCreateOpen(false)}
-        onCreated={(id) => { void qc.invalidateQueries({ queryKey: ["commission-runs"] }); setCreateOpen(false); setDetailId(id); }} />
+        onCreated={(id) => { void qc.invalidateQueries({ queryKey: ["commission-runs"] }); void qc.invalidateQueries({ queryKey: ["reports-producer-statement"] }); setCreateOpen(false); setDetailId(id); }} />
       <DetailDialog runId={detailId} onClose={() => setDetailId(null)}
-        onChanged={() => void qc.invalidateQueries({ queryKey: ["commission-runs"] })} />
+        onChanged={() => { void qc.invalidateQueries({ queryKey: ["commission-runs"] }); void qc.invalidateQueries({ queryKey: ["reports-producer-statement"] }); }} />
     </Box>
   );
 }

@@ -153,7 +153,6 @@ const POLICY_IMPORT_COLUMNS = [
   { key: "premium", label: "Μικτό ασφάλιστρο", required: true, example: "250.00" },
   { key: "netPremium", label: "Καθαρά ασφάλιστρα", example: "" },
   { key: "specialCommissionPercent", label: "Προμήθεια συνεργάτη (%)", example: "10" },
-  { key: "vatAmount", label: "Φόρος ασφαλίστρων (€)", example: "" },
   { key: "currency", label: "Νόμισμα", example: "EUR" },
   { key: "status", label: "Κατάσταση", example: "Active" },
   { key: "paidDirectlyToCarrier", label: "Πληρώθηκε απευθείας στην εταιρεία (true/false)", example: "false" },
@@ -1379,9 +1378,10 @@ function PolicyFormDialog({
       // not exist on CreatePolicyBody/UpdatePolicyBody.  The API deliberately
       // rejects unmapped JSON properties, so spreading the form made every
       // manual policy create fail with a generic 400 validation response.
+      const existingTax = policy ? (await api.get<{ vatAmount: number | null }>(`/policies/${policy.id}/detail`)).data.vatAmount : null;
       const taxAmount = form.insuranceTaxAmount !== ""
         ? Number(form.insuranceTaxAmount)
-        : (form.netPremium !== "" && form.premium > 0
+        : policy ? existingTax : (form.netPremium !== "" && form.premium > 0
           ? Math.max(0, form.premium - Number(form.netPremium)) : null);
       const body = {
         insuranceCompanyId: form.insuranceCompanyId,
@@ -1617,9 +1617,6 @@ function PolicyFormDialog({
             <TextField type="number" label="Προμήθεια συνεργάτη %" value={form.specialCommissionPercent}
               onChange={e => setForm({ ...form, specialCommissionPercent: e.target.value })}
               helperText="Κενό = χρήση κανόνα προμηθειών" fullWidth />
-            <TextField type="number" label="Φόρος ασφαλίστρων €" value={form.insuranceTaxAmount}
-              onChange={e => setForm({ ...form, insuranceTaxAmount: e.target.value })}
-              helperText="Όχι ΦΠΑ — ειδικός φόρος ασφαλίστρων" fullWidth />
           </Stack>
           {(() => {
             const gross = Number(form.premium) || 0;
@@ -1627,10 +1624,9 @@ function PolicyFormDialog({
             const tax = gross > 0 && net > 0 ? Math.max(0, gross - net) : null;
             const producerPct = Number(form.specialCommissionPercent);
             const producerAmount = form.producerId && tax !== null && producerPct > 0 ? net * producerPct / 100 : null;
-            return (tax !== null || producerAmount !== null) ? (
+            return producerAmount !== null ? (
               <Alert severity="info">
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={3}>
-                  {tax !== null && <span><strong>Φόρος ασφαλίστρων:</strong> {tax.toFixed(2)} €</span>}
                   {producerAmount !== null && <span><strong>Προμήθεια συνεργάτη:</strong> {producerAmount.toFixed(2)} € ({producerPct.toFixed(2)}% επί καθαρών)</span>}
                   {producerAmount !== null && <span><strong>Έδρα:</strong> υπολογίζεται από το συνολικό ποσοστό ασφαλιστικής μείον την προμήθεια συνεργάτη.</span>}
                 </Stack>

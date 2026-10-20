@@ -10,10 +10,8 @@ import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import PrintIcon from "@mui/icons-material/Print";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { ExportFormatMenu } from "../components/ExportFormatMenu";
-import CalculateIcon from "@mui/icons-material/Calculate";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Link as RouterLink } from "react-router-dom";
 import { api } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { money, date } from "../utils/format";
@@ -291,7 +289,6 @@ export function ProductionListsPage() {
     { key: "status",         label: t("productionList.status"),        render: r => r.status, text: r => r.status, defaultOff: true },
     { key: "gross",          label: t("productionList.col.gross"),    align: "right", render: r => <Box component="span" sx={{ fontWeight: 700 }}>{money(r.gross)}</Box>, text: r => money(r.gross) },
     { key: "net",            label: t("productionList.col.net"),      align: "right", render: r => money(r.net),  text: r => money(r.net) },
-    { key: "vat",            label: "Φόρος ασφαλίστρων",      align: "right", render: r => money(r.vat), text: r => money(r.vat) },
     { key: "bridgeComm",     label: "Συνολική προμ. έδρας πριν την κατανομή", align: "right", render: r => <Box component="span" sx={{ color: "info.main" }}>{money(r.incomingAgencyCommission)} ({r.incomingAgencyCommissionPercent.toFixed(1)}%)</Box>, text: r => `${money(r.incomingAgencyCommission)} (${r.incomingAgencyCommissionPercent.toFixed(1)}%)` },
     { key: "partnerPct",     label: t("productionList.col.partnerPct"), align: "right", render: r => <Box component="span" sx={{ color: "text.secondary" }}>{r.partnerCommissionPercent.toFixed(1)}%</Box>, text: r => `${r.partnerCommissionPercent.toFixed(1)}%` },
     { key: "partner",        label: t("productionList.col.partner"),  align: "right", render: r => <Box component="span" sx={{ color: "warning.main" }}>{money(r.partnerCommission)}</Box>, text: r => money(r.partnerCommission) },
@@ -343,28 +340,7 @@ export function ProductionListsPage() {
   // localStorage is left as-is (harmless dead data) — no migration.
   const hideAgencyCols = false;
 
-  // Data-driven auto-hide for ΦΠΑ: bridge-imported policies come with a
-  // real VAT value from the carrier, manual policies usually don't. If
-  // no visible row carries a non-zero VAT, drop the column entirely
-  // regardless of the picker — otherwise it renders «0,00 €» in every
-  // cell for no reason. When any row has a real VAT (data «came from
-  // γέφυρες or something») OR the operator has explicitly enabled it in
-  // the picker, keep it visible.
-  const hasAnyVat = useMemo(
-    () => (q.data?.rows ?? []).some(r => (r.vat ?? 0) > 0),
-    [q.data?.rows]
-  );
-  const vatExplicitlyOn = selection.activeKeys.includes("vat");
-
   const visibleColumns = columns.filter(c => {
-    if (c.key === "vat") {
-      // ΦΠΑ: user's explicit picker choice wins. When the picker is at
-      // its default (defaultOff), still surface it if the current data
-      // actually has VAT values — that signals data «came from γέφυρες
-      // or something». If neither, hide it so we don't render 0,00 € in
-      // every row.
-      return vatExplicitlyOn || hasAnyVat;
-    }
     if (!selection.activeKeys.includes(c.key)) return false;
     if (hideAgencyCols && (c.key === "bridgeComm" || c.key === "agency")) return false;
     return true;
@@ -590,9 +566,6 @@ export function ProductionListsPage() {
               is still reachable via /app/production-report (old bookmarks
               keep working); it's no longer a standalone entry point in
               the UI to reduce header clutter. */}
-          <Button component={RouterLink} to="/app/commission-runs" variant="outlined" color="secondary" startIcon={<CalculateIcon />}>
-            Εκκαθαρίσεις προμηθειών
-          </Button>
           <ExportColumnPicker
             columns={pickerDescriptors}
             off={selection.off}
@@ -771,11 +744,10 @@ export function ProductionListsPage() {
         <>
           {/* Grand totals strip */}
           <Card variant="outlined" sx={{ p: .65, mb: 1, bgcolor: "#e6edf5", borderColor: "#d5e0ec", boxShadow: "none" }}>
-            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(3, minmax(0, 1fr))", lg: "repeat(6, minmax(0, 1fr))" }, gap: .65 }}>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(3, minmax(0, 1fr))", lg: "repeat(5, minmax(0, 1fr))" }, gap: .65 }}>
               <Kpi label={t("productionList.kpi.policies")} value={q.data.grand.count} />
               <Kpi label={t("productionList.kpi.gross")} value={money(q.data.grand.gross)} tone="info" />
               <Kpi label={t("productionList.kpi.net")} value={money(q.data.grand.net)} tone="success" />
-              <Kpi label="Φόρος ασφαλίστρων" value={money(q.data.grand.vat)} tone="warning" />
               <Kpi label={t("productionList.kpi.partnerComm")} value={money(q.data.grand.partnerCommission)} color="error.dark" tone="warning" />
               <Kpi label={t("productionList.kpi.agencyComm")} value={money(q.data.grand.agencyCommission)} color="success.main" tone="success" />
             </Box>

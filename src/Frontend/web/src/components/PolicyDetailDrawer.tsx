@@ -704,7 +704,6 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                     <PolicySummarySection title="Ασφάλιστρα & ανάλυση">
                       <PolicySummaryLine label={t("policyDetail.premium")} value={`${p.premium.toFixed(2)} ${p.currency}`} mono />
                       {p.netPremium !== null && <PolicySummaryLine label="Καθαρά ασφάλιστρα" value={`${p.netPremium.toFixed(2)} ${p.currency}`} mono />}
-                      {p.vatAmount !== null && <PolicySummaryLine label="Φόρος ασφαλίστρων" value={`${p.vatAmount.toFixed(2)} ${p.currency}`} mono />}
                       {p.stampDutyAmount !== null && <PolicySummaryLine label="Χαρτόσημο" value={`${p.stampDutyAmount.toFixed(2)} ${p.currency}`} mono />}
                       {p.insuranceContributionAmount !== null && <PolicySummaryLine label="Ασφαλιστική εισφορά" value={`${p.insuranceContributionAmount.toFixed(2)} ${p.currency}`} mono />}
                       {p.otherChargesAmount !== null && <PolicySummaryLine label="Λοιπές επιβαρύνσεις" value={`${p.otherChargesAmount.toFixed(2)} ${p.currency}`} mono />}
@@ -1408,13 +1407,12 @@ function ChangeProducerDialog({ open, onClose, policyId, policyNumber, currentPr
 function TaxBreakdown({ p }: { p: PolicyDetail }) {
   const rows: { label: string; value: number | null }[] = [
     { label: "Καθαρό ασφάλιστρο", value: p.netPremium },
-    { label: "Φόρος ασφαλίστρων", value: p.vatAmount },
     { label: "Χαρτόσημο",          value: p.stampDutyAmount },
     { label: "Ασφαλιστική εισφορά", value: p.insuranceContributionAmount },
     { label: "Λοιπές επιβαρύνσεις", value: p.otherChargesAmount },
   ].filter(r => r.value !== null && r.value !== 0);
   if (rows.length === 0) return null;
-  const breakdownSum = rows.reduce((s, r) => s + (r.value ?? 0), 0);
+  const breakdownSum = rows.reduce((s, r) => s + (r.value ?? 0), 0) + (p.vatAmount ?? 0);
   const grossMatches = Math.abs(breakdownSum - p.premium) < 0.02;
   return (
     <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, p: 1.5 }}>
@@ -3232,7 +3230,7 @@ export function PolicyProfileFields({session, values, policy, companies, custome
     {field("startDate","Έναρξη",{type:"date"})}{field("endDate","Λήξη",{type:"date"})}
     <ProfileEditableField label="Διάρκεια" value={contractDurationLabel(policy.startDate,policy.endDate)} />
     {field("premium","Μεικτό ασφάλιστρο",{type:"number"})}{field("netPremium","Καθαρό ασφάλιστρο",{type:"number"})}
-    {field("vatAmount","Φόρος ασφαλίστρων",{type:"number"})}{field("currency","Νόμισμα")}
+    {field("currency","Νόμισμα")}
     <ProfileEditableField label="Συνεργάτης" value={policy.producerName} />
     {field("applicationNumber","Αριθμός αίτησης")}{field("issuedAt","Ημερομηνία έκδοσης",{type:"date"})}
     {field("contractPartyCustomerId","Συμβαλλόμενος",{options:[{value:"",label:"Ίδιος με τον ασφαλιζόμενο"}, ...customers.map(row=>({value:row.id,label:row.companyName || [row.firstName,row.lastName].filter(Boolean).join(" ")}))]})}

@@ -6,6 +6,12 @@ import {
 } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
+import CalculateIcon from "@mui/icons-material/Calculate";
+import { useSearchParams } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
+import { DetailProfileTabs } from "../components/profile/DetailProfileTabs";
+import { CommissionRunsPage } from "./CommissionRunsPage";
+import { producerStatementTab, type ProducerStatementTab } from "./producerStatementNavigation";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { SearchableSelect } from "../components/SearchableSelect";
@@ -46,6 +52,38 @@ const eur = (n: number) => `€${n.toLocaleString("el-GR", { minimumFractionDigi
  * Print-friendly layout; a CSV download hands the accountant a spreadsheet.
  */
 export function ProducerStatementPage() {
+  const [params, setParams] = useSearchParams();
+  const { user } = useAuth();
+  const tab = producerStatementTab(params);
+  const [openedSettlements, setOpenedSettlements] = useState(tab === "settlements");
+  useEffect(() => { if (tab === "settlements") setOpenedSettlements(true); }, [tab]);
+  // Mirror the existing API's AgencyAdmin policy; merging screens must not grant access.
+  const canReadSettlements = !!user && ["AgencyAdmin", "PlatformAdmin", "PlatformEmployee"].includes(user.role);
+  const changeTab = (next: ProducerStatementTab) => {
+    const search = new URLSearchParams(params);
+    if (next === "settlements") search.set("tab", next); else search.delete("tab");
+    setParams(search);
+  };
+  return <ProducerStatementWorkspace tab={tab} onChange={changeTab}
+    statement={<ProducerStatementReport embedded />}
+    settlements={canReadSettlements ? ((openedSettlements || tab === "settlements") ? <CommissionRunsPage embedded /> : null)
+      : <Alert severity="warning">Δεν έχετε δικαίωμα πρόσβασης στις εκκαθαρίσεις προμηθειών.</Alert>} />;
+}
+
+export function ProducerStatementWorkspace({ tab, onChange, statement, settlements }: {
+  tab: ProducerStatementTab; onChange: (tab: ProducerStatementTab) => void; statement: React.ReactNode; settlements: React.ReactNode;
+}) {
+  return <Box>
+    <Stack direction="row" spacing={1} alignItems="center" mb={.75}><ReceiptLongIcon color="primary" /><Typography variant="h4" fontWeight={800}>Εκκαθαριστικό συνεργάτη & προμήθειες</Typography></Stack>
+    <DetailProfileTabs value={tab === "settlements" ? 1 : 0} onChange={value => onChange(value === 1 ? "settlements" : "statement")} items={[
+      {label:"Κατάσταση συνεργάτη",icon:<ReceiptLongIcon />}, {label:"Εκκαθαρίσεις προμηθειών",icon:<CalculateIcon />},
+    ]} />
+    <Box role="tabpanel" aria-label="Κατάσταση συνεργάτη" hidden={tab !== "statement"}>{statement}</Box>
+    <Box role="tabpanel" aria-label="Εκκαθαρίσεις προμηθειών" hidden={tab !== "settlements"}>{settlements}</Box>
+  </Box>;
+}
+
+function ProducerStatementReport({ embedded = false }: { embedded?: boolean }) {
   const y = new Date().getFullYear();
   const [from, setFrom] = useState(`${y}-01-01`);
   const [to, setTo] = useState(`${y}-12-31`);
@@ -93,10 +131,10 @@ export function ProducerStatementPage() {
 
   return (
     <Box>
-      <Stack direction="row" alignItems="center" spacing={1} mb={1}>
+      {!embedded && <Stack direction="row" alignItems="center" spacing={1} mb={1}>
         <ReceiptLongIcon />
         <Typography variant="h4" sx={{ fontWeight: 800 }}>Εκκαθαριστικό Συνεργάτη</Typography>
-      </Stack>
+      </Stack>}
       <Typography color="text.secondary" sx={{ mb: 2 }}>
         Λεπτομερής κατάσταση για κάθε συνεργάτη — συμβόλαια, δεδουλευμένα, παρακρατήσεις,
         πληρωμές και υπόλοιπο.

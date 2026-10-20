@@ -31,7 +31,7 @@ const PAGE_COMMANDS: { label: string; to: string }[] = [
   { label: "Γέφυρες", to: "/app/carrier-bridges" },
   { label: "Παραμετροποίηση προμηθειών", to: "/app/commission-rules" },
   { label: "Λίστες παραγωγής", to: "/app/production-lists" },
-  { label: "Εκκαθαρίσεις προμηθειών", to: "/app/commission-runs" },
+  { label: "Εκκαθαρίσεις προμηθειών", to: "/app/producer-statement?tab=settlements" },
   { label: "Ταυτοποιήσεις & Καταμερισμοί", to: "/app/reconciliation-hub" },
   { label: "Ταυτοποίηση Οικονομικών", to: "/app/reconciliation-dashboard" },
   { label: "Ταυτοποίηση Συνεργατών", to: "/app/producer-reconciliation" },
