@@ -31,6 +31,10 @@ import { exportActionSx } from "../components/actionButtonStyles";
 import { type CarrierProfile, type CompanyDto } from "./InsuranceCompaniesPage";
 import { type OfficeDto } from "./AgencyOfficesPage";
 import { contractDurationLabel } from "../utils/contractDuration";
+import { DetailProfileTabs } from "../components/profile/DetailProfileTabs";
+import { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback, profileDialogPaperSx, profileFieldGridSx, useProfileFieldEditor } from "../components/profile/ProfileFieldEditor";
+import { customerFieldError } from "../components/customer/customerValidation";
+import { persistProfileWrites } from "../components/profile/profileDrafts";
 import {
   Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart,
   ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis,
@@ -246,7 +250,7 @@ export default function ProductionCompaniesAgenciesPage() {
         onClose={() => setOfficeEditor(undefined)}
         onSaved={(saved) => { void qc.invalidateQueries({ queryKey: ["production-agency-offices-directory"] }); void qc.invalidateQueries({ queryKey: ["agency-offices"] }); setOfficeEditor(undefined); if (saved) setOfficeProfile(saved); }} />
       <ProductionCompanyProfileDialog open={!!companyProfile} company={companyProfile} startEditing={companyProfileEditing} onClose={() => { setCompanyProfile(null); setCompanyProfileEditing(false); }} onChanged={saved => { setCompanyProfile(saved); setCompanyProfileEditing(false); void qc.invalidateQueries({ queryKey: ["production-companies-directory"] }); void qc.invalidateQueries({ queryKey: ["insurance-companies"] }); }} />
-      <ProductionOfficeProfileDialog open={!!officeProfile} office={officeProfile} onClose={() => setOfficeProfile(null)} onEdit={office => { setOfficeProfile(null); setOfficeEditor(office); }} />
+      <ProductionOfficeProfileDialog open={!!officeProfile} office={officeProfile} onClose={() => setOfficeProfile(null)} onChanged={setOfficeProfile} />
       <Dialog open={!!companyDeleteTarget} onClose={() => setCompanyDeleteTarget(null)} maxWidth="xs" fullWidth>
         <DialogTitle>Διαγραφή ασφαλιστικής εταιρείας</DialogTitle>
         <DialogContent><Typography>Είστε σίγουρος ότι θέλετε να διαγράψετε την εταιρεία «{companyDeleteTarget?.name}»; Η ενέργεια θα την αποσύρει από το γραφείο.</Typography></DialogContent>
@@ -676,7 +680,7 @@ const blankCompanyEditorForm = (): CompanyEditorForm => ({
 // holds workspace-only fields (address/social links), so never spread the
 // complete form into the carrier endpoint.  Keep this payload in one place so
 // create, edit and inline profile edit cannot drift apart again.
-const toCompanyApiPayload = (form: CompanyEditorForm, options?: {
+export const toCompanyApiPayload = (form: CompanyEditorForm, options?: {
   createBridge?: boolean;
   bridgeName?: string | null;
   bridgeAutoSync?: boolean;
@@ -838,31 +842,16 @@ function ProductionOfficeQuickCreateDialog({ open, onClose, onSaved }: {
 }
 
 const PROFILE_TAB_LABELS = [
-  { label: "Σύνοψη", icon: <InfoOutlinedIcon fontSize="small" /> },
+  { label: "Γενικά", icon: <InfoOutlinedIcon fontSize="small" /> },
   { label: "Παραγωγή & συμβόλαια", icon: <DescriptionIcon fontSize="small" /> },
   { label: "Σύνδεση & παραμετρικά", icon: <TuneIcon fontSize="small" /> },
   { label: "Επικοινωνία", icon: <ContactPhoneIcon fontSize="small" /> },
   { label: "Έγγραφα & πεδία", icon: <FolderIcon fontSize="small" /> },
 ];
 
-function WorkspaceProfileTabs({ value, onChange }: { value: number; onChange: (value: number) => void }) {
-  return <Tabs value={value} onChange={(_, next: number) => onChange(next)} variant="standard" sx={{
-    position: "sticky", top: 0, zIndex: 4, mb: 2, px: .5, py: .5,
-    border: "1px solid", borderColor: "divider", borderRadius: 2,
-    bgcolor: "background.paper", boxShadow: "0 3px 10px rgba(15,23,42,.12)",
-    overflow: "visible", "& .MuiTabs-scroller": { overflow: "visible !important" },
-    "& .MuiTabs-flexContainer": { gap: .75, flexWrap: "wrap" },
-    "& .MuiTabs-indicator": { display: "none" },
-    "& .MuiTab-root": {
-      minHeight: 54, minWidth: { xs: 132, md: 168 }, px: 1.5, py: .75,
-      border: "1px solid #263238", borderRadius: 1.5,
-      background: "linear-gradient(180deg, #e5e7eb 0%, #b8c0c8 100%) !important",
-      color: "#111827 !important", borderColor: "#263238 !important", opacity: "1 !important", textTransform: "none", fontWeight: 750,
-      transition: "background .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease",
-      "&:hover": { background: "linear-gradient(180deg, #d4d8de 0%, #9ca6b1 100%) !important", color: "#0b2545 !important", borderColor: "#111827 !important", transform: "none" },
-      "&.Mui-selected": { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", color: "#fff !important", borderColor: "#062f63 !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" },
-    },
-  }}>{PROFILE_TAB_LABELS.map(item => <Tab key={item.label} icon={item.icon} iconPosition="start" label={item.label} />)}</Tabs>;
+export function WorkspaceProfileTabs({ value, onChange, statistics = false }: { value: number; onChange: (value: number) => void; statistics?: boolean }) {
+  const items = statistics ? [...PROFILE_TAB_LABELS, { label: "Στατιστικά", icon: <BarChartIcon fontSize="small" /> }] : PROFILE_TAB_LABELS;
+  return <DetailProfileTabs value={value} onChange={onChange} items={items} />;
 }
 
 function ProductionCompanyEditorDialog({ open, item, onClose, onSaved }: {
@@ -945,13 +934,25 @@ function ProductionCompanyEditorDialog({ open, item, onClose, onSaved }: {
   </Dialog>;
 }
 
+const COMPANY_CORE_FIELDS = [
+  ["name", "Επωνυμία"], ["code", "Κωδικός"], ["afmVat", "ΑΦΜ / VAT"], ["country", "Χώρα"], ["agentCode", "Κωδικός συνεργασίας"],
+  ["website", "Ιστοσελίδα"], ["contactName", "Υπεύθυνος"], ["contactEmail", "Email"], ["contactPhone", "Τηλέφωνο"], ["isActive", "Κατάσταση"], ["notes", "Σημειώσεις"],
+] as const;
+
+export function CompanyProfileFields({ session, contact = false, isBroker = false }: { session: ReturnType<typeof useProfileFieldEditor>; contact?: boolean; isBroker?: boolean }) {
+  const fields = contact ? COMPANY_CORE_FIELDS.filter(([field]) => ["contactName", "contactEmail", "contactPhone", "notes"].includes(field)) : COMPANY_CORE_FIELDS;
+  return <Box sx={profileFieldGridSx}>{fields.map(([field, label]) =>
+    <ProfileEditableField key={field} field={field} label={label} session={session}
+      options={field === "isActive" ? [{ value: "true", label: "Ενεργή" }, { value: "false", label: "Ανενεργή" }] : undefined}
+      link={field === "website" ? session.values[field] : field === "contactEmail" && session.values[field] ? "mailto:" + session.values[field] : field === "contactPhone" && session.values[field] ? "tel:" + session.values[field] : undefined}
+      type={field === "contactEmail" ? "email" : "text"} multiline={field === "notes"}
+      validate={value => customerFieldError(field === "contactEmail" ? "email" : field === "contactPhone" ? "phone" : field, value)} />
+  )}{!contact && <ProfileEditableField label="Τύπος" value={isBroker ? "Πρακτορείο" : "Ασφαλιστική εταιρεία"} />}</Box>;
+}
+
 function ProductionCompanyProfileDialog({ open, company, startEditing = false, onClose, onChanged }: { open: boolean; company: CompanyDto | null; startEditing?: boolean; onClose: () => void; onChanged?: (saved: CompanyDto) => void }) {
   const [tab, setTab] = useState(0);
-  const [editing, setEditing] = useState(startEditing);
-  const [draft, setDraft] = useState<CompanyEditorForm>(blankCompanyEditorForm);
   const [inlineError, setInlineError] = useState<string | null>(null);
-  const [fieldDrafts, setFieldDrafts] = useState<Record<string, string>>({});
-  const [savingFieldId, setSavingFieldId] = useState<string | null>(null);
   const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
   const [fieldEntryOpen, setFieldEntryOpen] = useState(false);
   const [newField, setNewField] = useState({ label: "", key: "", fieldType: "text", value: "" });
@@ -976,38 +977,56 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
   const date = (value: string | null) => value ? new Date(value).toLocaleDateString("el-GR") : "—";
   useEffect(() => {
     setTab(0);
-    setEditing(startEditing);
     setInlineError(null);
     setLogoLocalPreview(null);
-  }, [company?.id, open, startEditing]);
+  }, [company?.id, open]);
   useEffect(() => () => {
     if (logoQ.data) URL.revokeObjectURL(logoQ.data);
-    if (logoLocalPreview) URL.revokeObjectURL(logoLocalPreview);
-  }, [logoQ.data, logoLocalPreview]);
-  useEffect(() => {
-    if (!p) return;
-    setDraft({ ...blankCompanyEditorForm(), name: p.name, code: p.code, country: p.country, website: p.website, isActive: p.isActive, isBroker: Boolean(p.isBroker), agentCode: p.agentCode, contactName: p.contactName, contactEmail: p.contactEmail, contactPhone: p.contactPhone, afmVat: p.afmVat, notes: p.notes });
-  }, [p]);
-  useEffect(() => {
-    if (!workspace) return;
-    setFieldDrafts(Object.fromEntries(workspace.fields.map(field => [field.id, field.value ?? ""])));
-  }, [workspace]);
-  const updateDraft = (patch: Partial<CompanyEditorForm>) => setDraft(current => ({ ...current, ...patch }));
-  const save = useMutation({
-    mutationFn: async () => {
-      if (!company) throw new Error("Δεν επιλέχθηκε εταιρεία.");
-      const body = toCompanyApiPayload(draft, {
-        createBridge: false,
-        bridgeName: null,
-        bridgeAutoSync: false,
-        bridgeConfigJson: null,
-        installZeroCommissionDefaults: false,
-      });
-      return (await api.put<CompanyDto>(`/insurance-companies/${company.id}`, body)).data;
+  }, [logoQ.data]);
+  useEffect(() => () => { if (logoLocalPreview) URL.revokeObjectURL(logoLocalPreview); }, [logoLocalPreview]);
+  const baseKeys = COMPANY_CORE_FIELDS.map(([key]) => key);
+  const values = Object.fromEntries([
+    ...baseKeys.map(key => [key, String(p?.[key] ?? "")]),
+    ...(workspace?.fields ?? []).map(field => ["custom:" + field.id, field.value ?? ""]),
+  ]);
+  const refreshProfile = () => {
+    void qc.invalidateQueries({ queryKey: ["production-company-profile", company?.id] });
+    void qc.invalidateQueries({ queryKey: ["production-company-workspace", company?.id] });
+    void qc.invalidateQueries({ queryKey: ["production-companies-directory"] });
+    void qc.invalidateQueries({ queryKey: ["insurance-companies"] });
+  };
+  const session = useProfileFieldEditor({
+    sessionKey: open ? company?.id ?? "" : "", initialEditing: startEditing, values, onClose, refresh: refreshProfile,
+    write: async (changes, accept) => {
+      if (!company || !p) throw new Error("Δεν έχει φορτωθεί η καρτέλα εταιρείας.");
+      await persistProfileWrites(changes, async primaryChanges => {
+        const primary = Object.entries(primaryChanges);
+        for (const [key, value] of primary) {
+          if (!baseKeys.some(field => field === key)) throw new Error("Το πεδίο εταιρείας δεν υποστηρίζεται.");
+          if (key === "isActive" && !["true", "false"].includes(value)) throw new Error("Επιλέξτε Ενεργή ή Ανενεργή.");
+          const error = customerFieldError(key === "contactEmail" ? "email" : key === "contactPhone" ? "phone" : key, value);
+          if (error) throw new Error(error);
+        }
+        const current = qc.getQueryData<CarrierProfile>(["production-company-profile", company.id]) ?? p;
+        const next = { ...blankCompanyEditorForm(), ...Object.fromEntries(baseKeys.map(key => [key, current[key]])),
+          isBroker: current.isBroker ?? company.isBroker ?? false, ...Object.fromEntries(primary) } as CompanyEditorForm;
+        if (changes.isActive !== undefined) next.isActive = changes.isActive === "true";
+        if (!next.name.trim() || !next.code.trim()) throw new Error("Συμπληρώστε την επωνυμία και τον κωδικό.");
+        const saved = (await api.put<CompanyDto>("/insurance-companies/" + company.id, toCompanyApiPayload(next, {
+          createBridge: false, bridgeName: null, bridgeAutoSync: false, bridgeConfigJson: null, installZeroCommissionDefaults: false,
+        }))).data;
+        qc.setQueryData(["production-company-profile", company.id], { ...current, ...saved });
+        onChanged?.(saved);
+      }, async (key, value) => {
+        const fieldId = key.slice(7);
+        await api.put("/insurance-companies/" + company.id + "/workspace/fields/" + fieldId + "/value", { value });
+        qc.setQueryData<CompanyWorkspace>(["production-company-workspace", company.id], previous => previous ? {
+          ...previous, fields: previous.fields.map(field => field.id === fieldId ? { ...field, value } : field),
+        } : previous);
+      }, accept);
     },
-    onSuccess: saved => { setEditing(false); setInlineError(null); onChanged?.(saved); void qc.invalidateQueries({ queryKey: ["production-company-profile", company?.id] }); void qc.invalidateQueries({ queryKey: ["production-company-workspace", company?.id] }); },
-    onError: error => setInlineError(extractErrorMessage(error)),
   });
+  const editing = session.editAll;
   const uploadLogo = useMutation({
     mutationFn: async (file: File) => {
       if (!company) throw new Error("Δεν επιλέχθηκε εταιρεία.");
@@ -1046,18 +1065,7 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
     setLogoLocalPreview(URL.createObjectURL(file));
     uploadLogo.mutate(file);
   };
-  const saveField = async (fieldId: string) => {
-    if (!company) return;
-    setSavingFieldId(fieldId);
-    try {
-      await api.put(`/insurance-companies/${company.id}/workspace/fields/${fieldId}/value`, { value: fieldDrafts[fieldId] ?? "" });
-      await qc.invalidateQueries({ queryKey: ["production-company-workspace", company.id] });
-    } catch (error) {
-      setInlineError(extractErrorMessage(error));
-    } finally {
-      setSavingFieldId(null);
-    }
-  };
+
   const openContactEditor = (contact?: CompanyWorkspaceContact) => {
     setEditingContactId(contact?.id ?? null);
     setContactDraft({ name: contact?.name ?? "", role: contact?.role ?? "", department: contact?.department ?? "", email: contact?.email ?? "", phone: contact?.phone ?? "", mobile: contact?.mobile ?? "", notes: contact?.notes ?? "", isPrimary: contact?.isPrimary ?? false });
@@ -1136,16 +1144,27 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
   const customField = (...aliases: string[]) => workspace?.fields.find(field => aliases.some(alias => field.key.toLocaleLowerCase("el-GR").includes(alias) || field.label.toLocaleLowerCase("el-GR").includes(alias)));
   const renderCustomField = (label: string, aliases: string[], mono = false) => {
     const field = customField(...aliases);
-    if (editing && !field) return <Stack direction="row" spacing={.75} alignItems="center" sx={{ py: .4 }}><ProfileLine label={label} value={null} mono={mono} /><Button size="small" variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => openFieldCreator(label, aliases[0])} sx={{ flexShrink: 0, whiteSpace: "nowrap" }}>Προσθήκη</Button></Stack>;
-    if (editing && field) return <Stack direction="row" spacing={.75} alignItems="flex-start" sx={{ py: .4 }}><TextField fullWidth size="small" label={label} value={fieldDrafts[field.id] ?? ""} onChange={event => setFieldDrafts(current => ({ ...current, [field.id]: event.target.value }))} /><Button size="small" variant="outlined" onClick={() => void saveField(field.id)} disabled={savingFieldId === field.id}>{savingFieldId === field.id ? <CircularProgress size={16} /> : "Αποθήκευση"}</Button></Stack>;
-    return <ProfileLine label={label} value={field?.value ?? null} mono={mono} link={field?.value && /^https?:\/\//i.test(field.value) ? field.value : undefined} />;
+    return <ProfileEditableField key={label} label={label} mono={mono} link={field?.value ?? undefined}
+      session={field ? session : undefined} field={field ? "custom:" + field.id : undefined}
+      type={field?.fieldType === "date" ? "date" : field?.fieldType === "number" ? "number" : "text"}
+      onRequestEdit={!field && !workspaceQ.isLoading && !workspaceQ.isError ? () => openFieldCreator(label, aliases[0]) : undefined} />;
   };
-  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="xl">
-    <DialogTitle sx={{ pr: 6, "& .MuiButton-containedSuccess": { minWidth: 150, minHeight: 44, px: 2.5, fontSize: ".95rem", fontWeight: 850, color: "#fff", borderRadius: 1.75, background: "linear-gradient(135deg, #43a047 0%, #1b5e20 100%)", boxShadow: "0 3px 8px rgba(46,125,50,.3)", "&:hover": { background: "linear-gradient(135deg, #4caf50 0%, #145214 100%)", color: "#fff", transform: "translateY(-1px)" } } }}><Stack direction="row" alignItems="center" spacing={1.25}><BusinessIcon color="primary" /><Box flex={1}><Typography variant="h5" fontWeight={850}>{p?.name ?? company?.name ?? "—"}</Typography><Typography variant="caption" sx={{ fontFamily: "monospace" }}>{p?.code ?? company?.code}</Typography></Box>{company && (editing ? <Stack direction="row" spacing={.75}><Button variant="contained" color="success" startIcon={<SaveIcon />} onClick={() => save.mutate()} disabled={save.isPending || !draft.name.trim() || !draft.code.trim()}>{save.isPending ? <CircularProgress size={18} color="inherit" /> : "Αποθήκευση"}</Button><Button variant="contained" color="error" startIcon={<CloseIcon />} onClick={() => { setEditing(false); setInlineError(null); setDraft({ ...blankCompanyEditorForm(), name: p?.name ?? company.name, code: p?.code ?? company.code, country: p?.country ?? company.country, website: p?.website ?? company.website, isActive: p?.isActive ?? company.isActive, agentCode: p?.agentCode ?? company.agentCode, contactName: p?.contactName ?? company.contactName, contactEmail: p?.contactEmail ?? company.contactEmail, contactPhone: p?.contactPhone ?? company.contactPhone, afmVat: p?.afmVat ?? company.afmVat, notes: p?.notes ?? company.notes }); }}>Ακύρωση</Button></Stack> : <Button variant="contained" size="small" color="success" startIcon={<EditIcon />} onClick={() => setEditing(true)} sx={{ color: "#fff", fontWeight: 800, borderRadius: 1.5, boxShadow: 2, "&:hover": { bgcolor: "success.dark", color: "#fff" } }}>Επεξεργασία</Button>)}</Stack></DialogTitle>
+  const addressFields: [string, string[], boolean?][] = [
+    ["Διεύθυνση", ["address", "διεύθυνση", "εδρα", "έδρα"]], ["Πόλη", ["city", "πόλη"]], ["Τ.Κ.", ["postal", "ταχυδρομ", "τκ", "zip"], true],
+    ["Facebook", ["facebook", "fb"]], ["Instagram", ["instagram", "insta"]], ["LinkedIn", ["linkedin", "linked in"]],
+    ["X / Twitter", ["twitter", "x.com"]], ["Google Maps", ["google maps", "maps"]],
+  ];
+  const knownCustomIds = new Set(addressFields.map(([, aliases]) => customField(...aliases)?.id).filter(Boolean));
+  return <Dialog open={open} onClose={session.requestClose} fullWidth maxWidth="xl" PaperProps={{ sx: profileDialogPaperSx }}>
+    <DialogTitle sx={{ px: 1.25, py: .9, bgcolor: "#0b305c", color: "#fff" }}>
+      <Stack direction="row" alignItems="center" gap={1}>
+        <BusinessIcon /><Box sx={{ minWidth: 0 }}><Typography variant="h6" fontWeight={850} sx={{ overflowWrap: "anywhere" }}>{p?.name ?? company?.name ?? "—"}</Typography><Typography variant="caption">{p?.code ?? company?.code}</Typography></Box>
+      </Stack>
+    </DialogTitle>
     <DialogContent dividers sx={{
       // Keep the profile surface flush with the dialog edge so its sticky
       // navigation never leaves a gap or gets clipped while scrolling.
-      pt: 0,
+      p: { xs: .65, md: 1.25 }, minHeight: 0,
       scrollbarWidth: "auto",
       scrollbarColor: "#0b2545 #e8eef5",
       "&::-webkit-scrollbar": { width: 14, height: 14 },
@@ -1175,51 +1194,13 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
     }}>
       {q.isLoading && <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box>}
       {q.error && <Alert severity="error">Δεν φορτώθηκαν τα στοιχεία της εταιρείας.</Alert>}
+      {workspaceQ.isError && <Alert severity="error" sx={{ mb: .75 }}>Δεν φορτώθηκαν τα πρόσθετα στοιχεία της εταιρείας. Δοκιμάστε να ανοίξετε ξανά την καρτέλα.</Alert>}
       {inlineError && <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setInlineError(null)}>{inlineError}</Alert>}
+      <ProfileEditorFeedback session={session} />
       {p && <>
-        <Tabs value={tab} onChange={(_, value: number) => setTab(value)} variant="standard" sx={{
-          position: "sticky",
-          // Keep the navigation flush with the dialog's scroll viewport so it
-          // remains fully visible while the long company profile is scrolled.
-          top: 0,
-          zIndex: 4,
-          mb: 2,
-          px: .5,
-          py: .5,
-          border: "1px solid",
-          borderColor: "divider",
-          borderRadius: 2,
-          bgcolor: "background.paper",
-          boxShadow: "0 3px 10px rgba(15,23,42,.12)",
-          overflow: "visible",
-          "& .MuiTabs-scroller": { overflow: "visible !important" },
-          "& .MuiTabs-flexContainer": { gap: .75, flexWrap: "wrap" },
-          "& .MuiTabs-indicator": { display: "none" },
-          "& .MuiTab-root": {
-            minHeight: 54,
-            minWidth: { xs: 132, md: 168 },
-            px: 1.5,
-            py: .75,
-            border: "1px solid #263238",
-            borderRadius: 1.5,
-            background: "linear-gradient(180deg, #e5e7eb 0%, #b8c0c8 100%) !important",
-            color: "#111827 !important",
-            borderColor: "#263238 !important",
-            opacity: "1 !important",
-            textTransform: "none",
-            fontWeight: 750,
-            fontSize: { xs: ".82rem", md: ".9rem" },
-            lineHeight: 1.25,
-            boxShadow: "inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(15,23,42,.12)",
-            transition: "background .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease",
-            "&:hover": { background: "linear-gradient(180deg, #d4d8de 0%, #9ca6b1 100%) !important", borderColor: "#111827 !important", color: "#0b2545 !important", boxShadow: "inset 0 1px 0 rgba(255,255,255,.65), 0 2px 5px rgba(15,23,42,.22)" },
-            "&.Mui-selected": { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "inset 0 1px 0 rgba(255,255,255,.28), 0 3px 8px rgba(6,47,99,.35)" },
-            "&.Mui-selected:hover": { background: "linear-gradient(135deg, #084d91 0%, #042b54 100%) !important", color: "#fff !important" },
-          },
-        }}>
-          <Tab icon={<InfoOutlinedIcon fontSize="small" />} iconPosition="start" label="Σύνοψη" /><Tab icon={<DescriptionIcon fontSize="small" />} iconPosition="start" label="Παραγωγή & συμβόλαια" /><Tab icon={<TuneIcon fontSize="small" />} iconPosition="start" label="Σύνδεση & παραμετρικά" /><Tab icon={<ContactPhoneIcon fontSize="small" />} iconPosition="start" label="Επικοινωνία" /><Tab icon={<FolderIcon fontSize="small" />} iconPosition="start" label="Έγγραφα & πεδία" /><Tab icon={<BarChartIcon fontSize="small" />} iconPosition="start" label="Στατιστικά" />
-        </Tabs>
-        {tab === 0 && <Stack spacing={1.5}>
+        <WorkspaceProfileTabs value={tab} onChange={setTab} statistics />
+
+        {tab === 0 && <Stack spacing={.75}>
           <ProfileSection title="Λογότυπο εταιρείας">
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ sm: "center" }}>
               <Avatar src={logoLocalPreview ?? logoQ.data ?? undefined} variant="rounded" sx={{ width: 88, height: 64, bgcolor: "rgba(11,37,69,.06)", border: "1px solid", borderColor: "divider", "& img": { objectFit: "contain", p: .75 } }}>
@@ -1235,31 +1216,28 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
               {!editing && !p.logoUrl && <Typography variant="body2" color="text.secondary">Δεν έχει καταχωρηθεί λογότυπο.</Typography>}
             </Stack>
           </ProfileSection>
-          <Box sx={{ display: editing ? "none" : "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}><ProfileSection title="Ταυτότητα εταιρείας"><ProfileLine label="ΑΦΜ / VAT" value={p.afmVat} /><ProfileLine label="Χώρα" value={p.country} /><ProfileLine label="Κωδικός συνεργασίας" value={p.agentCode} mono /><ProfileLine label="Website" value={p.website} link={p.website ?? undefined} /></ProfileSection><ProfileSection title="Επαφή & υπεύθυνοι"><ProfileLine label="Υπεύθυνος" value={p.contactName} /><ProfileLine label="Email" value={p.contactEmail} link={p.contactEmail ? `mailto:${p.contactEmail}` : undefined} /><ProfileLine label="Τηλέφωνο" value={p.contactPhone} link={p.contactPhone ? `tel:${p.contactPhone}` : undefined} /></ProfileSection></Box>
-          <Box sx={{ display: editing ? "none" : "block" }}><ProfileSection title="Σημειώσεις"><Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>{p.notes || "Δεν έχουν καταχωρηθεί σημειώσεις."}</Typography></ProfileSection></Box>
-          {editing && <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}>
-            <ProfileSection title="Ταυτότητα εταιρείας"><Stack spacing={1}><TextField fullWidth required size="small" label="Επωνυμία" value={draft.name} onChange={event => updateDraft({ name: event.target.value })} /><TextField fullWidth required size="small" label="Κωδικός" value={draft.code} onChange={event => updateDraft({ code: event.target.value.toUpperCase() })} /><TextField fullWidth size="small" label="ΑΦΜ / VAT" value={draft.afmVat ?? ""} onChange={event => updateDraft({ afmVat: event.target.value })} /><TextField fullWidth size="small" label="Χώρα" value={draft.country ?? ""} onChange={event => updateDraft({ country: event.target.value })} /><TextField fullWidth size="small" label="Κωδικός συνεργασίας" value={draft.agentCode ?? ""} onChange={event => updateDraft({ agentCode: event.target.value })} /><TextField fullWidth size="small" label="Website" value={draft.website ?? ""} onChange={event => updateDraft({ website: event.target.value })} /></Stack></ProfileSection>
-            <ProfileSection title="Επαφή & υπεύθυνοι"><Stack spacing={1}><TextField fullWidth size="small" label="Ονοματεπώνυμο επαφής" value={draft.contactName ?? ""} onChange={event => updateDraft({ contactName: event.target.value })} /><TextField fullWidth size="small" type="email" label="Email" value={draft.contactEmail ?? ""} onChange={event => updateDraft({ contactEmail: event.target.value })} /><TextField fullWidth size="small" label="Τηλέφωνο" value={draft.contactPhone ?? ""} onChange={event => updateDraft({ contactPhone: event.target.value })} /><FormControlLabel control={<Switch checked={draft.isActive} onChange={event => updateDraft({ isActive: event.target.checked })} />} label={draft.isActive ? "Ενεργή" : "Ανενεργή"} /></Stack></ProfileSection>
-            <Box sx={{ gridColumn: { md: "1 / -1" } }}><ProfileSection title="Σημειώσεις"><TextField fullWidth multiline minRows={3} size="small" label="Εσωτερικές σημειώσεις" value={draft.notes ?? ""} onChange={event => updateDraft({ notes: event.target.value })} /></ProfileSection></Box>
-          </Box>}
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}>
-            <ProfileSection title="Διεύθυνση & στοιχεία έδρας">
-              {renderCustomField("Διεύθυνση", ["address", "διεύθυνση", "εδρα", "έδρα"])}
-              {renderCustomField("Πόλη", ["city", "πόλη"])}
-              {renderCustomField("Τ.Κ.", ["postal", "ταχυδρομ", "τκ", "zip"], true)}
-              {!editing && <ProfileLine label="Χώρα" value={p.country} />}
-              {!editing && <ProfileLine label="ΑΦΜ / VAT" value={p.afmVat} mono />}
-              {!editing && <ProfileLine label="Κωδικός συνεργασίας" value={p.agentCode} mono />}
-            </ProfileSection>
-            <ProfileSection title="Ιστοσελίδα & ψηφιακή παρουσία">
-              {!editing && <ProfileLine label="Ιστοσελίδα" value={p.website} link={p.website ?? undefined} />}
-              {renderCustomField("Facebook", ["facebook", "fb"])}
-              {renderCustomField("Instagram", ["instagram", "insta"])}
-              {renderCustomField("LinkedIn", ["linkedin", "linked in"])}
-              {renderCustomField("X / Twitter", ["twitter", "x.com"])}
-              {renderCustomField("Google Maps", ["google maps", "maps"])}
-            </ProfileSection>
-          </Box>
+
+          <CompanyProfileFields session={session} isBroker={p.isBroker ?? company?.isBroker} />
+          <Box sx={profileFieldGridSx}>{addressFields.map(([label, aliases, mono]) => renderCustomField(label, aliases, mono))}</Box>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" gap={1}>
+            <Typography variant="subtitle2" fontWeight={750}>Πρόσθετα πεδία εταιρείας</Typography>
+            <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={() => openFieldCreator("Νέο πεδίο", "custom-field")} disabled={session.busy || workspaceQ.isLoading}>Προσθήκη πεδίου</Button>
+          </Stack>
+          <Box sx={profileFieldGridSx}>{(workspace?.fields ?? []).filter(field => field.isActive && !knownCustomIds.has(field.id)).map(field =>
+            <Box key={field.id} sx={{ minWidth: 0 }}>
+              <ProfileEditableField label={field.label} field={"custom:" + field.id} session={session} link={field.value ?? undefined}
+                type={field.fieldType === "date" ? "date" : field.fieldType === "number" ? "number" : "text"} />
+              {editing && <Stack direction="row" spacing={.5}>
+                <Button size="small" startIcon={<TuneIcon />} onClick={() => openFieldEditor(field)} disabled={session.busy || session.drafts["custom:" + field.id] !== undefined}>Ρύθμιση πεδίου</Button>
+                <IconButton size="small" color="error" aria-label={"Διαγραφή πεδίου " + field.label} onClick={() => void deleteField(field)}
+                  disabled={session.busy || session.drafts["custom:" + field.id] !== undefined}><DeleteOutlineIcon fontSize="small" /></IconButton>
+              </Stack>}
+            </Box>)}</Box>
+        </Stack>}
+        {tab === 2 && <Stack spacing={1.5}><ProfileMetricGrid items={[["Κλάδοι", String(p.branchCount), "info"], ["Πακέτα", String(p.packageCount), "info"], ["Χρήσεις", String(p.useCount), "info"], ["Καλύψεις", String(p.coverageCount), "info"], ["Γέφυρα", p.bridgeLinked ? "Συνδεδεμένη" : "Χωρίς σύνδεση", p.bridgeLinked ? "success" : "warning"]]} /><ProfileSection title="Σύνδεση εταιρείας"><ProfileLine label="Πηγή γέφυρας" value={p.bridgeLinkedSourceCarrier} /><ProfileLine label="Κατάσταση" value={p.isActive ? "Ενεργή" : "Ανενεργή"} /><ProfileLine label="Δημιουργήθηκε" value={date(p.createdAt)} /></ProfileSection></Stack>}
+
+        {tab === 3 && <Stack spacing={.75}>
+          <CompanyProfileFields session={session} contact />
           <ProfileSection title="Πρόσωπα, στελέχη & πολλαπλές επικοινωνίες">
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
               <Typography variant="body2" color="text.secondary">Κύριες και πρόσθετες επαφές της εταιρείας.</Typography>
@@ -1277,25 +1255,17 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
               </Box>)}
             </Stack>
           </ProfileSection>
-          <ProfileSection title="Επιπλέον στοιχεία εταιρείας">
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-              <Typography variant="body2" color="text.secondary">Πρόσθετα πεδία που ορίζει το γραφείο.</Typography>
-              {editing && <Button size="small" variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => openFieldCreator("Νέο πεδίο", "custom-field")}>Προσθήκη πεδίου</Button>}
-            </Stack>
-            {(workspace?.fields ?? []).filter(field => field.isActive).length === 0 ? <Typography color="text.secondary">Δεν έχουν συμπληρωθεί πρόσθετα πεδία.</Typography> : <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, columnGap: 2 }}>{(workspace?.fields ?? []).filter(field => field.isActive).map(field => editing ? <Stack key={field.id} direction="row" spacing={.75} alignItems="flex-start" sx={{ py: .4 }}><TextField fullWidth size="small" label={field.label} value={fieldDrafts[field.id] ?? ""} onChange={event => setFieldDrafts(current => ({ ...current, [field.id]: event.target.value }))} /><Button size="small" variant="outlined" onClick={() => void saveField(field.id)} disabled={savingFieldId === field.id}>{savingFieldId === field.id ? <CircularProgress size={16} /> : "Αποθήκευση"}</Button><IconButton size="small" color="primary" title="Επεξεργασία τίτλου και περιεχομένου" onClick={() => openFieldEditor(field)}><EditIcon fontSize="small" /></IconButton><IconButton size="small" color="error" title="Διαγραφή πεδίου" onClick={() => void deleteField(field)}><DeleteOutlineIcon fontSize="small" /></IconButton></Stack> : <ProfileLine key={field.id} label={field.label} value={field.value} link={/^https?:\/\//i.test(field.value ?? "") ? field.value ?? undefined : undefined} />)}</Box>}
-          </ProfileSection>
+
         </Stack>}
-        {tab === 2 && <Stack spacing={1.5}><ProfileMetricGrid items={[["Κλάδοι", String(p.branchCount), "info"], ["Πακέτα", String(p.packageCount), "info"], ["Χρήσεις", String(p.useCount), "info"], ["Καλύψεις", String(p.coverageCount), "info"], ["Γέφυρα", p.bridgeLinked ? "Συνδεδεμένη" : "Χωρίς σύνδεση", p.bridgeLinked ? "success" : "warning"]]} /><ProfileSection title="Σύνδεση εταιρείας"><ProfileLine label="Πηγή γέφυρας" value={p.bridgeLinkedSourceCarrier} /><ProfileLine label="Κατάσταση" value={p.isActive ? "Ενεργή" : "Ανενεργή"} /><ProfileLine label="Δημιουργήθηκε" value={date(p.createdAt)} /></ProfileSection></Stack>}
-          {tab === 3 && <Stack spacing={1.5}>{editing ? <ProfileSection title="Στοιχεία επικοινωνίας"><Stack spacing={1.25}><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" }, gap: 1.25 }}><TextField size="small" label="Όνομα επαφής" value={draft.contactName ?? ""} onChange={event => updateDraft({ contactName: event.target.value })} /><TextField size="small" type="email" label="Email" value={draft.contactEmail ?? ""} onChange={event => updateDraft({ contactEmail: event.target.value })} /><TextField size="small" label="Τηλέφωνο" value={draft.contactPhone ?? ""} onChange={event => updateDraft({ contactPhone: event.target.value })} /></Box><Button size="small" variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => openContactEditor()}>Προσθήκη 2ης επικοινωνίας / στελέχους</Button></Stack></ProfileSection> : <ProfileSection title="Στοιχεία επικοινωνίας"><ProfileLine label="Όνομα επαφής" value={p.contactName} /><ProfileLine label="Email" value={p.contactEmail} link={p.contactEmail ? `mailto:${p.contactEmail}` : undefined} /><ProfileLine label="Τηλέφωνο" value={p.contactPhone} link={p.contactPhone ? `tel:${p.contactPhone}` : undefined} /></ProfileSection>}<ProfileSection title="Σημειώσεις">{editing ? <TextField fullWidth multiline minRows={3} size="small" label="Εσωτερικές σημειώσεις" value={draft.notes ?? ""} onChange={event => updateDraft({ notes: event.target.value })} /> : <Typography sx={{ whiteSpace: "pre-wrap" }}>{p.notes || "Δεν υπάρχουν σημειώσεις."}</Typography>}</ProfileSection></Stack>}
         {tab === 1 && company && <CompanyPoliciesSection companyId={company.id} />}
         {tab === 2 && company && <><CompanyParametricsSection companyId={company.id} companyName={company.name} />{(company.isBroker || p.isBroker) && <CompanyPartnerCompaniesSection companyId={company.id} />}</>}
         {tab === 3 && company && <CompanyCommunicationSection companyId={company.id} workspace={workspace} />}
-        {tab === 4 && company && <CompanyDocumentsWorkspace companyId={company.id} />}
+        {tab === 4 && company && <CompanyDocumentsWorkspace companyId={company.id} session={session} />}
         {tab === 5 && company && <CompanyStatisticsSection companyId={company.id} profile={p} />}
       </>}
       <Dialog open={fieldEntryOpen} onClose={() => setFieldEntryOpen(false)} fullWidth maxWidth="sm"><DialogTitle>Προσθήκη πεδίου</DialogTitle><DialogContent><Stack spacing={1.25} sx={{ pt: 1 }}><TextField autoFocus fullWidth size="small" label="Τίτλος πεδίου" value={newField.label} onChange={event => setNewField(current => ({ ...current, label: event.target.value }))} /><TextField fullWidth size="small" label="Περιεχόμενο πεδίου" value={newField.value} onChange={event => setNewField(current => ({ ...current, value: event.target.value }))} multiline minRows={3} /></Stack></DialogContent><DialogActions><Button color="error" variant="contained" startIcon={<CloseIcon />} onClick={() => setFieldEntryOpen(false)} sx={{ color: "#fff" }}>Ακύρωση επεξεργασίας</Button><Button variant="contained" color="primary" startIcon={<SaveIcon />} onClick={() => void createField()} disabled={!newField.label.trim() || !newField.value.trim()}>Αποθήκευση</Button></DialogActions></Dialog>
       <Dialog open={!!fieldEdit} onClose={() => setFieldEdit(null)} fullWidth maxWidth="sm"><DialogTitle>Επεξεργασία πεδίου</DialogTitle><DialogContent><Stack spacing={1.25} sx={{ pt: 1 }}><TextField autoFocus fullWidth size="small" label="Τίτλος πεδίου" value={fieldEdit?.label ?? ""} onChange={event => setFieldEdit(current => current ? ({ ...current, label: event.target.value }) : current)} /><TextField fullWidth size="small" label="Περιεχόμενο πεδίου" value={fieldEdit?.value ?? ""} onChange={event => setFieldEdit(current => current ? ({ ...current, value: event.target.value }) : current)} multiline minRows={3} /></Stack></DialogContent><DialogActions><Button color="error" variant="contained" startIcon={<CloseIcon />} onClick={() => setFieldEdit(null)} sx={{ color: "#fff" }}>Ακύρωση επεξεργασίας</Button><Button variant="contained" color="primary" startIcon={<SaveIcon />} onClick={() => void updateField()} disabled={!fieldEdit?.label.trim() || !fieldEdit?.value.trim()}>Αποθήκευση</Button></DialogActions></Dialog>
-      </DialogContent><Dialog open={fieldDialogOpen} onClose={() => setFieldDialogOpen(false)} fullWidth maxWidth="sm"><DialogTitle>Προσθήκη κειμένου</DialogTitle><DialogContent><TextField autoFocus fullWidth size="small" label="Κείμενο" value={newField.value} onChange={event => setNewField(current => ({ ...current, value: event.target.value }))} multiline minRows={3} sx={{ mt: 1 }} /></DialogContent><DialogActions><Button color="error" variant="contained" startIcon={<CloseIcon />} onClick={() => setFieldDialogOpen(false)} sx={{ color: "#fff" }}>Ακύρωση</Button><Button variant="contained" color="primary" startIcon={<SaveIcon />} onClick={() => void createField()} disabled={!newField.value.trim()}>Αποθήκευση</Button></DialogActions></Dialog><Dialog open={contactDialogOpen} onClose={() => setContactDialogOpen(false)} fullWidth maxWidth="md"><DialogTitle>{editingContactId ? "Επεξεργασία επαφής" : "Προσθήκη επαφής"}</DialogTitle><DialogContent><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.25, pt: 1 }}><TextField autoFocus size="small" label="Ονοματεπώνυμο *" value={contactDraft.name} onChange={event => setContactDraft(current => ({ ...current, name: event.target.value }))} /><TextField size="small" label="Ρόλος" value={contactDraft.role} onChange={event => setContactDraft(current => ({ ...current, role: event.target.value }))} /><TextField size="small" label="Τμήμα" value={contactDraft.department} onChange={event => setContactDraft(current => ({ ...current, department: event.target.value }))} /><TextField size="small" type="email" label="Email" value={contactDraft.email} onChange={event => setContactDraft(current => ({ ...current, email: event.target.value }))} /><TextField size="small" label="Τηλέφωνο" value={contactDraft.phone} onChange={event => setContactDraft(current => ({ ...current, phone: event.target.value }))} /><TextField size="small" label="Κινητό" value={contactDraft.mobile} onChange={event => setContactDraft(current => ({ ...current, mobile: event.target.value }))} /><TextField size="small" multiline minRows={2} label="Σημειώσεις" value={contactDraft.notes} onChange={event => setContactDraft(current => ({ ...current, notes: event.target.value }))} sx={{ gridColumn: { sm: "1 / -1" } }} /><FormControlLabel control={<Switch checked={contactDraft.isPrimary} onChange={event => setContactDraft(current => ({ ...current, isPrimary: event.target.checked }))} />} label="Κύρια επαφή" /></Box></DialogContent><DialogActions><Button color="error" variant="contained" startIcon={<CloseIcon />} onClick={() => setContactDialogOpen(false)} sx={{ color: "#fff" }}>Ακύρωση</Button><Button variant="contained" color="primary" startIcon={<SaveIcon />} onClick={() => void saveContact()} disabled={!contactDraft.name.trim()}>Αποθήκευση</Button></DialogActions></Dialog><DialogActions sx={{ px: 3, py: 2 }}><Button variant="contained" color="error" startIcon={editing ? <CloseIcon /> : undefined} onClick={onClose} sx={{ color: "#fff", fontWeight: 800, borderRadius: 1.5, "&:hover": { bgcolor: "error.dark", color: "#fff" } }}>{editing ? "Ακύρωση" : "Κλείσιμο"}</Button></DialogActions>
+      </DialogContent><Dialog open={fieldDialogOpen} onClose={() => setFieldDialogOpen(false)} fullWidth maxWidth="sm"><DialogTitle>Προσθήκη κειμένου</DialogTitle><DialogContent><TextField autoFocus fullWidth size="small" label="Κείμενο" value={newField.value} onChange={event => setNewField(current => ({ ...current, value: event.target.value }))} multiline minRows={3} sx={{ mt: 1 }} /></DialogContent><DialogActions><Button color="error" variant="contained" startIcon={<CloseIcon />} onClick={() => setFieldDialogOpen(false)} sx={{ color: "#fff" }}>Ακύρωση</Button><Button variant="contained" color="primary" startIcon={<SaveIcon />} onClick={() => void createField()} disabled={!newField.value.trim()}>Αποθήκευση</Button></DialogActions></Dialog><Dialog open={contactDialogOpen} onClose={() => setContactDialogOpen(false)} fullWidth maxWidth="md"><DialogTitle>{editingContactId ? "Επεξεργασία επαφής" : "Προσθήκη επαφής"}</DialogTitle><DialogContent><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.25, pt: 1 }}><TextField autoFocus size="small" label="Ονοματεπώνυμο *" value={contactDraft.name} onChange={event => setContactDraft(current => ({ ...current, name: event.target.value }))} /><TextField size="small" label="Ρόλος" value={contactDraft.role} onChange={event => setContactDraft(current => ({ ...current, role: event.target.value }))} /><TextField size="small" label="Τμήμα" value={contactDraft.department} onChange={event => setContactDraft(current => ({ ...current, department: event.target.value }))} /><TextField size="small" type="email" label="Email" value={contactDraft.email} onChange={event => setContactDraft(current => ({ ...current, email: event.target.value }))} /><TextField size="small" label="Τηλέφωνο" value={contactDraft.phone} onChange={event => setContactDraft(current => ({ ...current, phone: event.target.value }))} /><TextField size="small" label="Κινητό" value={contactDraft.mobile} onChange={event => setContactDraft(current => ({ ...current, mobile: event.target.value }))} /><TextField size="small" multiline minRows={2} label="Σημειώσεις" value={contactDraft.notes} onChange={event => setContactDraft(current => ({ ...current, notes: event.target.value }))} sx={{ gridColumn: { sm: "1 / -1" } }} /><FormControlLabel control={<Switch checked={contactDraft.isPrimary} onChange={event => setContactDraft(current => ({ ...current, isPrimary: event.target.checked }))} />} label="Κύρια επαφή" /></Box></DialogContent><DialogActions><Button color="error" variant="contained" startIcon={<CloseIcon />} onClick={() => setContactDialogOpen(false)} sx={{ color: "#fff" }}>Ακύρωση</Button><Button variant="contained" color="primary" startIcon={<SaveIcon />} onClick={() => void saveContact()} disabled={!contactDraft.name.trim()}>Αποθήκευση</Button></DialogActions></Dialog><DialogActions sx={{ px: 1.25, py: .6 }}><ProfileEditorActions session={session} label={p?.isBroker ? "πρακτορείου" : "εταιρείας"} /></DialogActions>
   </Dialog>;
 }
 
@@ -1323,7 +1293,7 @@ interface CompanyPartnerRow {
   updatedAt: string | null;
 }
 
-function CompanyDocumentsWorkspace({ companyId }: { companyId: string }) {
+function CompanyDocumentsWorkspace({ companyId, session }: { companyId: string; session: ReturnType<typeof useProfileFieldEditor> }) {
   const qc = useQueryClient();
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [folderDialog, setFolderDialog] = useState(false);
@@ -1340,7 +1310,6 @@ function CompanyDocumentsWorkspace({ companyId }: { companyId: string }) {
   const [fieldKey, setFieldKey] = useState("");
   const [fieldType, setFieldType] = useState("text");
   const [fieldRequired, setFieldRequired] = useState(false);
-  const [fieldDrafts, setFieldDrafts] = useState<Record<string, string>>({});
   const workspaceQ = useQuery({
     queryKey: ["production-company-workspace", companyId],
     queryFn: async () => (await api.get<CompanyWorkspace>(`/insurance-companies/${companyId}/workspace`)).data,
@@ -1348,7 +1317,6 @@ function CompanyDocumentsWorkspace({ companyId }: { companyId: string }) {
   const workspace = workspaceQ.data;
   useEffect(() => {
     if (!workspace) return;
-    setFieldDrafts(Object.fromEntries(workspace.fields.map(field => [field.id, field.value ?? ""])));
     if (selectedFolderId && !workspace.folders.some(folder => folder.id === selectedFolderId)) setSelectedFolderId(null);
   }, [workspace, selectedFolderId]);
   const selectedDocuments = (workspace?.documents ?? []).filter(document => !selectedFolderId || document.folderId === selectedFolderId);
@@ -1378,10 +1346,6 @@ function CompanyDocumentsWorkspace({ companyId }: { companyId: string }) {
   ] as const;
   const addPredefinedField = async (label: string, key: string, fieldType: string) => {
     try { await api.post(`${endpoint}/fields`, { label, key, fieldType, options: [], isRequired: false, sortOrder: workspace?.fields.length ?? 0 }); refresh(); }
-    catch (e) { setError(extractErrorMessage(e)); }
-  };
-  const saveField = async (fieldId: string) => {
-    try { await api.put(`${endpoint}/fields/${fieldId}/value`, { value: fieldDrafts[fieldId] ?? "" }); refresh(); }
     catch (e) { setError(extractErrorMessage(e)); }
   };
   const uploadFile = async (file: File) => {
@@ -1439,7 +1403,7 @@ function CompanyDocumentsWorkspace({ companyId }: { companyId: string }) {
         <Card variant="outlined"><Table size="small"><TableHead><TableRow><TableCell>Αρχείο</TableCell><TableCell>Κατηγορία</TableCell><TableCell>Μέγεθος</TableCell><TableCell>Ημερομηνία</TableCell><TableCell align="right">Ενέργειες</TableCell></TableRow></TableHead><TableBody>{selectedDocuments.map(document => <TableRow key={document.id} hover><TableCell><Typography fontWeight={700}>{document.fileName}</Typography>{document.description && <Typography variant="caption" color="text.secondary">{document.description}</Typography>}{document.isConfidential && <Chip size="small" color="warning" label="Εμπιστευτικό" sx={{ ml: 0.75 }} />}</TableCell><TableCell>{document.category}</TableCell><TableCell>{(document.sizeBytes / 1024).toFixed(0)} KB</TableCell><TableCell>{new Date(document.createdAt).toLocaleDateString("el-GR")}</TableCell><TableCell align="right"><IconButton size="small" onClick={() => void downloadDocument(document)} title="Λήψη"><DownloadIcon fontSize="small" /></IconButton><IconButton size="small" color="error" onClick={() => void deleteDocument(document)} title="Διαγραφή"><DeleteOutlineIcon fontSize="small" /></IconButton></TableCell></TableRow>)}{selectedDocuments.length === 0 && <TableRow><TableCell colSpan={5}><Typography color="text.secondary" textAlign="center" sx={{ py: 3 }}>Δεν υπάρχουν αρχεία σε αυτή την προβολή.</Typography></TableCell></TableRow>}</TableBody></Table></Card>
       </Stack>
     </Box>
-     <ProfileSection title="Πεδία εταιρείας"><Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>Κρατήστε εδώ μόνο ειδικά στοιχεία συνεργασίας που δεν ανήκουν στην ταυτότητα ή στην καρτέλα επικοινωνίας.</Typography><Stack direction="row" spacing={.75} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>{predefinedFields.map(([label, key, fieldType]) => <Button key={key} size="small" variant="outlined" startIcon={<AddIcon />} onClick={() => void addPredefinedField(label, key, fieldType)}>{label}</Button>)}<Button size="small" variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => setFieldDialog(true)}>Προσαρμοσμένο πεδίο</Button></Stack>{(workspace?.fields ?? []).filter(field => !["company-contact", "accounting-phone"].includes(field.key)).length === 0 ? <Typography color="text.secondary">Δεν έχουν οριστεί ειδικά πεδία.</Typography> : <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2,minmax(0,1fr))" }, gap: 1 }}>{workspace?.fields.filter(field => !["company-contact", "accounting-phone"].includes(field.key)).map(field => <Stack key={field.id} direction="row" spacing={0.75} alignItems="flex-start"><TextField fullWidth size="small" label={`${field.label}${field.isRequired ? " *" : ""}`} value={fieldDrafts[field.id] ?? ""} onChange={e => setFieldDrafts(current => ({ ...current, [field.id]: e.target.value }))} /><Button size="small" variant="outlined" onClick={() => void saveField(field.id)}>Αποθήκευση</Button></Stack>)}</Box>}</ProfileSection>
+     <ProfileSection title="Πεδία εταιρείας"><Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>Κρατήστε εδώ μόνο ειδικά στοιχεία συνεργασίας που δεν ανήκουν στην ταυτότητα ή στην καρτέλα επικοινωνίας.</Typography><Stack direction="row" spacing={.75} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>{predefinedFields.map(([label, key, fieldType]) => <Button key={key} size="small" variant="outlined" startIcon={<AddIcon />} onClick={() => void addPredefinedField(label, key, fieldType)}>{label}</Button>)}<Button size="small" variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => setFieldDialog(true)}>Προσαρμοσμένο πεδίο</Button></Stack>{(workspace?.fields ?? []).filter(field => !["company-contact", "accounting-phone"].includes(field.key)).length === 0 ? <Typography color="text.secondary">Δεν έχουν οριστεί ειδικά πεδία.</Typography> : <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2,minmax(0,1fr))" }, gap: 1 }}>{workspace?.fields.filter(field => !["company-contact", "accounting-phone"].includes(field.key)).map(field => <ProfileEditableField key={field.id} label={field.label + (field.isRequired ? " *" : "")} field={"custom:" + field.id} session={session} type={field.fieldType === "date" ? "date" : field.fieldType === "number" ? "number" : "text"} />)}</Box>}</ProfileSection>
     <Dialog open={folderDialog} onClose={() => setFolderDialog(false)} fullWidth maxWidth="xs"><DialogTitle>Νέος φάκελος εταιρείας</DialogTitle><DialogContent><Stack spacing={1.5} sx={{ pt: 1 }}><TextField label="Όνομα φακέλου" value={folderName} onChange={e => setFolderName(e.target.value)} autoFocus /><TextField label="Περιγραφή" value={folderDescription} onChange={e => setFolderDescription(e.target.value)} multiline minRows={2} /></Stack></DialogContent><DialogActions><Button onClick={() => setFolderDialog(false)}>Άκυρο</Button><Button variant="contained" onClick={() => void createFolder()} disabled={!folderName.trim()}>Δημιουργία</Button></DialogActions></Dialog>
     <Dialog open={categoryDialog} onClose={() => setCategoryDialog(false)} fullWidth maxWidth="xs"><DialogTitle>Νέα κατηγορία εγγράφων</DialogTitle><DialogContent><TextField fullWidth sx={{ mt: 1 }} label="Όνομα κατηγορίας" value={categoryName} onChange={e => setCategoryName(e.target.value)} autoFocus /></DialogContent><DialogActions><Button onClick={() => setCategoryDialog(false)}>Άκυρο</Button><Button variant="contained" onClick={() => void createCategory()} disabled={!categoryName.trim()}>Δημιουργία</Button></DialogActions></Dialog>
     <Dialog open={fieldDialog} onClose={() => setFieldDialog(false)} fullWidth maxWidth="xs"><DialogTitle>Νέο προσαρμόσιμο πεδίο</DialogTitle><DialogContent><Stack spacing={1.5} sx={{ pt: 1 }}><TextField label="Ετικέτα" value={fieldLabel} onChange={e => setFieldLabel(e.target.value)} autoFocus /><TextField label="Κλειδί (π.χ. υπεύθυνος-λογαριασμού)" value={fieldKey} onChange={e => setFieldKey(e.target.value)} /><TextField select SelectProps={{ native: true }} label="Τύπος" value={fieldType} onChange={e => setFieldType(e.target.value)}><option value="text">Κείμενο</option><option value="number">Αριθμός</option><option value="date">Ημερομηνία</option><option value="url">Σύνδεσμος</option></TextField><Button size="small" variant={fieldRequired ? "contained" : "outlined"} onClick={() => setFieldRequired(value => !value)}>{fieldRequired ? "Υποχρεωτικό" : "Προαιρετικό"}</Button></Stack></DialogContent><DialogActions><Button color="error" variant="contained" startIcon={<CloseIcon />} onClick={() => setFieldDialog(false)} sx={{ color: "#fff" }}>Ακύρωση</Button><Button variant="contained" color="primary" startIcon={<SaveIcon />} onClick={() => void createField()} disabled={!fieldLabel.trim() || !fieldKey.trim()}>Προσθήκη</Button></DialogActions></Dialog>
@@ -1451,12 +1415,11 @@ function ProfileMetricGrid({ items }: { items: Array<[string, string, "success" 
 }
 
 function ProfileSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return <Card variant="outlined" sx={{ p: 1.5, bgcolor: "rgba(248,250,252,0.85)" }}><Typography variant="subtitle2" fontWeight={800} sx={{ mb: 1, color: "primary.dark" }}>{title}</Typography>{children}</Card>;
+  return <Card variant="outlined" sx={{ p: .75, bgcolor: "#edf3f9", borderColor: "#d6e3f0", boxShadow: "none", minWidth: 0 }}><Typography variant="subtitle2" fontWeight={800} sx={{ mb: .5, color: "primary.dark", fontSize: ".8rem" }}>{title}</Typography>{children}</Card>;
 }
 
 function ProfileLine({ label, value, mono, link }: { label: string; value?: string | null; mono?: boolean; link?: string }) {
-  const shown = value?.trim() || "Δεν έχει καταχωρηθεί";
-  return <Box sx={{ display: "grid", gridTemplateColumns: "minmax(130px, 0.45fr) 1fr", gap: 1, py: 0.45, borderBottom: "1px solid", borderColor: "divider" }}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography variant="body2" fontWeight={650} sx={{ fontFamily: mono ? "monospace" : undefined, wordBreak: "break-word", whiteSpace: "pre-wrap", color: value?.trim() ? "success.dark" : "error.dark" }}>{link && value ? <a href={link} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>{shown}</a> : shown}</Typography></Box>;
+  return <Box sx={{ py: .15, minWidth: 0 }}><ProfileEditableField label={label} value={value} mono={mono} link={link} /></Box>;
 }
 
 type OfficeProfile = {
@@ -1535,22 +1498,102 @@ function ProductionOfficeEditorDialog({ open, item, onClose, onSaved }: {
   </Dialog>;
 }
 
-function ProductionOfficeProfileDialog({ open, office, onClose, onEdit }: { open: boolean; office: OfficeDto | null; onClose: () => void; onEdit: (office: OfficeDto) => void }) {
-  const usersQ = useQuery({ queryKey: ["production-office-users", office?.id], enabled: open && !!office, queryFn: async () => (await api.get<OfficeUserDto[]>(`/agency-offices/${office!.id}/users`)).data });
-  const users = (usersQ.data ?? []).filter(user => user.isAssigned);
+export function buildOfficeProfileUpdate(office: OfficeDto, changes: Record<string, string>) {
+  const baseKeys = ["code", "name", "city", "address", "postalCode", "phone", "email", "isHeadquarters", "isActive", "notes"] as const;
+  const base: Record<string, unknown> = Object.fromEntries(baseKeys.map(key => [key, office[key]]));
+  let profileJson = office.profileJson ?? null;
+  const profileChanges = Object.entries(changes).filter(([key]) => key.startsWith("profile:"));
+  if (profileChanges.length) {
+    let profile: Record<string, unknown> = {};
+    if (profileJson) {
+      try {
+        const parsed: unknown = JSON.parse(profileJson);
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error();
+        profile = parsed as Record<string, unknown>;
+      } catch { throw new Error("Τα υπάρχοντα πρόσθετα στοιχεία δεν είναι έγκυρα. Δεν τροποποιήθηκαν τα δεδομένα."); }
+    }
+    for (const [key, value] of profileChanges) {
+      const property = key.slice(8);
+      if (!Object.prototype.hasOwnProperty.call(blankOfficeProfile(), property)) throw new Error("Το πεδίο πρακτορείου δεν υποστηρίζεται.");
+      profile[property] = value;
+    }
+    profileJson = JSON.stringify(profile);
+  }
+  for (const [key, value] of Object.entries(changes).filter(([field]) => !field.startsWith("profile:"))) {
+    if (!baseKeys.some(field => field === key)) throw new Error("Το πεδίο πρακτορείου δεν υποστηρίζεται.");
+    if (key === "email" || key === "phone") {
+      const error = customerFieldError(key, value);
+      if (error) throw new Error(error);
+    }
+    if (key === "isActive" || key === "isHeadquarters") {
+      if (!["true", "false"].includes(value)) throw new Error("Επιλέξτε Ναι ή Όχι.");
+      base[key] = value === "true";
+    } else base[key] = value.trim() || null;
+  }
+  const code = String(base.code ?? "").trim().toUpperCase(), name = String(base.name ?? "").trim();
+  if (!code || !name) throw new Error("Συμπληρώστε τον κωδικό και το όνομα πρακτορείου.");
+  return { ...base, code, name, profileJson };
+}
+
+const OFFICE_PROFILE_FIELD_GROUPS: readonly (readonly [string, string])[][] = [
+  [["code", "Κωδικός"], ["name", "Όνομα"], ["profile:vatNumber", "ΑΦΜ / VAT"], ["profile:legalForm", "Νομική μορφή"],
+   ["profile:registrationNumber", "ΓΕΜΗ / ειδικό μητρώο"], ["city", "Πόλη"], ["address", "Διεύθυνση"], ["postalCode", "Τ.Κ."],
+   ["profile:website", "Ιστοσελίδα"], ["phone", "Τηλέφωνο"], ["email", "Email"], ["isHeadquarters", "Κεντρικό πρακτορείο"], ["isActive", "Κατάσταση"], ["notes", "Σημειώσεις"]],
+  [["profile:cooperatingCompanies", "Συνεργαζόμενες ασφαλιστικές"], ["profile:services", "Κλάδοι και υπηρεσίες"]],
+  [["profile:quoteSystem", "Σύστημα πολυτιμολόγησης"], ["profile:quoteSystemDetails", "Λεπτομέρειες σύνδεσης"], ["profile:openingHours", "Ώρες λειτουργίας"]],
+  [["phone", "Κύριο τηλέφωνο"], ["email", "Κύριο email"], ["profile:secondaryPhones", "Επιπλέον τηλέφωνα"], ["profile:secondaryEmails", "Επιπλέον email"],
+   ["profile:accountingContact", "Λογιστήριο / οικονομική επαφή"], ["profile:socialLinks", "Κοινωνικά δίκτυα"], ["profile:openingHours", "Ώρες λειτουργίας"]],
+  [["profile:internalProfileNotes", "Πρόσθετες πληροφορίες"], ["notes", "Εσωτερικές σημειώσεις"]],
+];
+
+export function OfficeProfileFields({ tab, session }: { tab: number; session: ReturnType<typeof useProfileFieldEditor> }) {
+  return <Box sx={profileFieldGridSx}>{(OFFICE_PROFILE_FIELD_GROUPS[tab] ?? []).map(([field, label]) =>
+    <ProfileEditableField key={field} field={field} label={label} session={session}
+      link={field === "email" && session.values[field] ? "mailto:" + session.values[field] : field === "phone" && session.values[field] ? "tel:" + session.values[field] : field === "profile:website" ? session.values[field] : undefined}
+      options={field === "isActive" ? [{ value: "true", label: "Ενεργό" }, { value: "false", label: "Ανενεργό" }]
+        : field === "isHeadquarters" ? [{ value: "true", label: "Ναι" }, { value: "false", label: "Όχι" }] : undefined}
+      type={field === "email" ? "email" : "text"} multiline={["notes", "profile:services", "profile:cooperatingCompanies", "profile:internalProfileNotes", "profile:quoteSystemDetails"].includes(field)}
+      validate={field === "email" || field === "phone" ? value => customerFieldError(field, value) : undefined} />
+  )}</Box>;
+}
+
+function ProductionOfficeProfileDialog({ open, office, onClose, onChanged }: {
+  open: boolean; office: OfficeDto | null; onClose: () => void; onChanged: (office: OfficeDto) => void;
+}) {
+  const qc = useQueryClient();
   const [tab, setTab] = useState(0);
-  const profile = parseOfficeProfile(office?.profileJson);
-  useEffect(() => { if (open) setTab(0); }, [open, office?.id]);
-  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="xl">
-    <DialogTitle sx={{ pr: 6 }}><Stack direction="row" alignItems="center" spacing={1.25}><HomeWorkIcon color="primary" /><Box flex={1}><Typography variant="h5" fontWeight={850}>{office?.name}</Typography><Typography variant="caption" sx={{ fontFamily: "monospace" }}>{office?.code}</Typography></Box>{office && <Button variant="contained" size="small" color="success" startIcon={<EditIcon />} onClick={() => onEdit(office)} sx={{ color: "#fff", fontWeight: 800, borderRadius: 1.5, boxShadow: 2, "&:hover": { bgcolor: "success.dark", color: "#fff" } }}>Επεξεργασία</Button>}</Stack></DialogTitle>
-    <DialogContent dividers sx={{ pt: 0, maxHeight: "78vh", overflowY: "auto" }}>
+  const [savedOffice, setSavedOffice] = useState<OfficeDto | null>(office);
+  const currentOffice = savedOffice?.id === office?.id ? savedOffice : office;
+  const profile = parseOfficeProfile(currentOffice?.profileJson);
+  const usersQ = useQuery({ queryKey: ["production-office-users", office?.id], enabled: open && !!office, queryFn: async () => (await api.get<OfficeUserDto[]>("/agency-offices/" + office!.id + "/users")).data });
+  const users = (usersQ.data ?? []).filter(user => user.isAssigned);
+  useEffect(() => { setTab(0); setSavedOffice(office); }, [open, office?.id]);
+  const values = Object.fromEntries([
+    ...["code", "name", "city", "address", "postalCode", "phone", "email", "isHeadquarters", "isActive", "notes"].map(key => [key, String(currentOffice?.[key as keyof OfficeDto] ?? "")]),
+    ...Object.entries(profile).map(([key, value]) => ["profile:" + key, String(value ?? "")]),
+  ]);
+  const session = useProfileFieldEditor({
+    sessionKey: open ? office?.id ?? "" : "", values, onClose,
+    refresh: () => { void qc.invalidateQueries({ queryKey: ["production-agency-offices-directory"] }); void qc.invalidateQueries({ queryKey: ["agency-offices"] }); },
+    write: async (changes, accept) => {
+      if (!currentOffice) throw new Error("Δεν έχει φορτωθεί η καρτέλα πρακτορείου.");
+      if (!Object.keys(changes).length) return;
+      const response = (await api.put<OfficeDto>("/agency-offices/" + currentOffice.id, buildOfficeProfileUpdate(currentOffice, changes))).data;
+      const updated = { ...currentOffice, ...response };
+      setSavedOffice(updated); onChanged(updated); accept(Object.keys(changes));
+    },
+  });
+  return <Dialog open={open} onClose={session.requestClose} fullWidth maxWidth="xl" PaperProps={{ sx: profileDialogPaperSx }}>
+    <DialogTitle sx={{ px: 1.25, py: .9, bgcolor: "#0b305c", color: "#fff" }}><Stack direction="row" alignItems="center" gap={1}><HomeWorkIcon /><Box sx={{ minWidth: 0 }}><Typography variant="h6" fontWeight={850}>{currentOffice?.name}</Typography><Typography variant="caption">{currentOffice?.code}</Typography></Box></Stack></DialogTitle>
+    <DialogContent dividers sx={{ p: { xs: .65, md: 1.25 }, minHeight: 0 }}>
       <WorkspaceProfileTabs value={tab} onChange={setTab} />
-      {tab === 0 && <Stack spacing={1.5}><ProfileMetricGrid items={[["Κατάσταση", office?.isActive ? "Ενεργό" : "Ανενεργό", office?.isActive ? "success" : "warning"], ["Ρόλος", office?.isHeadquarters ? "Κεντρικό" : "Υποκατάστημα", "info"], ["Χρήστες", String(office?.userCount ?? 0), "info"]]} /><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" }, gap: 1.5 }}><ProfileSection title="Ταυτότητα πρακτορείου"><ProfileLine label="Κωδικός" value={office?.code} mono /><ProfileLine label="Όνομα" value={office?.name} /><ProfileLine label="ΑΦΜ / VAT" value={profile.vatNumber} /><ProfileLine label="Νομική μορφή" value={profile.legalForm} /><ProfileLine label="ΓΕΜΗ / ειδικό μητρώο" value={profile.registrationNumber} /></ProfileSection><ProfileSection title="Διεύθυνση"><ProfileLine label="Πόλη / ΤΚ" value={[office?.city, office?.postalCode].filter(Boolean).join(" · ")} /><ProfileLine label="Διεύθυνση" value={office?.address} /><ProfileLine label="Ιστοσελίδα" value={profile.website} link={profile.website || undefined} /></ProfileSection><ProfileSection title="Κύρια επικοινωνία"><ProfileLine label="Email" value={office?.email} link={office?.email ? `mailto:${office.email}` : undefined} /><ProfileLine label="Τηλέφωνο" value={office?.phone} link={office?.phone ? `tel:${office.phone}` : undefined} /><ProfileLine label="Επιπλέον τηλέφωνα" value={profile.secondaryPhones} /><ProfileLine label="Επιπλέον email" value={profile.secondaryEmails} /></ProfileSection></Box></Stack>}
-      {tab === 1 && <Stack spacing={1.5}><ProfileSection title="Παραγωγή και συμβόλαια"><Alert severity="info">Η παραγωγή, τα συμβόλαια και οι πελάτες του πρακτορείου εμφανίζονται με το ενεργό φίλτρο γραφείου.</Alert><ProfileLine label="Συνεργαζόμενες ασφαλιστικές" value={profile.cooperatingCompanies} /><ProfileLine label="Κλάδοι και υπηρεσίες" value={profile.services} /></ProfileSection></Stack>}
-      {tab === 2 && <Stack spacing={1.5}><ProfileSection title="Σύνδεση και παραμετρικά"><ProfileLine label="Σύστημα πολυτιμολόγησης" value={profile.quoteSystem} /><ProfileLine label="Λεπτομέρειες σύνδεσης" value={profile.quoteSystemDetails} /><ProfileSection title="Πρόσωπα και ρόλοι">{usersQ.isLoading ? <CircularProgress size={20} /> : users.length === 0 ? <Typography color="text.secondary">Δεν έχουν ανατεθεί χρήστες.</Typography> : users.map(user => <Box key={user.userId} sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 0.5, py: 0.65, borderBottom: "1px solid", borderColor: "divider" }}><Typography fontWeight={700}>{`${user.firstName} ${user.lastName}`.trim() || user.email}</Typography><Typography variant="body2" color="text.secondary">{user.role} · {user.email}{user.isPrimary ? " · κύριο γραφείο" : ""}</Typography></Box>)}</ProfileSection></ProfileSection></Stack>}
-      {tab === 3 && <Stack spacing={1.5}><ProfileSection title="Επικοινωνία πρακτορείου"><ProfileLine label="Ώρες λειτουργίας" value={profile.openingHours} /><ProfileLine label="Λογιστήριο / οικονομική επαφή" value={profile.accountingContact} /><ProfileLine label="Κοινωνικά δίκτυα και σύνδεσμοι" value={profile.socialLinks} /></ProfileSection></Stack>}
-      {tab === 4 && <Stack spacing={1.5}><ProfileSection title="Έγγραφα και πρόσθετα πεδία"><Alert severity="info">Η καρτέλα είναι έτοιμη για έγγραφα, φακέλους και προσαρμοσμένα πεδία του πρακτορείου.</Alert><ProfileLine label="Πρόσθετες πληροφορίες" value={profile.internalProfileNotes} /><ProfileLine label="Εσωτερικές σημειώσεις" value={office?.notes} /></ProfileSection></Stack>}
+      <ProfileEditorFeedback session={session} />
+      <OfficeProfileFields tab={tab} session={session} />
+      {tab === 2 && <ProfileSection title="Πρόσωπα και ρόλοι">
+        {usersQ.isLoading ? <CircularProgress size={20} /> : usersQ.isError ? <Alert severity="error">Δεν φορτώθηκαν οι αναθέσεις χρηστών.</Alert> : users.length === 0 ? <Typography variant="body2" color="text.secondary">Δεν έχουν ανατεθεί χρήστες.</Typography>
+          : users.map(user => <Box key={user.userId} sx={profileFieldGridSx}><ProfileLine label="Χρήστης" value={((user.firstName ?? "") + " " + (user.lastName ?? "")).trim() || user.email} /><ProfileLine label="Email" value={user.email} /><ProfileLine label="Ρόλος" value={({ AgencyAdmin: "Διαχειριστής", AgencyOfficeAdmin: "Υπεύθυνος γραφείου", AgencyUser: "Χρήστης γραφείου" })[user.role]} /><ProfileLine label="Κύριο γραφείο" value={user.isPrimary ? "Ναι" : "Όχι"} /></Box>)}
+      </ProfileSection>}
     </DialogContent>
-    <DialogActions sx={{ px: 3, py: 2 }}><Button variant="contained" color="error" onClick={onClose} sx={{ color: "#fff", fontWeight: 800, borderRadius: 1.5, "&:hover": { bgcolor: "error.dark", color: "#fff" } }}>Κλείσιμο</Button></DialogActions>
+    <DialogActions sx={{ px: 1.25, py: .6 }}><ProfileEditorActions session={session} label="πρακτορείου" /></DialogActions>
   </Dialog>;
 }

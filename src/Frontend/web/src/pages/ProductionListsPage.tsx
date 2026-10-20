@@ -7,7 +7,6 @@ import {
 } from "@mui/material";
 import StackedBarChartIcon from "@mui/icons-material/StackedBarChart";
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
-import DownloadIcon from "@mui/icons-material/Download";
 import PrintIcon from "@mui/icons-material/Print";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { ExportFormatMenu } from "../components/ExportFormatMenu";
@@ -585,8 +584,8 @@ export function ProductionListsPage() {
           </Box>
         </Stack>
         <Box sx={{ flex: 1 }} />
-        <Stack direction="row" spacing={1} alignItems="center">
-          <SavedReportsButton inline entity="production-lists" currentFilters={f} onLoad={(next) => setF({ ...f, ...next })} />
+        <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap" sx={{ minWidth: 0, maxWidth: "100%" }}>
+          <SavedReportsButton compact entity="production-lists" currentFilters={f} onLoad={(next) => setF({ ...f, ...next })} />
           {/* «Ετήσια παραγωγή» button removed from the header. The report
               is still reachable via /app/production-report (old bookmarks
               keep working); it's no longer a standalone entry point in
@@ -1007,9 +1006,6 @@ export function ProductionListsPage() {
           </Card>
           {headerMenu.menu}
 
-          <Alert severity="info" icon={<DownloadIcon />} sx={{ mt: 2 }}>
-            {t("productionList.note")}
-          </Alert>
         </>
       )}
       <Dialog

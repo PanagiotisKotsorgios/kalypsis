@@ -596,9 +596,9 @@ export function CustomersPage() {
             onClick={clearFilters} sx={{ minWidth: "auto", px: 1, whiteSpace: "nowrap", color: "common.white" }}>
             Καθαρισμός φίλτρων
           </Button>
-          <Box sx={{ gridColumn: { xs: "1", md: "1 / -1" }, display: "flex", justifyContent: "flex-end", minWidth: 0 }}>
+          <Box sx={{ gridColumn: { xs: "1", md: "span 2" }, display: "flex", justifyContent: "flex-end", minWidth: 0 }}>
             <SavedReportsButton
-              inline
+              compact
               entity="customers"
               currentFilters={savedCustomerFilters}
               onLoad={loadSavedCustomerFilters}
