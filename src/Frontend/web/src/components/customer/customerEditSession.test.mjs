@@ -2,6 +2,19 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { persistCustomerEdits } from "./customerEditSession.ts";
 
+test("driving facts are independently patched, never string booleans in the legacy PUT", async () => {
+  let customer = { firstName: "Αρχικό", hasDrivingLicense: null, isDriver: true, isNewDriver: false };
+  const writes = [];
+  const result = await persistCustomerEdits(customer, { firstName: "Νέο", hasDrivingLicense: "false", isDriver: "", isNewDriver: "true" },
+    async (current, fields) => { assert.deepEqual(fields, { firstName: "Νέο" }); return { ...current, ...fields }; },
+    async (key, value) => { writes.push(key); return { ...customer, [key]: value === "" ? null : value === "true" }; },
+    current => { customer = current; });
+  assert.deepEqual(writes, ["hasDrivingLicense", "isDriver", "isNewDriver"]);
+  assert.equal(result.hasDrivingLicense, false);
+  assert.equal(result.isDriver, null);
+  assert.equal(result.isNewDriver, true);
+});
+
 test("edits from different tabs use one merged primary update and retain untouched data", async () => {
   const customer = { firstName: "Αρχικό", city: "Πάτρα", phone: "2100000000", assignedAdvisorId: "advisor-1" };
   const writes = [];

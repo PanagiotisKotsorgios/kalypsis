@@ -53,6 +53,16 @@ public class CustomersController : ControllerBase
         return Ok(await _mediator.Send(new GetCustomerQuery(id), ct));
     }
 
+    [HttpPatch("{id:guid}/driving-field")]
+    [Authorize(Policy = "AgencyStaff")]
+    [RequirePermission("customers.write")]
+    public async Task<ActionResult<CustomerDto>> UpdateDrivingField(Guid id,
+        [FromBody] CustomerDrivingFieldBody body, CancellationToken ct)
+    {
+        await _mediator.Send(new UpdateCustomerDrivingField(id, body), ct);
+        return Ok(await _mediator.Send(new GetCustomerQuery(id), ct));
+    }
+
     [HttpGet("{id:guid}/history")]
     [Authorize(Policy = "AgencyStaff")]
     [RequirePermission("customers.read")]

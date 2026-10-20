@@ -57,8 +57,9 @@ import { api, extractErrorMessage } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { VehicleDetailDialog, vehicleStatusLabel } from "./CustomerVehiclesPage";
 import { InlineValueField, type InlineValueOption } from "../components/InlineValueField";
-import { persistCustomerEdits, type CustomerDrafts } from "../components/customer/customerEditSession";
+import { drivingFields, persistCustomerEdits, type CustomerDrafts } from "../components/customer/customerEditSession";
 import { customerDraftErrors, customerFieldError, fieldMaxLength } from "../components/customer/customerValidation";
+import { customerAge } from "../components/customer/customerAge";
 
 interface CustomerDto {
   id: string;
@@ -109,6 +110,9 @@ interface CustomerDto {
   source?: string | null;
   tagsJson?: string | null;
   photoUrl?: string | null;
+  hasDrivingLicense?: boolean | null;
+  isDriver?: boolean | null;
+  isNewDriver?: boolean | null;
 }
 
 /** The PUT endpoint intentionally accepts the complete customer projection.
@@ -212,13 +216,12 @@ const CUSTOMER_PROFILE_TAB_LABELS = [
   { label: "Οχήματα", icon: <DirectionsCarIcon fontSize="small" /> },
   { label: "Οικονομικά", icon: <AccountBalanceWalletOutlinedIcon fontSize="small" /> },
   { label: "Εκκρεμή", icon: <InfoOutlinedIcon fontSize="small" /> },
-  { label: "Ζημιές", icon: <DeleteOutlineIcon fontSize="small" /> },
   { label: "Έγγραφα", icon: <FolderIcon fontSize="small" /> },
   { label: "Ιστορικό", icon: <HistoryIcon fontSize="small" /> },
   { label: "Λοιπά", icon: <MoreHorizIcon fontSize="small" /> },
 ];
 
-function CustomerProfileTabs({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+export function CustomerProfileTabs({ value, onChange }: { value: number; onChange: (value: number) => void }) {
   return <Tabs value={value} onChange={(_, next: number) => onChange(next)} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile sx={{
     position: "sticky", top: 0, zIndex: 4, mb: .75, px: .25, py: .5, flexShrink: 0, minHeight: 44,
     border: "1px solid", borderColor: "divider", borderRadius: 1.25,
@@ -314,7 +317,8 @@ export function CustomerDetailPage() {
           };
           return (await api.put<CustomerDto>(`/customers/${id}`, payload)).data;
         },
-        async (field, value) => (await api.patch<CustomerDto>(`/customers/${id}/communication-field`, { field, value })).data,
+        async (field, value) => (await api.patch<CustomerDto>(`/customers/${id}/${drivingFields.has(field) ? "driving-field" : "communication-field"}`,
+          { field, value: drivingFields.has(field) ? (value === "" ? null : value === "true") : value })).data,
         (updated, savedKeys) => {
           qc.setQueryData(["customer", id], updated);
           setDrafts(previous => {
@@ -474,15 +478,12 @@ export function CustomerDetailPage() {
         <CustomerObligations customerId={id} />
       </CustomerTabLayout>}
       {tab === 6 && <CustomerTabLayout>
-        <Box sx={{ gridColumn: { lg: "1 / -1" } }}><CustomerClaimsTab customerId={id} /></Box>
-      </CustomerTabLayout>}
-      {tab === 7 && <CustomerTabLayout>
         <Box sx={{ gridColumn: { lg: "1 / -1" } }}><GdprActionsTab customerId={id} /></Box>
       </CustomerTabLayout>}
-      {tab === 8 && <CustomerTabLayout>
+      {tab === 7 && <CustomerTabLayout>
         <CustomerHistory customerId={id} />
       </CustomerTabLayout>}
-      {tab === 9 && <DesktopCustomerFields customer={customer} editing={fieldEditing} fieldKeys={[]} />}
+      {tab === 8 && <DesktopCustomerFields customer={customer} editing={fieldEditing} section="other" />}
       </Box>
       </DialogContent>
       <DialogActions sx={{ borderTop: 1, borderColor: "divider", px: { xs: .75, md: 1.25 }, py: .55, gap: .65, flexWrap: "wrap", justifyContent: "space-between", "& .MuiButton-root": { minHeight: 32, px: { xs: .9, md: 1.1 }, fontSize: { xs: ".72rem", md: ".78rem" } } }}>
@@ -1068,50 +1069,6 @@ function RenewalTimeline({ policies }: { policies: TimelinePolicy[] }) {
   );
 }
 
-/* ---------- Claims tab ---------- */
-
-function CustomerClaimsTab({ customerId: _customerId }: { customerId: string }) {
-  // Claims are filtered by policy on the backend; fetch all and filter client-side
-  // for the user's policies.
-  const policiesQ = useQuery({
-    queryKey: ["customer-policies-for-claims", _customerId],
-    queryFn: async () => (await api.get<{ id: string }[]>("/policies", { params: { customerId: _customerId } })).data
-  });
-  const claimsQ = useQuery({
-    queryKey: ["customer-claims", _customerId],
-    queryFn: async () => (await api.get<any[]>("/claims")).data
-  });
-  if (policiesQ.isLoading || claimsQ.isLoading) return <CircularProgress />;
-  const policyIds = new Set((policiesQ.data ?? []).map(p => p.id));
-  const claims = (claimsQ.data ?? []).filter((c: any) => policyIds.has(c.policyId));
-  if (claims.length === 0) return <Alert severity="success">Δεν υπάρχουν ζημίες.</Alert>;
-  return (
-    <Card variant="outlined">
-      <Table size="small">
-        <TableHead><TableRow>
-          <TableCell>Αρ. Ζημίας</TableCell>
-          <TableCell>Συμβόλαιο</TableCell>
-          <TableCell>Συμβάν</TableCell>
-          <TableCell>Κατάσταση</TableCell>
-          <TableCell align="right">Διεκδικ.</TableCell>
-          <TableCell align="right">Εγκρ.</TableCell>
-        </TableRow></TableHead>
-        <TableBody>
-          {claims.map((c: any) => (
-            <TableRow key={c.id} hover>
-              <TableCell>{c.claimNumber}</TableCell>
-              <TableCell sx={{ fontFamily: "monospace" }}>{c.policyNumber}</TableCell>
-              <TableCell>{c.incidentDate}</TableCell>
-              <TableCell><Chip size="small" label={c.status} /></TableCell>
-              <TableCell align="right">{c.claimedAmount?.toFixed?.(2) ?? "—"}</TableCell>
-              <TableCell align="right">{c.approvedAmount?.toFixed?.(2) ?? "—"}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </Card>
-  );
-}
 
 /* ---------- Notifications tab ---------- */
 
@@ -1192,6 +1149,7 @@ function CustomerProducersSummary({ customerId }: { customerId: string }) {
 
 
 type DesktopCustomerField = {
+  id?: string;
   label: string;
   key?: keyof CustomerDto;
   value?: string | null;
@@ -1209,8 +1167,15 @@ interface CustomerFieldEditing {
   onCommitField: (key: keyof CustomerDto, value: string) => Promise<void>;
 }
 
+export const CUSTOMER_MISC_FIELD_KEYS = [
+  "activityCode", "employer", "notes", "taxOffice", "passportNumber", "maritalStatus", "spouseName", "motherName",
+  "gemiNumber", "legalForm", "source", "tagsJson", "photoUrl", "zone", "driverLicenseNumber", "driverLicenseClass",
+  "driverLicenseIssueDate", "driverLicenseExpiryDate",
+] as const satisfies readonly (keyof CustomerDto)[];
+const miscellaneousFields = new Set<string>(CUSTOMER_MISC_FIELD_KEYS);
+
 export function DesktopCustomerFields({ customer, section = "general", editing, fieldKeys }: {
-  customer: CustomerDto; section?: "general" | "contact"; editing: CustomerFieldEditing;
+  customer: CustomerDto; section?: "general" | "contact" | "other"; editing: CustomerFieldEditing;
   /** Reuse the exact same controls for a selected subset without duplicating field metadata. */
   fieldKeys?: readonly (keyof CustomerDto)[];
 }) {
@@ -1220,6 +1185,12 @@ export function DesktopCustomerFields({ customer, section = "general", editing, 
   const nationalities = useQuery({ queryKey: ["lookup", "nationalities"], enabled: section === "general",
     queryFn: async () => (await api.get<Array<{ name: string }>>("/lookups/nationalities")).data });
   const dash = "—";
+  const age = customerAge(editing.drafts.birthDate ?? customer.birthDate);
+  const booleanOptions: InlineValueOption[] = [{ value: "", label: "Δεν έχει οριστεί" }, { value: "true", label: "Ναι" }, { value: "false", label: "Όχι" }];
+  const driving = (key: "hasDrivingLicense" | "isDriver" | "isNewDriver", label: string): DesktopCustomerField => ({
+    key, label, value: customer[key] == null ? "" : String(customer[key]),
+    displayValue: customer[key] == null ? "Δεν έχει οριστεί" : customer[key] ? "Ναι" : "Όχι", options: booleanOptions,
+  });
   const dateTime = customer.createdAt ? new Date(customer.createdAt).toLocaleString("el-GR", { dateStyle: "short", timeStyle: "short" }) : dash;
   const typeLabel = customer.type === "Company" ? "Νομικό πρόσωπο" : "Φυσικό πρόσωπο";
   const statusLabel = ({ Prospect: "Πιθανός πελάτης", Active: "Ενεργός πελάτης", Inactive: "Ανενεργός", Churned: "Απώλεια", Blocked: "Αποκλεισμένος" } as Record<string, string>)[customer.status] ?? customer.status;
@@ -1280,6 +1251,10 @@ export function DesktopCustomerFields({ customer, section = "general", editing, 
 
   const additional: DesktopCustomerField[] = [
     { label: "Ημ. γέννησης", key: "birthDate", value: customer.birthDate, type: "date" },
+    { id: "age", label: "Ηλικία (αυτόματα)", value: age == null ? dash : `${age} έτη` },
+    driving("hasDrivingLicense", "Έχει δίπλωμα"),
+    driving("isDriver", "Είναι οδηγός"),
+    driving("isNewDriver", "Νέος οδηγός"),
     { label: "Φύλο", key: "gender", value: customer.gender, displayValue: ({ Male: "Άνδρας", Female: "Γυναίκα", Other: "Άλλο", PreferNotToSay: "Δεν επιθυμεί να δηλώσει" } as Record<string, string>)[customer.gender ?? ""] || customer.gender || dash,
       options: [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Male", label: "Άνδρας" }, { value: "Female", label: "Γυναίκα" }, { value: "Other", label: "Άλλο" }, { value: "PreferNotToSay", label: "Δεν επιθυμεί να δηλώσει" }] },
     { label: "Εθνικότητα", key: "nationality", value: customer.nationality },
@@ -1301,13 +1276,13 @@ export function DesktopCustomerFields({ customer, section = "general", editing, 
       options: [{ value: "", label: "Δεν έχει οριστεί" }, ...["ΑΜ", "Α1", "Α2", "Α", "Β", "ΒΕ", "Γ", "ΓΕ", "Δ", "ΔΕ"].map(value => ({ value, label: value }))] },
     { label: "Έκδοση διπλώματος", key: "driverLicenseIssueDate", value: customer.driverLicenseIssueDate, type: "date" },
     { label: "Λήξη διπλώματος", key: "driverLicenseExpiryDate", value: customer.driverLicenseExpiryDate, type: "date" },
-    { label: "Ημ. εξόφλησης", key: "paymentDueDate", value: customer.paymentDueDate, type: "date" },
   ];
 
-  // One canonical editor per field: profile and licence details now live in
-  // General, not in a second form with a separate save workflow.
+  // Both tabs use the same metadata, controls, drafts and save workflow.
   const allGeneralFields = [...left, ...right, ...additional];
-  const generalFields = fieldKeys === undefined ? allGeneralFields : allGeneralFields.filter(field => field.key && fieldKeys.includes(field.key));
+  const generalFields = fieldKeys !== undefined ? allGeneralFields.filter(field => field.key && fieldKeys.includes(field.key))
+    : section === "other" ? CUSTOMER_MISC_FIELD_KEYS.flatMap(key => allGeneralFields.filter(field => field.key === key))
+    : allGeneralFields.filter(field => !field.key || !miscellaneousFields.has(field.key));
   const columnCount = wide ? 3 : 2;
   const columnSize = Math.ceil(generalFields.length / columnCount);
   const columns = section === "contact" ? [contactLeft, contactRight]
@@ -1318,7 +1293,7 @@ export function DesktopCustomerFields({ customer, section = "general", editing, 
     const raw = typeof stored === "string" || typeof stored === "number" ? stored : stored == null ? "" : String(stored);
     const display = field.displayValue ?? (field.value || dash);
     return (
-      <Box key={field.label} data-customer-field={field.key ?? field.label} sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(104px, .36fr) minmax(0, 1fr)", sm: "132px minmax(0, 1fr)" }, alignItems: "center", minHeight: 32, gap: .5 }}>
+      <Box key={field.label} data-customer-field={field.key ?? field.id ?? field.label} sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(104px, .36fr) minmax(0, 1fr)", sm: "132px minmax(0, 1fr)" }, alignItems: "center", minHeight: 32, gap: .5 }}>
         <Typography variant="caption" sx={{ color: "#506783", fontWeight: 700, lineHeight: 1.15, pr: .35 }}>{field.label}</Typography>
         <InlineValueField
           label={field.label}
@@ -1346,11 +1321,11 @@ export function DesktopCustomerFields({ customer, section = "general", editing, 
   };
 
   return (
-    <Box sx={{ bgcolor: "#edf3f9", border: "1px solid #d6e3f0", borderRadius: 1.25, p: { xs: .5, md: .75 }, minHeight: 0, overflow: section === "general" ? "auto" : "visible", flexShrink: section === "general" ? 1 : 0 }}>
+    <Box sx={{ bgcolor: "#edf3f9", border: "1px solid #d6e3f0", borderRadius: 1.25, p: { xs: .5, md: .75 }, minHeight: 0, overflow: section !== "contact" ? "auto" : "visible", flexShrink: section !== "contact" ? 1 : 0 }}>
       {fieldKeys?.length === 0 && <Typography role="status" variant="body2" color="text.secondary" sx={{ p: 1 }}>
         Δεν έχουν οριστεί ακόμη πεδία για την ενότητα «Λοιπά».
       </Typography>}
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))", lg: `repeat(${section === "general" ? 3 : 2}, minmax(0, 1fr))` }, columnGap: { xs: 0, md: 1 }, alignItems: "start" }}>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))", lg: `repeat(${section !== "contact" ? 3 : 2}, minmax(0, 1fr))` }, columnGap: { xs: 0, md: 1 }, alignItems: "start" }}>
         {columns.map((fields, index) => <Stack key={index} spacing={.25}>{fields.map(renderField)}</Stack>)}
       </Box>
     </Box>

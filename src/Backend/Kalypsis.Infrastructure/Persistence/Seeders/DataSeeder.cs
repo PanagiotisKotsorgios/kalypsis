@@ -164,6 +164,9 @@ public static class DataSeeder
         ]),
         ("20261020120000_AddCustomerAdditionalCommunicationChannels", [
             ("customers", "ThirdPhone"), ("customers", "SecondaryMobilePhone"), ("customers", "SecondaryEmail")
+        ]),
+        ("20261020130000_AddCustomerDrivingProfile", [
+            ("customers", "HasDrivingLicense"), ("customers", "IsDriver"), ("customers", "IsNewDriver")
         ])
     ];
 

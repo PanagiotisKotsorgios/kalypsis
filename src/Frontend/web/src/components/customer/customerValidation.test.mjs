@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { customerFieldError, customerDraftErrors, fieldMaxLength } from "./customerValidation.ts";
 import { auditValue } from "../audit/auditValues.ts";
+import { customerAge } from "./customerAge.ts";
 
 const cases = [
   ["phone", "2101234567", true], ["phone", "210 123 4567", true], ["phone", "+30 (210) 123-4567", true],
@@ -41,4 +42,14 @@ test("audit values distinguish missing snapshots from empty fields and translate
   assert.equal(auditValue("Status", "Active", true), "Ενεργό");
   assert.equal(auditValue("Notes", "Active", true), "Active");
   assert.equal(auditValue("BirthDate", "1990-01-02", true).includes("1990"), true);
+});
+
+test("age uses calendar birthdays, preserves zero and rejects absent, invalid and future dates", () => {
+  const today = new Date(2026, 9, 20);
+  assert.equal(customerAge("1990-10-21", today), 35);
+  assert.equal(customerAge("1990-10-20", today), 36);
+  assert.equal(customerAge("2026-10-20", today), 0);
+  for (const date of [null, "", "2026-02-30", "2026-13-01", "2027-01-01"]) assert.equal(customerAge(date, today), undefined);
+  assert.equal(customerAge("2000-02-29", new Date(2026, 1, 28)), 25);
+  assert.equal(customerAge("2000-02-29", new Date(2026, 2, 1)), 26);
 });

@@ -69,6 +69,11 @@ public class Customer : TenantEntity
 
     public DateOnly? DriverLicenseIssueDate { get; set; }
     public DateOnly? DriverLicenseExpiryDate { get; set; }
+    // Null means not recorded, not "No". These are office-declared facts,
+    // not an automatic insurer-specific risk classification.
+    public bool? HasDrivingLicense { get; set; }
+    public bool? IsDriver { get; set; }
+    public bool? IsNewDriver { get; set; }
 
     public string? Source { get; set; }               // referral / web / walk-in / ad
     public string? TagsJson { get; set; }             // ["VIP","ξένος","priority"]

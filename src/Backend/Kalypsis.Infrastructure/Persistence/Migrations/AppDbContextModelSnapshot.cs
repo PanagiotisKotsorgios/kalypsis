@@ -4627,6 +4627,15 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("varchar(40)");
 
+                    b.Property<bool?>("HasDrivingLicense")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool?>("IsDriver")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool?>("IsNewDriver")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<string>("ThirdPhone")
                         .HasMaxLength(40)
                         .HasColumnType("varchar(40)");

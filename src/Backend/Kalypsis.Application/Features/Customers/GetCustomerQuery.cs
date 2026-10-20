@@ -49,6 +49,7 @@ public class GetCustomerQueryHandler : IRequestHandler<GetCustomerQuery, Custome
             c.AltPhone, c.MobilePhone, c.Amka, c.IdNumber, c.PassportNumber, c.Region, c.Gender, c.MaritalStatus,
             c.Employer, c.DriverLicenseNumber, c.DriverLicenseClass, c.DriverLicenseIssueDate,
             c.DriverLicenseExpiryDate, c.Source, c.TagsJson, c.PhotoUrl,
-            c.ThirdPhone, c.SecondaryMobilePhone, c.SecondaryEmail, c.AssignedAdvisorId);
+            c.ThirdPhone, c.SecondaryMobilePhone, c.SecondaryEmail, c.AssignedAdvisorId,
+            c.HasDrivingLicense, c.IsDriver, c.IsNewDriver);
     }
 }

@@ -771,15 +771,15 @@ export function ProductionListsPage() {
       {q.isLoading ? <CircularProgress /> : !q.data ? null : (
         <>
           {/* Grand totals strip */}
-          <Card sx={{ p: 2.5, mb: 2, bgcolor: "rgba(11,37,69,0.04)" }}>
-            <Stack direction="row" spacing={3} flexWrap="wrap">
+          <Card variant="outlined" sx={{ p: .65, mb: 1, bgcolor: "#e6edf5", borderColor: "#d5e0ec", boxShadow: "none" }}>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(3, minmax(0, 1fr))", lg: "repeat(6, minmax(0, 1fr))" }, gap: .65 }}>
               <Kpi label={t("productionList.kpi.policies")} value={q.data.grand.count} />
               <Kpi label={t("productionList.kpi.gross")} value={money(q.data.grand.gross)} tone="info" />
               <Kpi label={t("productionList.kpi.net")} value={money(q.data.grand.net)} tone="success" />
               <Kpi label="Φόρος ασφαλίστρων" value={money(q.data.grand.vat)} tone="warning" />
-              <Kpi label={t("productionList.kpi.partnerComm")} value={money(q.data.grand.partnerCommission)} color="warning.main" tone="warning" />
+              <Kpi label={t("productionList.kpi.partnerComm")} value={money(q.data.grand.partnerCommission)} color="error.dark" tone="warning" />
               <Kpi label={t("productionList.kpi.agencyComm")} value={money(q.data.grand.agencyCommission)} color="success.main" tone="success" />
-            </Stack>
+            </Box>
           </Card>
 
           {/* Aggregate totals per group — read-only summary above the
@@ -1083,28 +1083,28 @@ export function ProductionListsPage() {
   );
 }
 
-function Kpi({ label, value, color, tone = "neutral" }: {
+export function Kpi({ label, value, color, tone = "neutral" }: {
   label: string;
   value: React.ReactNode;
   color?: string;
   tone?: "neutral" | "info" | "success" | "warning";
 }) {
   const backgrounds = {
-    neutral: "rgba(11,37,69,0.035)",
-    info: "rgba(31,123,179,0.09)",
-    success: "rgba(46,125,50,0.12)",
-    warning: "rgba(237,108,2,0.10)",
+    neutral: "#f0f2f5",
+    info: "#eaf2fa",
+    success: "#edf6f0",
+    warning: "#fbefef",
   } as const;
   const borders = {
-    neutral: "rgba(11,37,69,0.10)",
-    info: "rgba(31,123,179,0.24)",
-    success: "rgba(46,125,50,0.28)",
-    warning: "rgba(237,108,2,0.25)",
+    neutral: "#d0d9e4",
+    info: "#bfd3e7",
+    success: "#bed8c8",
+    warning: "#e3bfc2",
   } as const;
   return (
-    <Box sx={{ minWidth: 112, px: 1.25, py: 0.8, borderRadius: 1.5, bgcolor: backgrounds[tone], border: "1px solid", borderColor: borders[tone] }}>
-      <Typography variant="caption" color="text.secondary">{label}</Typography>
-      <Typography variant="h6" fontWeight={800} sx={{ color: color ?? "text.primary" }}>{value}</Typography>
+    <Box role="group" aria-label={label} sx={{ minWidth: 0, minHeight: 36, px: .8, py: .45, borderRadius: .8, bgcolor: backgrounds[tone], border: "1px solid", borderColor: borders[tone], display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", columnGap: .65, rowGap: .1 }}>
+      <Typography variant="caption" sx={{ color: "#536b89", fontWeight: 700, fontSize: ".69rem", lineHeight: 1.2, overflowWrap: "anywhere" }}>{label}</Typography>
+      <Typography variant="body2" fontWeight={800} sx={{ color: color ?? (tone === "warning" ? "#8d343d" : "#102d55"), fontSize: ".82rem", lineHeight: 1.25, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere", minWidth: 0 }}>{value}</Typography>
     </Box>
   );
 }

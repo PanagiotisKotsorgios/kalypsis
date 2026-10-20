@@ -137,6 +137,9 @@ public class AnonymizeCustomerHandler : IRequestHandler<AnonymizeCustomerCommand
         customer.ThirdPhone = null;
         customer.SecondaryMobilePhone = null;
         customer.SecondaryEmail = null;
+        customer.HasDrivingLicense = null;
+        customer.IsDriver = null;
+        customer.IsNewDriver = null;
         customer.Amka = null;
         customer.IdNumber = null;
         customer.PassportNumber = null;

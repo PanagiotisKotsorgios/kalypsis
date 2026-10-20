@@ -4,6 +4,9 @@ export function customerFieldError(field: string, raw: unknown): string | undefi
   const value = raw == null ? "" : String(raw).trim();
   if (!value) return undefined;
   switch (field.toLowerCase()) {
+    case "hasdrivinglicense": case "isdriver": case "isnewdriver":
+      if (value !== "true" && value !== "false") return "Επιλέξτε Ναι, Όχι ή Δεν έχει οριστεί.";
+      break;
     case "phone": case "altphone": case "thirdphone": case "mobilephone": case "secondarymobilephone": {
       let compact = value.replace(/[ ()-]/g, "");
       if (compact.startsWith("00")) compact = `+${compact.slice(2)}`;

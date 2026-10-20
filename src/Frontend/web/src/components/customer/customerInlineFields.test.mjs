@@ -41,19 +41,30 @@ test("card-wide editing uses the existing field controls without autofocus or ed
     // Load the actual General sheet, not a duplicate test-only implementation.
     globalThis.sessionStorage ??= { getItem: () => null, setItem() {}, removeItem() {} };
     globalThis.localStorage ??= { getItem: () => null, setItem() {}, removeItem() {} };
-    const { DesktopCustomerFields } = await server.ssrLoadModule("/src/pages/CustomerDetailPage.tsx");
+    const { DesktopCustomerFields, CUSTOMER_MISC_FIELD_KEYS, CustomerProfileTabs } = await server.ssrLoadModule("/src/pages/CustomerDetailPage.tsx");
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const customer = { id: "test", customerNumber: "C-TEST", type: "Individual", status: "Active", firstName: "Δοκιμή" };
     const editing = { editAll: false, drafts: {}, saving: false, canEdit: true, onDraftChange() {}, async onCommitField() {} };
     try {
       const general = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(DesktopCustomerFields, { customer, editing })));
-      const expected = ["birthDate", "gender", "nationality", "maritalStatus", "passportNumber", "fatherName", "motherName", "spouseName",
-        "gemiNumber", "legalForm", "source", "tagsJson", "photoUrl", "zone", "driverLicenseNumber", "driverLicenseClass", "driverLicenseIssueDate", "driverLicenseExpiryDate", "paymentDueDate", "occupation", "employer", "mobilePhone", "activityCode"];
+      const expected = ["birthDate", "gender", "nationality", "fatherName", "occupation", "mobilePhone", "hasDrivingLicense", "isDriver", "isNewDriver"];
       for (const field of expected) assert.equal(general.split(`data-customer-field="${field}"`).length - 1, 1, `${field} must appear once in General`);
+      const misc = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(DesktopCustomerFields, { customer, editing, section: "other" })));
+      for (const field of CUSTOMER_MISC_FIELD_KEYS) {
+        assert.equal(misc.split(`data-customer-field="${field}"`).length - 1, 1, `${field} must appear once in Other`);
+        assert.equal(general.includes(`data-customer-field="${field}"`), false);
+      }
+      for (const markup of [general, misc]) assert.equal(markup.includes('data-customer-field="paymentDueDate"'), false);
       assert.equal(general.includes("Προφίλ και οικογενειακή κατάσταση"), false);
       const editable = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(DesktopCustomerFields, { customer, editing: { ...editing, editAll: true } })));
       for (const field of expected) assert.equal(editable.includes(`data-customer-field="${field}"`), true);
-      assert.equal(editable.includes("Αποθήκευση Λήξη διπλώματος"), true);
+      assert.equal(editable.includes("Αποθήκευση Ηλικία"), false);
+      const otherEditable = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(DesktopCustomerFields, { customer, editing: { ...editing, editAll: true }, section: "other" })));
+      assert.equal(otherEditable.includes("Αποθήκευση Λήξη διπλώματος"), true);
+      assert.equal(editable.includes("Αποθήκευση Έχει δίπλωμα"), true);
+      const tabs = renderToStaticMarkup(createElement(CustomerProfileTabs, { value: 0, onChange() {} }));
+      assert.equal(tabs.includes("Ζημιές"), false);
+      assert.equal(tabs.includes("Λοιπά"), true);
       const other = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(DesktopCustomerFields, { customer, editing, fieldKeys: [] })));
       assert.equal(other.includes("Δεν έχουν οριστεί ακόμη πεδία"), true);
       assert.equal(other.includes("data-customer-field="), false);
@@ -64,6 +75,11 @@ test("card-wide editing uses the existing field controls without autofocus or ed
       const { AuditFieldChanges } = await server.ssrLoadModule("/src/components/audit/AuditFieldChanges.tsx");
       const history = renderToStaticMarkup(createElement(AuditFieldChanges, { changes: [{ field: "Phone", label: "Τηλέφωνο", before: "2101234567", after: "2109876543", beforeRecorded: true, afterRecorded: true }] }));
       for (const text of ["Πριν", "Μετά", "2101234567", "2109876543"]) assert.equal(history.includes(text), true);
+      const { Kpi } = await server.ssrLoadModule("/src/pages/ProductionListsPage.tsx");
+      const total = renderToStaticMarkup(createElement(Kpi, { label: "Συμβόλαια", value: 0 }));
+      assert.equal(total.includes('aria-label="Συμβόλαια"'), true);
+      assert.equal(total.includes("min-height:36px"), true);
+      assert.equal(total.includes("MuiTypography-h6"), false);
     } finally { client.clear(); }
   } finally { await server.close(); }
 });

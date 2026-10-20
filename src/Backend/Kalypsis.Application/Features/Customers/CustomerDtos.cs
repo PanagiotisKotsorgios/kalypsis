@@ -50,7 +50,10 @@ public record CustomerDto(
     string? ThirdPhone = null,
     string? SecondaryMobilePhone = null,
     string? SecondaryEmail = null,
-    Guid? AssignedAdvisorId = null);
+    Guid? AssignedAdvisorId = null,
+    bool? HasDrivingLicense = null,
+    bool? IsDriver = null,
+    bool? IsNewDriver = null);
 
 public record CreateCustomerRequest(
     CustomerType Type,

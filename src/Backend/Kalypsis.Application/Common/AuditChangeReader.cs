@@ -72,6 +72,7 @@ public static class AuditChangeReader
         ["MaritalStatus"] = "Οικογενειακή κατάσταση", ["DriverLicenseNumber"] = "Αριθμός διπλώματος",
         ["DriverLicenseClass"] = "Κατηγορία διπλώματος", ["DriverLicenseIssueDate"] = "Έκδοση διπλώματος",
         ["DriverLicenseExpiryDate"] = "Λήξη διπλώματος", ["Source"] = "Πηγή", ["TagsJson"] = "Ετικέτες",
+        ["HasDrivingLicense"] = "Έχει δίπλωμα", ["IsDriver"] = "Είναι οδηγός", ["IsNewDriver"] = "Νέος οδηγός",
         ["PhotoUrl"] = "URL φωτογραφίας", ["PaymentDueDate"] = "Ημ. εξόφλησης", ["AssignedAdvisorId"] = "Υπεύθυνος πελάτη",
         ["PolicyNumber"] = "Αριθμός συμβολαίου", ["PolicyType"] = "Κλάδος", ["Premium"] = "Ασφάλιστρο",
         ["StartDate"] = "Έναρξη", ["EndDate"] = "Λήξη", ["Description"] = "Περιγραφή", ["Subject"] = "Θέμα",

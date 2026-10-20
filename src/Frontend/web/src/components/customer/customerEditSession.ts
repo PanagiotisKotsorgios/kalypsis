@@ -1,5 +1,6 @@
 export type CustomerDrafts = Partial<Record<string, string>>;
-const additionalChannels = new Set(["thirdPhone", "secondaryMobilePhone", "secondaryEmail"]);
+export const drivingFields = new Set(["hasDrivingLicense", "isDriver", "isNewDriver"]);
+const additionalChannels = new Set(["thirdPhone", "secondaryMobilePhone", "secondaryEmail", ...drivingFields]);
 
 /** One primary update for all normal fields, then independent additional channels.
  * Report successful writes immediately so a retry only sends remaining changes. */
