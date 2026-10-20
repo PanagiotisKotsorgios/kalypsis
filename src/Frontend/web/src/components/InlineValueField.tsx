@@ -32,6 +32,11 @@ interface InlineValueFieldProps {
   plain?: boolean;
   /** Render the desktop-style copy and edit controls on the right. */
   showActions?: boolean;
+  /** Enable this existing field in place as part of a card-wide edit session. */
+  editMode?: boolean;
+  /** Parent-owned drafts survive switching between tabs. */
+  draftValue?: string;
+  onDraftChange?: (value: string) => void;
 }
 
 /**
@@ -60,24 +65,36 @@ export function InlineValueField({
   hideLabel = false,
   plain = false,
   showActions = false,
+  editMode = false,
+  draftValue,
+  onDraftChange,
 }: InlineValueFieldProps) {
   const raw = value === null || value === undefined ? "" : String(value);
   const clipboardText = copyValue === null || copyValue === undefined ? raw : String(copyValue);
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(raw);
+  const [localEditing, setEditing] = useState(draftValue !== undefined && !!onCommit);
+  const [localDraft, setLocalDraft] = useState(raw);
+  const editing = localEditing || (editMode && !!onCommit);
+  const draft = draftValue ?? localDraft;
+  const setDraft = (next: string) => { setLocalDraft(next); onDraftChange?.(next); };
   const [copied, setCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const clickTimer = useRef<number | null>(null);
+  const previousEditMode = useRef(editMode);
 
   useEffect(() => {
-    if (!editing) setDraft(raw);
-  }, [raw, editing]);
+    if (!editing || (editMode && draftValue === undefined)) setLocalDraft(raw);
+  }, [raw, editing, editMode, draftValue]);
 
   useEffect(() => {
-    if (!editing) return;
+    if (previousEditMode.current !== editMode) setEditing(false);
+    previousEditMode.current = editMode;
+  }, [editMode]);
+
+  useEffect(() => {
+    if (!editing || editMode || draftValue !== undefined) return;
     const timer = window.setTimeout(() => inputRef.current?.focus(), 0);
     return () => window.clearTimeout(timer);
-  }, [editing]);
+  }, [editing, editMode]);
 
   useEffect(() => () => {
     if (clickTimer.current !== null) window.clearTimeout(clickTimer.current);
@@ -107,6 +124,7 @@ export function InlineValueField({
   };
 
   const saveEdit = async () => {
+    if (disabled) return;
     if (!onCommit || draft === raw) {
       setEditing(false);
       return;
@@ -187,6 +205,8 @@ export function InlineValueField({
         options ? (
           <TextField
             select
+            disabled={disabled}
+            inputProps={{ "aria-label": label }}
             size="small"
             fullWidth
             value={draft}
@@ -196,13 +216,16 @@ export function InlineValueField({
               if (event.key === "Enter") { event.preventDefault(); void saveEdit(); }
             }}
             inputRef={inputRef}
-            sx={{ "& .MuiInputBase-root": { minHeight: 32 }, "& .MuiSelect-select": { py: .45, fontSize: ".8rem" } }}
+            sx={{ "& .MuiInputBase-root": { minHeight: compact ? 30 : 32 }, "& .MuiSelect-select": { py: .45, fontSize: ".8rem" } }}
           >
+            {!options.some(option => option.value === draft) && <MenuItem value={draft}>{draft === raw ? displayValue ?? (draft || "—") : draft}</MenuItem>}
             {options.map(option => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
           </TextField>
         ) : (
           <TextField
-            autoFocus
+            autoFocus={!editMode && draftValue === undefined}
+            disabled={disabled}
+            inputProps={{ "aria-label": label }}
             size="small"
             fullWidth
             type={type}
@@ -216,7 +239,7 @@ export function InlineValueField({
             }}
             inputRef={inputRef}
             InputLabelProps={type === "date" ? { shrink: true } : undefined}
-            sx={{ "& .MuiInputBase-root": { minHeight: 32 }, "& input, & textarea": { py: .45, fontSize: ".8rem", fontFamily: mono ? "monospace" : undefined } }}
+            sx={{ "& .MuiInputBase-root": { minHeight: compact ? 30 : 32 }, "& input, & textarea": { py: .45, fontSize: ".8rem", fontFamily: mono ? "monospace" : undefined } }}
           />
         )
       ) : (
@@ -246,6 +269,7 @@ export function InlineValueField({
                   size="small"
                   aria-label={`Ακύρωση επεξεργασίας ${label}`}
                   onClick={cancelEdit}
+                  disabled={disabled}
                   sx={{ width: 30, height: 30, borderRadius: .5, color: "#fff", bgcolor: "#64748b", border: "1px solid #475569", "&:hover": { bgcolor: "#475569" } }}
                 >
                   <CloseOutlinedIcon sx={{ fontSize: 17 }} />

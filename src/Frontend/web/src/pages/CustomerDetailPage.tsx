@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Autocomplete,
@@ -15,6 +15,7 @@ import {
   IconButton,
   MenuItem,
   Stack,
+  Snackbar,
   Switch,
   Tab,
   Table,
@@ -55,6 +56,7 @@ import { api, extractErrorMessage } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { VehicleDetailDialog, vehicleStatusLabel } from "./CustomerVehiclesPage";
 import { InlineValueField, type InlineValueOption } from "../components/InlineValueField";
+import { persistCustomerEdits, type CustomerDrafts } from "../components/customer/customerEditSession";
 
 interface CustomerDto {
   id: string;
@@ -90,6 +92,7 @@ interface CustomerDto {
   thirdPhone?: string | null;
   secondaryMobilePhone?: string | null;
   secondaryEmail?: string | null;
+  assignedAdvisorId?: string | null;
   amka?: string | null;
   idNumber?: string | null;
   passportNumber?: string | null;
@@ -127,7 +130,7 @@ function customerInlinePayload(customer: CustomerDto, key: keyof CustomerDto, va
     driverLicenseIssueDate: optional("driverLicenseIssueDate"), driverLicenseExpiryDate: optional("driverLicenseExpiryDate"),
     source: optional("source"), tagsJson: optional("tagsJson"), photoUrl: optional("photoUrl"),
     createPortalAccount: false,
-    assignedAdvisorId: undefined,
+    assignedAdvisorId: optional("assignedAdvisorId"),
     [key]: value || undefined,
   };
 }
@@ -269,29 +272,59 @@ export function CustomerDetailPage() {
   const qc = useQueryClient();
   const [tab, setTab] = useState(0);
   const [popup, setPopup] = useState<"communications" | "producers" | "statistics" | "family" | null>(null);
-  const [showEditor, setShowEditor] = useState(false);
-  const [editorSave, setEditorSave] = useState<(() => void) | null>(null);
-  const [editorSaving, setEditorSaving] = useState(false);
-  const registerEditorSave = useCallback((save: (() => void) | null, pending: boolean) => {
-    setEditorSave(() => save);
-    setEditorSaving(pending);
-  }, []);
-  const changeProfileTab = useCallback((next: number) => {
-    setTab(next);
-    // The inline customer editor belongs only to the overview tab. Closing it
-    // before switching keeps each profile tab isolated and prevents the old
-    // editor content from remaining above the newly selected tab.
-    if (showEditor) {
-      setShowEditor(false);
-      setEditorSave(null);
-      setEditorSaving(false);
-    }
-  }, [showEditor]);
+  const [editAll, setEditAll] = useState(false);
+  const [drafts, setDrafts] = useState<CustomerDrafts>({});
+  const [discardAction, setDiscardAction] = useState<"close" | "cancel" | null>(null);
+  const [toast, setToast] = useState("");
 
   const customerQ = useQuery({
     queryKey: ["customer", id],
     queryFn: async () => (await api.get<CustomerDto>(`/customers/${id}`)).data,
     enabled: !!id
+  });
+  const hasUnsavedChanges = Object.entries(drafts).some(([key, value]) => value !== String(customerQ.data?.[key as keyof CustomerDto] ?? ""));
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [hasUnsavedChanges]);
+  useEffect(() => { setDrafts({}); setEditAll(false); setDiscardAction(null); }, [id]);
+
+  const saveFields = useMutation({
+    mutationFn: async ({ changes }: { changes: CustomerDrafts; finish?: boolean }) => {
+      const current = qc.getQueryData<CustomerDto>(["customer", id]) ?? customerQ.data;
+      if (!current) throw new Error("Δεν έχει φορτωθεί η καρτέλα πελάτη.");
+      return persistCustomerEdits(current, changes,
+        async (latest, primary) => {
+          const [key, value] = Object.entries(primary)[0];
+          const payload = {
+            ...customerInlinePayload(latest, key as keyof CustomerDto, value),
+            ...Object.fromEntries(Object.entries(primary).map(([field, next]) => [field, next || undefined])),
+          };
+          return (await api.put<CustomerDto>(`/customers/${id}`, payload)).data;
+        },
+        async (field, value) => (await api.patch<CustomerDto>(`/customers/${id}/communication-field`, { field, value })).data,
+        (updated, savedKeys) => {
+          qc.setQueryData(["customer", id], updated);
+          setDrafts(previous => {
+            const remaining = { ...previous };
+            savedKeys.forEach(key => { if (remaining[key] === changes[key]) delete remaining[key]; });
+            return remaining;
+          });
+        });
+    },
+    onSuccess: (_, { finish }) => {
+      if (finish) setEditAll(false);
+      setToast("Οι αλλαγές αποθηκεύτηκαν επιτυχώς.");
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: ["customer", id] });
+      void qc.invalidateQueries({ queryKey: ["customers"] });
+      void qc.invalidateQueries({ queryKey: ["customer-history", id] });
+      void qc.invalidateQueries({ queryKey: ["customer-family", id] });
+      void qc.invalidateQueries({ queryKey: ["driver-license", id] });
+    },
   });
   const statusMutation = useMutation({
     mutationFn: async (status: "Prospect" | "Active") => api.patch(`/customers/${id}/status`, { status }),
@@ -314,6 +347,22 @@ export function CustomerDetailPage() {
   }
   const customer = customerQ.data!;
   const canManageCustomer = user?.role === "AgencyAdmin" || user?.role === "AgencyOfficeAdmin" || user?.role === "AgencyUser";
+  const discard = () => { setDrafts({}); setEditAll(false); saveFields.reset(); };
+  const requestClose = () => {
+    if (saveFields.isPending) return;
+    if (hasUnsavedChanges) setDiscardAction("close");
+    else navigate("/app/customers");
+  };
+  const fieldEditing: CustomerFieldEditing = {
+    editAll: editAll && canManageCustomer, drafts, saving: saveFields.isPending, canEdit: canManageCustomer,
+    onDraftChange: (key, value) => setDrafts(previous => {
+      const next = { ...previous };
+      if (value === String(customer[key] ?? "")) delete next[key];
+      else next[key] = value;
+      return next;
+    }),
+    onCommitField: async (key, value) => { await saveFields.mutateAsync({ changes: { [key]: value } }); },
+  };
 
   const displayName = customer.type === "Company"
     ? customer.companyName ?? "—"
@@ -324,7 +373,7 @@ export function CustomerDetailPage() {
       open
       fullWidth
       maxWidth="xl"
-      onClose={() => navigate("/app/customers")}
+      onClose={requestClose}
       PaperProps={{ sx: {
         width: { xs: "100vw", sm: "min(1120px, calc(100vw - 20px))", lg: "min(1500px, calc(100vw - 32px))" },
         height: { xs: "100dvh", sm: "min(820px, calc(100dvh - 20px))", lg: "min(900px, calc(100dvh - 32px))" },
@@ -369,7 +418,7 @@ export function CustomerDetailPage() {
                 size="small"
                 label={customer.status === "Prospect" ? "Πιθανός πελάτης" : "Ενεργός πελάτης"}
                 clickable={canManageCustomer}
-                disabled={statusMutation.isPending}
+                disabled={statusMutation.isPending || saveFields.isPending || editAll}
                 onClick={() => canManageCustomer && statusMutation.mutate(customer.status === "Prospect" ? "Active" : "Prospect")}
                 sx={{ color: "#fff", bgcolor: customer.status === "Prospect" ? "rgba(245,158,11,.82)" : "rgba(21,155,89,.82)", "&.Mui-disabled": { color: "#fff", opacity: .82 } }}
               />
@@ -388,16 +437,16 @@ export function CustomerDetailPage() {
         </Stack>
       </Stack>
 
-      <CustomerProfileTabs value={tab} onChange={changeProfileTab} />
+      <CustomerProfileTabs value={tab} onChange={setTab} />
+      {saveFields.isError && <Alert severity="error" sx={{ mb: .75, flexShrink: 0 }}>{extractErrorMessage(saveFields.error)} Οι μη αποθηκευμένες αλλαγές παραμένουν διαθέσιμες για διόρθωση ή νέα προσπάθεια.</Alert>}
 
-      {showEditor && tab === 0 && <CustomerEditorDialog open customer={customer} onClose={() => { setShowEditor(false); setEditorSave(null); setEditorSaving(false); }} onSaveReady={registerEditorSave} />}
-      {tab === 0 && !showEditor && <OverviewTab customer={customer} />}
+      {tab === 0 && <DesktopCustomerFields customer={customer} editing={fieldEditing} />}
       {tab === 1 && <CustomerTabLayout>
         <Stack direction="row" useFlexGap flexWrap="wrap" gap={1}>
           <Button size="small" variant="contained" startIcon={<HistoryIcon />} onClick={() => setPopup("communications")}>Ιστορικό επικοινωνίας</Button>
           <Button size="small" variant="outlined" startIcon={<PersonOutlineIcon />} onClick={() => setPopup("family")}>Οικογένεια & πρόσθετα στοιχεία</Button>
         </Stack>
-        <DesktopCustomerFields customer={customer} section="contact" />
+        <DesktopCustomerFields customer={customer} section="contact" editing={fieldEditing} />
         <ContactsTab customerId={id} customerType={customer.type} />
         <Box><Typography variant="subtitle2" sx={{ mb: .5 }}>Ειδοποιήσεις</Typography><CustomerNotificationsTab customerId={id} /></Box>
       </CustomerTabLayout>}
@@ -433,17 +482,20 @@ export function CustomerDetailPage() {
           </Typography>
         </Stack>
         <Stack direction="row" useFlexGap flexWrap="wrap" spacing={0.75} sx={{ flex: "0 1 auto" }}>
-          {canManageCustomer && !showEditor && (
-            <Button startIcon={<EditIcon />} variant="contained" color="success" onClick={() => { setTab(0); setShowEditor(true); }} sx={{ color: "#fff", fontWeight: 800 }}>
+          {canManageCustomer && !editAll && (
+            <Button startIcon={<EditIcon />} variant="contained" color="success" disabled={saveFields.isPending} onClick={() => { saveFields.reset(); setEditAll(true); }} sx={{ color: "#fff", fontWeight: 800 }}>
               Επεξεργασία πελάτη
             </Button>
           )}
-          {canManageCustomer && showEditor && (
+          {canManageCustomer && editAll && (
             <>
-              <Button startIcon={<SaveIcon />} variant="contained" color="primary" disabled={!editorSave || editorSaving} onClick={() => editorSave?.()} sx={{ color: "#fff", fontWeight: 800 }}>
-                {editorSaving ? "Αποθήκευση..." : "Αποθήκευση"}
+              <Button startIcon={<SaveIcon />} variant="contained" color="success" disabled={saveFields.isPending} onClick={() => {
+                if (hasUnsavedChanges) saveFields.mutate({ changes: { ...drafts }, finish: true });
+                else { setEditAll(false); setToast("Δεν υπάρχουν μη αποθηκευμένες αλλαγές."); }
+              }} sx={{ color: "#fff", fontWeight: 800 }}>
+                {saveFields.isPending ? "Αποθήκευση…" : "Αποθήκευση επεξεργασίας"}
               </Button>
-              <Button startIcon={<CloseIcon />} variant="contained" color="error" onClick={() => { setShowEditor(false); setEditorSave(null); setEditorSaving(false); }} sx={{ color: "#fff", fontWeight: 800 }}>
+              <Button startIcon={<CloseIcon />} variant="contained" color="error" disabled={saveFields.isPending} onClick={() => { if (hasUnsavedChanges) setDiscardAction("cancel"); else discard(); }} sx={{ color: "#fff", fontWeight: 800 }}>
                 Ακύρωση επεξεργασίας
               </Button>
             </>
@@ -451,7 +503,7 @@ export function CustomerDetailPage() {
           <Button startIcon={<BarChartIcon />} variant="outlined" onClick={() => setPopup("statistics")}>
             Στατιστικά
           </Button>
-          <Button component={RouterLink} to="/app/customers" color="error" variant="contained" startIcon={<CloseIcon />} sx={{ color: "#fff", fontWeight: 800 }}>
+          <Button onClick={requestClose} disabled={saveFields.isPending} color="error" variant="contained" startIcon={<CloseIcon />} sx={{ color: "#fff", fontWeight: 800 }}>
             Κλείσιμο
           </Button>
         </Stack>
@@ -460,8 +512,25 @@ export function CustomerDetailPage() {
         {popup === "communications" && <CustomerCommunicationManager customerId={id} />}
         {popup === "producers" && <CustomerProducersSummary customerId={id} />}
         {popup === "statistics" && <CustomerStatisticsTab customerId={id} />}
-        {popup === "family" && <FamilyNeedsTab customerId={id} />}
+        {popup === "family" && <Stack spacing={1.5}>
+          <DesktopCustomerFields customer={customer} section="additional" editing={fieldEditing} />
+          <FamilyNeedsTab customerId={id} />
+        </Stack>}
       </CustomerPopup>
+      <Dialog open={discardAction !== null} onClose={() => setDiscardAction(null)} fullWidth maxWidth="xs">
+        <DialogTitle>Μη αποθηκευμένες αλλαγές</DialogTitle>
+        <DialogContent>Υπάρχουν αλλαγές που δεν έχουν αποθηκευτεί. Θέλετε να τις απορρίψετε;</DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDiscardAction(null)}>Επιστροφή στην καρτέλα</Button>
+          <Button color="error" variant="contained" onClick={() => {
+            const action = discardAction; setDiscardAction(null); discard();
+            if (action === "close") navigate("/app/customers");
+          }}>Απόρριψη αλλαγών</Button>
+        </DialogActions>
+      </Dialog>
+      <Snackbar open={!!toast} autoHideDuration={3500} onClose={() => setToast("")} anchorOrigin={{ vertical: "bottom", horizontal: "right" }}>
+        <Alert severity="success" onClose={() => setToast("")}>{toast}</Alert>
+      </Snackbar>
     </Dialog>
   );
 }
@@ -1111,175 +1180,6 @@ function CustomerProducersSummary({ customerId }: { customerId: string }) {
   </Card>;
 }
 
-function OverviewTab({ customer }: { customer: CustomerDto }) {
-  const qc = useQueryClient();
-  const nameDaysQ = useQuery({
-    queryKey: ["customer-name-days", customer.id],
-    retry: false,
-    queryFn: async () => (await api.get<{ name: string; month: number; day: number; isActive: boolean }[]>("/name-days")).data
-  });
-  const matchingNameDays = (nameDaysQ.data ?? []).filter(nameDay => nameDay.isActive && Boolean(customer.firstName) && nameDay.name.localeCompare(customer.firstName ?? "", "el", { sensitivity: "base" }) === 0);
-  const annualDate = (value?: string | null, label = "") => {
-    if (!value) return "Δεν έχει οριστεί";
-    const parts = value.slice(0, 10).split("-").map(Number);
-    if (parts.length !== 3 || parts.some(Number.isNaN)) return value;
-    const [, month, day] = parts;
-    const today = new Date();
-    let year = today.getFullYear();
-    const candidate = new Date(year, month - 1, day);
-    if (candidate.getTime() < new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) year += 1;
-    return `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}${label ? ` · ${label}` : ""}`;
-  };
-  const nextNameDay = matchingNameDays.map(item => {
-    const today = new Date();
-    let year = today.getFullYear();
-    let date = new Date(year, item.month - 1, item.day);
-    if (date.getTime() < new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) {
-      year += 1;
-      date = new Date(year, item.month - 1, item.day);
-    }
-    return { date, label: `${String(item.day).padStart(2, "0")}/${String(item.month).padStart(2, "0")}/${year}` };
-  }).sort((a, b) => a.date.getTime() - b.date.getTime())[0]?.label;
-  const hasDriverLicense = Boolean(customer.driverLicenseNumber || customer.driverLicenseClass || customer.driverLicenseIssueDate || customer.driverLicenseExpiryDate);
-  const licenseExpired = customer.driverLicenseExpiryDate ? new Date(customer.driverLicenseExpiryDate).getTime() < Date.now() : false;
-  const licenseStatus = !hasDriverLicense ? "Δεν έχει καταχωρηθεί" : licenseExpired ? "Έχει λήξει" : "Καταχωρημένο / ενεργό";
-  const licenseYears = customer.driverLicenseIssueDate ? (() => {
-    const issue = new Date(customer.driverLicenseIssueDate);
-    if (Number.isNaN(issue.getTime())) return "—";
-    const today = new Date();
-    let years = today.getFullYear() - issue.getFullYear();
-    if (today.getMonth() < issue.getMonth() || (today.getMonth() === issue.getMonth() && today.getDate() < issue.getDate())) years -= 1;
-    return years >= 0 ? `${years} έτη` : "—";
-  })() : "—";
-  const contactMethodCount = [customer.email, customer.phone, customer.mobilePhone, customer.altPhone].filter(value => Boolean(value?.trim())).length;
-  const identityDocument = customer.idNumber || customer.passportNumber ? "Καταχωρημένο" : "Δεν έχει καταχωρηθεί";
-  const taxProfile = customer.vatNumber || customer.taxOffice || customer.gemiNumber ? "Συμπληρωμένο" : "Δεν έχει συμπληρωθεί";
-  const age = customer.birthDate ? (() => {
-    const birth = new Date(customer.birthDate);
-    if (Number.isNaN(birth.getTime())) return "—";
-    const today = new Date();
-    let years = today.getFullYear() - birth.getFullYear();
-    if (today.getMonth() < birth.getMonth() || (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())) years -= 1;
-    return years >= 0 ? `${years} ετών` : "—";
-  })() : "—";
-  const genderLabels: Record<string, string> = { Male: "Άνδρας", Female: "Γυναίκα", Other: "Άλλο" };
-  const editKeyByLabel: Record<string, keyof CustomerDto> = {
-    "Κατάσταση": "status", "Τύπος πελάτη": "type", Email: "email", "Κύριο τηλέφωνο": "phone",
-    "Κινητό": "mobilePhone", "2ο τηλέφωνο": "altPhone", "Διεύθυνση": "address", Πόλη: "city",
-    "Τ.Κ.": "postalCode", Περιφέρεια: "region", "Ημ. εξόφλησης": "paymentDueDate",
-    ΑΦΜ: "vatNumber", "Αριθμός ταυτότητας": "idNumber", ΑΜΚΑ: "amka", Διαβατήριο: "passportNumber",
-    "Ημ. γέννησης": "birthDate", Φύλο: "gender", "Οικογενειακή κατάσταση": "maritalStatus", Εθνικότητα: "nationality",
-    Πατρώνυμο: "fatherName", Μητρώνυμο: "motherName", "Σύζυγος / σύντροφος": "spouseName",
-    Επάγγελμα: "occupation", Εργοδότης: "employer", Δραστηριότητα: "activityCode", Ζώνη: "zone",
-    ΔΟΥ: "taxOffice", ΓΕΜΗ: "gemiNumber", "Νομική μορφή": "legalForm", Πηγή: "source",
-    "Αριθμός διπλώματος": "driverLicenseNumber", "Κατηγορία": "driverLicenseClass", "Έκδοση διπλώματος": "driverLicenseIssueDate",
-    "Λήξη διπλώματος": "driverLicenseExpiryDate", Ετικέτες: "tagsJson", "URL φωτογραφίας": "photoUrl", "Σημειώσεις συμβούλου": "notes",
-  };
-  const editOptions: Partial<Record<keyof CustomerDto, InlineValueOption[]>> = {
-    type: [{ value: "Individual", label: "Φυσικό πρόσωπο" }, { value: "Company", label: "Νομικό πρόσωπο" }],
-    status: ["Prospect", "Active", "Inactive", "Churned", "Blocked"].map(value => ({
-      value, label: ({ Prospect: "Πιθανός πελάτης", Active: "Ενεργός", Inactive: "Ανενεργός", Churned: "Απώλεια", Blocked: "Αποκλεισμένος" } as Record<string, string>)[value],
-    })),
-    gender: [{ value: "", label: "Δεν έχει οριστεί" }, ...Object.entries(genderLabels).map(([value, label]) => ({ value, label }))],
-  };
-  const editableType: Partial<Record<keyof CustomerDto, "date" | "email" | "number">> = {
-    paymentDueDate: "date", birthDate: "date", driverLicenseIssueDate: "date", driverLicenseExpiryDate: "date", email: "email",
-  };
-  const groups: { title: string; fields: [string, React.ReactNode][] }[] = [
-    { title: "Επικοινωνία & διεύθυνση", fields: [
-      ["Κατάσταση", customer.status === "Prospect" ? "Πιθανός πελάτης" : customer.status === "Active" ? "Ενεργός" : customer.status], ["Τύπος πελάτη", customer.type === "Company" ? "Νομικό πρόσωπο" : "Φυσικό πρόσωπο"],
-      ["Email", customer.email ?? "—"], ["Κύριο τηλέφωνο", customer.phone ?? "—"], ["Κινητό", customer.mobilePhone ?? "—"], ["2ο τηλέφωνο", customer.altPhone ?? "—"],
-      ["Διεύθυνση", customer.address ?? "—"], ["Πόλη", customer.city ?? "—"], ["Τ.Κ.", customer.postalCode ?? "—"], ["Περιφέρεια", customer.region ?? "—"],
-      ["Καταχωρημένα κανάλια", `${contactMethodCount} από 4`], ["Ημ. εξόφλησης", customer.paymentDueDate ?? "Δεν έχει οριστεί"], ["Λογαριασμός portal", customer.hasPortalAccount ? "Ενεργός" : "Δεν έχει δημιουργηθεί"]
-    ] },
-    { title: "Ταυτότητα & προσωπικά στοιχεία", fields: [
-      ["ΑΦΜ", customer.vatNumber ?? "—"], ["Αριθμός ταυτότητας", customer.idNumber ?? "—"], ["ΑΜΚΑ", customer.amka ?? "—"], ["Διαβατήριο", customer.passportNumber ?? "—"],
-      ["Ημ. γέννησης", customer.birthDate ?? "—"], ["Επόμενα γενέθλια", annualDate(customer.birthDate)], ["Ηλικία", age], ["Ονομαστική εορτή", matchingNameDays.length ? `${matchingNameDays.map(item => `${String(item.day).padStart(2, "0")}/${String(item.month).padStart(2, "0")}`).join(", ")} · επόμενη ${nextNameDay}` : "Δεν έχει αντιστοίχιση"], ["Φύλο", customer.gender ? (genderLabels[customer.gender] ?? customer.gender) : "—"], ["Οικογενειακή κατάσταση", customer.maritalStatus ?? "—"], ["Εθνικότητα", customer.nationality ?? "—"],
-      ["Πατρώνυμο", customer.fatherName ?? "—"], ["Μητρώνυμο", customer.motherName ?? "—"], ["Σύζυγος / σύντροφος", customer.spouseName ?? "—"]
-    ] },
-    { title: "Εργασία & εταιρικά στοιχεία", fields: [
-      ["Επάγγελμα", customer.occupation ?? "—"], ["Εργοδότης", customer.employer ?? "—"], ["Δραστηριότητα", customer.activityCode ?? "—"], ["Ζώνη", customer.zone ?? "—"],
-      ["ΔΟΥ", customer.taxOffice ?? "—"], ["ΓΕΜΗ", customer.gemiNumber ?? "—"], ["Νομική μορφή", customer.legalForm ?? "—"], ["Πηγή", customer.source ?? "—"],
-      ["Φορολογικό προφίλ", taxProfile], ["URL φωτογραφίας", customer.photoUrl ?? "—"], ["Αριθμός πελάτη", customer.customerNumber]
-    ] },
-    { title: "Οδήγηση & εσωτερική πληροφόρηση", fields: [
-      ["Οδηγός", hasDriverLicense ? "Ναι" : "Δεν έχει καταχωρηθεί"], ["Κατάσταση διπλώματος", licenseStatus], ["Αριθμός διπλώματος", customer.driverLicenseNumber ?? "—"], ["Κατηγορία", customer.driverLicenseClass ?? "—"],
-      ["Έκδοση διπλώματος", customer.driverLicenseIssueDate ?? "—"], ["Χρόνια με δίπλωμα", licenseYears], ["Λήξη διπλώματος", customer.driverLicenseExpiryDate ?? "—"], ["Έγγραφο ταυτοποίησης", identityDocument], ["Ετικέτες", customer.tagsJson ?? "—"]
-    ] }
-  ];
-  const inlineUpdate = useMutation({
-    mutationFn: async ({ key, value }: { key: keyof CustomerDto; value: string }) => (await api.put<CustomerDto>(`/customers/${customer.id}`, customerInlinePayload(customer, key, value))).data,
-    onSuccess: (updated) => {
-      qc.setQueryData(["customer", customer.id], updated);
-      void qc.invalidateQueries({ queryKey: ["customer", customer.id] });
-      void qc.invalidateQueries({ queryKey: ["customers"] });
-    },
-  });
-  const isMissingField = (value: React.ReactNode) => {
-    if (value === null || value === undefined || value === false) return true;
-    if (typeof value !== "string") return false;
-    const text = value.trim();
-    return !text || text === "—" || text === "-" || text === "0 από 4" || /^(Δεν |Χωρίς )/i.test(text);
-  };
-  // The desktop client card is intentionally a dense, two-column field sheet.
-  // Keep the richer calculations above for backwards compatibility, but render
-  // the same compact field order and controls used by the installed desktop app.
-  return <DesktopCustomerFields customer={customer} />;
-  return (
-    <Stack spacing={0.75}>
-      {groups.map(group => <Card key={group.title} variant="outlined" sx={{ p: { xs: 0.75, md: 1 }, bgcolor: "rgba(248,250,252,0.92)", borderColor: "rgba(100,116,139,0.2)", borderRadius: 1.5 }}>
-        <Box sx={{ mb: 0.75, px: 0.75, py: 0.5, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}>
-          <Typography variant="subtitle2" fontWeight={800}>{group.title}</Typography>
-        </Box>
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(3, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))", xl: "repeat(5, minmax(0, 1fr))" }, gap: 0.5 }}>
-          {group.fields.map(([label, value]) => {
-            const missing = isMissingField(value);
-            const key = editKeyByLabel[label];
-            const storedValue = key ? customer[key] : undefined;
-            const display = label === "Τύπος πελάτη"
-              ? (customer.type === "Company" ? "Νομικό πρόσωπο" : "Φυσικό πρόσωπο")
-              : label === "Κατάσταση"
-                ? ({ Prospect: "Πιθανός πελάτης", Active: "Ενεργός", Inactive: "Ανενεργός", Churned: "Απώλεια", Blocked: "Αποκλεισμένος" } as Record<string, string>)[customer.status] ?? value
-                : value;
-            return <Box key={label} sx={{
-              p: 0.65,
-              minWidth: 0,
-              minHeight: 42,
-              borderRadius: 0.9,
-              bgcolor: missing ? "rgba(211,47,47,0.055)" : "rgba(46,125,50,0.065)",
-              border: "1px solid",
-              borderColor: missing ? "rgba(211,47,47,0.2)" : "rgba(46,125,50,0.2)",
-            }}>
-              <InlineValueField
-                label={label}
-                value={storedValue === null || storedValue === undefined ? (typeof value === "string" ? value : "") : String(storedValue)}
-                copyValue={typeof display === "string" || typeof display === "number" ? display : undefined}
-                displayValue={display}
-                options={key ? editOptions[key] : undefined}
-                type={key ? editableType[key] : undefined}
-                valueColor={missing ? "error.dark" : "success.dark"}
-                onCommit={key ? (next) => { inlineUpdate.mutate({ key, value: next }); } : undefined}
-                plain
-              />
-            </Box>;
-          })}
-        </Box>
-      </Card>)}
-      <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 } }}>
-        <InlineValueField
-          label="Σημειώσεις συμβούλου"
-          value={customer.notes ?? ""}
-          displayValue={customer.notes || "Δεν υπάρχουν σημειώσεις."}
-          multiline
-          onCommit={(value) => inlineUpdate.mutate({ key: "notes", value })}
-          plain
-        />
-      </Card>
-      <CustomerProducersSummary customerId={customer.id} />
-      <CustomerVehiclesTab customerId={customer.id} compact />
-    </Stack>
-  );
-}
 
 type DesktopCustomerField = {
   label: string;
@@ -1290,20 +1190,16 @@ type DesktopCustomerField = {
   options?: InlineValueOption[];
 };
 
-function DesktopCustomerFields({ customer, section = "general" }: { customer: CustomerDto; section?: "general" | "contact" }) {
-  const qc = useQueryClient();
-  const inlineUpdate = useMutation({
-    mutationFn: async ({ key, value }: { key: keyof CustomerDto; value: string }) => {
-      if (key === "thirdPhone" || key === "secondaryMobilePhone" || key === "secondaryEmail")
-        return (await api.patch<CustomerDto>(`/customers/${customer.id}/communication-field`, { field: key, value })).data;
-      return (await api.put<CustomerDto>(`/customers/${customer.id}`, customerInlinePayload(customer, key, value))).data;
-    },
-    onSuccess: updated => {
-      qc.setQueryData(["customer", customer.id], updated);
-      void qc.invalidateQueries({ queryKey: ["customer", customer.id] });
-      void qc.invalidateQueries({ queryKey: ["customers"] });
-    },
-  });
+interface CustomerFieldEditing {
+  editAll: boolean;
+  drafts: CustomerDrafts;
+  saving: boolean;
+  canEdit: boolean;
+  onDraftChange: (key: keyof CustomerDto, value: string) => void;
+  onCommitField: (key: keyof CustomerDto, value: string) => Promise<void>;
+}
+
+function DesktopCustomerFields({ customer, section = "general", editing }: { customer: CustomerDto; section?: "general" | "contact" | "additional"; editing: CustomerFieldEditing }) {
   const dash = "—";
   const dateTime = customer.createdAt ? new Date(customer.createdAt).toLocaleString("el-GR", { dateStyle: "short", timeStyle: "short" }) : dash;
   const typeLabel = customer.type === "Company" ? "Νομικό πρόσωπο" : "Φυσικό πρόσωπο";
@@ -1364,9 +1260,32 @@ function DesktopCustomerFields({ customer, section = "general" }: { customer: Cu
     { label: "Περιφέρεια", key: "region", value: customer.region },
   ];
 
+  const additional: DesktopCustomerField[] = [
+    { label: "Ημ. γέννησης", key: "birthDate", value: customer.birthDate, type: "date" },
+    { label: "Φύλο", key: "gender", value: customer.gender, displayValue: ({ Male: "Άνδρας", Female: "Γυναίκα", Other: "Άλλο", PreferNotToSay: "Δεν επιθυμεί να δηλώσει" } as Record<string, string>)[customer.gender ?? ""] || customer.gender || dash,
+      options: [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Male", label: "Άνδρας" }, { value: "Female", label: "Γυναίκα" }, { value: "Other", label: "Άλλο" }, { value: "PreferNotToSay", label: "Δεν επιθυμεί να δηλώσει" }] },
+    { label: "Εθνικότητα", key: "nationality", value: customer.nationality },
+    { label: "Οικογενειακή κατάσταση", key: "maritalStatus", value: customer.maritalStatus },
+    { label: "Διαβατήριο", key: "passportNumber", value: customer.passportNumber },
+    { label: "Πατρώνυμο", key: "fatherName", value: customer.fatherName },
+    { label: "Μητρώνυμο", key: "motherName", value: customer.motherName },
+    { label: "Σύζυγος / σύντροφος", key: "spouseName", value: customer.spouseName },
+    { label: "ΓΕΜΗ", key: "gemiNumber", value: customer.gemiNumber },
+    { label: "Νομική μορφή", key: "legalForm", value: customer.legalForm },
+    { label: "Πηγή", key: "source", value: customer.source },
+    { label: "Ετικέτες", key: "tagsJson", value: customer.tagsJson },
+    { label: "URL φωτογραφίας", key: "photoUrl", value: customer.photoUrl },
+    { label: "Ζώνη", key: "zone", value: customer.zone },
+    { label: "Αριθμός διπλώματος", key: "driverLicenseNumber", value: customer.driverLicenseNumber },
+    { label: "Κατηγορία διπλώματος", key: "driverLicenseClass", value: customer.driverLicenseClass },
+    { label: "Έκδοση διπλώματος", key: "driverLicenseIssueDate", value: customer.driverLicenseIssueDate, type: "date" },
+    { label: "Λήξη διπλώματος", key: "driverLicenseExpiryDate", value: customer.driverLicenseExpiryDate, type: "date" },
+    { label: "Ημ. εξόφλησης", key: "paymentDueDate", value: customer.paymentDueDate, type: "date" },
+  ];
+
   // Balance the General sheet instead of leaving six empty rows in one column.
   // The single-column reading order remains the same on narrow screens.
-  const generalFields = [...left, ...right];
+  const generalFields = section === "additional" ? additional : [...left, ...right];
   const midpoint = Math.ceil(generalFields.length / 2);
   const columns = section === "contact" ? [contactLeft, contactRight] : [generalFields.slice(0, midpoint), generalFields.slice(midpoint)];
 
@@ -1388,15 +1307,18 @@ function DesktopCustomerFields({ customer, section = "general" }: { customer: Cu
           compact
           hideLabel
           showActions
-          onCommit={field.key ? async value => { await inlineUpdate.mutateAsync({ key: field.key!, value }); } : undefined}
+          disabled={editing.saving}
+          editMode={editing.editAll}
+          draftValue={field.key ? editing.drafts[field.key] : undefined}
+          onDraftChange={field.key ? value => editing.onDraftChange(field.key!, value) : undefined}
+          onCommit={field.key && editing.canEdit ? value => editing.onCommitField(field.key!, value) : undefined}
         />
       </Box>
     );
   };
 
   return (
-    <Box sx={{ bgcolor: "#edf3f9", border: "1px solid #d6e3f0", borderRadius: 1.25, p: { xs: .5, md: .75 }, minHeight: 0, overflow: section === "general" ? "auto" : "visible", flexShrink: section === "contact" ? 0 : 1 }}>
-      {inlineUpdate.isError && <Alert severity="error" sx={{ mb: .75 }}>{extractErrorMessage(inlineUpdate.error)}</Alert>}
+    <Box sx={{ bgcolor: "#edf3f9", border: "1px solid #d6e3f0", borderRadius: 1.25, p: { xs: .5, md: .75 }, minHeight: 0, overflow: section === "general" ? "auto" : "visible", flexShrink: section === "general" ? 1 : 0 }}>
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(0, 1fr) minmax(0, 1fr)" }, columnGap: { xs: 0, md: 1 }, alignItems: "start" }}>
         {columns.map((fields, index) => <Stack key={index} spacing={.25}>{fields.map(renderField)}</Stack>)}
       </Box>
@@ -1404,124 +1326,6 @@ function DesktopCustomerFields({ customer, section = "general" }: { customer: Cu
   );
 }
 
-type CustomerEditForm = Record<string, string> & { type: string; status: string };
-
-function CustomerEditorDialog({ open, customer, onClose, onSaveReady }: { open: boolean; customer: CustomerDto; onClose: () => void; onSaveReady: (save: (() => void) | null, pending: boolean) => void }) {
-  const qc = useQueryClient();
-  const [tab, setTab] = useState(0);
-  const [form, setForm] = useState<CustomerEditForm>(() => customerEditForm(customer));
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => { if (open) { setTab(0); setForm(customerEditForm(customer)); setError(null); } }, [open, customer]);
-  const save = useMutation({
-    mutationFn: async () => api.put(`/customers/${customer.id}`, {
-      ...form,
-      createPortalAccount: false,
-      paymentDueDate: form.paymentDueDate || undefined,
-      birthDate: form.birthDate || undefined,
-      driverLicenseIssueDate: form.driverLicenseIssueDate || undefined,
-      driverLicenseExpiryDate: form.driverLicenseExpiryDate || undefined,
-      assignedAdvisorId: undefined
-    }),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ["customer", customer.id] }); void qc.invalidateQueries({ queryKey: ["customers"] }); onClose(); },
-    onError: e => setError(extractErrorMessage(e))
-  });
-  useEffect(() => {
-    if (!open) {
-      onSaveReady(null, false);
-      return;
-    }
-    onSaveReady(() => save.mutate(), save.isPending);
-    return () => onSaveReady(null, false);
-  }, [open, save.isPending, onSaveReady]);
-  const set = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }));
-  const optionLabel: Record<string, string> = {
-    Individual: "Φυσικό πρόσωπο", Company: "Νομικό πρόσωπο",
-    Prospect: "Πιθανός πελάτης", Active: "Ενεργός", Inactive: "Ανενεργός", Churned: "Απώλεια", Blocked: "Αποκλεισμένος",
-    Male: "Άνδρας", Female: "Γυναίκα", Other: "Άλλο",
-  };
-  const field = (label: string, key: string, options?: { type?: string; multiline?: boolean; select?: string[]; placeholder?: string }) => options?.select ? (
-    <TextField key={key} size="small" select label={label} value={form[key] ?? ""} onChange={e => set(key, e.target.value)} fullWidth>
-      <MenuItem value="">Δεν έχει οριστεί</MenuItem>{options.select.map(value => <MenuItem key={value} value={value}>{optionLabel[value] ?? value}</MenuItem>)}
-    </TextField>
-  ) : <TextField key={key} size="small" label={label} type={options?.type} value={form[key] ?? ""} onChange={e => set(key, e.target.value)} fullWidth multiline={options?.multiline} rows={options?.multiline ? 2 : undefined} placeholder={options?.placeholder} InputLabelProps={options?.type === "date" ? { shrink: true } : undefined} />;
-  const editorGridSx = { display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" }, gap: 0.75, alignItems: "start", "& > .MuiFormControl-root, & > .MuiBox-root": { minWidth: 0 }, "& .MuiInputLabel-root": { fontSize: "0.78rem" }, "& .MuiInputBase-root": { minHeight: 38 } };
-  const editorSection = (title: string, content: React.ReactNode) => (
-    <Card key={title} variant="outlined" sx={{ p: { xs: 0.75, md: 1 }, bgcolor: "rgba(248,250,252,0.92)" }}>
-      <Box sx={{ mb: 0.75, px: 0.75, py: 0.5, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}>
-        <Typography variant="subtitle2" fontWeight={800}>{title}</Typography>
-      </Box>
-      <Box sx={editorGridSx}>{content}</Box>
-    </Card>
-  );
-  if (!open) return null;
-  return <Card variant="outlined" sx={{ p: { xs: 0.65, md: 0.9 }, maxHeight: "calc(100dvh - 220px)", overflowY: "auto", overflowX: "hidden", "& .MuiTextField-root": { minWidth: 0 } }}>
-    <Stack direction="row" justifyContent="space-between" alignItems="center" gap={1} sx={{ mb: 0.75 }}>
-      <Box><Typography variant="subtitle1" fontWeight={800}>Επεξεργασία καρτέλας · {customer.customerNumber}</Typography><Typography variant="caption" color="text.secondary">Τα πεδία επεξεργάζονται απευθείας μέσα στην καρτέλα πελάτη.</Typography></Box>
-      <Button size="small" variant="contained" color="error" startIcon={<CloseIcon />} onClick={onClose} sx={{ color: "#fff", fontWeight: 700 }}>Ακύρωση επεξεργασίας</Button>
-    </Stack>
-      {error && <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>}
-      <Stack spacing={0.55}>
-        {editorSection("Επικοινωνία & διεύθυνση", <>
-          {field("Τύπος", "type", { select: ["Individual", "Company"] })}{field("Κατάσταση", "status", { select: ["Prospect", "Active", "Inactive", "Churned", "Blocked"] })}
-          {field("Όνομα", "firstName")}{field("Επώνυμο", "lastName")}{field("Επωνυμία", "companyName")}
-          {field("Email", "email", { type: "email" })}{field("Κύριο τηλέφωνο", "phone")}{field("Κινητό", "mobilePhone")}{field("2ο τηλέφωνο", "altPhone")}
-          {field("Διεύθυνση", "address")}{field("Πόλη", "city")}{field("Τ.Κ.", "postalCode")}{field("Περιφέρεια", "region")}
-          {field("Ημερομηνία εξόφλησης", "paymentDueDate", { type: "date" })}
-          <Box sx={{ gridColumn: { sm: "1 / -1" } }}>{field("Σημειώσεις", "notes", { multiline: true })}</Box>
-        </>)}
-        {editorSection("Ταυτότητα & προσωπικά στοιχεία", <>
-          {field("Ημερομηνία γέννησης", "birthDate", { type: "date" })}{field("Φύλο", "gender", { select: ["Male", "Female", "Other"] })}{field("Εθνικότητα", "nationality")}{field("Οικογενειακή κατάσταση", "maritalStatus")}
-          {field("Αριθμός ταυτότητας", "idNumber")}{field("ΑΜΚΑ", "amka")}{field("Διαβατήριο", "passportNumber")}{field("Πατρώνυμο", "fatherName")}
-          {field("Μητρώνυμο", "motherName")}{field("Σύζυγος / σύντροφος", "spouseName")}
-        </>)}
-        {editorSection("Εργασία & εταιρικά στοιχεία", <>
-          {field("Επάγγελμα", "occupation")}{field("Εργοδότης", "employer")}{field("Κωδικός δραστηριότητας", "activityCode")}
-          {field("ΑΦΜ", "vatNumber")}{field("ΔΟΥ", "taxOffice")}{field("ΓΕΜΗ", "gemiNumber")}{field("Νομική μορφή", "legalForm")}
-          {field("Πηγή", "source")}{field("Ετικέτες", "tagsJson", { placeholder: "π.χ. premium, εταιρεία" })}{field("URL φωτογραφίας", "photoUrl")}
-        </>)}
-        {editorSection("Οδήγηση & εσωτερική πληροφόρηση", <>
-          {field("Αριθμός διπλώματος", "driverLicenseNumber")}{field("Κατηγορία διπλώματος", "driverLicenseClass")}{field("Έκδοση", "driverLicenseIssueDate", { type: "date" })}{field("Λήξη", "driverLicenseExpiryDate", { type: "date" })}
-          <Alert severity="info" sx={{ gridColumn: { sm: "1 / -1" }, py: 0 }}>Τα οχήματα εμφανίζονται αυτόματα από τα συμβόλαια και τις πινακίδες τους.</Alert>
-        </>)}
-      </Stack>
-      <Box sx={{ display: "none" }}>
-      <Tabs value={tab} onChange={(_, value) => setTab(value)} variant="scrollable" allowScrollButtonsMobile sx={{ borderBottom: 1, borderColor: "divider", mb: 0.75, minHeight: 34, "& .MuiTab-root": { minHeight: 34, py: 0.25, px: 0.75, fontSize: "0.76rem" } }}>
-        <Tab label="Βασικά & επικοινωνία" /><Tab label="Ταυτότητα & οικογένεια" /><Tab label="Εργασία, εταιρεία & όχημα" />
-      </Tabs>
-      {tab === 0 && <Box sx={editorGridSx}>
-        {field("Τύπος", "type", { select: ["Individual", "Company"] })}{field("Κατάσταση", "status", { select: ["Prospect", "Active", "Inactive", "Churned", "Blocked"] })}
-        {field("Όνομα", "firstName")}{field("Επώνυμο", "lastName")}{field("Επωνυμία", "companyName")}
-        {field("Email", "email", { type: "email" })}{field("Κύριο τηλέφωνο", "phone")}{field("Κινητό", "mobilePhone")}{field("2ο τηλέφωνο", "altPhone")}
-        {field("Διεύθυνση", "address")}{field("Πόλη", "city")}{field("Τ.Κ.", "postalCode")}{field("Περιφέρεια", "region")}
-        {field("Ημερομηνία εξόφλησης", "paymentDueDate", { type: "date" })}
-        <Box sx={{ gridColumn: { sm: "1 / -1" } }}>{field("Σημειώσεις", "notes", { multiline: true })}</Box>
-      </Box>}
-      {tab === 1 && <Box sx={editorGridSx}>
-        {field("Ημερομηνία γέννησης", "birthDate", { type: "date" })}{field("Φύλο", "gender", { select: ["Male", "Female", "Other"] })}{field("Εθνικότητα", "nationality")}{field("Οικογενειακή κατάσταση", "maritalStatus")}
-        {field("Αριθμός ταυτότητας", "idNumber")}{field("ΑΜΚΑ", "amka")}{field("Διαβατήριο", "passportNumber")}{field("Πατρώνυμο", "fatherName")}
-        {field("Μητρώνυμο", "motherName")}{field("Σύζυγος / σύντροφος", "spouseName")}
-      </Box>}
-      {tab === 2 && <Box sx={editorGridSx}>
-        {field("Επάγγελμα", "occupation")}{field("Εργοδότης", "employer")}{field("Κωδικός δραστηριότητας", "activityCode")}
-        {field("ΑΦΜ", "vatNumber")}{field("ΔΟΥ", "taxOffice")}{field("ΓΕΜΗ", "gemiNumber")}{field("Νομική μορφή", "legalForm")}
-        {field("Αριθμός διπλώματος", "driverLicenseNumber")}{field("Κατηγορία διπλώματος", "driverLicenseClass")}{field("Έκδοση", "driverLicenseIssueDate", { type: "date" })}{field("Λήξη", "driverLicenseExpiryDate", { type: "date" })}
-        {field("Πηγή", "source")}{field("Ετικέτες", "tagsJson", { placeholder: "π.χ. premium, εταιρεία" })}{field("URL φωτογραφίας", "photoUrl")}
-        <Alert severity="info" sx={{ gridColumn: { sm: "1 / -1" }, py: 0 }}>Τα οχήματα εμφανίζονται αυτόματα από τα συμβόλαια και τις πινακίδες τους.</Alert>
-      </Box>}
-      </Box>
-    <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mt: 1.25 }}>
-      <Button size="small" onClick={onClose} color="inherit">Άκυρο</Button>
-      <Button size="small" variant="contained" onClick={() => save.mutate()} disabled={save.isPending}>{save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση πλήρους καρτέλας"}</Button>
-    </Stack>
-  </Card>;
-}
-
-function customerEditForm(customer: CustomerDto): CustomerEditForm {
-  const keys = ["firstName", "lastName", "companyName", "vatNumber", "email", "phone", "address", "city", "postalCode", "notes", "paymentDueDate", "birthDate", "occupation", "fatherName", "motherName", "spouseName", "nationality", "zone", "activityCode", "taxOffice", "gemiNumber", "legalForm", "altPhone", "mobilePhone", "amka", "idNumber", "passportNumber", "region", "gender", "maritalStatus", "employer", "driverLicenseNumber", "driverLicenseClass", "driverLicenseIssueDate", "driverLicenseExpiryDate", "source", "tagsJson", "photoUrl"];
-  const result: Record<string, string> = {};
-  for (const key of keys) result[key] = String((customer as unknown as Record<string, unknown>)[key] ?? "");
-  return { ...result, type: customer.type, status: customer.status };
-}
 
 
 /* ---------- Consents ---------- */

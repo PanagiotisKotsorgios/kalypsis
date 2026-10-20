@@ -49,7 +49,8 @@ public record CustomerDto(
     string? PhotoUrl = null,
     string? ThirdPhone = null,
     string? SecondaryMobilePhone = null,
-    string? SecondaryEmail = null);
+    string? SecondaryEmail = null,
+    Guid? AssignedAdvisorId = null);
 
 public record CreateCustomerRequest(
     CustomerType Type,

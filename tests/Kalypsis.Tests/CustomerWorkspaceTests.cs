@@ -217,6 +217,7 @@ public class CustomerWorkspaceTests
         customer.Email = "primary@example.test";
         customer.Phone = "2101234567";
         customer.MobilePhone = "6912345678";
+        customer.AssignedAdvisorId = Guid.NewGuid();
         db.Customers.Add(customer);
         await db.SaveChangesAsync();
         var handler = new UpdateCustomerCommunicationFieldHandler(db, current);
@@ -230,12 +231,14 @@ public class CustomerWorkspaceTests
         Assert.Equal("secondary@example.test", saved.SecondaryEmail);
         Assert.Equal("primary@example.test", saved.Email);
         Assert.Equal("2101234567", saved.Phone);
+        Assert.Equal(customer.AssignedAdvisorId, saved.AssignedAdvisorId);
         var regularEdit = new CreateCustomerRequest(customer.Type, "Νέο όνομα", customer.LastName,
             customer.CompanyName, customer.VatNumber, customer.Email, customer.Phone, customer.Address,
-            customer.City, customer.PostalCode, customer.BirthDate, customer.Notes, false);
+            customer.City, customer.PostalCode, customer.BirthDate, customer.Notes, false, AssignedAdvisorId: saved.AssignedAdvisorId);
         var edited = await new UpdateCustomerCommandHandler(db, current).Handle(new(customer.Id, regularEdit), default);
         Assert.Equal(saved.ThirdPhone, edited.ThirdPhone);
         Assert.Equal(saved.SecondaryEmail, edited.SecondaryEmail);
+        Assert.Equal(saved.AssignedAdvisorId, edited.AssignedAdvisorId);
         await handler.Handle(new(customer.Id, new("thirdPhone", "")), default);
         Assert.Null((await get.Handle(new(customer.Id), default)).ThirdPhone);
         Assert.Equal("6999999999", customer.SecondaryMobilePhone);
