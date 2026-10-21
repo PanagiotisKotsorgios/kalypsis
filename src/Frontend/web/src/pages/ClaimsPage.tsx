@@ -26,8 +26,6 @@ import {
   Typography
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
-import FilterAltIcon from "@mui/icons-material/FilterAlt";
-import TuneIcon from "@mui/icons-material/Tune";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { money, date } from "../utils/format";
@@ -40,8 +38,6 @@ import { TableToolbar, NumberedPager, RecordCountChip } from "../components/Tabl
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
-import { QuickFilterBar } from "../components/QuickFilterBar";
-import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
 import { BulkImportDialog, type BulkImportColumn, type BulkImportResult } from "../components/BulkImportDialog";
 import { SavedReportsButton } from "../components/SavedReportsButton";
 import { UnifiedActionsMenu, type UnifiedExportAction } from "../components/UnifiedActionsMenu";
@@ -153,7 +149,6 @@ export function ClaimsPage() {
   const [toDate,   setToDate]   = useState("");
   const [dateWindow, setDateWindow] = useState<"" | "7" | "30" | "90">("");
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
-  const [quickFiltersOpen, setQuickFiltersOpen] = useState(false);
   const [saveFilterRequest, setSaveFilterRequest] = useState(0);
   const [toolbarAction, setToolbarAction] = useState<{ token: number; action: UnifiedExportAction }>({ token: 0, action: "csv" });
 
@@ -258,11 +253,6 @@ export function ClaimsPage() {
     setFromDate(""); setToDate(""); setDateWindow("");
     table.setQuery(""); table.setPage(1);
   };
-  const claimFilterCount = [
-    statusFilter, customerFilter, carrierFilter, typeFilter, useFilter, coverFilter,
-    packageFilter, fromDate, toDate, dateWindow, table.query,
-  ].filter(Boolean).length;
-
   // Right-click on a header → sort by that column. On a row → open edit.
   const headerMenu = useHeaderContextMenu({
     onSort: (key, dir) => {
@@ -283,19 +273,6 @@ export function ClaimsPage() {
     entityLabel: "ζημιάς",
     onEdit: (c) => setEditing(c),
   });
-
-  const claimQuickFilters = (
-    <QuickFilterBar
-      activeCount={claimFilterCount}
-      onClear={clearClaimFilters}
-      options={[
-        { key: "all", label: "Όλες", active: claimFilterCount === 0, onClick: clearClaimFilters },
-        { key: "open", label: "Ανοιχτές", active: statusFilter === "Reported" || statusFilter === "UnderReview", color: "warning", onClick: () => { setDateWindow(""); setStatusFilter("UnderReview"); setQuickFiltersOpen(false); } },
-        ...(["7", "30", "90"] as const).map(days => ({ key: days, label: `Τελευταίες ${days} ημέρες`, active: dateWindow === days, color: "info" as const, onClick: () => { setDateWindow(days); setQuickFiltersOpen(false); } })),
-        { key: "paid", label: "Πληρωμένες", active: statusFilter === "Paid", color: "success", onClick: () => { setDateWindow(""); setStatusFilter("Paid"); setQuickFiltersOpen(false); } },
-      ]}
-    />
-  );
 
   return (
     <Box>
@@ -328,9 +305,8 @@ export function ClaimsPage() {
               display: "grid",
               gridTemplateColumns: {
                 xs: "1fr",
-                sm: "repeat(4, minmax(0, 1fr))",
-                md: "minmax(220px, 1.4fr) 120px 120px auto auto",
-                lg: "minmax(240px, 1.4fr) 125px 125px auto auto",
+                sm: "repeat(2, minmax(0, 1fr))",
+                lg: "minmax(220px, 1fr) 170px 170px auto",
               },
               gap: 0.75,
               alignItems: "center",
@@ -342,17 +318,11 @@ export function ClaimsPage() {
                 placeholder="Αναζήτηση…"
                 value={customerFilter}
                 onChange={(e) => setCustomerFilter(e.target.value)}
-                sx={{ minWidth: 0, gridColumn: { xs: "auto", sm: "span 2", md: "auto", lg: "auto" } }}
+                sx={{ minWidth: 0, gridColumn: { xs: "auto", sm: "span 2", lg: "auto" } }}
                 InputProps={{ endAdornment: <FilterHelp title="Αναζήτηση σε ονοματεπώνυμο πελάτη, αριθμό συμβολαίου ή ΑΦΜ." /> }}
               />
               <TextField size="small" type="date" label="Συμβάν από" InputLabelProps={{ shrink: true }} fullWidth value={fromDate} onChange={(e) => setFromDate(e.target.value)} sx={{ minWidth: 0, width: "100%" }} />
               <TextField size="small" type="date" label="Συμβάν έως" InputLabelProps={{ shrink: true }} fullWidth value={toDate} onChange={(e) => setToDate(e.target.value)} sx={{ minWidth: 0, width: "100%" }} />
-              <Button size="small" variant={claimFilterCount > 0 ? "contained" : "outlined"} startIcon={<TuneIcon />} onClick={() => setAdvancedFiltersOpen(true)} sx={{ whiteSpace: "nowrap", bgcolor: "#e3f2fd", color: "#1565c0", borderColor: "#90caf9", "&:hover": { bgcolor: "#bbdefb", borderColor: "#64b5f6", color: "#0d47a1" } }}>
-                Σύνθετα φίλτρα{claimFilterCount > 0 ? ` (${claimFilterCount})` : ""}
-              </Button>
-              <Button size="small" variant="outlined" startIcon={<FilterAltIcon />} onClick={() => setQuickFiltersOpen(true)} sx={{ whiteSpace: "nowrap", bgcolor: "#e3f2fd", color: "#1565c0", borderColor: "#90caf9", "&:hover": { bgcolor: "#bbdefb", borderColor: "#64b5f6", color: "#0d47a1" } }}>
-                Γρήγορα φίλτρα
-              </Button>
               <SavedReportsButton entity="claims" currentFilters={{ customerFilter, statusFilter, carrierFilter, subCarrierFilter, typeFilter, useFilter, coverFilter, packageFilter, fromDate, toDate, dateWindow }}
                 onLoad={filters => { setCustomerFilter(filters.customerFilter ?? ""); setStatusFilter(filters.statusFilter ?? ""); setCarrierFilter(filters.carrierFilter ?? ""); setSubCarrierFilter(filters.subCarrierFilter ?? []); setTypeFilter(filters.typeFilter ?? ""); setUseFilter(filters.useFilter ?? ""); setCoverFilter(filters.coverFilter ?? ""); setPackageFilter(filters.packageFilter ?? ""); setFromDate(filters.fromDate ?? ""); setToDate(filters.toDate ?? ""); setDateWindow(filters.dateWindow ?? ""); }}
                 saveRequestToken={saveFilterRequest} />
@@ -366,6 +336,9 @@ export function ClaimsPage() {
                   <MenuItem value="">Όλες οι καταστάσεις</MenuItem>
                   {(["Reported", "UnderReview", "Approved", "Rejected", "Paid", "Closed"] as const).map(s => <MenuItem key={s} value={s}>{t(`claims.statuses.${s}`)}</MenuItem>)}
                 </SearchableTextField>
+                <TextField select size="small" label="Χρονικό διάστημα" value={dateWindow} onChange={event => setDateWindow(event.target.value as typeof dateWindow)}>
+                  <MenuItem value="">Όλο το διάστημα</MenuItem>{["7", "30", "90"].map(days => <MenuItem key={days} value={days}>Τελευταίες {days} ημέρες</MenuItem>)}
+                </TextField>
                 <SearchableSelect label="Εταιρία" value={carrierFilter} onChange={(v) => { setCarrierFilter(v); setSubCarrierFilter([]); setTypeFilter(""); setUseFilter(""); setCoverFilter(""); setPackageFilter(""); }} emptyLabel="Όλες" options={(carriersQ.data ?? []).filter(c => !c.parentCompanyId).map(c => ({ value: c.id, label: c.name, hint: c.isBroker ? "Πρακτορείο" : undefined }))} />
                 <SearchableSelect label="Κλάδος" value={typeFilter} onChange={(v) => setTypeFilter(v)} disabled={!carrierFilter} emptyLabel="Όλοι" options={filterCatalogue.branches.map(b => ({ value: b.value, label: b.label }))} />
                 <SearchableSelect label="Χρήση οχήματος" value={useFilter} onChange={(v) => setUseFilter(v)} disabled={!carrierFilter} emptyLabel="Όλες" options={filterCatalogue.uses.map(u => ({ value: u.value, label: u.label }))} />
@@ -375,114 +348,8 @@ export function ClaimsPage() {
             </DialogContent>
             <DialogActions><Button color="error" variant="contained" onClick={clearClaimFilters}>Καθαρισμός φίλτρων</Button><Button variant="contained" onClick={() => setAdvancedFiltersOpen(false)}>Εφαρμογή</Button></DialogActions>
           </Dialog>
-          <Dialog open={quickFiltersOpen} onClose={() => setQuickFiltersOpen(false)} fullWidth maxWidth="sm">
-            <DialogTitle>Γρήγορα φίλτρα</DialogTitle>
-            <DialogContent dividers>{claimQuickFilters}</DialogContent>
-            <DialogActions><Button variant="contained" onClick={() => setQuickFiltersOpen(false)}>Κλείσιμο</Button></DialogActions>
-          </Dialog>
         </>
       )}
-      {false && !isCustomer && (
-        <ResponsiveFilterPanel
-          activeCount={claimFilterCount}
-          title="Φίλτρα ζημιών"
-          quickFilters={<QuickFilterBar
-            activeCount={claimFilterCount}
-            onClear={clearClaimFilters}
-            options={[
-              { key: "all", label: "Όλες", active: claimFilterCount === 0, onClick: clearClaimFilters },
-              { key: "open", label: "Ανοιχτές", active: statusFilter === "Reported" || statusFilter === "UnderReview", color: "warning", onClick: () => { setDateWindow(""); setStatusFilter("UnderReview"); } },
-              { key: "7", label: "Τελευταίες 7 ημέρες", active: dateWindow === "7", onClick: () => setDateWindow("7") },
-              { key: "30", label: "Τελευταίες 30 ημέρες", active: dateWindow === "30", onClick: () => setDateWindow("30") },
-              { key: "90", label: "Τελευταίες 90 ημέρες", active: dateWindow === "90", onClick: () => setDateWindow("90") },
-              { key: "paid", label: "Πληρωμένες", active: statusFilter === "Paid", color: "success", onClick: () => { setDateWindow(""); setStatusFilter("Paid"); } },
-            ]}
-          />}
-        >
-          {/* Dense grid — search+status on line 1, carrier/branch/use/cover
-              on line 2, package/dates/clear on line 3 — 3 rows on desktop
-              instead of the ~6-row wrap the flex layout produced. */}
-          <Box sx={{
-            display: "grid",
-            gap: 1,
-            gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
-            alignItems: "center",
-          }}>
-            <SearchableTextField size="small" label={t("claims.col.status")} fullWidth
-              value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ClaimStatus | "")}>
-              <MenuItem value="">{t("audit.filters.allActions")}</MenuItem>
-              {(["Reported","UnderReview","Approved","Rejected","Paid","Closed"] as const).map(s =>
-                <MenuItem key={s} value={s}>{t(`claims.statuses.${s}`)}</MenuItem>)}
-            </SearchableTextField>
-            <TextField size="small" label="Πελάτης / Συμβόλαιο / ΑΦΜ" placeholder="Αναζήτηση…" fullWidth
-              value={customerFilter} onChange={(e) => setCustomerFilter(e.target.value)}
-              sx={{ gridColumn: { md: "span 3" } }}
-              InputProps={{
-                endAdornment: <FilterHelp title="Αναζήτηση σε ονοματεπώνυμο πελάτη, αριθμό συμβολαίου ή ΑΦΜ." />
-              }} />
-            <SearchableSelect
-              label="Εταιρία"
-              value={carrierFilter}
-              onChange={(v) => { setCarrierFilter(v); setSubCarrierFilter([]); setTypeFilter(""); setUseFilter(""); setCoverFilter(""); setPackageFilter(""); }}
-              emptyLabel="Όλες"
-              sx={{ width: "100%" }}
-              options={(carriersQ.data ?? []).filter(c => !c.parentCompanyId).map(c => ({
-                value: c.id, label: c.name, hint: c.isBroker ? "πρακτορείο" : undefined,
-              }))}
-            />
-            <SearchableSelect
-              label="Κλάδος"
-              value={typeFilter} onChange={(v) => setTypeFilter(v)}
-              disabled={!carrierFilter}
-              helperText={!carrierFilter
-                ? "Επιλέξτε εταιρία"
-                : filterCatalogue.branches.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
-              emptyLabel="Όλοι"
-              sx={{ width: "100%" }}
-              options={filterCatalogue.branches.map(b => ({ value: b.value, label: b.label }))}
-            />
-            <SearchableSelect
-              label="Χρήση οχήματος"
-              value={useFilter} onChange={(v) => setUseFilter(v)}
-              disabled={!carrierFilter}
-              helperText={!carrierFilter
-                ? "Επιλέξτε εταιρία"
-                : filterCatalogue.uses.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
-              emptyLabel="Όλες"
-              sx={{ width: "100%" }}
-              options={filterCatalogue.uses.map(u => ({ value: u.value, label: u.label }))}
-            />
-            <SearchableSelect
-              label="Κάλυψη"
-              value={coverFilter} onChange={(v) => setCoverFilter(v)}
-              disabled={!carrierFilter}
-              helperText={!carrierFilter
-                ? "Επιλέξτε εταιρία"
-                : filterCatalogue.coverages.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
-              emptyLabel="Όλες"
-              sx={{ width: "100%" }}
-              options={filterCatalogue.coverages.map(c => ({ value: c.value, label: c.label }))}
-            />
-            <SearchableSelect
-              label="Πακέτο"
-              value={packageFilter} onChange={(v) => setPackageFilter(v)}
-              disabled={!carrierFilter}
-              helperText={!carrierFilter
-                ? "Επιλέξτε εταιρία"
-                : filterCatalogue.packages.length === 0 ? "Δεν υπάρχουν πακέτα" : ""}
-              emptyLabel="Όλα"
-              sx={{ width: "100%" }}
-              options={filterCatalogue.packages.map(p => ({ value: p.value, label: p.label }))}
-            />
-            <TextField size="small" type="date" label="Συμβάν από" InputLabelProps={{ shrink: true }} fullWidth
-              value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-            <TextField size="small" type="date" label="Συμβάν έως" InputLabelProps={{ shrink: true }} fullWidth
-              value={toDate} onChange={(e) => setToDate(e.target.value)} />
-            <Button size="small" fullWidth onClick={clearClaimFilters} color="error" variant="contained">Καθαρισμός</Button>
-          </Box>
-        </ResponsiveFilterPanel>
-      )}
-
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
 
       <Box sx={{ mb: 0 }}>

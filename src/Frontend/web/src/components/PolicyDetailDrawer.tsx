@@ -3,7 +3,7 @@ import { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback, prof
 import { POLICY_CORE_KEYS, policyCorePayload, policyPreservedAmounts } from "./profile/policyProfile";
 import { createContext, useContext, Children, isValidElement, useEffect, useMemo, useState } from "react";
 import {
-  Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
+  Alert, Autocomplete, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   Divider, Drawer, FormControlLabel, IconButton, MenuItem,
   Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow, TextField as MuiTextField, Typography
 } from "@mui/material";
@@ -17,13 +17,16 @@ import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
-import { EntityAuditTimeline } from "./EntityAuditTimeline";
+import { PolicyLifecyclePanel } from "./PolicyLifecyclePanel";
 import { PropagateChangesDialog, type PropagatableChanges } from "./PropagateChangesDialog";
 import { SearchableSelect as OriginalSearchableSelect } from "./SearchableSelect";
 import { VehicleDetailDialog } from "../pages/CustomerVehiclesPage";
 import { contractDurationLabel } from "../utils/contractDuration";
 import EditIcon from "@mui/icons-material/Edit";
 import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
+import { greenCardVehicleDefaults } from "./profile/greenCardVehicleDefaults";
+import { CatalogueItemDialog } from "./CompanyCatalogueDialog";
+import { useAuth } from "../auth/AuthContext";
 import { ThemeProvider, type Theme } from "@mui/material/styles";
 
 // A modal policy sits above ordinary dialogs; its child menus/dialogs must sit higher still.
@@ -203,6 +206,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   const [vehiclePickerOpen, setVehiclePickerOpen] = useState(false);
   const [vehicleSearch, setVehicleSearch] = useState("");
   const [commissionDetailsOpen, setCommissionDetailsOpen] = useState(false);
+  const [communicationsOpen, setCommunicationsOpen] = useState(false);
   const [settlementMode, setSettlementMode] = useState<PolicySettlementMode | null>(null);
   const modalPresentation = presentation === "modal";
   const selectTab = (next: number | string) => {
@@ -218,6 +222,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   useEffect(() => {
     if (open) {
       setCommissionDetailsOpen(false);
+      setCommunicationsOpen(false);
       setModalTab(0);
       setTab(0);
     }
@@ -668,7 +673,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
           {label:t("policyDetail.tab.delivery"),icon:<DescriptionOutlinedIcon />}, {label:t("policyDetail.tab.endorsements"),icon:<DescriptionOutlinedIcon />},
           {label:t("policyDetail.tab.claims"),icon:<DescriptionOutlinedIcon />}, {label:t("policyDetail.tab.receipts"),icon:<ReceiptLongOutlinedIcon />},
           {label:"PDF Συμβολαίου",icon:<DescriptionOutlinedIcon />}, {label:"Καλύψεις",icon:<DescriptionOutlinedIcon />},
-          {label:"Δόσεις",icon:<ReceiptLongOutlinedIcon />}, {label:"Δραστηριότητα",icon:<HistoryOutlinedIcon />},
+          {label:"Δόσεις",icon:<ReceiptLongOutlinedIcon />}, {label:"Ιστορικό",icon:<HistoryOutlinedIcon />},
         ]} />
 
         {/* Scrollable content */}
@@ -705,7 +710,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
 
               {showContract && <Stack spacing={1}>
                 <PolicyContractFields policy={p} session={readOnly ? undefined : session} values={session.values} uses={catalogue.uses} packages={catalogue.packages} />
-                <PolicySummarySection title="Καλύψεις"><PolicyCoversTab policyId={p.id} readOnly={!canEdit} /></PolicySummarySection>
+                <PolicySummarySection title="Καλύψεις"><PolicyCoversTab policyId={p.id} readOnly={readOnly} /></PolicySummarySection>
               </Stack>}
 
               {showFinancials && (readOnly ? (
@@ -835,42 +840,19 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
               )}
               {tab === 8 && !modalPresentation && <PolicyContractPdf policyId={p.id} readOnly={readOnly} />}
               {showDocuments && <PolicyContractPdf policyId={p.id} readOnly={readOnly} />}
-              {showHistory && <Stack spacing={1}>
-                <Typography variant="subtitle2" fontWeight={800}>Ιστορικό αλλαγών</Typography>
-                <EntityAuditTimeline entityName="Policy" entityId={p.id} />
-                <Divider />
-                <Typography variant="subtitle2" fontWeight={800}>Επικοινωνίες</Typography>
-                <PolicyCommunicationsTab policyId={p.id} loading={communications.isLoading} rows={communications.data ?? []}
-                  readOnly={!canEdit} onSaved={() => void qc.invalidateQueries({ queryKey: ["policy-communications", p.id] })} />
-              </Stack>}
+              {showHistory && <PolicyLifecyclePanel key={p.id} policyId={p.id} />}
               {tab === 9 && !modalPresentation && <PolicyCoversTab policyId={p.id} readOnly={readOnly} />}
               {tab === 10 && !modalPresentation && <PolicyInstallmentsTab policyId={p.id} />}
-              {/* Merged "Δραστηριότητα": audit trail (created / edited /
-                  fields changed) on top, communications log (emails /
-                  calls / notes) below. */}
-              {tab === 11 && !modalPresentation && (
-                <Stack spacing={3}>
-                  <Box>
-                    <Typography variant="overline" color="text.secondary" fontWeight={700} sx={{ mb: 1, display: "block" }}>
-                      Ιστορικό αλλαγών
-                    </Typography>
-                    <EntityAuditTimeline entityName="Policy" entityId={p.id} />
-                  </Box>
-                  <Divider />
-                  <Box>
-                    <Typography variant="overline" color="text.secondary" fontWeight={700} sx={{ mb: 1, display: "block" }}>
-                      Επικοινωνία
-                    </Typography>
-                    <PolicyCommunicationsTab
-                      readOnly={readOnly}
-                      policyId={p.id}
-                      loading={communications.isLoading}
-                      rows={communications.data ?? []}
-                      onSaved={() => void qc.invalidateQueries({ queryKey: ["policy-communications", p.id] })}
-                    />
-                  </Box>
-                </Stack>
-              )}
+              {tab === 11 && !modalPresentation && <PolicyLifecyclePanel key={p.id} policyId={p.id} />}
+              {(showHistory || (tab === 11 && !modalPresentation)) && <Box sx={{ mt: 1 }}>
+                <Button variant="contained" color="success" sx={{ color: "#fff" }} onClick={() => setCommunicationsOpen(true)}>Επικοινωνίες συμβολαίου</Button>
+                <Dialog open={communicationsOpen} onClose={() => setCommunicationsOpen(false)} fullWidth maxWidth="md">
+                  <DialogTitle>Επικοινωνίες συμβολαίου</DialogTitle>
+                  <DialogContent dividers><PolicyCommunicationsTab policyId={p.id} loading={communications.isLoading} rows={communications.data ?? []}
+                    readOnly={readOnly} onSaved={() => void qc.invalidateQueries({ queryKey: ["policy-communications", p.id] })} /></DialogContent>
+                  <DialogActions><Button color="error" variant="contained" onClick={() => setCommunicationsOpen(false)}>Κλείσιμο</Button></DialogActions>
+                </Dialog>
+              </Box>}
             </>
           )}
         </Box>
@@ -1533,6 +1515,7 @@ function PolicyContractPdf({ policyId, readOnly = false }: { policyId: string; r
   const [greenCardEditingId, setGreenCardEditingId] = useState<string | null>(null);
   const [greenCardForm, setGreenCardForm] = useState<GreenCardFormState>(GREEN_CARD_EMPTY);
   const [greenCardError, setGreenCardError] = useState<string | null>(null);
+  const [prefillingGreenCard, setPrefillingGreenCard] = useState(false);
 
   // Cleanup blob URLs when the component unmounts.
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
@@ -1553,8 +1536,7 @@ function PolicyContractPdf({ policyId, readOnly = false }: { policyId: string; r
     queryFn: async () => (await api.get<GreenCard[]>(`/policies/${policyId}/green-cards`)).data
   });
 
-  const openGreenCard = (card?: GreenCard) => {
-    const p = policyQ.data;
+  const openGreenCard = async (card?: GreenCard) => {
     if (card) {
       setGreenCardEditingId(card.id);
       setGreenCardForm({
@@ -1567,12 +1549,17 @@ function PolicyContractPdf({ policyId, readOnly = false }: { policyId: string; r
         deliveryMethod: card.deliveryMethod ?? "", notes: card.notes ?? ""
       });
     } else {
+      setPrefillingGreenCard(true);
+      const result = await policyQ.refetch();
+      setPrefillingGreenCard(false);
+      if (!result.data || result.isError) { setErr("Δεν φορτώθηκαν τα στοιχεία συμβολαίου για τη νέα πράσινη κάρτα. Δοκιμάστε ξανά."); return; }
+      const p = result.data;
       const customerName = p?.customerDisplay ?? "";
       setGreenCardEditingId(null);
       setGreenCardForm({
         ...GREEN_CARD_EMPTY, validFrom: p?.startDate?.slice(0, 10) ?? "",
         validTo: p?.endDate?.slice(0, 10) ?? "", holderName: customerName,
-        insuredName: customerName, vehicleRegistrationPlate: p?.vehicleRegistrationPlate ?? ""
+        insuredName: customerName, ...greenCardVehicleDefaults(p)
       });
     }
     setGreenCardError(null);
@@ -1734,7 +1721,7 @@ function PolicyContractPdf({ policyId, readOnly = false }: { policyId: string; r
             <Typography fontWeight={800} sx={{ fontSize: 14 }}>Πράσινες κάρτες</Typography>
             <Typography variant="caption" color="text.secondary">Δημιουργήστε χειροκίνητα, εκδώστε PDF και καταγράψτε την παράδοση.</Typography>
           </Box>
-          {!readOnly && <Button size="small" variant="contained" color="success" onClick={() => openGreenCard()}>Νέα πράσινη κάρτα</Button>}
+          {!readOnly && <Button size="small" variant="contained" color="success" disabled={prefillingGreenCard} onClick={() => void openGreenCard()}>{prefillingGreenCard ? "Συμπλήρωση στοιχείων…" : "Νέα πράσινη κάρτα"}</Button>}
         </Stack>
         {greenCardsQ.isLoading ? <CircularProgress size={20} sx={{ mt: 1 }} /> : greenCards.length === 0 ? (
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Δεν έχει καταχωρηθεί πράσινη κάρτα για το συμβόλαιο.</Typography>
@@ -2014,14 +2001,16 @@ function toBody(f: CoverFormState) {
 }
 
 function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string; readOnly?: boolean }) {
+  const { user } = useAuth();
+  const canCreateCatalogue = !readOnly && !!user && ["AgencyAdmin", "PlatformAdmin", "PlatformEmployee"].includes(user.role);
+  const [coverDialogOpen, setCoverDialogOpen] = useState(false);
+  const [catalogueCreateOpen, setCatalogueCreateOpen] = useState(false);
+  const detail = useQuery({ queryKey: ["policy-detail", policyId], queryFn: async () => (await api.get<PolicyDetail>(`/policies/${policyId}/detail`)).data });
+  const catalogue = useCarrierCatalogue(detail.data?.insuranceCompanyId);
   const qc = useQueryClient();
   const q = useQuery({
     queryKey: ["policy-covers", policyId],
     queryFn: async () => (await api.get<CoverRow[]>(`/policies/${policyId}/covers`)).data
-  });
-  const objects = useQuery({
-    queryKey: ["policy-objects", policyId],
-    queryFn: async () => (await api.get<any[]>(`/policies/${policyId}/objects`)).data
   });
   const [form, setForm] = useState<CoverFormState>(EMPTY_COVER_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -2037,11 +2026,11 @@ function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string
 
   const add = useMutation({
     mutationFn: async () => (await api.post(`/policies/${policyId}/covers`, toBody(form))).data,
-    onSuccess: () => { setForm(EMPTY_COVER_FORM); invalidate(); }
+    onSuccess: () => { setForm(EMPTY_COVER_FORM); setCoverDialogOpen(false); invalidate(); }
   });
   const update = useMutation({
     mutationFn: async () => (await api.put(`/policies/${policyId}/covers/${editingId}`, toBody(form))).data,
-    onSuccess: () => { setEditingId(null); setForm(EMPTY_COVER_FORM); invalidate(); }
+    onSuccess: () => { setEditingId(null); setForm(EMPTY_COVER_FORM); setCoverDialogOpen(false); invalidate(); }
   });
   const del = useMutation({
     mutationFn: async (id: string) => api.delete(`/policies/${policyId}/covers/${id}`),
@@ -2049,6 +2038,7 @@ function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string
   });
 
   const startEdit = (c: CoverRow) => {
+    add.reset(); update.reset(); setCoverDialogOpen(true);
     setEditingId(c.id);
     setForm({
       coverCode: c.coverCode,
@@ -2061,7 +2051,7 @@ function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string
       agencyCommissionPercent: c.agencyCommissionPercent === null ? "" : String(c.agencyCommissionPercent),
     });
   };
-  const cancelEdit = () => { setEditingId(null); setForm(EMPTY_COVER_FORM); };
+  const cancelEdit = () => { if (add.isPending || update.isPending) return; setCoverDialogOpen(false); setEditingId(null); setForm(EMPTY_COVER_FORM); };
 
   const rows = q.data ?? [];
   const totalGross = rows.reduce((s, c) => s + c.grossPremium, 0);
@@ -2074,6 +2064,7 @@ function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string
         <Typography variant="overline" color="text.secondary" fontWeight={700}>Καλύψεις</Typography>
         <Chip size="small" label={`${rows.length}`} sx={{ height: 20, fontSize: 11 }} />
         <Box sx={{ flex: 1 }} />
+        {!readOnly && <Button size="small" variant="contained" color="success" sx={{ color: "#fff" }} disabled={!detail.data} onClick={() => { add.reset(); update.reset(); setEditingId(null); setForm(EMPTY_COVER_FORM); setCoverDialogOpen(true); }}>Προσθήκη νέας κάλυψης</Button>}
         {!readOnly && <Button size="small" variant="text" onClick={() => setBulkOpen(true)}>
           Μαζική εισαγωγή CSV
         </Button>}
@@ -2142,23 +2133,22 @@ function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string
           </Table>
         </Box>
       )}
-      {!readOnly && <Box sx={{ p: 1.25, bgcolor: "background.default", borderRadius: 1, border: "1px solid", borderColor: "divider" }}>
-        <Typography variant="caption" color="text.secondary" fontWeight={700}>
-          {editing ? `Επεξεργασία κάλυψης · ${form.coverCode}` : "Νέα κάλυψη"}
-        </Typography>
+      {del.isError && <Alert severity="error">{extractErrorMessage(del.error)}</Alert>}
+      {(q.isError || detail.isError) && <Alert severity="error" action={<Button onClick={() => { void q.refetch(); void detail.refetch(); }}>Επανάληψη</Button>}>{extractErrorMessage(q.error || detail.error)}</Alert>}
+      <Dialog open={coverDialogOpen && !readOnly} onClose={cancelEdit} fullWidth maxWidth="md">
+        <DialogTitle>{editing ? "Επεξεργασία κάλυψης" : "Προσθήκη νέας κάλυψης"}</DialogTitle>
+        <DialogContent dividers>
+          {(add.isError || update.isError) && <Alert severity="error">{extractErrorMessage(add.error || update.error)}</Alert>}
         <Stack spacing={1.5} mt={1}>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            <TextField disabled={readOnly || editing} size="small" label="Κωδικός" value={form.coverCode}
-              onChange={e => setForm({ ...form, coverCode: e.target.value.toUpperCase() })}
-              sx={{ width: 140 }} />
-            <TextField disabled={readOnly} size="small" label="Όνομα" value={form.coverName}
-              onChange={e => setForm({ ...form, coverName: e.target.value })} sx={{ flex: 1 }} />
-            <TextField disabled={readOnly} size="small" select label="Αντικείμενο" value={form.policyObjectId}
-              onChange={e => setForm({ ...form, policyObjectId: e.target.value })} sx={{ width: 200 }}>
-              <MenuItem value="">—</MenuItem>
-              {(objects.data ?? []).map((o: any) => <MenuItem key={o.id} value={o.id}>{o.objectKind}{o.identifier ? ` · ${o.identifier}` : ""}</MenuItem>)}
-            </TextField>
-          </Stack>
+          {!editing ? <Autocomplete size="small" options={catalogue.coverages}
+            value={catalogue.coverages.find(option => option.value === form.coverCode) ?? (form.coverCode ? { key: form.coverCode, value: form.coverCode, code: form.coverCode, name: form.coverName, label: form.coverName || form.coverCode, parentCode: null, source: "parametric" as const } : null)}
+            getOptionLabel={option => option.label}
+            isOptionEqualToValue={(option, value) => option.value === value.value}
+            onChange={(_, option) => setForm(previous => ({ ...previous, coverCode: option?.value ?? "", coverName: option?.name ?? option?.label ?? "" }))}
+            loading={catalogue.isLoading} noOptionsText="Δεν υπάρχουν καταχωρημένες καλύψεις στα παραμετρικά αυτής της εταιρείας."
+            renderInput={params => <MuiTextField {...params} required label="Κάλυψη από παραμετρικά" />} />
+            : <Stack gap={1}><Typography fontWeight={800}>{form.coverCode}</Typography><TextField size="small" label="Ονομασία κάλυψης" value={form.coverName} onChange={event => setForm(previous => ({ ...previous, coverName: event.target.value }))} /></Stack>}
+          {!editing && canCreateCatalogue && <Button variant="outlined" color="success" onClick={() => setCatalogueCreateOpen(true)}>Προσθήκη νέας κάλυψης στα παραμετρικά</Button>}
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
             <TextField disabled={readOnly} size="small" type="number" label="Μικτά" value={form.grossPremium}
               onChange={e => setForm({ ...form, grossPremium: e.target.value })} sx={{ flex: 1 }} />
@@ -2217,7 +2207,14 @@ function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string
             </Stack>
           </Stack>
         </Stack>
-      </Box>}
+
+        </DialogContent>
+        <DialogActions><Button startIcon={<CloseIcon />} color="error" variant="contained" disabled={add.isPending || update.isPending} onClick={cancelEdit}>Κλείσιμο</Button></DialogActions>
+      </Dialog>
+      <CatalogueItemDialog open={catalogueCreateOpen} onClose={() => setCatalogueCreateOpen(false)} insuranceCompanyId={detail.data?.insuranceCompanyId ?? null}
+        defaultKind="Coverage" lockKind editing={null}
+        onCreated={item => setForm(previous => ({ ...previous, coverCode: item.code, coverName: item.name }))}
+        onSaved={() => { for (const key of ["company-parameters-catalogue", "company-parameters", "production-company-parameters"]) void qc.invalidateQueries({ queryKey: [key] }); }} />
       <Typography variant="caption" color="text.secondary">
         Το ασφάλιστρο του συμβολαίου συγχρονίζεται αυτόματα με το σύνολο των Μικτών των καλύψεων.
         Ποσοστά που αφήνετε κενά κληρονομούνται από τον κανόνα προμηθειών.
@@ -2831,15 +2828,11 @@ export function PolicyContractFields({ policy, values, session, uses = [], packa
   return <Box sx={{ ...profileFieldGridSx, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))" }}>
     {field("vehicleUseCategory", "Χρήση", { options: options(uses, values.vehicleUseCategory) })}
     {field("packageCode", "Πακέτο", { options: options(packages, values.packageCode) })}
-    {field("coverCode", "Κωδικοί καλύψεων")}
     <ProfileEditableField label="Επόμενη ανανέωση (αυτόματα)" value={policy.nextRenewalDate || policy.endDate} type="date" />
     {field("deliveredAt", "Ημερομηνία παράδοσης", { type: "date" })}
     {field("deliveredTo", "Παραδόθηκε σε")}
     {field("deliveryMethod", "Τρόπος παράδοσης", { options: options(DELIVERY_METHODS.map(value => ({ value, label: DELIVERY_METHOD_LABELS[value] ?? value })), values.deliveryMethod) })}
     {field("renewalInstructions", "Οδηγίες ανανέωσης", { multiline: true })}
-    <ProfileEditableField label="Απαλλαγή" value={policy.deductible == null ? "" : settlementAmount(policy.deductible, policy.currency)} mono />
-    <ProfileEditableField label="Χαρακτηριστικό συμβολαίου" value={policy.characteristic} />
-    <ProfileEditableField label="Θέση / σημείο ασφάλισης" value={policy.position} />
     <ProfileEditableField label="Σημειώσεις συμβολαίου" value={policy.policyNotes} multiline />
   </Box>;
 }

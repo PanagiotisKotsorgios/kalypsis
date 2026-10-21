@@ -18,6 +18,7 @@ import ContactPhoneIcon from "@mui/icons-material/ContactPhone";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
+import { ProducerBalancesPanel } from "./ProducerBalancesPanel";
 
 interface ProducerDetail {
   id: string; code: string; name: string; email: string | null; phone: string | null; notes: string | null; status: string;
@@ -142,7 +143,15 @@ export function ProducerDetailDrawer({ producerId, open, onClose, onEdit }: {
               {p.byPolicyType.length > 0 && <Card variant="outlined" sx={{ p: 1.25 }}><Typography fontWeight={800} mb={.75}>{t("producerDetail.byType")}</Typography><Table size="small"><TableHead><TableRow><TableCell>{t("producerDetail.type")}</TableCell><TableCell align="right">{t("producerDetail.policies")}</TableCell><TableCell align="right">{t("producerDetail.premium")}</TableCell></TableRow></TableHead><TableBody>{p.byPolicyType.map(item => <TableRow key={item.policyType}><TableCell>{item.policyType}</TableCell><TableCell align="right">{item.policyCount}</TableCell><TableCell align="right" sx={{ fontWeight: 700 }}>{item.totalPremium.toFixed(2)} €</TableCell></TableRow>)}</TableBody></Table></Card>}
               {p.byCarrier.length === 0 && p.byPolicyType.length === 0 && <Typography color="text.secondary">Δεν υπάρχουν ακόμη συμβόλαια ή στοιχεία παραγωγής.</Typography>}
             </Stack>}
-            {tab === 2 && <Card variant="outlined" sx={{ p: 1.25 }}><Typography fontWeight={800} mb={.75}>{t("producerDetail.financials")}</Typography><Box sx={{ display: "grid", gap: .5, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" } }}><KV label={t("producerDetail.premiumYtd")} value={`${p.totalPremiumYtd.toFixed(2)} €`} /><KV label={t("producerDetail.premiumLastYear")} value={`${p.totalPremiumLastYear.toFixed(2)} €`} /><KV label={t("producerDetail.commissionsAll")} value={`${p.totalCommissionsEarned.toFixed(2)} €`} /><KV label={t("producerDetail.commissionsYtd")} value={`${p.commissionsThisYear.toFixed(2)} €`} /></Box></Card>}
+            {tab === 2 && <Stack gap={1.25}>
+              <ProducerBalancesPanel key={p.id} producerId={p.id} />
+              <Card variant="outlined" sx={{ p: 1.25 }}><Typography fontWeight={800} mb={.75}>{t("producerDetail.financials")}</Typography><Box sx={profileFieldGridSx}>
+                <KV label={t("producerDetail.premiumYtd")} value={`${p.totalPremiumYtd.toFixed(2)} €`} />
+                <KV label={t("producerDetail.premiumLastYear")} value={`${p.totalPremiumLastYear.toFixed(2)} €`} />
+                <KV label={t("producerDetail.commissionsAll")} value={`${p.totalCommissionsEarned.toFixed(2)} €`} />
+                <KV label={t("producerDetail.commissionsYtd")} value={`${p.commissionsThisYear.toFixed(2)} €`} />
+              </Box></Card>
+            </Stack>}
             {tab === 3 && <Card variant="outlined" sx={{ p: 1.25 }}><Stack direction="row" justifyContent="space-between" alignItems="center" mb={.75}><Typography fontWeight={800}>Ιστορικό επικοινωνίας</Typography><Chip size="small" label={`${communications.data?.length ?? 0}`} /></Stack>{communications.isLoading ? <CircularProgress size={20} /> : (communications.data ?? []).length === 0 ? <Typography variant="body2" color="text.secondary">Δεν έχει καταγραφεί ακόμη επικοινωνία με τον συνεργάτη.</Typography> : <Stack spacing={.75}>{(communications.data ?? []).map(item => <Box key={item.id} sx={{ p: 1, borderRadius: 1.25, bgcolor: "background.default", border: "1px solid", borderColor: "divider" }}><Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={.5}><Typography variant="body2" fontWeight={700}>{COMM_KIND[item.kind] ?? "Επικοινωνία"} · {item.subject}</Typography><Typography variant="caption" color="text.secondary">{new Date(item.occurredAt).toLocaleString("el-GR")}</Typography></Stack><Typography variant="caption" color="text.secondary">{COMM_OUTCOME[item.outcome] ?? ""}</Typography>{item.body && <Typography variant="body2" sx={{ mt: .35, whiteSpace: "pre-wrap" }}>{item.body}</Typography>}</Box>)}</Stack>}</Card>}
           </Stack>
         </>}

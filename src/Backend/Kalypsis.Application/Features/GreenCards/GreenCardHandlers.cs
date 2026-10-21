@@ -158,6 +158,7 @@ public sealed class CreateGreenCardCommandHandler : IRequestHandler<CreateGreenC
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var policy = await LoadPolicy(request.PolicyId, tenantId, ct);
+        var vehicle = GreenCardVehicleDefaults.FromSpecs(policy.SpecsJson);
         ValidateDates(request.Body.ValidFrom, request.Body.ValidTo);
         var id = Guid.NewGuid();
         var card = new GreenCard
@@ -172,8 +173,8 @@ public sealed class CreateGreenCardCommandHandler : IRequestHandler<CreateGreenC
             HolderName = Clean(request.Body.HolderName) ?? CustomerName(policy.Customer),
             InsuredName = Clean(request.Body.InsuredName) ?? CustomerName(policy.Customer),
             VehicleRegistrationPlate = Clean(request.Body.VehicleRegistrationPlate) ?? policy.VehicleRegistrationPlate ?? string.Empty,
-            VehicleMakeModel = Clean(request.Body.VehicleMakeModel),
-            VehicleVin = Clean(request.Body.VehicleVin),
+            VehicleMakeModel = Clean(request.Body.VehicleMakeModel) ?? vehicle.MakeModel,
+            VehicleVin = Clean(request.Body.VehicleVin) ?? vehicle.Vin,
             Territories = Clean(request.Body.Territories),
             IssuingOffice = Clean(request.Body.IssuingOffice),
             DeliveryMethod = Clean(request.Body.DeliveryMethod),

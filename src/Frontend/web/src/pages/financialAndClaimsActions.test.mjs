@@ -16,6 +16,8 @@ test("claims and claims support pages use the unified actions menu", async () =>
     assert.match(source, /SavedReportsButton/);
   }
   assert.match(pages[0], /hideActionButtons/);
+  assert.match(pages[0], /onFilters=\{!isCustomer \? \(\) => setAdvancedFiltersOpen\(true\) : undefined\}/);
+  assert.doesNotMatch(pages[0], /QuickFilterBar|quickFiltersOpen|ResponsiveFilterPanel/);
   assert.doesNotMatch(pages[1], /startIcon=\{<DownloadIcon/);
   assert.doesNotMatch(pages[2], /startIcon=\{<DownloadIcon/);
   assert.doesNotMatch(pages[3], /startIcon=\{<DownloadIcon/);

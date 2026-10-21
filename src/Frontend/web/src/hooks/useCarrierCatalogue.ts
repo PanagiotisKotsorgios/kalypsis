@@ -47,6 +47,8 @@ export interface CarrierOption {
   value: string;
   /** Human-readable display label from the carrier's catalogue. */
   label: string;
+  /** Original catalogue name, without the code appended for selector display. */
+  name?: string;
   /** Carrier's own code (for cascading). */
   code: string;
   /** parentCode link, used to narrow children by selected parents. */
@@ -129,6 +131,7 @@ export function useCarrierCatalogue(
       key: `cov:${p.id}`,
       value: p.code,
       label: `${p.name} (${p.code})`,
+      name: p.name,
       code: p.code,
       parentCode: p.parentCode,
       source: "parametric",

@@ -99,7 +99,7 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
       const {view,edit} = layout(PolicyContractFields, { policy, values, session: session(values), uses: [{value:"Private",label:"Ιδιωτική χρήση"}], packages: [{value:"BASIC",label:"Βασικό πακέτο"}] });
       assert.match(view, /Βασικό πακέτο/); assert.match(view, /Ιδιωτική χρήση/); assert.match(view, /2027-01-01/);
       assert.equal(ids(view).includes("specsJson"), false);
-      for (const key of ["insuranceCompanyId", "policyType", "customerDisplay", "startDate", "endDate", "premium", "applicationNumber"])
+      for (const key of ["insuranceCompanyId", "policyType", "customerDisplay", "startDate", "endDate", "premium", "applicationNumber", "deductible", "characteristic", "position", "coverCode"])
         assert.equal(ids(view).includes(key), false, key);
       assert.match(edit, /Αποθήκευση Πακέτο/);
       assert.equal(edit.includes("Αποθήκευση Επόμενη ανανέωση"), false);
@@ -162,6 +162,35 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
       assert.equal("delivered" in result,false);
       assert.deepEqual(policyPreservedAmounts({netPremium:75,vatAmount:25,stampDutyAmount:0,insuranceContributionAmount:2,otherChargesAmount:null}),{netPremium:75,vatAmount:25,stampDutyAmount:0,insuranceContributionAmount:2,otherChargesAmount:null});
       for(const changes of [{startDate:"2026-02-30"},{endDate:"2025-01-01"},{premium:"-1"},{premium:""}]) assert.throws(()=>policyCorePayload(current,changes));
+    });
+    await t.test("green card defaults use contract vehicle fields and safely handle missing legacy JSON", async () => {
+      const { greenCardVehicleDefaults } = await server.ssrLoadModule("/src/components/profile/greenCardVehicleDefaults.ts");
+      assert.deepEqual(greenCardVehicleDefaults({ vehicleRegistrationPlate:" ABC1234 ", specsJson:'{"make":"Toyota","model":"Yaris","vin":"VIN1"}' }),
+        { vehicleRegistrationPlate:"ABC1234", vehicleMakeModel:"Toyota Yaris", vehicleVin:"VIN1" });
+      assert.equal(greenCardVehicleDefaults({specsJson:'{"vehicle":{"make":"Ford","model":"Focus","vin":"VIN2"}}'}).vehicleVin,"VIN2");
+      for(const specsJson of [null,"broken","[]","null"]) assert.deepEqual(greenCardVehicleDefaults({specsJson}),{vehicleRegistrationPlate:"",vehicleMakeModel:"",vehicleVin:""});
+    });
+    await t.test("lifecycle history renders real policy events rather than audit changes", async () => {
+      const { PolicyHistoryTable } = await server.ssrLoadModule("/src/components/PolicyLifecyclePanel.tsx");
+      const rows = ["Initial","Renewal","Endorsement","Cancellation"].map((kind,index)=>({id:String(index),policyId:"p",kind,date:"2026-01-01",number:"EVENT"+index,policyNumber:"POL1",status:kind==="Cancellation"?"Effective":"Active",amount:kind==="Cancellation"?-30:100,currency:"EUR"}));
+      const html = render(PolicyHistoryTable,{rows,currentPolicyId:"p"});
+      for(const label of ["Αρχικό ασφαλιστήριο","Ανανέωση","Πρόσθετη πράξη","Ακύρωση","-30,00","Σε ισχύ"]) assert.equal(html.includes(label),true,label);
+      const source = await readFile(new URL("../PolicyDetailDrawer.tsx",import.meta.url),"utf8");
+      assert.doesNotMatch(source,/EntityAuditTimeline/); assert.match(source,/<PolicyLifecyclePanel/);
+    });
+    await t.test("producer financial balances keep currencies separate and reuse copyable client fields", async () => {
+      const { ProducerBalanceSummary } = await server.ssrLoadModule("/src/components/ProducerBalancesPanel.tsx");
+      const html = render(ProducerBalanceSummary,{currencies:[{currency:"EUR",earned:100,paid:40,toProducer:60,fromProducer:0},{currency:"USD",earned:50,paid:80,toProducer:0,fromProducer:30}]});
+      for(const label of ["100,00 EUR","60,00 EUR","30,00 USD","Αντιγραφή Οφειλή προς συνεργάτη"]) assert.equal(html.includes(label),true,label);
+      assert.equal(html.includes("<input"),false);
+    });
+    await t.test("policy coverage entry is catalogue-driven and editing opens in a modal", async () => {
+      const source = await readFile(new URL("../PolicyDetailDrawer.tsx",import.meta.url),"utf8");
+      const covers=source.slice(source.indexOf("function PolicyCoversTabInner"),source.indexOf("function BulkCoversImportDialog"));
+      assert.match(covers,/Προσθήκη νέας κάλυψης/); assert.match(covers,/<Autocomplete[^]*options=\{catalogue.coverages\}/);
+      assert.match(covers,/<Dialog open=\{coverDialogOpen/); assert.match(covers,/<CatalogueItemDialog/); assert.match(covers,/defaultKind="Coverage" lockKind/);
+      assert.equal(covers.slice(0,covers.indexOf("<Dialog open={coverDialogOpen")).includes('<TextField'),false);
+      assert.match(covers,/setCoverDialogOpen\(true\)/);
     });
   } finally { client.clear(); await server.close(); }
 });

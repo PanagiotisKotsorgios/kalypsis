@@ -374,8 +374,8 @@ function DeleteButton({ id, onDeleted }: { id: string; onDeleted: () => void }) 
   );
 }
 
-function CatalogueItemDialog({
-  open, onClose, insuranceCompanyId, defaultKind, editing, onSaved
+export function CatalogueItemDialog({
+  open, onClose, insuranceCompanyId, defaultKind, editing, onSaved, onCreated, lockKind = false
 }: {
   open: boolean;
   onClose: () => void;
@@ -383,6 +383,8 @@ function CatalogueItemDialog({
   defaultKind: Kind;
   editing: Item | null;
   onSaved: () => void;
+  onCreated?: (item: { id: string; code: string; name: string }) => void;
+  lockKind?: boolean;
 }) {
   const isEdit = !!editing;
   const initial = useMemo(() => ({
@@ -430,12 +432,12 @@ function CatalogueItemDialog({
         notes: form.notes.trim() || null
       };
       if (isEdit && editing) {
-        await api.put(`/company-parameters/${editing.id}`, body);
+        return (await api.put(`/company-parameters/${editing.id}`, body)).data;
       } else {
-        await api.post(`/company-parameters`, body);
+        return (await api.post(`/company-parameters`, body)).data;
       }
     },
-    onSuccess: () => { onSaved(); onClose(); },
+    onSuccess: item => { onCreated?.(item); onSaved(); onClose(); },
     onError: (e) => setError(extractErrorMessage(e))
   });
 
@@ -447,7 +449,7 @@ function CatalogueItemDialog({
         <Stack spacing={1.5} sx={{ pt: 1 }}>
           <TextField select size="small" label="Τύπος" value={form.kind}
             onChange={(e) => setForm({ ...form, kind: e.target.value as Kind })}
-            disabled={isEdit}>
+            disabled={isEdit || lockKind}>
             {(["Branch","Use","Coverage","Package"] as Kind[]).map(k => (
               <MenuItem key={k} value={k}>{KIND_LABEL[k]}</MenuItem>
             ))}

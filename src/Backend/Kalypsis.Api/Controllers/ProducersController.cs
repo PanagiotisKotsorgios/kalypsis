@@ -21,6 +21,10 @@ public class ProducersController : ControllerBase
     public async Task<ActionResult<ProducerDetailDto>> Detail(Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new GetProducerDetailQuery(id), ct));
 
+    [HttpGet("{id:guid}/balances")]
+    public async Task<ActionResult<ProducerBalancesDto>> Balances(Guid id, CancellationToken ct)
+        => Ok(await _mediator.Send(new GetProducerBalancesQuery(id), ct));
+
     /// <summary>KPI snapshot for a producer + month — powers the drawer
     /// «Monthly snapshot» card and the auto-mailer template.</summary>
     [HttpGet("{id:guid}/monthly-snapshot")]

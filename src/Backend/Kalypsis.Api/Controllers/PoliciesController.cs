@@ -46,6 +46,11 @@ public class PoliciesController : ControllerBase
     public async Task<ActionResult<PolicyDetailDto>> Detail(Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new GetPolicyDetailQuery(id), ct));
 
+    [HttpGet("{id:guid}/history")]
+    [RequirePermission("policies.read")]
+    public async Task<ActionResult<PolicyHistoryDto>> History(Guid id, CancellationToken ct)
+        => Ok(await _mediator.Send(new GetPolicyHistoryQuery(id), ct));
+
     [HttpPatch("{id:guid}/vehicle")]
     [Authorize(Policy = "AgencyStaff")]
     [RequirePermission("policies.write")]
