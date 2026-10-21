@@ -533,7 +533,7 @@ export function ProductionListsPage() {
         <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap" sx={{ minWidth: 0, maxWidth: "100%" }}>
           <SavedReportsButton entity="production-lists" currentFilters={f} onLoad={(next) => setF(normalizeProductionListFilters(next))}
             onClear={clearFilters} clearRequestToken={clearSavedFilterRequest}
-            saveRequestToken={saveFilterRequest} />
+            saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />
           {/* «Ετήσια παραγωγή» button removed from the header. The report
               is still reachable via /app/production-report (old bookmarks
               keep working); it's no longer a standalone entry point in

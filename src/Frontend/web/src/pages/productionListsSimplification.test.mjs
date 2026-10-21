@@ -29,6 +29,7 @@ test("production saved-filter reset clears selection and restores the button wit
   assert.match(source, /setF\(defaultProductionListFilters\(\)\)/);
   assert.match(source, /setClearSavedFilterRequest\(value => value \+ 1\)/);
   assert.match(source, /setF\(normalizeProductionListFilters\(next\)\)/);
+  assert.match(source, /showSaveMenuItem=\{false\}/);
   const reset=saved.slice(saved.indexOf("const clearSelection"), saved.indexOf("const q ="));
   assert.match(reset, /setActiveId\(null\)/); assert.match(reset, /setAnchor\(null\)/); assert.match(reset, /onClear\?\.\(\)/);
   assert.doesNotMatch(reset, /api\.|del\.mutate/);
@@ -36,6 +37,7 @@ test("production saved-filter reset clears selection and restores the button wit
   assert.match(saved, /Χωρίς αποθηκευμένο φίλτρο \(προεπιλογή\)/);
   assert.match(saved, /activeName \?\? \(compact \? "Έτοιμα φίλτρα" : inline \? "Όνομα νέου φίλτρου" : "Αποθηκευμένα"\)/);
   assert.match(saved, /\[entity, clearRequestToken\]/);
+  assert.match(saved, /showSaveMenuItem && <MenuItem/);
 });
 
 test("multi-value reports round-trip and legacy single selections upgrade without stale criteria", () => {

@@ -55,7 +55,7 @@ export function SavedFilterForm({ name, isShared, onChange, pending, error, onSa
  *      currentFilters={f}
  *      onLoad={(filters) => setF(filters)} />
  */
-export function SavedReportsButton<T>({ entity, currentFilters, onLoad, onClear, clearRequestToken = 0, inline = false, compact = false, saveRequestToken = 0 }: {
+export function SavedReportsButton<T>({ entity, currentFilters, onLoad, onClear, clearRequestToken = 0, inline = false, compact = false, saveRequestToken = 0, showSaveMenuItem = true }: {
   entity: string;
   currentFilters: T;
   onLoad: (filters: T) => void;
@@ -69,6 +69,8 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad, onClear,
   compact?: boolean;
   /** Increment from a parent actions menu to open the shared save-filter dialog. */
   saveRequestToken?: number;
+  /** Hide the duplicate save action when the page already exposes it elsewhere. */
+  showSaveMenuItem?: boolean;
 }) {
   const qc = useQueryClient();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
@@ -168,10 +170,10 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad, onClear,
           sx={{ color: "#123a64", "&:hover": { bgcolor: "#e8f2fb", color: "#123a64" }, "&.Mui-selected": { bgcolor: "#d8eafa", color: "#0b305c" }, "&.Mui-selected:hover": { bgcolor: "#c8e1f6", color: "#0b305c" } }}>
           <FilterAltOffIcon fontSize="small" sx={{ mr: 1 }} />Χωρίς αποθηκευμένο φίλτρο (προεπιλογή)
         </MenuItem>}
-        <MenuItem onClick={() => { setAnchor(null); save.reset(); setSaveOpen(true); }}>
+        {showSaveMenuItem && <MenuItem onClick={() => { setAnchor(null); save.reset(); setSaveOpen(true); }}>
           <BookmarkAddIcon fontSize="small" sx={{ mr: 1 }} />
           Αποθήκευση τρέχοντος φίλτρου…
-        </MenuItem>
+        </MenuItem>}
         {q.isLoading ? (
           <MenuItem disabled><CircularProgress size={14} sx={{ mr: 1 }} /> Φόρτωση…</MenuItem>
         ) : (q.data ?? []).length === 0 ? (
