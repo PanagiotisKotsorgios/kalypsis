@@ -5,7 +5,6 @@ import EmailIcon from "@mui/icons-material/Email";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
-import { LanguageToggle } from "../components/LanguageToggle";
 import { SessionCountdown } from "../components/SessionCountdown";
 
 /**
@@ -48,8 +47,12 @@ export function UnderMaintenancePage({ title, message }: { title?: string | null
           </Typography>
           <Stack direction="row" alignItems="center" spacing={1}>
             <SessionCountdown />
-            <LanguageToggle />
-            <IconButton onClick={handleSignOut} title={t("auth.logout")} size="small">
+            <IconButton onClick={handleSignOut} title={t("auth.logout")} aria-label={t("auth.logout")} size="small" sx={{
+              width: 38, height: 38, borderRadius: 1.25, bgcolor: "#d32f2f", color: "#fff",
+              boxShadow: "0 3px 9px rgba(211,47,47,.24)",
+              "&:hover": { bgcolor: "#b71c1c", color: "#fff" },
+              "&:focus-visible": { outline: "2px solid #ef9a9a", outlineOffset: 2 },
+            }}>
               <LogoutIcon fontSize="small" />
             </IconButton>
           </Stack>

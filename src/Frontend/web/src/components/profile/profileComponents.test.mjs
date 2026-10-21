@@ -6,6 +6,22 @@ import { createServer } from "vite";
 import { readFile } from "node:fs/promises";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+test("authenticated top bars hide the language toggle and use a compact red logout action", async () => {
+  const layout = await readFile(new URL("../AppLayout.tsx", import.meta.url), "utf8");
+  const maintenance = await readFile(new URL("../../pages/UnderMaintenancePage.tsx", import.meta.url), "utf8");
+  const ermes = await readFile(new URL("../../pages/ErmesStandalonePage.tsx", import.meta.url), "utf8");
+
+  for (const source of [layout, maintenance]) {
+    assert.equal(source.includes('import { LanguageToggle }'), false);
+    assert.equal(source.includes("<LanguageToggle"), false);
+  }
+  assert.equal(layout.includes('data-tour="topbar-language"'), false);
+  for (const source of [layout, maintenance, ermes]) {
+    assert.match(source, /bgcolor: "#d32f2f", color: "#fff"/);
+    assert.match(source, /<LogoutIcon fontSize="small" \/>/);
+  }
+});
+
 test("production profiles reuse client fields, pencil/save actions and compact tabs; filters retain API payloads", async () => {
   globalThis.sessionStorage ??= { getItem: () => null, setItem() {}, removeItem() {} };
   globalThis.localStorage ??= { getItem: () => null, setItem() {}, removeItem() {} };

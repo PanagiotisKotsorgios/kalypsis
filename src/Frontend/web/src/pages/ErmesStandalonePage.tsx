@@ -60,7 +60,12 @@ export function ErmesStandalonePage() {
             </Button>
           </Tooltip>
           <Tooltip title="Αποσύνδεση">
-            <IconButton size="small" onClick={() => { void signOut(); }}>
+            <IconButton size="small" aria-label="Αποσύνδεση" onClick={() => { void signOut(); }} sx={{
+              width: 38, height: 38, borderRadius: 1.25, bgcolor: "#d32f2f", color: "#fff",
+              boxShadow: "0 3px 9px rgba(211,47,47,.24)",
+              "&:hover": { bgcolor: "#b71c1c", color: "#fff" },
+              "&:focus-visible": { outline: "2px solid #ef9a9a", outlineOffset: 2 },
+            }}>
               <LogoutIcon fontSize="small" />
             </IconButton>
           </Tooltip>

@@ -49,7 +49,6 @@ import { useWorkspace } from "../auth/WorkspaceContext";
 import { api } from "../api/client";
 import { useImpersonation } from "../impersonation/ImpersonationContext";
 import { ImpersonationBanner } from "./ImpersonationBanner";
-import { LanguageToggle } from "./LanguageToggle";
 import { NotificationBell } from "./NotificationBell";
 import { SessionCountdown } from "./SessionCountdown";
 import { KalypsisLogo } from "./KalypsisLogo";
@@ -776,11 +775,15 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
           <Stack direction="row" spacing={{ xs: 0.25, md: 1.5 }} alignItems="center" flexShrink={0}>
             <SessionCountdown />
             <Box data-tour="topbar-bell"><NotificationBell /></Box>
-            <Box data-tour="topbar-language" sx={{ display: { xs: "none", sm: "block" } }}>
-              <LanguageToggle />
-            </Box>
-            <IconButton data-tour="topbar-logout" aria-label={t("auth.logout")} onClick={handleSignOut} title={t("auth.logout")} sx={{ minWidth: 44, minHeight: 44 }}>
-              <LogoutIcon />
+            <IconButton data-tour="topbar-logout" aria-label={t("auth.logout")} onClick={handleSignOut}
+              title={t("auth.logout")} size="small" sx={{
+                width: 38, height: 38, minWidth: 38, minHeight: 38, p: 0,
+                borderRadius: 1.25, bgcolor: "#d32f2f", color: "#fff",
+                boxShadow: "0 3px 9px rgba(211,47,47,.24)",
+                "&:hover": { bgcolor: "#b71c1c", color: "#fff" },
+                "&:focus-visible": { outline: "2px solid #ef9a9a", outlineOffset: 2 },
+              }}>
+              <LogoutIcon fontSize="small" />
             </IconButton>
           </Stack>
         </Toolbar>
