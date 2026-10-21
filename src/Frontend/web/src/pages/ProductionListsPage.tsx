@@ -24,6 +24,7 @@ import { HelpHint } from "../components/HelpHint";
 import { money, date } from "../utils/format";
 import { contractDurationLabel } from "../utils/contractDuration";
 import { SavedReportsButton } from "../components/SavedReportsButton";
+import { defaultProductionListFilters } from "./productionListFilters";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
 import {
@@ -80,24 +81,12 @@ interface ParamItem {
 
 export function ProductionListsPage() {
   const { t } = useTranslation();
-  const today = new Date();
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
-  const todayStr = today.toISOString().slice(0, 10);
-
-  const [f, setF] = useState({
-    from: monthStart, to: todayStr,
-    // Which policy date the from/to window applies to:
-    //   "start"    → Ημερομηνία έναρξης κάλυψης (default; backward-compat)
-    //   "issued"   → Ημερομηνία έκδοσης από την ασφαλιστική
-    //   "recorded" → Ημερομηνία καταχώρησης στο σύστημα
-    // «Ημερομηνία πληρωμής» is deliberately NOT here — payment lives on
-    // Receipts/Installments, not on Policy, so a payment-date filter
-    // would need a subquery join. Punted as a follow-up.
-    dateField: "start",
-    insuranceCompanyId: "", producerId: "",
-    policyType: "", vehicleUseCategory: "", coverCode: "", packageCode: "",
-    status: "", groupBy: "carrier"
-  });
+  const [f, setF] = useState(defaultProductionListFilters);
+  const [clearSavedFilterRequest, setClearSavedFilterRequest] = useState(0);
+  const clearFilters = () => {
+    setF(defaultProductionListFilters());
+    setClearSavedFilterRequest(value => value + 1);
+  };
   const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
   const [compactFiltersOpen, setCompactFiltersOpen] = useState(false);
   const [saveFilterRequest, setSaveFilterRequest] = useState(0);
@@ -557,7 +546,8 @@ export function ProductionListsPage() {
         </Stack>
         <Box sx={{ flex: 1 }} />
         <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap" sx={{ minWidth: 0, maxWidth: "100%" }}>
-          <SavedReportsButton entity="production-lists" currentFilters={f} onLoad={(next) => setF({ ...f, ...next })}
+          <SavedReportsButton entity="production-lists" currentFilters={f} onLoad={(next) => setF({ ...defaultProductionListFilters(), ...next })}
+            onClear={clearFilters} clearRequestToken={clearSavedFilterRequest}
             saveRequestToken={saveFilterRequest} />
           {/* «Ετήσια παραγωγή» button removed from the header. The report
               is still reachable via /app/production-report (old bookmarks
@@ -809,12 +799,7 @@ export function ProductionListsPage() {
           </SearchableTextField>}
           <Button size="small"
             sx={{ minHeight: 40, whiteSpace: "nowrap" }}
-            onClick={() => setF({
-              from: monthStart, to: todayStr, dateField: "start",
-              insuranceCompanyId: "", producerId: "",
-              policyType: "", vehicleUseCategory: "", coverCode: "", packageCode: "",
-              status: "", groupBy: "carrier"
-            })} color="error" variant="contained">Καθαρισμός φίλτρων</Button>
+            onClick={clearFilters} color="error" variant="contained">Καθαρισμός φίλτρων</Button>
         </Box>
       </ResponsiveFilterPanel>
 

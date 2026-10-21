@@ -1,6 +1,38 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { defaultProductionListFilters } from "./productionListFilters.ts";
+
+test("clearing a saved production filter restores fresh defaults without keeping previous criteria", () => {
+  const today = new Date(2026, 9, 21, 1, 15);
+  const initial = defaultProductionListFilters(today);
+  assert.equal(initial.from, "2026-10-01"); assert.equal(initial.to, "2026-10-21");
+  const active = { ...initial, insuranceCompanyId: "carrier", producerId: "producer", status: "Active", coverCode: "GLASS", groupBy: "producer", dateField: "issued" };
+  const reset = defaultProductionListFilters(today);
+  for (const key of ["insuranceCompanyId", "producerId", "policyType", "vehicleUseCategory", "coverCode", "packageCode", "status"]) assert.equal(reset[key], "", key);
+  assert.equal(reset.groupBy, "carrier"); assert.equal(reset.dateField, "start");
+  assert.equal(active.coverCode, "GLASS"); assert.notEqual(reset, initial);
+  const nextSaved = { ...defaultProductionListFilters(today), status: "Expired" };
+  assert.equal(nextSaved.insuranceCompanyId, ""); assert.equal(nextSaved.producerId, "");
+  assert.equal(defaultProductionListFilters(new Date(2026, 10, 2)).from, "2026-11-01");
+});
+
+test("production saved-filter reset clears selection and restores the button without deleting storage", async () => {
+  const source = await readFile(new URL("./ProductionListsPage.tsx", import.meta.url), "utf8");
+  const saved = await readFile(new URL("../components/SavedReportsButton.tsx", import.meta.url), "utf8");
+  assert.match(source, /onClear=\{clearFilters\} clearRequestToken=\{clearSavedFilterRequest\}/);
+  assert.match(source, /onClick=\{clearFilters\}/);
+  assert.match(source, /setF\(defaultProductionListFilters\(\)\)/);
+  assert.match(source, /setClearSavedFilterRequest\(value => value \+ 1\)/);
+  assert.match(source, /setF\(\{ \.\.\.defaultProductionListFilters\(\), \.\.\.next \}\)/);
+  const reset=saved.slice(saved.indexOf("const clearSelection"), saved.indexOf("const q ="));
+  assert.match(reset, /setActiveId\(null\)/); assert.match(reset, /setAnchor\(null\)/); assert.match(reset, /onClear\?\.\(\)/);
+  assert.doesNotMatch(reset, /api\.|del\.mutate/);
+  assert.match(saved, /onClear && <MenuItem selected=\{!activeId\} onClick=\{clearSelection\}/);
+  assert.match(saved, /Χωρίς αποθηκευμένο φίλτρο \(προεπιλογή\)/);
+  assert.match(saved, /activeName \?\? \(compact \? "Έτοιμα φίλτρα" : inline \? "Όνομα νέου φίλτρου" : "Αποθηκευμένα"\)/);
+  assert.match(saved, /\[entity, clearRequestToken\]/);
+});
 
 test("production list keeps a single green coverage action and removes redundant columns", async () => {
   const source = await readFile(new URL("./ProductionListsPage.tsx", import.meta.url), "utf8");

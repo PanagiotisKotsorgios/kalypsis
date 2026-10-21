@@ -7,6 +7,7 @@ import BookmarkIcon from "@mui/icons-material/Bookmark";
 import BookmarkAddIcon from "@mui/icons-material/BookmarkAdd";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import SaveIcon from "@mui/icons-material/Save";
+import FilterAltOffIcon from "@mui/icons-material/FilterAltOff";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 
@@ -54,10 +55,14 @@ export function SavedFilterForm({ name, isShared, onChange, pending, error, onSa
  *      currentFilters={f}
  *      onLoad={(filters) => setF(filters)} />
  */
-export function SavedReportsButton<T>({ entity, currentFilters, onLoad, inline = false, compact = false, saveRequestToken = 0 }: {
+export function SavedReportsButton<T>({ entity, currentFilters, onLoad, onClear, clearRequestToken = 0, inline = false, compact = false, saveRequestToken = 0 }: {
   entity: string;
   currentFilters: T;
   onLoad: (filters: T) => void;
+  /** Return to the page's defaults without deleting the stored report. */
+  onClear?: () => void;
+  /** Also clear the selector when the page's own reset button is used. */
+  clearRequestToken?: number;
   /** Render the compact selector + name field + save action in a filter bar. */
   inline?: boolean;
   /** Keep only selector/save buttons in the toolbar; naming happens in a modal. */
@@ -70,6 +75,8 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad, inline =
   const [saveOpen, setSaveOpen] = useState(false);
   const [form, setForm] = useState({ name: "", isShared: false });
   const [activeId, setActiveId] = useState<string | null>(null);
+  useEffect(() => { setActiveId(null); setAnchor(null); }, [entity, clearRequestToken]);
+  const clearSelection = () => { setActiveId(null); setAnchor(null); onClear?.(); };
 
   const q = useQuery({
     queryKey: ["saved-reports", entity],
@@ -101,7 +108,10 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad, inline =
   const del = useMutation({
     mutationFn: async (id: string) => api.delete(`/saved-reports/${id}`),
     onSuccess: (_data, id) => {
-      if (activeId === id) setActiveId(null);
+      if (activeId === id) {
+        if (onClear) clearSelection();
+        else setActiveId(null);
+      }
       void qc.invalidateQueries({ queryKey: ["saved-reports", entity] });
     },
   });
@@ -154,6 +164,10 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad, inline =
       ) : selectorButton}
       <Menu anchorEl={anchor} open={!!anchor} onClose={() => setAnchor(null)}
         slotProps={{ paper: { sx: { minWidth: 300, maxHeight: 400 } } }}>
+        {onClear && <MenuItem selected={!activeId} onClick={clearSelection}
+          sx={{ color: "#123a64", "&:hover": { bgcolor: "#e8f2fb", color: "#123a64" }, "&.Mui-selected": { bgcolor: "#d8eafa", color: "#0b305c" }, "&.Mui-selected:hover": { bgcolor: "#c8e1f6", color: "#0b305c" } }}>
+          <FilterAltOffIcon fontSize="small" sx={{ mr: 1 }} />Χωρίς αποθηκευμένο φίλτρο (προεπιλογή)
+        </MenuItem>}
         <MenuItem onClick={() => { setAnchor(null); save.reset(); setSaveOpen(true); }}>
           <BookmarkAddIcon fontSize="small" sx={{ mr: 1 }} />
           Αποθήκευση τρέχοντος φίλτρου…
