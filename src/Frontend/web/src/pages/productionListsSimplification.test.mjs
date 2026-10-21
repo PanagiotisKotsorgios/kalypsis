@@ -23,7 +23,15 @@ test("production filters collapse early and their visible fields are user config
 
   assert.match(source, /compactAt="xl"/);
   assert.match(source, /useFilterVisibility\("production-lists", PRODUCTION_FILTERS\)/);
-  assert.match(source, /<FilterVisibilityPicker filters=\{PRODUCTION_FILTERS\}/);
+  assert.equal(source.includes("<QuickFilterBar"), false);
+  assert.equal(source.includes("quickFiltersOpen"), false);
+  assert.equal(source.includes("<FilterVisibilityPicker"), false);
+  assert.match(source, /setFilterSettingsOpen\(true\)/);
+  assert.match(source, /setColumnSettingsOpen\(true\)/);
+  assert.match(source, /setActionsAnchor\(event\.currentTarget\)/);
+  assert.match(source, /downloadExport\("csv"\)/);
+  assert.match(source, /downloadExport\("xlsx"\)/);
+  assert.match(source, /downloadExport\("pdf"\)/);
   for (const key of ["dateField", "from", "to", "carrier", "producer", "type", "use", "coverage", "package", "status", "groupBy"]) {
     assert.match(source, new RegExp(`filterVisibility\\.visible\\("${key}"\\)`));
   }

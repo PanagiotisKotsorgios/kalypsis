@@ -1,15 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions,
-  DialogContent, DialogTitle, MenuItem,
+  Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions,
+  DialogContent, DialogTitle, Divider, FormControlLabel, ListItemIcon, ListItemText, Menu, MenuItem,
   Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow,
   TextField, Typography
 } from "@mui/material";
 import StackedBarChartIcon from "@mui/icons-material/StackedBarChart";
-import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import PrintIcon from "@mui/icons-material/Print";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import { ExportFormatMenu } from "../components/ExportFormatMenu";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import TableChartIcon from "@mui/icons-material/TableChart";
+import GridOnIcon from "@mui/icons-material/GridOn";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import ViewColumnIcon from "@mui/icons-material/ViewColumn";
+import TuneIcon from "@mui/icons-material/Tune";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
@@ -20,17 +25,14 @@ import { SavedReportsButton } from "../components/SavedReportsButton";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
 import {
-  ExportColumnPicker,
   useExportColumnSelection,
   type ExportColumnDescriptor,
 } from "../components/ExportColumnPicker";
 import { printTable } from "../utils/printableTable";
 import { useHeaderContextMenu, type ColumnType } from "../components/TableContextMenu";
 import { PolicyDetailDrawer } from "../components/PolicyDetailDrawer";
-import { QuickFilterBar } from "../components/QuickFilterBar";
 import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
-import { FilterVisibilityPicker, useFilterVisibility, type FilterVisibilityDescriptor } from "../components/FilterVisibilityPicker";
-import { printActionSx } from "../components/actionButtonStyles";
+import { useFilterVisibility, type FilterVisibilityDescriptor } from "../components/FilterVisibilityPicker";
 
 interface Carrier { id: string; name: string; isBroker?: boolean; parentCompanyId?: string | null; }
 interface Producer { id: string; name: string; }
@@ -94,7 +96,9 @@ export function ProductionListsPage() {
     policyType: "", vehicleUseCategory: "", coverCode: "", packageCode: "",
     status: "", groupBy: "carrier"
   });
-  const [quickFiltersOpen, setQuickFiltersOpen] = useState(false);
+  const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
+  const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
+  const [filterSettingsOpen, setFilterSettingsOpen] = useState(false);
   const filterVisibility = useFilterVisibility("production-lists", PRODUCTION_FILTERS);
 
   const carriers = useQuery({
@@ -541,39 +545,112 @@ export function ProductionListsPage() {
         </Stack>
         <Box sx={{ flex: 1 }} />
         <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap" sx={{ minWidth: 0, maxWidth: "100%" }}>
-          <SavedReportsButton compact entity="production-lists" currentFilters={f} onLoad={(next) => setF({ ...f, ...next })} />
+          <SavedReportsButton entity="production-lists" currentFilters={f} onLoad={(next) => setF({ ...f, ...next })} />
           {/* «Ετήσια παραγωγή» button removed from the header. The report
               is still reachable via /app/production-report (old bookmarks
               keep working); it's no longer a standalone entry point in
               the UI to reduce header clutter. */}
-          <ExportColumnPicker
-            columns={pickerDescriptors}
-            off={selection.off}
-            toggle={selection.toggle}
-            setAll={selection.setAll}
-            reset={selection.reset}
-          />
-          <FilterVisibilityPicker filters={PRODUCTION_FILTERS} {...filterVisibility} />
-          {/* «Απόκρυψη προμ. έδρας» checkbox removed. The ExportColumnPicker
-              above already lets the operator include/exclude any column
-              (bridgeComm, agency, both) for both the on-screen table and
-              the print/CSV export — so an extra checkbox for the same
-              intent was redundant. To send a producer sheet without the
-              agency's commission, un-tick those columns in the picker. */}
-          <ExportFormatMenu onExport={downloadExport} />
-          <Button variant="outlined" startIcon={<PrintIcon />} sx={printActionSx} onClick={openPrint}>
-            {t("common.print", "Εκτύπωση")}
-          </Button>
           <Button
-            variant="outlined"
-            startIcon={<FilterAltIcon />}
-            onClick={() => setQuickFiltersOpen(true)}
-            sx={{ whiteSpace: "nowrap" }}
+            variant="contained"
+            startIcon={<MoreHorizIcon />}
+            endIcon={<KeyboardArrowDownIcon />}
+            onClick={(event) => setActionsAnchor(event.currentTarget)}
+            aria-haspopup="menu"
+            aria-expanded={Boolean(actionsAnchor)}
+            sx={{ whiteSpace: "nowrap", minWidth: 132 }}
           >
-            Γρήγορα φίλτρα
+            Ενέργειες
           </Button>
+          <Menu
+            anchorEl={actionsAnchor}
+            open={Boolean(actionsAnchor)}
+            onClose={() => setActionsAnchor(null)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+            transformOrigin={{ vertical: "top", horizontal: "right" }}
+            slotProps={{ paper: { sx: { minWidth: 255, maxWidth: "calc(100vw - 24px)" } } }}
+          >
+            <MenuItem onClick={() => { setActionsAnchor(null); openPrint(); }}>
+              <ListItemIcon><PrintIcon fontSize="small" /></ListItemIcon>
+              <ListItemText primary={t("common.print", "Εκτύπωση")} />
+            </MenuItem>
+            <Divider />
+            <MenuItem onClick={() => { setActionsAnchor(null); void downloadExport("csv"); }}>
+              <ListItemIcon><TableChartIcon fontSize="small" /></ListItemIcon>
+              <ListItemText primary="Εξαγωγή CSV" />
+            </MenuItem>
+            <MenuItem onClick={() => { setActionsAnchor(null); void downloadExport("xlsx"); }}>
+              <ListItemIcon><GridOnIcon fontSize="small" /></ListItemIcon>
+              <ListItemText primary="Εξαγωγή Excel" />
+            </MenuItem>
+            <MenuItem onClick={() => { setActionsAnchor(null); void downloadExport("pdf"); }}>
+              <ListItemIcon><PictureAsPdfIcon fontSize="small" /></ListItemIcon>
+              <ListItemText primary="Εξαγωγή PDF" />
+            </MenuItem>
+            <Divider />
+            <MenuItem onClick={() => { setActionsAnchor(null); setColumnSettingsOpen(true); }}>
+              <ListItemIcon><ViewColumnIcon fontSize="small" /></ListItemIcon>
+              <ListItemText primary="Στήλες πίνακα & εξαγωγής" secondary={`${selection.activeKeys.length}/${pickerDescriptors.length} ενεργές`} />
+            </MenuItem>
+            <MenuItem onClick={() => { setActionsAnchor(null); setFilterSettingsOpen(true); }}>
+              <ListItemIcon><TuneIcon fontSize="small" /></ListItemIcon>
+              <ListItemText
+                primary="Εμφανιζόμενα φίλτρα"
+                secondary={`${PRODUCTION_FILTERS.filter((filter) => !filterVisibility.off.has(filter.key)).length}/${PRODUCTION_FILTERS.length} ενεργά`}
+              />
+            </MenuItem>
+          </Menu>
         </Stack>
       </Stack>
+
+      <Dialog open={columnSettingsOpen} onClose={() => setColumnSettingsOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle>Στήλες πίνακα & εξαγωγής</DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            Οι επιλογές εφαρμόζονται στον πίνακα, στην εκτύπωση και στα αρχεία εξαγωγής.
+          </Typography>
+          <Stack>
+            {pickerDescriptors.map(column => (
+              <FormControlLabel
+                key={column.key}
+                control={<Checkbox checked={!selection.off.has(column.key)} onChange={() => selection.toggle(column.key)} />}
+                label={column.label}
+              />
+            ))}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ flexWrap: "wrap" }}>
+          <Button onClick={() => selection.setAll(true)}>Όλες</Button>
+          <Button onClick={() => selection.setAll(false)}>Καμία</Button>
+          <Button onClick={selection.reset}>Επαναφορά</Button>
+          <Box sx={{ flex: 1 }} />
+          <Button variant="contained" onClick={() => setColumnSettingsOpen(false)}>Ολοκλήρωση</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={filterSettingsOpen} onClose={() => setFilterSettingsOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle>Εμφανιζόμενα φίλτρα</DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            Επιλέξτε ποια πεδία χρειάζεστε στην επιφάνεια φίλτρων και στο responsive popup.
+          </Typography>
+          <Stack>
+            {PRODUCTION_FILTERS.map(filter => (
+              <FormControlLabel
+                key={filter.key}
+                control={<Checkbox checked={!filterVisibility.off.has(filter.key)} onChange={() => filterVisibility.toggle(filter.key)} />}
+                label={filter.label}
+              />
+            ))}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ flexWrap: "wrap" }}>
+          <Button onClick={() => filterVisibility.setAll(true)}>Όλα</Button>
+          <Button onClick={() => filterVisibility.setAll(false)}>Κανένα</Button>
+          <Button onClick={filterVisibility.reset}>Επαναφορά</Button>
+          <Box sx={{ flex: 1 }} />
+          <Button variant="contained" onClick={() => setFilterSettingsOpen(false)}>Ολοκλήρωση</Button>
+        </DialogActions>
+      </Dialog>
 
       <ResponsiveFilterPanel
         compactAt="xl"
@@ -583,27 +660,6 @@ export function ProductionListsPage() {
         ].filter(Boolean).length}
         title="Φίλτρα λίστας παραγωγής"
         cardSx={{ py: .85, mb: 1.25 }}
-        quickButtonPlacement="external"
-        quickOpen={quickFiltersOpen}
-        onQuickOpenChange={setQuickFiltersOpen}
-        quickFilters={<QuickFilterBar
-          activeCount={[
-            f.insuranceCompanyId, f.producerId, f.policyType, f.vehicleUseCategory,
-            f.coverCode, f.packageCode, f.status,
-          ].filter(Boolean).length}
-          onClear={() => setF({
-            from: monthStart, to: todayStr, dateField: "start", insuranceCompanyId: "", producerId: "",
-            policyType: "", vehicleUseCategory: "", coverCode: "", packageCode: "", status: "", groupBy: "carrier"
-          })}
-          options={[
-            { key: "month", label: "Τρέχων μήνας", active: f.from === monthStart && f.to === todayStr, onClick: () => setF({ ...f, from: monthStart, to: todayStr }) },
-            { key: "active", label: "Ενεργά", active: f.status === "Active", color: "success", onClick: () => setF({ ...f, status: "Active" }) },
-            { key: "renewals", label: "Προς ανανέωση", active: f.status === "PendingRenewal", color: "warning", onClick: () => setF({ ...f, status: "PendingRenewal" }) },
-            { key: "carrier", label: "Ανά ασφαλιστική", active: f.groupBy === "carrier", onClick: () => setF({ ...f, groupBy: "carrier" }) },
-            { key: "producer", label: "Ανά συνεργάτη", active: f.groupBy === "producer", onClick: () => setF({ ...f, groupBy: "producer" }) },
-            { key: "type", label: "Ανά κλάδο", active: f.groupBy === "type", onClick: () => setF({ ...f, groupBy: "type" }) },
-          ]}
-        />}
       >
         {/* Compact grid — 6 columns on lg, 3 on md. Same ? position unchanged
             (next to the page title above). */}

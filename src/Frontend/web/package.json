@@ -12,6 +12,7 @@
     "test:profile-edit": "node --experimental-strip-types --test --test-concurrency=1 src/components/profile/profileDrafts.test.mjs src/components/profile/profileComponents.test.mjs src/components/profile/recordProfiles.test.mjs",
     "test:producer-statement": "node --experimental-strip-types --test src/pages/producerStatementNavigation.test.mjs",
     "test:production-lists": "node --experimental-strip-types --test src/pages/productionListsSimplification.test.mjs",
+    "test:advance-payments": "node --experimental-strip-types --test src/pages/advancePaymentsAllocation.test.mjs",
     "test:customer-filters": "node --experimental-strip-types --test src/pages/customerListFilters.test.mjs"
   },
   "dependencies": {

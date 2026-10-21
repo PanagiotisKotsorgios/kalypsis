@@ -23,6 +23,24 @@ import { SearchableTextField } from "../components/SearchableTextField";
 /* ============================================================================
    ADVANCE PAYMENTS (Προκαταβολές)
    ========================================================================= */
+interface AdvanceAllocation {
+  id: string; policyId: string; policyNumber: string; customerName: string;
+  amount: number; linkedOn: string;
+}
+interface AdvanceRow {
+  id: string; number: string; receivedOn: string; partyType: "Customer" | "Producer" | "Carrier";
+  customerId?: string | null; customerName?: string | null;
+  producerId?: string | null; producerName?: string | null;
+  insuranceCompanyId?: string | null; insuranceCompanyName?: string | null;
+  amount: number; allocatedAmount: number; currency: string; paymentMethod: string;
+  reference?: string | null; status: string; notes?: string | null; allocations: AdvanceAllocation[];
+}
+interface AdvancePolicy {
+  id: string; policyNumber: string; customerId: string; customerDisplay: string;
+  insuranceCompanyId: string; insuranceCompanyName: string; producerId?: string | null;
+  producerName?: string | null; premium: number; currency: string; status: string;
+}
+
 export function AdvancePaymentsPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
@@ -30,14 +48,15 @@ export function AdvancePaymentsPage() {
   const [filter, setFilter] = useState("");
   const [search, setSearch] = useState("");
   const [partyFilter, setPartyFilter] = useState<string>("");
+  const [allocationAdvance, setAllocationAdvance] = useState<AdvanceRow | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
-  const q = useQuery({ queryKey: ["advance-payments", filter], queryFn: async () =>
-    (await api.get("/advance-payments", { params: filter ? { status: filter } : {} })).data });
+  const q = useQuery<AdvanceRow[]>({ queryKey: ["advance-payments", filter], queryFn: async () =>
+    (await api.get<AdvanceRow[]>("/advance-payments", { params: filter ? { status: filter } : {} })).data });
 
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();
-    return ((q.data ?? []) as any[]).filter(a => {
+    return (q.data ?? []).filter(a => {
       if (needle) {
         const hay = `${a.number} ${a.customerName ?? ""} ${a.producerName ?? ""} ${a.insuranceCompanyName ?? ""} ${a.reference ?? ""}`.toLowerCase();
         if (!hay.includes(needle)) return false;
@@ -113,10 +132,11 @@ export function AdvancePaymentsPage() {
               <TableCell align="right">{t("advance.allocated")}</TableCell>
               <TableCell align="right">{t("advance.available")}</TableCell>
               <TableCell>{t("common.status")}</TableCell>
+              <TableCell align="right">Σύνδεση</TableCell>
             </TableRow></TableHead>
             <TableBody>
-              {paged.length === 0 && <TableRow><TableCell colSpan={8} align="center" sx={{ py: 4, color: "text.secondary" }}>{t("advance.empty")}</TableCell></TableRow>}
-              {paged.map((a: any) => (
+              {paged.length === 0 && <TableRow><TableCell colSpan={9} align="center" sx={{ py: 4, color: "text.secondary" }}>{t("advance.empty")}</TableCell></TableRow>}
+              {paged.map((a) => (
                 <TableRow key={a.id} hover>
                   <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{a.number}</TableCell>
                   <TableCell>{a.receivedOn}</TableCell>
@@ -126,6 +146,12 @@ export function AdvancePaymentsPage() {
                   <TableCell align="right">{num(a.allocatedAmount)}</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700, color: "success.main" }}>{num(a.amount - a.allocatedAmount)}</TableCell>
                   <TableCell><Chip size="small" color={a.status === "FullyAllocated" ? "success" : a.status === "Open" ? "warning" : "info"} label={String(t(`batchStatus.${a.status}`, a.status))} /></TableCell>
+                  <TableCell align="right">
+                    <Button size="small" variant="contained" color={a.status === "FullyAllocated" ? "success" : "primary"}
+                      startIcon={<LinkIcon />} onClick={() => setAllocationAdvance(a)}>
+                      {a.allocations?.length ? `Κατανομές (${a.allocations.length})` : "Κατανομή"}
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -144,6 +170,8 @@ export function AdvancePaymentsPage() {
         </Card>
       )}
       <CreateAdvanceDialog open={open} onClose={() => setOpen(false)} onSaved={() => { qc.invalidateQueries({ queryKey: ["advance-payments"] }); setOpen(false); }} />
+      <AllocateAdvanceDialog advance={allocationAdvance} onClose={() => setAllocationAdvance(null)}
+        onSaved={() => { void qc.invalidateQueries({ queryKey: ["advance-payments"] }); setAllocationAdvance(null); }} />
     </Box>
   );
 }
@@ -183,9 +211,18 @@ function CreateAdvanceDialog({ open, onClose, onSaved }: { open: boolean; onClos
             <TextField required label={t("advance.number")} value={form.number} onChange={e => setForm({ ...form, number: e.target.value })} fullWidth />
             <TextField type="date" label={t("advance.receivedOn")} InputLabelProps={{ shrink: true }} value={form.receivedOn} onChange={e => setForm({ ...form, receivedOn: e.target.value })} fullWidth />
           </Stack>
-          <SearchableTextField label={t("advance.party")} value={form.partyType} onChange={e => setForm({ ...form, partyType: e.target.value })} fullWidth>
+          <SearchableTextField label={t("advance.party")} value={form.partyType} onChange={e => setForm({
+            ...form, partyType: e.target.value, customerId: "", producerId: "", insuranceCompanyId: ""
+          })} fullWidth>
             {["Customer", "Producer", "Carrier"].map(p => <MenuItem key={p} value={p}>{t(`payeeType.${p}`, p)}</MenuItem>)}
           </SearchableTextField>
+          <Alert severity="info" icon={<LinkIcon />}>
+            {form.partyType === "Customer"
+              ? "Η προκαταβολή θα συνδεθεί με τον πελάτη και μπορεί να κατανεμηθεί στα συμβόλαιά του."
+              : form.partyType === "Producer"
+                ? "Η προκαταβολή θα συνδεθεί με τον συνεργάτη και θα κατανεμηθεί στις οφειλές συμβολαίων/προμηθειών που τον αφορούν."
+                : "Η προκαταβολή θα συνδεθεί με την ασφαλιστική και θα κατανεμηθεί στις οφειλές συμβολαίων προς αυτήν."}
+          </Alert>
           {form.partyType === "Customer" && (
             <SearchableSelect
               label={t("advance.customer")}
@@ -226,9 +263,115 @@ function CreateAdvanceDialog({ open, onClose, onSaved }: { open: boolean; onClos
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>{t("common.cancel")}</Button>
-        <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending || form.amount <= 0}>
+        <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending || form.amount <= 0
+          || (form.partyType === "Customer" && !form.customerId)
+          || (form.partyType === "Producer" && !form.producerId)
+          || (form.partyType === "Carrier" && !form.insuranceCompanyId)}>
           {save.isPending ? <CircularProgress size={18} /> : t("common.save")}
         </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function AllocateAdvanceDialog({ advance, onClose, onSaved }: {
+  advance: AdvanceRow | null; onClose: () => void; onSaved: () => void;
+}) {
+  const [policyId, setPolicyId] = useState("");
+  const [amount, setAmount] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const available = advance ? Math.max(0, advance.amount - advance.allocatedAmount) : 0;
+  const policies = useQuery<AdvancePolicy[]>({
+    queryKey: ["policies-for-advance-allocation", advance?.partyType, advance?.customerId,
+      advance?.producerId, advance?.insuranceCompanyId],
+    enabled: Boolean(advance),
+    queryFn: async () => {
+      const params = advance?.partyType === "Customer" && advance.customerId
+        ? { customerId: advance.customerId }
+        : advance?.partyType === "Carrier" && advance.insuranceCompanyId
+          ? { insuranceCompanyId: advance.insuranceCompanyId }
+          : {};
+      const rows = (await api.get<AdvancePolicy[]>("/policies", { params })).data;
+      if (advance?.partyType === "Producer") return rows.filter(row => row.producerId === advance.producerId);
+      return rows;
+    }
+  });
+  const eligiblePolicies = useMemo(() => (policies.data ?? []).filter(policy =>
+    policy.currency.toUpperCase() === (advance?.currency ?? "").toUpperCase()), [policies.data, advance?.currency]);
+  useEffect(() => {
+    setPolicyId("");
+    setAmount(available);
+    setError(null);
+  }, [advance?.id, available]);
+  const allocate = useMutation({
+    mutationFn: async () => api.post(`/advance-payments/${advance!.id}/allocate`, {
+      policyId, amount: Number(amount)
+    }),
+    onSuccess: onSaved,
+    onError: err => setError(extractErrorMessage(err))
+  });
+  const partyName = advance?.customerName ?? advance?.producerName ?? advance?.insuranceCompanyName ?? "—";
+
+  return (
+    <Dialog open={Boolean(advance)} onClose={() => { if (!allocate.isPending) onClose(); }} fullWidth maxWidth="md">
+      <DialogTitle>Σύνδεση και κατανομή προκαταβολής</DialogTitle>
+      <DialogContent dividers>
+        {advance && <Stack spacing={2}>
+          {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
+          <Card variant="outlined" sx={{ p: 1.5, bgcolor: "#edf3f9" }}>
+            <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" } }}>
+              <Box><Typography variant="caption" color="text.secondary">Προκαταβολή</Typography><Typography fontWeight={800}>{advance.number}</Typography></Box>
+              <Box><Typography variant="caption" color="text.secondary">Αντισυμβαλλόμενος</Typography><Typography fontWeight={800}>{partyName}</Typography></Box>
+              <Box><Typography variant="caption" color="text.secondary">Αρχικό ποσό</Typography><Typography fontWeight={800}>{money(advance.amount, advance.currency)}</Typography></Box>
+              <Box><Typography variant="caption" color="text.secondary">Διαθέσιμο υπόλοιπο</Typography><Typography fontWeight={900} color="success.dark">{money(available, advance.currency)}</Typography></Box>
+            </Box>
+          </Card>
+
+          <Box>
+            <Typography fontWeight={800} sx={{ mb: 1 }}>Υφιστάμενες κατανομές</Typography>
+            {(advance.allocations ?? []).length === 0 ? (
+              <Alert severity="warning">Η προκαταβολή δεν έχει συνδεθεί ακόμη με συμβόλαιο ή οφειλή.</Alert>
+            ) : (
+              <Card variant="outlined" sx={{ overflowX: "auto" }}>
+                <Table size="small">
+                  <TableHead><TableRow><TableCell>Συμβόλαιο / οφειλή</TableCell><TableCell>Πελάτης</TableCell><TableCell>Ημερομηνία</TableCell><TableCell align="right">Ποσό</TableCell></TableRow></TableHead>
+                  <TableBody>{advance.allocations.map(row => <TableRow key={row.id}>
+                    <TableCell sx={{ fontWeight: 800 }}>{row.policyNumber}</TableCell>
+                    <TableCell>{row.customerName}</TableCell><TableCell>{row.linkedOn}</TableCell>
+                    <TableCell align="right">{money(row.amount, advance.currency)}</TableCell>
+                  </TableRow>)}</TableBody>
+                </Table>
+              </Card>
+            )}
+          </Box>
+
+          {available > 0 && <Card variant="outlined" sx={{ p: 1.5 }}>
+            <Typography fontWeight={800} sx={{ mb: 1 }}>Νέα κατανομή</Typography>
+            <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", sm: "minmax(0, 1fr) 180px" } }}>
+              <SearchableSelect label="Συμβόλαιο / σχετική οφειλή" value={policyId} onChange={setPolicyId}
+                disabled={policies.isLoading || eligiblePolicies.length === 0}
+                emptyLabel={policies.isLoading ? "Φόρτωση…" : "Επιλέξτε συμβόλαιο"}
+                options={eligiblePolicies.map(policy => ({
+                  value: policy.id,
+                  label: `${policy.policyNumber} · ${policy.customerDisplay}`,
+                  hint: `${money(policy.premium, policy.currency)} · ${policy.insuranceCompanyName}`
+                }))} />
+              <TextField type="number" size="small" label="Ποσό κατανομής" value={amount}
+                inputProps={{ min: 0.01, max: available, step: 0.01 }}
+                onChange={event => setAmount(Number(event.target.value))} />
+            </Box>
+            {eligiblePolicies.length === 0 && !policies.isLoading && (
+              <Alert severity="info" sx={{ mt: 1 }}>Δεν βρέθηκαν συμβόλαια του ίδιου αντισυμβαλλόμενου και νομίσματος.</Alert>
+            )}
+          </Card>}
+        </Stack>}
+      </DialogContent>
+      <DialogActions>
+        <Button color="error" onClick={onClose} disabled={allocate.isPending}>Κλείσιμο</Button>
+        {available > 0 && <Button variant="contained" startIcon={<LinkIcon />} onClick={() => allocate.mutate()}
+          disabled={!policyId || amount <= 0 || amount > available || allocate.isPending}>
+          {allocate.isPending ? <CircularProgress size={18} color="inherit" /> : "Κατανομή ποσού"}
+        </Button>}
       </DialogActions>
     </Dialog>
   );
