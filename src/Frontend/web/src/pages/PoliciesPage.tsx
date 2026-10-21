@@ -18,6 +18,9 @@ import {
   FormControlLabel,
   IconButton,
   InputAdornment,
+  ListItemIcon,
+  ListItemText,
+  Menu,
   MenuItem,
   Stack,
   Table,
@@ -51,6 +54,18 @@ import EditNoteIcon from "@mui/icons-material/EditNote";
 import CancelPresentationIcon from "@mui/icons-material/CancelPresentation";
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import TuneIcon from "@mui/icons-material/Tune";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import BookmarkAddIcon from "@mui/icons-material/BookmarkAdd";
+import PersonAddAltOutlinedIcon from "@mui/icons-material/PersonAddAltOutlined";
+import TableViewOutlinedIcon from "@mui/icons-material/TableViewOutlined";
+import TableChartIcon from "@mui/icons-material/TableChart";
+import GridOnIcon from "@mui/icons-material/GridOn";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import PrintIcon from "@mui/icons-material/Print";
+import ViewColumnIcon from "@mui/icons-material/ViewColumn";
+import AccountTreeOutlinedIcon from "@mui/icons-material/AccountTreeOutlined";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import { money, date } from "../utils/format";
 import { contractDurationLabel } from "../utils/contractDuration";
 import { useAuth } from "../auth/AuthContext";
@@ -69,7 +84,6 @@ import { ColumnPreferencesButton } from "../components/ColumnPreferencesButton";
 import { QuickFilterBar } from "../components/QuickFilterBar";
 import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
 import { BulkImportDialog, type BulkImportResult } from "../components/BulkImportDialog";
-import { ExcelImportButton } from "../components/ExcelImportButton";
 import { SavedReportsButton } from "../components/SavedReportsButton";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
@@ -215,6 +229,10 @@ export function PoliciesPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
   const [quickFiltersOpen, setQuickFiltersOpen] = useState(false);
+  const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
+  const [sectionsAnchor, setSectionsAnchor] = useState<HTMLElement | null>(null);
+  const [saveFilterRequest, setSaveFilterRequest] = useState(0);
+  const [toolbarAction, setToolbarAction] = useState<{ token: number; action: "csv" | "xlsx" | "pdf" | "print" | "columns" }>({ token: 0, action: "csv" });
 
   // Deep-link support — the customer card sends operators here as
   // /app/policies?focus=<policyId>. Read the id once on mount and open
@@ -509,90 +527,41 @@ export function PoliciesPage() {
             {isCustomer ? t("policies.customerLead") : t("policies.agencyLead")}
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1}>
-          {canEdit && activeView === "policies" && (
-            <ExcelImportButton size="large" onClick={() => setImportOpen(true)}>
-              Εισαγωγή
-            </ExcelImportButton>
-          )}
-          {/* Ανανεώσεις / Πρόσθετες πράξεις / Ακυρώσεις were briefly here;
-              moved down next to the «Ομαδικά συμβόλαια» view-switcher
-              button so all lifecycle actions live in the same row. */}
-          {canEdit && activeView === "policies" && (
-            <>
-              <Button variant="outlined" size="large" onClick={() => { setError(null); setCreateStatus("Prospect"); }}>
-                Πιθανό συμβόλαιο
-              </Button>
-              <Button data-tour="policies-new" startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setCreateStatus("Active"); }}>
-                {t("policies.create")}
-              </Button>
-            </>
-          )}
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          {canEdit && <Button variant="outlined" size="large" startIcon={<AccountTreeOutlinedIcon />} endIcon={<KeyboardArrowDownIcon />}
+            onClick={event => setSectionsAnchor(event.currentTarget)}>Ενότητες συμβολαίων</Button>}
+          <Button data-tour="policies-actions" variant="contained" size="large" startIcon={<MoreHorizIcon />} endIcon={<KeyboardArrowDownIcon />}
+            disabled={activeView !== "policies"} onClick={event => setActionsAnchor(event.currentTarget)}>Ενέργειες</Button>
         </Stack>
       </Stack>
 
-      {canEdit && (
-        <Card variant="outlined" sx={{ p: 1, mb: 2 }}>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}
-            useFlexGap flexWrap="wrap" alignItems="center">
-            <Button
-              variant={activeView === "policies" ? "contained" : "outlined"}
-              onClick={() => setActiveView("policies")}
-            >
-              {t("nav.contracts")}
-            </Button>
-            <Button
-              startIcon={<LocalShippingIcon />}
-              variant={activeView === "delivery" ? "contained" : "outlined"}
-              onClick={() => setActiveView("delivery")}
-            >
-              {t("delivery.title")}
-            </Button>
-            <Button
-              startIcon={<GroupsIcon />}
-              variant={activeView === "group" ? "contained" : "outlined"}
-              onClick={() => setActiveView("group")}
-            >
-              {t("groupPolicies.title")}
-            </Button>
-            {/* Cross-links to policy-lifecycle pages — visually separated
-                from the view switchers by a small vertical divider so the
-                user reads them as "go to another page" not "swap view".
-                Kept in the same card row per user request. */}
-            <Box sx={{ borderLeft: 1, borderColor: "divider", height: 28, mx: 0.5 }} />
-            <Button component={RouterLink} to="/app/renewals"
-              variant="outlined" startIcon={<EventRepeatIcon />}
-              sx={{
-                bgcolor: "#e8f5e9",
-                color: "#2e7d32",
-                borderColor: "#81c784",
-                "&:hover": { bgcolor: "#c8e6c9", borderColor: "#66bb6a", color: "#1b5e20" },
-              }}>
-              {t("nav.renewals", "Ανανεώσεις")}
-            </Button>
-            <Button component={RouterLink} to="/app/endorsements"
-              variant="outlined" startIcon={<EditNoteIcon />}
-              sx={{
-                bgcolor: "#fff8e1",
-                color: "#8a6d1d",
-                borderColor: "#e0c26a",
-                "&:hover": { bgcolor: "#ffecb3", borderColor: "#d6a928", color: "#6d5314" },
-              }}>
-              {t("nav.endorsements", "Πρόσθετες πράξεις")}
-            </Button>
-            <Button component={RouterLink} to="/app/cancellations"
-              variant="outlined" startIcon={<CancelPresentationIcon />}
-              sx={{
-                bgcolor: "#ffebee",
-                color: "#c62828",
-                borderColor: "#ef9a9a",
-                "&:hover": { bgcolor: "#ffcdd2", borderColor: "#e57373", color: "#b71c1c" },
-              }}>
-              {t("nav.cancellations", "Ακυρώσεις")}
-            </Button>
-          </Stack>
-        </Card>
-      )}
+      <Menu anchorEl={sectionsAnchor} open={Boolean(sectionsAnchor)} onClose={() => setSectionsAnchor(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }} transformOrigin={{ vertical: "top", horizontal: "right" }}
+        slotProps={{ paper: { sx: { minWidth: 280 } } }}>
+        <MenuItem selected={activeView === "policies"} onClick={() => { setSectionsAnchor(null); setActiveView("policies"); }}><ListItemIcon><DescriptionOutlinedIcon fontSize="small" /></ListItemIcon><ListItemText primary="Συμβόλαια" /></MenuItem>
+        <MenuItem selected={activeView === "delivery"} onClick={() => { setSectionsAnchor(null); setActiveView("delivery"); }}><ListItemIcon><LocalShippingIcon fontSize="small" /></ListItemIcon><ListItemText primary={t("delivery.title")} /></MenuItem>
+        <MenuItem selected={activeView === "group"} onClick={() => { setSectionsAnchor(null); setActiveView("group"); }}><ListItemIcon><GroupsIcon fontSize="small" /></ListItemIcon><ListItemText primary={t("groupPolicies.title")} /></MenuItem>
+        <Divider />
+        <MenuItem component={RouterLink} to="/app/renewals" onClick={() => setSectionsAnchor(null)} sx={{ color: "#2e7d32" }}><ListItemIcon sx={{ color: "#2e7d32" }}><EventRepeatIcon fontSize="small" /></ListItemIcon><ListItemText primary="Ανανεώσεις" /></MenuItem>
+        <MenuItem component={RouterLink} to="/app/endorsements" onClick={() => setSectionsAnchor(null)} sx={{ color: "#8a6d1d" }}><ListItemIcon sx={{ color: "#8a6d1d" }}><EditNoteIcon fontSize="small" /></ListItemIcon><ListItemText primary="Πρόσθετες πράξεις" /></MenuItem>
+        <MenuItem component={RouterLink} to="/app/cancellations" onClick={() => setSectionsAnchor(null)} sx={{ color: "#c62828" }}><ListItemIcon sx={{ color: "#c62828" }}><CancelPresentationIcon fontSize="small" /></ListItemIcon><ListItemText primary="Ακυρώσεις" /></MenuItem>
+      </Menu>
+      <Menu anchorEl={actionsAnchor} open={Boolean(actionsAnchor)} onClose={() => setActionsAnchor(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }} transformOrigin={{ vertical: "top", horizontal: "right" }}
+        slotProps={{ paper: { sx: { minWidth: 290, maxWidth: "calc(100vw - 24px)" } } }}>
+        {canEdit && activeView === "policies" && <MenuItem data-tour="policies-new" onClick={() => { setActionsAnchor(null); setError(null); setCreateStatus("Active"); }} sx={{ color: "#0877c9", "&:hover": { bgcolor: "#e7f2fd" } }}><ListItemIcon sx={{ color: "#0877c9" }}><AddIcon fontSize="small" /></ListItemIcon><ListItemText primary={t("policies.create")} /></MenuItem>}
+        {canEdit && activeView === "policies" && <MenuItem onClick={() => { setActionsAnchor(null); setError(null); setCreateStatus("Prospect"); }} sx={{ color: "#a45b00", "&:hover": { bgcolor: "#fff3df" } }}><ListItemIcon sx={{ color: "#a45b00" }}><PersonAddAltOutlinedIcon fontSize="small" /></ListItemIcon><ListItemText primary="Πιθανό συμβόλαιο" /></MenuItem>}
+        {canEdit && activeView === "policies" && <MenuItem onClick={() => { setActionsAnchor(null); setImportOpen(true); }} sx={{ color: "#167c45", "&:hover": { bgcolor: "#e7f5ec" } }}><ListItemIcon sx={{ color: "#167c45" }}><TableViewOutlinedIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εισαγωγή Excel" /></MenuItem>}
+        {activeView === "policies" && <MenuItem onClick={() => { setActionsAnchor(null); setSaveFilterRequest(value => value + 1); }} sx={{ color: "#0b5cad", "&:hover": { bgcolor: "#e7f1fc" } }}><ListItemIcon sx={{ color: "#0b5cad" }}><BookmarkAddIcon fontSize="small" /></ListItemIcon><ListItemText primary="Αποθήκευση νέου φίλτρου" /></MenuItem>}
+        <Divider />
+        <MenuItem onClick={() => { setActionsAnchor(null); setToolbarAction(value => ({ token: value.token + 1, action: "csv" })); }} sx={{ color: "#087f73", "&:hover": { bgcolor: "#e5f6f3" } }}><ListItemIcon sx={{ color: "#087f73" }}><TableChartIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή CSV" /></MenuItem>
+        <MenuItem onClick={() => { setActionsAnchor(null); setToolbarAction(value => ({ token: value.token + 1, action: "xlsx" })); }} sx={{ color: "#167c45", "&:hover": { bgcolor: "#e7f5ec" } }}><ListItemIcon sx={{ color: "#167c45" }}><GridOnIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή Excel" /></MenuItem>
+        <MenuItem onClick={() => { setActionsAnchor(null); setToolbarAction(value => ({ token: value.token + 1, action: "pdf" })); }} sx={{ color: "#c73545", "&:hover": { bgcolor: "#fdecef" } }}><ListItemIcon sx={{ color: "#c73545" }}><PictureAsPdfIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή PDF" /></MenuItem>
+        <MenuItem onClick={() => { setActionsAnchor(null); setToolbarAction(value => ({ token: value.token + 1, action: "print" })); }} sx={{ color: "#456b91", "&:hover": { bgcolor: "#edf2f7" } }}><ListItemIcon sx={{ color: "#456b91" }}><PrintIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εκτύπωση" /></MenuItem>
+        <Divider />
+        <MenuItem onClick={() => { setActionsAnchor(null); setToolbarAction(value => ({ token: value.token + 1, action: "columns" })); }} sx={{ color: "#5b55a5", "&:hover": { bgcolor: "#efedfb" } }}><ListItemIcon sx={{ color: "#5b55a5" }}><ViewColumnIcon fontSize="small" /></ListItemIcon><ListItemText primary="Στήλες εξαγωγής" /></MenuItem>
+        <MenuItem onClick={() => { setActionsAnchor(null); setAdvancedFiltersOpen(true); }} sx={{ color: "#a45b00", "&:hover": { bgcolor: "#fff3df" } }}><ListItemIcon sx={{ color: "#a45b00" }}><TuneIcon fontSize="small" /></ListItemIcon><ListItemText primary="Σύνθετα φίλτρα" /></MenuItem>
+      </Menu>
 
       {activeView === "delivery" ? (
         <PolicyDeliveryPage embedded />
@@ -667,10 +636,10 @@ export function PoliciesPage() {
                </Button>
                <Box sx={{ gridColumn: { xs: "1", sm: "1 / -1", md: "1 / -1" }, display: "flex", justifyContent: "flex-end", minWidth: 0 }}>
                  <SavedReportsButton
-                   inline
                    entity="policies"
                    currentFilters={savedPolicyFilters}
                    onLoad={loadSavedPolicyFilters}
+                   saveRequestToken={saveFilterRequest}
                  />
                </Box>
              </Box>
@@ -882,6 +851,8 @@ export function PoliciesPage() {
               serverEntity="policies"
               serverParams={{ search: table.query }}
               hideSearch
+              actionRequest={toolbarAction}
+              hideActionButtons
               exportColumns={[
                 { key: "policyNumber", label: "Αρ. Συμβ." },
                 { key: "policyType", label: "Κλάδος" },

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Alert, Box, Button, Card, CardContent, Checkbox, Chip, CircularProgress, Dialog, DialogActions,
-  DialogContent, DialogTitle, FormControlLabel, IconButton, MenuItem, Stack, Table, TableBody,
+  DialogContent, DialogTitle, Divider, FormControlLabel, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Table, TableBody,
   TableCell, TableHead, TableRow, TextField, Tooltip, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
@@ -12,11 +12,17 @@ import PaidIcon from "@mui/icons-material/Paid";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import GridOnIcon from "@mui/icons-material/GridOn";
 import BarChartIcon from "@mui/icons-material/BarChart";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import BookmarkAddIcon from "@mui/icons-material/BookmarkAdd";
+import TableChartIcon from "@mui/icons-material/TableChart";
+import PrintIcon from "@mui/icons-material/Print";
+import ViewColumnIcon from "@mui/icons-material/ViewColumn";
 import { Link as RouterLink } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { OverCommissionGridEditor } from "../components/OverCommissionGridEditor";
-import { exportActionSx, printActionSx } from "../components/actionButtonStyles";
+import { SavedReportsButton } from "../components/SavedReportsButton";
 import {
   BarChart, Bar, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer,
   Tooltip as RechartsTooltip, XAxis, YAxis,
@@ -107,6 +113,8 @@ export function OverCommissionStatementsPage() {
   const [statsOpen, setStatsOpen] = useState(false);
   const [statsDimension, setStatsDimension] = useState<"producer" | "month" | "carrier">("producer");
   const [selectedStatsGroup, setSelectedStatsGroup] = useState<string | null>(null);
+  const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
+  const [saveFilterRequest, setSaveFilterRequest] = useState(0);
   // Deep-link ?openImport=ergo (from OverCommissionBridgesPage) auto-opens
   // the μαζική καταχώρηση grid + tells the grid to preselect ERGO layout.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -387,22 +395,30 @@ export function OverCommissionStatementsPage() {
             γραμμή του πινακίου (ERGO, Ατλαντική, Grand Cover, κτλ.).
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
           <Button component={RouterLink} to="/app/over-commissions"
             variant="outlined" size="large">
-            Παραμετρικοί κανόνες (%)
+            Ρυθμίσεις υπερπρομηθειών
           </Button>
-          <Button startIcon={<GridOnIcon />} variant="outlined" size="large"
-            color={gridOpen ? "primary" : "inherit"}
-            onClick={() => setGridOpen(v => !v)}>
-            {gridOpen ? "Απόκρυψη Μαζικής Καταχώρησης" : "Μαζική Καταχώρηση"}
-          </Button>
-          <Button startIcon={<AddIcon />} variant="contained" size="large"
-            onClick={() => setDialog("new")}>
-            Νέα εγγραφή
-          </Button>
+          <Button variant="contained" size="large" startIcon={<MoreHorizIcon />} endIcon={<KeyboardArrowDownIcon />}
+            onClick={event => setActionsAnchor(event.currentTarget)}>Ενέργειες</Button>
         </Stack>
       </Stack>
+
+      <Menu anchorEl={actionsAnchor} open={Boolean(actionsAnchor)} onClose={() => setActionsAnchor(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }} transformOrigin={{ vertical: "top", horizontal: "right" }}
+        slotProps={{ paper: { sx: { minWidth: 300, maxWidth: "calc(100vw - 24px)" } } }}>
+        <MenuItem onClick={() => { setActionsAnchor(null); setDialog("new"); }} sx={{ color: "#0877c9", "&:hover": { bgcolor: "#e7f2fd" } }}><ListItemIcon sx={{ color: "#0877c9" }}><AddIcon fontSize="small" /></ListItemIcon><ListItemText primary="Νέα εγγραφή" /></MenuItem>
+        <MenuItem onClick={() => { setActionsAnchor(null); setGridOpen(value => !value); }} sx={{ color: "#5b55a5", "&:hover": { bgcolor: "#efedfb" } }}><ListItemIcon sx={{ color: "#5b55a5" }}><GridOnIcon fontSize="small" /></ListItemIcon><ListItemText primary={gridOpen ? "Απόκρυψη μαζικής καταχώρησης" : "Μαζική καταχώρηση"} /></MenuItem>
+        <MenuItem onClick={() => { setActionsAnchor(null); setStatsOpen(true); }} sx={{ color: "#0b5cad", "&:hover": { bgcolor: "#e7f1fc" } }}><ListItemIcon sx={{ color: "#0b5cad" }}><BarChartIcon fontSize="small" /></ListItemIcon><ListItemText primary="Στατιστικά" /></MenuItem>
+        <MenuItem onClick={() => { setActionsAnchor(null); setSaveFilterRequest(value => value + 1); }} sx={{ color: "#0b5cad", "&:hover": { bgcolor: "#e7f1fc" } }}><ListItemIcon sx={{ color: "#0b5cad" }}><BookmarkAddIcon fontSize="small" /></ListItemIcon><ListItemText primary="Αποθήκευση νέου φίλτρου" /></MenuItem>
+        <Divider />
+        <MenuItem onClick={() => { setActionsAnchor(null); exportRows("csv"); }} sx={{ color: "#087f73", "&:hover": { bgcolor: "#e5f6f3" } }}><ListItemIcon sx={{ color: "#087f73" }}><TableChartIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή CSV" /></MenuItem>
+        <MenuItem onClick={() => { setActionsAnchor(null); exportRows("xlsx"); }} sx={{ color: "#167c45", "&:hover": { bgcolor: "#e7f5ec" } }}><ListItemIcon sx={{ color: "#167c45" }}><GridOnIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή Excel" /></MenuItem>
+        <MenuItem onClick={() => { setActionsAnchor(null); exportRows("print"); }} sx={{ color: "#456b91", "&:hover": { bgcolor: "#edf2f7" } }}><ListItemIcon sx={{ color: "#456b91" }}><PrintIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εκτύπωση" /></MenuItem>
+        <Divider />
+        <MenuItem onClick={() => { setActionsAnchor(null); setPrintColsOpen(true); }} sx={{ color: "#a45b00", "&:hover": { bgcolor: "#fff3df" } }}><ListItemIcon sx={{ color: "#a45b00" }}><ViewColumnIcon fontSize="small" /></ListItemIcon><ListItemText primary="Στήλες εκτύπωσης & εξαγωγής" secondary={`${selectedPrintCols.size}/${PRINT_COLS.length} ενεργές`} /></MenuItem>
+      </Menu>
 
       {gridOpen && (
         <OverCommissionGridEditor
@@ -418,17 +434,6 @@ export function OverCommissionStatementsPage() {
       )}
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
-
-      <Stack direction="row" justifyContent="flex-end" mb={1}>
-        <Button
-          variant="contained"
-          startIcon={<BarChartIcon />}
-          onClick={() => setStatsOpen(true)}
-          sx={{ fontWeight: 800, borderRadius: 2 }}
-        >
-          Στατιστικά
-        </Button>
-      </Stack>
 
       {/* ── Totals strip — mirrors the ERGO πινάκιο 1:1 ────────────
           Row 1: the four money columns straight off the carrier statement
@@ -468,17 +473,6 @@ export function OverCommissionStatementsPage() {
       {/* Filters — dense 4-col grid, ~2 lines on desktop (9 controls +
           clear + counter). Exports moved to their own row above so the
           filter bar stays a single visual block. */}
-      <Stack direction="row" spacing={1} justifyContent="flex-end" mb={1} alignItems="center">
-        <Tooltip title="Επιλέξτε ποιές στήλες θα εμφανίζονται στο εκτυπωμένο πινάκιο">
-          <Button size="small" variant="text" onClick={() => setPrintColsOpen(true)}>
-            Στήλες εκτύπωσης ({selectedPrintCols.size}/{PRINT_COLS.length})
-          </Button>
-        </Tooltip>
-        <Button size="small" variant="outlined" sx={exportActionSx} onClick={() => exportRows("csv")}>Εξαγωγή CSV</Button>
-        <Button size="small" variant="outlined" sx={exportActionSx} onClick={() => exportRows("xlsx")}>Εξαγωγή XLSX</Button>
-        <Button size="small" variant="outlined" sx={printActionSx} onClick={() => exportRows("print")}>🖨 Εκτύπωση</Button>
-      </Stack>
-
       <Dialog open={printColsOpen} onClose={() => setPrintColsOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Στήλες προς εκτύπωση</DialogTitle>
         <DialogContent>
@@ -553,6 +547,10 @@ export function OverCommissionStatementsPage() {
           </TextField>
           <Chip label={`${rows.length} γραμμές · ${moneyFmt.format(totals.office)} στην έδρα`}
             sx={{ gridColumn: { md: "span 2" }, justifySelf: "start" }} />
+          <Box sx={{ justifySelf: { md: "end" } }}><SavedReportsButton entity="over-commission-statements"
+            currentFilters={{ year, month, carrierFilter, producerFilter, search, dateFrom, dateTo, paidFilter, groupBy }}
+            onLoad={next => { setYear(next.year ?? now.getFullYear()); setMonth(next.month ?? ""); setCarrierFilter(next.carrierFilter ?? ""); setProducerFilter(next.producerFilter ?? ""); setSearch(next.search ?? ""); setDateFrom(next.dateFrom ?? ""); setDateTo(next.dateTo ?? ""); setPaidFilter(next.paidFilter ?? ""); setGroupBy(next.groupBy ?? "producer"); }}
+            saveRequestToken={saveFilterRequest} /></Box>
           <Button size="small" fullWidth color="error" variant="contained"
             onClick={() => {
               setCarrierFilter(""); setProducerFilter(""); setSearch("");

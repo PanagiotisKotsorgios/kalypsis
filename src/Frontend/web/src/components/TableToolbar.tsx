@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   Box, Button, IconButton, InputAdornment, MenuItem, Stack, TextField, Typography
 } from "@mui/material";
@@ -106,7 +107,9 @@ export function TableToolbar<T>({
   hideColumnPicker,
   hideSearch,
   extraExportColumns,
-  rightSlot
+  rightSlot,
+  actionRequest,
+  hideActionButtons = false,
 }: {
   query: string;
   onQuery: (s: string) => void;
@@ -147,6 +150,10 @@ export function TableToolbar<T>({
    *  export. Useful for internal ids, audit fields, and similar. */
   extraExportColumns?: { key: keyof T | string; label: string; map?: (r: T) => any; defaultOff?: boolean }[];
   rightSlot?: React.ReactNode;
+  /** Execute toolbar actions from a page-level «Ενέργειες» menu. */
+  actionRequest?: { token: number; action: "csv" | "xlsx" | "pdf" | "print" | "columns" };
+  /** Hide duplicate inline actions when a page-level menu controls them. */
+  hideActionButtons?: boolean;
 }) {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -187,6 +194,7 @@ export function TableToolbar<T>({
 
   const pickerId = columnSelectionId ?? serverEntity ?? exportFileName;
   const selection = useExportColumnSelection(pickerId, pickerDescriptors);
+  const [columnPickerRequest, setColumnPickerRequest] = useState(0);
   const selectedKeys = new Set(selection.activeKeys);
 
   // Filter export columns by (a) the display-column whitelist if the caller
@@ -318,6 +326,18 @@ export function TableToolbar<T>({
     triggerDownload(new Blob([res.data], { type: mime }), `${exportFileName}.${format}`);
   }
 
+  useEffect(() => {
+    if (!actionRequest || actionRequest.token <= 0) return;
+    if (actionRequest.action === "csv") downloadCsv();
+    else if (actionRequest.action === "xlsx") downloadXlsx();
+    else if (actionRequest.action === "pdf") downloadPdf();
+    else if (actionRequest.action === "print") openPrint();
+    else if (actionRequest.action === "columns") setColumnPickerRequest(value => value + 1);
+    // The token is the explicit event boundary; export inputs are snapshots
+    // from the render in which that token was received.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actionRequest?.token]);
+
   const officeExportDetails = [officeInfo.address, officeInfo.phone, officeInfo.email,
     officeInfo.vatNumber ? `ΑΦΜ: ${officeInfo.vatNumber}` : null]
     .filter(Boolean).join(" · ");
@@ -342,7 +362,7 @@ export function TableToolbar<T>({
         onChange={(e) => onPageSize(Number(e.target.value))} sx={{ width: 110 }}>
         {[10, 25, 50, 100, 250].map(n => <MenuItem key={n} value={n}>{n}</MenuItem>)}
       </TextField>
-      <Stack direction="row" spacing={1} alignItems="center">
+      {!hideActionButtons && <Stack direction="row" spacing={1} alignItems="center">
         {!hideColumnPicker && pickerDescriptors.length > 1 && (
           <ExportColumnPicker
             columns={pickerDescriptors}
@@ -350,6 +370,7 @@ export function TableToolbar<T>({
             toggle={selection.toggle}
             setAll={selection.setAll}
             reset={selection.reset}
+            openRequestToken={columnPickerRequest}
           />
         )}
         {/* Consolidated CSV / Excel / PDF selector. PDF is server-side only,
@@ -371,7 +392,13 @@ export function TableToolbar<T>({
         >
           {t("common.print", "Εκτύπωση")}
         </Button>
-      </Stack>
+      </Stack>}
+      {hideActionButtons && !hideColumnPicker && pickerDescriptors.length > 1 && (
+        <Box sx={{ position: "absolute", width: 1, height: 1, overflow: "hidden", pointerEvents: "none" }}>
+          <ExportColumnPicker columns={pickerDescriptors} off={selection.off} toggle={selection.toggle}
+            setAll={selection.setAll} reset={selection.reset} openRequestToken={columnPickerRequest} />
+        </Box>
+      )}
       {rightSlot}
     </Stack>
   );

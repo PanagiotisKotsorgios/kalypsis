@@ -55,6 +55,10 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import PersonAddAltOutlinedIcon from "@mui/icons-material/PersonAddAltOutlined";
 import TableViewOutlinedIcon from "@mui/icons-material/TableViewOutlined";
 import BookmarkAddIcon from "@mui/icons-material/BookmarkAdd";
+import TableChartIcon from "@mui/icons-material/TableChart";
+import GridOnIcon from "@mui/icons-material/GridOn";
+import PrintIcon from "@mui/icons-material/Print";
+import ViewColumnIcon from "@mui/icons-material/ViewColumn";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
@@ -240,6 +244,7 @@ export function CustomersPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
   const [saveFilterRequest, setSaveFilterRequest] = useState(0);
+  const [toolbarAction, setToolbarAction] = useState<{ token: number; action: "csv" | "xlsx" | "print" | "columns" }>({ token: 0, action: "csv" });
   const [error, setError] = useState<string | null>(null);
 
   const customersQuery = useQuery({
@@ -440,6 +445,28 @@ export function CustomersPage() {
             <ListItemIcon sx={{ color: "#5b55a5" }}><BookmarkAddIcon fontSize="small" /></ListItemIcon>
             <ListItemText primary="Αποθήκευση νέου φίλτρου" secondary="Προσθήκη στα αποθηκευμένα φίλτρα" />
           </MenuItem>
+          <Divider />
+          <MenuItem onClick={() => { setActionsAnchor(null); setToolbarAction(value => ({ token: value.token + 1, action: "csv" })); }}
+            sx={{ color: "#087f73", "&:hover": { bgcolor: "#e5f6f3", color: "#06675e" } }}>
+            <ListItemIcon sx={{ color: "#087f73" }}><TableChartIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή CSV" />
+          </MenuItem>
+          <MenuItem onClick={() => { setActionsAnchor(null); setToolbarAction(value => ({ token: value.token + 1, action: "xlsx" })); }}
+            sx={{ color: "#167c45", "&:hover": { bgcolor: "#e7f5ec", color: "#116337" } }}>
+            <ListItemIcon sx={{ color: "#167c45" }}><GridOnIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή Excel" />
+          </MenuItem>
+          <MenuItem onClick={() => { setActionsAnchor(null); setToolbarAction(value => ({ token: value.token + 1, action: "print" })); }}
+            sx={{ color: "#456b91", "&:hover": { bgcolor: "#edf2f7", color: "#345573" } }}>
+            <ListItemIcon sx={{ color: "#456b91" }}><PrintIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εκτύπωση" />
+          </MenuItem>
+          <Divider />
+          <MenuItem onClick={() => { setActionsAnchor(null); setToolbarAction(value => ({ token: value.token + 1, action: "columns" })); }}
+            sx={{ color: "#5b55a5", "&:hover": { bgcolor: "#efedfb", color: "#474184" } }}>
+            <ListItemIcon sx={{ color: "#5b55a5" }}><ViewColumnIcon fontSize="small" /></ListItemIcon><ListItemText primary="Στήλες εξαγωγής" />
+          </MenuItem>
+          <MenuItem onClick={() => { setActionsAnchor(null); setFiltersOpen(true); }}
+            sx={{ color: "#a45b00", "&:hover": { bgcolor: "#fff3df", color: "#814700" } }}>
+            <ListItemIcon sx={{ color: "#a45b00" }}><FilterListIcon fontSize="small" /></ListItemIcon><ListItemText primary="Φίλτρα πελατών" />
+          </MenuItem>
         </Menu>
       </Stack>
 
@@ -514,6 +541,8 @@ export function CustomersPage() {
             { key: "city", label: "Πόλη" }
           ]}
           visibleColumnKeys={customerCols.visibleColumns.map(c => c.key)}
+          actionRequest={toolbarAction}
+          hideActionButtons
         />
       </Box>
       {customersQuery.isLoading ? (

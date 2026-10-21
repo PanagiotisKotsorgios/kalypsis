@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Box, Button, Checkbox, Divider, FormControlLabel, IconButton,
   Popover, Stack, Tooltip, Typography
@@ -92,22 +92,30 @@ export function useExportColumnSelection(
  * the next CSV/Excel/PDF/Print will honour the new selection.
  */
 export function ExportColumnPicker({
-  columns, off, toggle, setAll, reset,
+  columns, off, toggle, setAll, reset, openRequestToken = 0,
 }: {
   columns: ExportColumnDescriptor[];
   off: Set<string>;
   toggle: (key: string) => void;
   setAll: (on: boolean) => void;
   reset: () => void;
+  /** Increment to open the picker from a parent «Ενέργειες» menu. */
+  openRequestToken?: number;
 }) {
   const { t } = useTranslation();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const activeCount = columns.length - Array.from(off).filter(k => columns.some(c => c.key === k)).length;
+
+  useEffect(() => {
+    if (openRequestToken > 0 && triggerRef.current) setAnchor(triggerRef.current);
+  }, [openRequestToken]);
 
   return (
     <>
       <Tooltip title={t("common.exportColumns", "Στήλες εξαγωγής")}>
         <IconButton
+          ref={triggerRef}
           size="small"
           onClick={(e) => setAnchor(e.currentTarget)}
           aria-label={String(t("common.exportColumns", "Στήλες εξαγωγής"))}

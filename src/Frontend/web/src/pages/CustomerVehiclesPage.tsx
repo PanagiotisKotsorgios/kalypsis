@@ -6,7 +6,7 @@ import { DetailProfileTabs } from "../components/profile/DetailProfileTabs";
 import { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback, profileDialogPaperSx, profileFieldGridSx, useProfileFieldEditor, type ProfileFieldSession } from "../components/profile/ProfileFieldEditor";
 import { VEHICLE_SPEC_FIELDS, mergeVehicleSpecs } from "../components/profile/vehicleProfile";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Tooltip, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, InputAdornment, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Tooltip, Typography } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import DownloadIcon from "@mui/icons-material/Download";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
@@ -14,11 +14,16 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import AddIcon from "@mui/icons-material/Add";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import BookmarkAddIcon from "@mui/icons-material/BookmarkAdd";
+import PrintIcon from "@mui/icons-material/Print";
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
-import { exportActionSx, printActionSx } from "../components/actionButtonStyles";
+import { exportActionSx } from "../components/actionButtonStyles";
 import { Link as RouterLink } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
+import { SavedReportsButton } from "../components/SavedReportsButton";
 
 interface VehiclePolicyRow {
   id: string;
@@ -406,6 +411,8 @@ export function CustomerVehiclesPage() {
   const [deleteIds, setDeleteIds] = useState<string[]>([]);
   const [deleteText, setDeleteText] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
+  const [saveFilterRequest, setSaveFilterRequest] = useState(0);
   const q = useQuery({
     queryKey: ["customer-vehicles-all"],
     queryFn: async () => (await api.get<VehiclePolicyRow[]>("/policies", { params: { type: "Auto" } })).data
@@ -528,13 +535,35 @@ export function CustomerVehiclesPage() {
   return <Stack spacing={1.5}>
     <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" gap={1} alignItems={{ md: "center" }}>
       <Box><Typography variant="h4" fontWeight={800}>Οχήματα πελατών</Typography><Typography color="text.secondary">Κεντρική αναζήτηση, φίλτρα, στατιστικά και ενέργειες για όλα τα οχήματα των συμβολαίων.</Typography></Box>
-      <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-        <Button size="small" variant="contained" color="success" startIcon={<AddIcon />} onClick={() => setAddOpen(true)} sx={{ color: "#fff", fontWeight: 800 }}>Προσθήκη οχήματος</Button>
-        <Button size="small" variant="outlined" startIcon={<DirectionsCarIcon />} onClick={() => { setStatsFocus(null); setStatsOpen(true); }}>Στατιστικά</Button>
-        <Button size="small" variant="outlined" startIcon={<DownloadIcon />} sx={exportActionSx} onClick={() => exportCsv()}>Εξαγωγή CSV</Button>
-        <Button size="small" variant="outlined" sx={printActionSx} onClick={() => window.print()}>Εκτύπωση</Button>
-        {selectedCount > 0 && <Button size="small" color="error" variant="contained" startIcon={<DeleteOutlineIcon />} onClick={() => requestDelete([...selectedIds])}>Διαγραφή ({selectedCount})</Button>}
-      </Stack>
+      <Box>
+        <Button variant="contained" startIcon={<MoreHorizIcon />} endIcon={<KeyboardArrowDownIcon />}
+          onClick={event => setActionsAnchor(event.currentTarget)} aria-haspopup="menu" aria-expanded={Boolean(actionsAnchor)}>
+          Ενέργειες
+        </Button>
+        <Menu anchorEl={actionsAnchor} open={Boolean(actionsAnchor)} onClose={() => setActionsAnchor(null)}
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }} transformOrigin={{ vertical: "top", horizontal: "right" }}
+          slotProps={{ paper: { sx: { minWidth: 285, maxWidth: "calc(100vw - 24px)" } } }}>
+          <MenuItem onClick={() => { setActionsAnchor(null); setAddOpen(true); }} sx={{ color: "#0877c9", "&:hover": { bgcolor: "#e7f2fd" } }}>
+            <ListItemIcon sx={{ color: "#0877c9" }}><AddIcon fontSize="small" /></ListItemIcon><ListItemText primary="Προσθήκη οχήματος" />
+          </MenuItem>
+          <MenuItem onClick={() => { setActionsAnchor(null); setStatsFocus(null); setStatsOpen(true); }} sx={{ color: "#5b55a5", "&:hover": { bgcolor: "#efedfb" } }}>
+            <ListItemIcon sx={{ color: "#5b55a5" }}><DirectionsCarIcon fontSize="small" /></ListItemIcon><ListItemText primary="Στατιστικά οχημάτων" />
+          </MenuItem>
+          <MenuItem onClick={() => { setActionsAnchor(null); setSaveFilterRequest(value => value + 1); }} sx={{ color: "#0b5cad", "&:hover": { bgcolor: "#e7f1fc" } }}>
+            <ListItemIcon sx={{ color: "#0b5cad" }}><BookmarkAddIcon fontSize="small" /></ListItemIcon><ListItemText primary="Αποθήκευση νέου φίλτρου" />
+          </MenuItem>
+          <Divider />
+          <MenuItem onClick={() => { setActionsAnchor(null); exportCsv(); }} sx={{ color: "#167c45", "&:hover": { bgcolor: "#e7f5ec" } }}>
+            <ListItemIcon sx={{ color: "#167c45" }}><DownloadIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή CSV" />
+          </MenuItem>
+          <MenuItem onClick={() => { setActionsAnchor(null); window.print(); }} sx={{ color: "#456b91", "&:hover": { bgcolor: "#edf2f7" } }}>
+            <ListItemIcon sx={{ color: "#456b91" }}><PrintIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εκτύπωση" />
+          </MenuItem>
+          {selectedCount > 0 && <><Divider /><MenuItem onClick={() => { setActionsAnchor(null); requestDelete([...selectedIds]); }} sx={{ color: "#c73545", "&:hover": { bgcolor: "#fdecef" } }}>
+            <ListItemIcon sx={{ color: "#c73545" }}><DeleteOutlineIcon fontSize="small" /></ListItemIcon><ListItemText primary={`Διαγραφή (${selectedCount})`} />
+          </MenuItem></>}
+        </Menu>
+      </Box>
     </Stack>
     <Card variant="outlined" sx={{ p: 1 }}>
       <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }} flexWrap="wrap" useFlexGap>
@@ -542,6 +571,9 @@ export function CustomerVehiclesPage() {
         <TextField select size="small" label="Κατάσταση" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} sx={{ minWidth: 150 }}><MenuItem value="">Όλες</MenuItem>{[...new Set(sourceRows.map(row => row.status))].filter(Boolean).map(value => <MenuItem key={value} value={value}>{vehicleStatusLabel(value)}</MenuItem>)}</TextField>
         <TextField select size="small" label="Ασφαλιστική" value={companyFilter} onChange={e => setCompanyFilter(e.target.value)} sx={{ minWidth: 180 }}><MenuItem value="">Όλες</MenuItem>{companies.map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}</TextField>
         <TextField select size="small" label="Λήξη" value={renewalFilter} onChange={e => setRenewalFilter(e.target.value)} sx={{ minWidth: 145 }}><MenuItem value="all">Όλες</MenuItem><MenuItem value="30">Σε 30 ημέρες</MenuItem><MenuItem value="31-90">31–90 ημέρες</MenuItem><MenuItem value="90">Σε 90 ημέρες</MenuItem><MenuItem value="expired">Ληγμένα</MenuItem></TextField>
+        <SavedReportsButton entity="vehicles" currentFilters={{ search, statusFilter, companyFilter, renewalFilter }}
+          onLoad={next => { setSearch(next.search ?? ""); setStatusFilter(next.statusFilter ?? ""); setCompanyFilter(next.companyFilter ?? ""); setRenewalFilter(next.renewalFilter ?? "all"); }}
+          saveRequestToken={saveFilterRequest} />
         <Button size="small" color="error" variant="contained" onClick={resetFilters}>Καθαρισμός</Button>
       </Stack>
     </Card>

@@ -3,7 +3,7 @@ import { HelpHint } from "../components/HelpHint";
 import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions,
-  DialogContent, DialogTitle, IconButton, MenuItem, Stack, Table, TableBody,
+  DialogContent, DialogTitle, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
   FormControlLabel, Switch, Snackbar
 } from "@mui/material";
@@ -20,6 +20,16 @@ import PersonSearchIcon from "@mui/icons-material/PersonSearch";
 import LinkIcon from "@mui/icons-material/Link";
 import HubIcon from "@mui/icons-material/Hub";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import BookmarkAddIcon from "@mui/icons-material/BookmarkAdd";
+import PersonAddAltOutlinedIcon from "@mui/icons-material/PersonAddAltOutlined";
+import TableViewOutlinedIcon from "@mui/icons-material/TableViewOutlined";
+import TableChartIcon from "@mui/icons-material/TableChart";
+import GridOnIcon from "@mui/icons-material/GridOn";
+import PrintIcon from "@mui/icons-material/Print";
+import ViewColumnIcon from "@mui/icons-material/ViewColumn";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
@@ -38,8 +48,8 @@ import { SearchableSelect } from "../components/SearchableSelect";
 import { money } from "../utils/format";
 import { QuickFilterBar } from "../components/QuickFilterBar";
 import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
-import { ExcelImportButton } from "../components/ExcelImportButton";
 import { BulkImportDialog, type BulkImportResult } from "../components/BulkImportDialog";
+import { SavedReportsButton } from "../components/SavedReportsButton";
 
 type ProducerStatus = "Active" | "Suspended" | "Terminated" | "Prospect";
 type ProducerTier = "None" | "A" | "B" | "C" | "D" | "E";
@@ -131,6 +141,9 @@ export function ProducersPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ProducerDto | null>(null);
   const [issuedCreds, setIssuedCreds] = useState<{ email: string; password: string } | null>(null);
+  const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
+  const [saveFilterRequest, setSaveFilterRequest] = useState(0);
+  const [toolbarAction, setToolbarAction] = useState<{ token: number; action: "csv" | "xlsx" | "pdf" | "print" | "columns" }>({ token: 0, action: "csv" });
 
   const q = useQuery({
     queryKey: ["producers"],
@@ -272,7 +285,7 @@ export function ProducersPage() {
           </Stack>
           <Typography color="text.secondary">{t("producers.subtitle")}</Typography>
         </Box>
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
           <Button
             component={RouterLink}
             to="/app/partner-networks"
@@ -288,15 +301,32 @@ export function ProducersPage() {
           >
             {t("nav.partnerNetworks", "Δίκτυα συνεργατών")}
           </Button>
-          <ExcelImportButton size="large" onClick={() => setImportOpen(true)}>
-            Εισαγωγή
-          </ExcelImportButton>
-          <Button variant="outlined" size="large" onClick={() => { setError(null); setCreateStatus("Prospect"); }}>
-            Πιθανός συνεργάτης
-          </Button>
-          <Button data-tour="producers-new" variant="contained" size="large" startIcon={<AddIcon />} onClick={() => { setError(null); setCreateStatus("Active"); }}>
-            {t("producers.create")}
-          </Button>
+          <Button data-tour="producers-actions" variant="contained" size="large" startIcon={<MoreHorizIcon />} endIcon={<KeyboardArrowDownIcon />}
+            onClick={event => setActionsAnchor(event.currentTarget)} aria-haspopup="menu" aria-expanded={Boolean(actionsAnchor)}>Ενέργειες</Button>
+          <Menu anchorEl={actionsAnchor} open={Boolean(actionsAnchor)} onClose={() => setActionsAnchor(null)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }} transformOrigin={{ vertical: "top", horizontal: "right" }}
+            slotProps={{ paper: { sx: { minWidth: 290, maxWidth: "calc(100vw - 24px)" } } }}>
+            <MenuItem data-tour="producers-new" onClick={() => { setActionsAnchor(null); setError(null); setCreateStatus("Active"); }} sx={{ color: "#0877c9", "&:hover": { bgcolor: "#e7f2fd" } }}>
+              <ListItemIcon sx={{ color: "#0877c9" }}><AddIcon fontSize="small" /></ListItemIcon><ListItemText primary={t("producers.create")} />
+            </MenuItem>
+            <MenuItem onClick={() => { setActionsAnchor(null); setError(null); setCreateStatus("Prospect"); }} sx={{ color: "#a45b00", "&:hover": { bgcolor: "#fff3df" } }}>
+              <ListItemIcon sx={{ color: "#a45b00" }}><PersonAddAltOutlinedIcon fontSize="small" /></ListItemIcon><ListItemText primary="Πιθανός συνεργάτης" />
+            </MenuItem>
+            <MenuItem onClick={() => { setActionsAnchor(null); setImportOpen(true); }} sx={{ color: "#167c45", "&:hover": { bgcolor: "#e7f5ec" } }}>
+              <ListItemIcon sx={{ color: "#167c45" }}><TableViewOutlinedIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εισαγωγή Excel" />
+            </MenuItem>
+            <MenuItem onClick={() => { setActionsAnchor(null); setSaveFilterRequest(value => value + 1); }} sx={{ color: "#0b5cad", "&:hover": { bgcolor: "#e7f1fc" } }}>
+              <ListItemIcon sx={{ color: "#0b5cad" }}><BookmarkAddIcon fontSize="small" /></ListItemIcon><ListItemText primary="Αποθήκευση νέου φίλτρου" />
+            </MenuItem>
+            <Divider />
+            <MenuItem onClick={() => { setActionsAnchor(null); setToolbarAction(value => ({ token: value.token + 1, action: "csv" })); }} sx={{ color: "#087f73", "&:hover": { bgcolor: "#e5f6f3" } }}><ListItemIcon sx={{ color: "#087f73" }}><TableChartIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή CSV" /></MenuItem>
+            <MenuItem onClick={() => { setActionsAnchor(null); setToolbarAction(value => ({ token: value.token + 1, action: "xlsx" })); }} sx={{ color: "#167c45", "&:hover": { bgcolor: "#e7f5ec" } }}><ListItemIcon sx={{ color: "#167c45" }}><GridOnIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή Excel" /></MenuItem>
+            <MenuItem onClick={() => { setActionsAnchor(null); setToolbarAction(value => ({ token: value.token + 1, action: "pdf" })); }} sx={{ color: "#c73545", "&:hover": { bgcolor: "#fdecef" } }}><ListItemIcon sx={{ color: "#c73545" }}><PictureAsPdfIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή PDF" /></MenuItem>
+            <MenuItem onClick={() => { setActionsAnchor(null); setToolbarAction(value => ({ token: value.token + 1, action: "print" })); }} sx={{ color: "#456b91", "&:hover": { bgcolor: "#edf2f7" } }}><ListItemIcon sx={{ color: "#456b91" }}><PrintIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εκτύπωση" /></MenuItem>
+            <Divider />
+            <MenuItem onClick={() => { setActionsAnchor(null); setToolbarAction(value => ({ token: value.token + 1, action: "columns" })); }} sx={{ color: "#5b55a5", "&:hover": { bgcolor: "#efedfb" } }}><ListItemIcon sx={{ color: "#5b55a5" }}><ViewColumnIcon fontSize="small" /></ListItemIcon><ListItemText primary="Στήλες εξαγωγής" /></MenuItem>
+            <MenuItem onClick={() => { setActionsAnchor(null); setAdvancedFiltersOpen(true); }} sx={{ color: "#a45b00", "&:hover": { bgcolor: "#fff3df" } }}><ListItemIcon sx={{ color: "#a45b00" }}><TuneIcon fontSize="small" /></ListItemIcon><ListItemText primary="Σύνθετα φίλτρα" /></MenuItem>
+          </Menu>
         </Stack>
       </Stack>
 
@@ -309,8 +339,8 @@ export function ProducersPage() {
             gridTemplateColumns: {
               xs: "1fr",
               sm: "repeat(4, minmax(0, 1fr))",
-              md: "minmax(220px, 1.4fr) auto auto",
-              lg: "minmax(240px, 1.4fr) auto auto",
+              md: "minmax(220px, 1.4fr) auto auto auto",
+              lg: "minmax(240px, 1.4fr) auto auto auto",
             },
             gap: 0.75,
             alignItems: "center",
@@ -331,6 +361,9 @@ export function ProducersPage() {
             <Button size="small" variant="outlined" startIcon={<FilterAltIcon />} onClick={() => setQuickFiltersOpen(true)} sx={{ whiteSpace: "nowrap", bgcolor: "#e3f2fd", color: "#1565c0", borderColor: "#90caf9", "&:hover": { bgcolor: "#bbdefb", borderColor: "#64b5f6", color: "#0d47a1" } }}>
               Γρήγορα φίλτρα
             </Button>
+            <SavedReportsButton entity="producers" currentFilters={{ query: table.query, statusFilter, tierFilter, hasPoliciesOnly, hierarchyFilter }}
+              onLoad={next => { table.setQuery(next.query ?? ""); setStatusFilter(next.statusFilter ?? ""); setTierFilter(next.tierFilter ?? ""); setHasPoliciesOnly(Boolean(next.hasPoliciesOnly)); setHierarchyFilter(next.hierarchyFilter ?? ""); }}
+              saveRequestToken={saveFilterRequest} />
           </Box>
         </Card>
         <Dialog open={advancedFiltersOpen} onClose={() => setAdvancedFiltersOpen(false)} fullWidth maxWidth="sm">
@@ -431,6 +464,8 @@ export function ProducersPage() {
           serverEntity="producers"
           serverParams={{ search: table.query }}
           hideSearch
+          actionRequest={toolbarAction}
+          hideActionButtons
           exportColumns={[
             { key: "code", label: "Κωδικός" },
             { key: "name", label: "Όνομα" },
