@@ -106,6 +106,7 @@ test("production list keeps a single green coverage action and removes redundant
 
 test("production filters collapse early and their visible fields are user configurable", async () => {
   const source = await readFile(new URL("./ProductionListsPage.tsx", import.meta.url), "utf8");
+  assert.equal(source.includes("Πολλαπλές επιλογές:"), false);
   const picker = await readFile(new URL("../components/FilterVisibilityPicker.tsx", import.meta.url), "utf8");
   const responsivePanel = await readFile(new URL("../components/ResponsiveFilterPanel.tsx", import.meta.url), "utf8");
 

@@ -668,9 +668,6 @@ export function ProductionListsPage() {
         </DialogActions>
       </Dialog>
 
-      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: .75 }}>
-        Πολλαπλές επιλογές: «ή» μέσα στο ίδιο πεδίο, συνδυασμός μεταξύ πεδίων. Κενή επιλογή σημαίνει χωρίς περιορισμό.
-      </Typography>
       <ResponsiveFilterPanel
         compactAt="xl"
         compactButtonPlacement="external"
