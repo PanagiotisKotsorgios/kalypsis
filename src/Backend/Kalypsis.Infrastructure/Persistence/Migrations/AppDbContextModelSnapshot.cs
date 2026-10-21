@@ -138,6 +138,7 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .HasColumnType("char(36)");
 
                     b.Property<decimal>("AllocatedAmount")
+                        .IsConcurrencyToken()
                         .HasPrecision(12, 2)
                         .HasColumnType("decimal(12,2)");
 
@@ -158,6 +159,11 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Direction")
+                        .IsConcurrencyToken()
+                        .HasMaxLength(12)
+                        .HasColumnType("varchar(12)");
 
                     b.Property<Guid?>("InsuranceCompanyId")
                         .HasColumnType("char(36)");

@@ -503,35 +503,42 @@ public class SaveRegisterTemplateHandler : IRequestHandler<SaveRegisterTemplateC
 /* ============================================================================
    ADVANCE PAYMENTS (Προκαταβολές)
    ========================================================================= */
-public record AdvanceAllocationDto(Guid Id, Guid PolicyId, string PolicyNumber, string CustomerName,
-    decimal Amount, DateOnly LinkedOn);
+public record AdvanceAllocationDto(Guid Id, Guid? PolicyId, string PolicyNumber, string CustomerName,
+    decimal Amount, DateOnly LinkedOn, string TargetType = "Policy", Guid? TargetId = null, string? Reference = null);
 public record AdvancePaymentDto(Guid Id, string Number, DateOnly ReceivedOn, string PartyType,
     Guid? CustomerId, string? CustomerName, Guid? ProducerId, string? ProducerName,
     Guid? InsuranceCompanyId, string? InsuranceCompanyName,
     decimal Amount, decimal AllocatedAmount, string Currency, string PaymentMethod,
-    string? Reference, string Status, string? Notes, IReadOnlyList<AdvanceAllocationDto> Allocations);
+    string? Reference, string Status, string? Notes, IReadOnlyList<AdvanceAllocationDto> Allocations, string? Direction = null);
 public record AdvancePaymentBody(string Number, DateOnly ReceivedOn, string PartyType,
     Guid? CustomerId, Guid? ProducerId, Guid? InsuranceCompanyId,
-    decimal Amount, string Currency, string PaymentMethod, string? Reference, string? Notes);
+    decimal Amount, string Currency, string PaymentMethod, string? Reference, string? Notes, string? Direction = null);
 
-public record ListAdvancePaymentsQuery(string? Status, string? PartyType) : IRequest<IReadOnlyList<AdvancePaymentDto>>;
+public record ListAdvancePaymentsQuery(string? Status, string? PartyType, string? Direction = null, Guid? Id = null) : IRequest<IReadOnlyList<AdvancePaymentDto>>;
 public class ListAdvancePaymentsHandler : IRequestHandler<ListAdvancePaymentsQuery, IReadOnlyList<AdvancePaymentDto>>
 {
     private readonly IAppDbContext _db;
     public ListAdvancePaymentsHandler(IAppDbContext db) => _db = db;
     public async Task<IReadOnlyList<AdvancePaymentDto>> Handle(ListAdvancePaymentsQuery r, CancellationToken ct)
     {
-        var q = _db.AdvancePayments.AsQueryable();
+        var q = _db.AdvancePayments.Where(a => a.DeletedAt == null);
+        if (r.Id.HasValue) q = q.Where(a => a.Id == r.Id);
+        if (r.Direction == "Unspecified") q = q.Where(a => a.Direction == null);
+        else if (!string.IsNullOrWhiteSpace(r.Direction))
+        {
+            var direction = AdvancePaymentRules.Direction(r.Direction);
+            q = q.Where(a => a.Direction == direction);
+        }
         if (!string.IsNullOrEmpty(r.Status)) q = q.Where(x => x.Status == r.Status);
         if (!string.IsNullOrEmpty(r.PartyType)) q = q.Where(x => x.PartyType == r.PartyType);
         var rows = await q.OrderByDescending(x => x.ReceivedOn).Take(500).ToListAsync(ct);
 
         var advanceIds = rows.Select(x => x.Id).ToList();
         var links = await _db.ReconciliationLinks
-            .Where(x => x.SourceType == "Advance" && advanceIds.Contains(x.SourceId) && x.TargetType == "Policy")
+            .Where(x => x.SourceType == "Advance" && advanceIds.Contains(x.SourceId) && x.DeletedAt == null)
             .OrderByDescending(x => x.LinkedOn)
             .ToListAsync(ct);
-        var policyIds = links.Select(x => x.TargetId).Distinct().ToList();
+        var policyIds = links.Where(x => x.TargetType == "Policy").Select(x => x.TargetId).Distinct().ToList();
         var linkedPolicies = await _db.Policies
             .Include(x => x.Customer)
             .Where(x => policyIds.Contains(x.Id))
@@ -543,16 +550,20 @@ public class ListAdvancePaymentsHandler : IRequestHandler<ListAdvancePaymentsQue
             })
             .ToListAsync(ct);
         var policyMap = linkedPolicies.ToDictionary(x => x.Id);
+        var runIds = links.Where(x => x.TargetType == "CommissionRun").Select(x => x.TargetId).Distinct().ToList();
+        var runMap = await _db.CommissionRuns.Where(x => runIds.Contains(x.Id) && x.DeletedAt == null).ToDictionaryAsync(x => x.Id, ct);
         var allocations = links
-            .Where(x => policyMap.ContainsKey(x.TargetId))
             .GroupBy(x => x.SourceId)
             .ToDictionary(
                 group => group.Key,
                 group => (IReadOnlyList<AdvanceAllocationDto>)group.Select(link =>
                 {
-                    var policy = policyMap[link.TargetId];
-                    return new AdvanceAllocationDto(link.Id, policy.Id, policy.PolicyNumber,
-                        policy.CustomerName, link.Amount, link.LinkedOn);
+                    if (link.TargetType == "Policy" && policyMap.TryGetValue(link.TargetId, out var policy))
+                        return new AdvanceAllocationDto(link.Id, policy.Id, policy.PolicyNumber,
+                            policy.CustomerName, link.Amount, link.LinkedOn, "Policy", policy.Id, policy.PolicyNumber);
+                    var reference = link.TargetType == "CommissionRun" && runMap.TryGetValue(link.TargetId, out var run)
+                        ? $"Εκκαθάριση {run.Month:00}/{run.Year} · {run.Title}" : "Μη διαθέσιμη συσχέτιση";
+                    return new AdvanceAllocationDto(link.Id, null, reference, "—", link.Amount, link.LinkedOn, link.TargetType, link.TargetId, reference);
                 }).ToList());
 
         var custIds = rows.Where(r => r.CustomerId.HasValue).Select(r => r.CustomerId!.Value).ToList();
@@ -562,7 +573,7 @@ public class ListAdvancePaymentsHandler : IRequestHandler<ListAdvancePaymentsQue
             .Select(c => new { c.Id, Name = c.CompanyName ?? (c.FirstName + " " + c.LastName) }).ToListAsync(ct);
         var producers = await _db.Producers.Where(p => prodIds.Contains(p.Id))
             .Select(p => new { p.Id, p.Name }).ToListAsync(ct);
-        var companies = await _db.InsuranceCompanies.IgnoreQueryFilters().Where(c => compIds.Contains(c.Id))
+        var companies = await _db.InsuranceCompanies.Where(c => compIds.Contains(c.Id))
             .Select(c => new { c.Id, c.Name }).ToListAsync(ct);
 
         return rows.Select(a => new AdvancePaymentDto(a.Id, a.Number, a.ReceivedOn, a.PartyType,
@@ -571,7 +582,7 @@ public class ListAdvancePaymentsHandler : IRequestHandler<ListAdvancePaymentsQue
             a.InsuranceCompanyId, companies.FirstOrDefault(c => c.Id == a.InsuranceCompanyId)?.Name,
             a.Amount, a.AllocatedAmount, a.Currency, a.PaymentMethod,
             a.Reference, a.Status, a.Notes,
-            allocations.GetValueOrDefault(a.Id) ?? Array.Empty<AdvanceAllocationDto>())).ToList();
+            allocations.GetValueOrDefault(a.Id) ?? Array.Empty<AdvanceAllocationDto>(), a.Direction)).ToList();
     }
 }
 
@@ -583,29 +594,39 @@ public class CreateAdvancePaymentHandler : IRequestHandler<CreateAdvancePaymentC
     public async Task<AdvancePaymentDto> Handle(CreateAdvancePaymentCommand r, CancellationToken ct)
     {
         var b = r.Body;
-        var partyType = b.PartyType.Trim();
+        var direction = AdvancePaymentRules.Direction(b.Direction);
+        AdvancePaymentRules.PositiveAmount(b.Amount);
+        if (string.IsNullOrWhiteSpace(b.Number) || b.Number.Trim().Length > 40)
+            throw AppException.Validation("Συμπληρώστε αριθμό προκαταβολής έως 40 χαρακτήρες.");
+        if (string.IsNullOrWhiteSpace(b.Currency) || b.Currency.Trim().Length != 3 || !b.Currency.Trim().All(char.IsAsciiLetter))
+            throw AppException.Validation("Συμπληρώστε τριγράμματο κωδικό νομίσματος, π.χ. EUR.");
+        if (b.PaymentMethod is not ("Cash" or "BankTransfer" or "Cheque" or "Card" or "Other"))
+            throw AppException.Validation("Επιλέξτε έγκυρο τρόπο πληρωμής.");
+        if (b.ReceivedOn == default) throw AppException.Validation("Συμπληρώστε ημερομηνία κίνησης.");
+        if (b.Reference?.Length > 80 || b.Notes?.Length > 2000)
+            throw AppException.Validation("Η αναφορά επιτρέπει έως 80 χαρακτήρες και οι σημειώσεις έως 2.000.");
+        var partyType = b.PartyType?.Trim() ?? "";
         if (partyType is not ("Customer" or "Producer" or "Carrier"))
             throw new AppException("advance_invalid_party", "Επιλέξτε έγκυρο αντισυμβαλλόμενο.", 400);
-        if (b.Amount <= 0)
-            throw new AppException("advance_invalid_amount", "Το ποσό της προκαταβολής πρέπει να είναι μεγαλύτερο από μηδέν.", 400);
         if ((partyType == "Customer" && !b.CustomerId.HasValue)
             || (partyType == "Producer" && !b.ProducerId.HasValue)
             || (partyType == "Carrier" && !b.InsuranceCompanyId.HasValue))
             throw new AppException("advance_party_required", "Επιλέξτε τον πελάτη, συνεργάτη ή την ασφαλιστική εταιρεία της προκαταβολής.", 400);
-        if (await _db.AdvancePayments.AnyAsync(x => x.Number == b.Number, ct))
+        await AdvancePaymentRules.PartyExists(_db, partyType, b.CustomerId, b.ProducerId, b.InsuranceCompanyId, ct);
+        if (await _db.AdvancePayments.AnyAsync(x => x.Number == b.Number.Trim(), ct))
             throw new AppException("advance_number_taken",
                 $"Υπάρχει ήδη προκαταβολή «{b.Number}».", 409,
                 title: "Αριθμός σε χρήση", why: "Πρέπει να είναι μοναδικός.",
                 fix: "Επιλέξτε άλλον αριθμό.", fixLink: "/app/advance-payments");
         var a = new AdvancePayment
         {
-            Id = Guid.NewGuid(), Number = b.Number.Trim(), ReceivedOn = b.ReceivedOn,
+            Id = Guid.NewGuid(), Number = b.Number.Trim(), ReceivedOn = b.ReceivedOn, Direction = direction,
             PartyType = partyType,
             CustomerId = partyType == "Customer" ? b.CustomerId : null,
             ProducerId = partyType == "Producer" ? b.ProducerId : null,
             InsuranceCompanyId = partyType == "Carrier" ? b.InsuranceCompanyId : null,
             Amount = b.Amount, AllocatedAmount = 0,
-            Currency = b.Currency.ToUpperInvariant(),
+            Currency = b.Currency.Trim().ToUpperInvariant(),
             PaymentMethod = b.PaymentMethod, Reference = b.Reference,
             Status = "Open", Notes = b.Notes
         };
@@ -614,21 +635,23 @@ public class CreateAdvancePaymentHandler : IRequestHandler<CreateAdvancePaymentC
         return new AdvancePaymentDto(a.Id, a.Number, a.ReceivedOn, a.PartyType,
             a.CustomerId, null, a.ProducerId, null, a.InsuranceCompanyId, null,
             a.Amount, a.AllocatedAmount, a.Currency, a.PaymentMethod, a.Reference, a.Status, a.Notes,
-            Array.Empty<AdvanceAllocationDto>());
+            Array.Empty<AdvanceAllocationDto>(), a.Direction);
     }
 }
 
-public record AllocateAdvanceCommand(Guid AdvanceId, Guid PolicyId, decimal Amount) : IRequest<AdvancePaymentDto>;
+public record AllocateAdvanceCommand(Guid AdvanceId, Guid TargetId, decimal Amount, string TargetType = "Policy") : IRequest<AdvancePaymentDto>;
 public class AllocateAdvanceHandler : IRequestHandler<AllocateAdvanceCommand, AdvancePaymentDto>
 {
     private readonly IAppDbContext _db;
     public AllocateAdvanceHandler(IAppDbContext db) => _db = db;
     public async Task<AdvancePaymentDto> Handle(AllocateAdvanceCommand r, CancellationToken ct)
     {
-        var a = await _db.AdvancePayments.FirstOrDefaultAsync(x => x.Id == r.AdvanceId, ct)
+        var a = await _db.AdvancePayments.FirstOrDefaultAsync(x => x.Id == r.AdvanceId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("AdvancePayment");
-        if (r.Amount <= 0)
-            throw new AppException("advance_invalid_allocation", "Το ποσό κατανομής πρέπει να είναι μεγαλύτερο από μηδέν.", 400);
+        AdvancePaymentRules.Direction(a.Direction);
+        AdvancePaymentRules.PositiveAmount(r.Amount);
+        if (a.Status is "Refunded" or "FullyAllocated")
+            throw AppException.Validation("Η προκαταβολή έχει επιστραφεί ή κατανεμηθεί πλήρως.");
         var available = a.Amount - a.AllocatedAmount;
         if (r.Amount > available)
             throw new AppException("advance_over_allocation",
@@ -636,32 +659,43 @@ public class AllocateAdvanceHandler : IRequestHandler<AllocateAdvanceCommand, Ad
                 title: "Ανεπαρκές υπόλοιπο",
                 why: "Το ποσό αντιστοίχισης ξεπερνά το διαθέσιμο υπόλοιπο της προκαταβολής.",
                 fix: "Μειώστε το ποσό αντιστοίχισης ή προσθέστε νέα προκαταβολή.");
-        var policy = await _db.Policies.Include(x => x.Customer)
-            .FirstOrDefaultAsync(x => x.Id == r.PolicyId, ct)
-            ?? throw AppException.NotFound("Policy");
-        var belongsToParty = a.PartyType switch
+        if (r.TargetType is not ("Policy" or "CommissionRun"))
+            throw AppException.Validation("Επιλέξτε συμβόλαιο ή οριστικοποιημένη εκκαθάριση.");
+        if (r.TargetType == "CommissionRun")
         {
-            "Customer" => a.CustomerId.HasValue && policy.CustomerId == a.CustomerId.Value,
-            "Producer" => a.ProducerId.HasValue && policy.ProducerId == a.ProducerId.Value,
-            "Carrier" => a.InsuranceCompanyId.HasValue && policy.InsuranceCompanyId == a.InsuranceCompanyId.Value,
-            _ => false
-        };
-        if (!belongsToParty)
-            throw new AppException("advance_policy_party_mismatch",
-                "Το συμβόλαιο δεν ανήκει στον αντισυμβαλλόμενο της προκαταβολής.", 400);
-        if (!string.Equals(policy.Currency, a.Currency, StringComparison.OrdinalIgnoreCase))
-            throw new AppException("advance_currency_mismatch",
-                "Το νόμισμα του συμβολαίου διαφέρει από το νόμισμα της προκαταβολής.", 400);
+            var targets = await new GetAdvanceCommissionRunsHandler(_db).Handle(new(a.Id), ct);
+            if (!targets.Any(target => target.Id == r.TargetId))
+                throw AppException.Validation("Η εκκαθάριση δεν αφορά εξερχόμενη προκαταβολή του ίδιου συνεργάτη και νομίσματος.");
+        }
+        else
+        {
+            var policy = await _db.Policies.Include(x => x.Customer)
+                .FirstOrDefaultAsync(x => x.Id == r.TargetId && x.DeletedAt == null, ct)
+                ?? throw AppException.NotFound("Policy");
+            var belongsToParty = a.PartyType switch
+            {
+                "Customer" => a.CustomerId.HasValue && policy.CustomerId == a.CustomerId.Value,
+                "Producer" => a.ProducerId.HasValue && policy.ProducerId == a.ProducerId.Value,
+                "Carrier" => a.InsuranceCompanyId.HasValue && policy.InsuranceCompanyId == a.InsuranceCompanyId.Value,
+                _ => false
+            };
+            if (!belongsToParty)
+                throw new AppException("advance_policy_party_mismatch",
+                    "Το συμβόλαιο δεν ανήκει στον αντισυμβαλλόμενο της προκαταβολής.", 400);
+            if (!string.Equals(policy.Currency, a.Currency, StringComparison.OrdinalIgnoreCase))
+                throw new AppException("advance_currency_mismatch",
+                    "Το νόμισμα του συμβολαίου διαφέρει από το νόμισμα της προκαταβολής.", 400);
+        }
 
         var link = await _db.ReconciliationLinks.FirstOrDefaultAsync(x =>
             x.SourceType == "Advance" && x.SourceId == a.Id
-            && x.TargetType == "Policy" && x.TargetId == policy.Id, ct);
+            && x.TargetType == r.TargetType && x.TargetId == r.TargetId && x.DeletedAt == null, ct);
         if (link is null)
         {
             link = new ReconciliationLink
             {
                 Id = Guid.NewGuid(), SourceType = "Advance", SourceId = a.Id,
-                TargetType = "Policy", TargetId = policy.Id,
+                TargetType = r.TargetType, TargetId = r.TargetId,
                 Amount = r.Amount, Currency = a.Currency,
                 LinkedOn = DateOnly.FromDateTime(DateTime.UtcNow)
             };
@@ -675,13 +709,10 @@ public class AllocateAdvanceHandler : IRequestHandler<AllocateAdvanceCommand, Ad
         a.AllocatedAmount += r.Amount;
         a.Status = a.AllocatedAmount >= a.Amount ? "FullyAllocated" :
                    a.AllocatedAmount > 0 ? "PartiallyAllocated" : "Open";
-        await _db.SaveChangesAsync(ct);
-        var customerName = (policy.Customer.CompanyName
-            ?? (policy.Customer.FirstName + " " + policy.Customer.LastName)).Trim();
-        return new AdvancePaymentDto(a.Id, a.Number, a.ReceivedOn, a.PartyType,
-            a.CustomerId, null, a.ProducerId, null, a.InsuranceCompanyId, null,
-            a.Amount, a.AllocatedAmount, a.Currency, a.PaymentMethod, a.Reference, a.Status, a.Notes,
-            new[] { new AdvanceAllocationDto(link.Id, policy.Id, policy.PolicyNumber, customerName, link.Amount, link.LinkedOn) });
+        // No Receipt, Payment or FinancialMovement is created: allocation is a
+        // use/reference of money already recorded, not another cash movement.
+        await AdvancePaymentRules.Save(_db, ct);
+        return (await new ListAdvancePaymentsHandler(_db).Handle(new(null, null, Id: a.Id), ct)).Single();
     }
 }
 
@@ -689,7 +720,7 @@ public class AllocateAdvanceHandler : IRequestHandler<AllocateAdvanceCommand, Ad
    RECONCILIATION (Συσχέτιση Κινήσεων / Αναντιστοίχιστα)
    ========================================================================= */
 public record UnmatchedRow(string Type, Guid Id, string Reference, DateOnly Date, decimal Amount,
-    string Currency, string PartyName);
+    string Currency, string PartyName, string? Direction = null);
 public record UnmatchedDto(IReadOnlyList<UnmatchedRow> Receipts, IReadOnlyList<UnmatchedRow> Payments, IReadOnlyList<UnmatchedRow> Advances);
 
 public record GetUnmatchedQuery() : IRequest<UnmatchedDto>;
@@ -720,7 +751,7 @@ public class GetUnmatchedHandler : IRequestHandler<GetUnmatchedQuery, UnmatchedD
                 (r.Customer.CompanyName ?? $"{r.Customer.FirstName} {r.Customer.LastName}").Trim())).ToList(),
             unmatchedPayments.Select(p => new UnmatchedRow("Payment", p.Id, p.Number, p.PaidOn, p.Amount, p.Currency, "—")).ToList(),
             openAdvances.Select(a => new UnmatchedRow("Advance", a.Id, a.Number, a.ReceivedOn,
-                a.Amount - a.AllocatedAmount, a.Currency, a.PartyType)).ToList());
+                a.Amount - a.AllocatedAmount, a.Currency, a.PartyType, a.Direction)).ToList());
     }
 }
 
@@ -732,6 +763,15 @@ public class LinkReconciliationHandler : IRequestHandler<LinkReconciliationComma
     public LinkReconciliationHandler(IAppDbContext db) => _db = db;
     public async Task<Unit> Handle(LinkReconciliationCommand r, CancellationToken ct)
     {
+        if (string.Equals(r.Body.SourceType, "Advance", StringComparison.OrdinalIgnoreCase))
+        {
+            var advance = await _db.AdvancePayments.FirstOrDefaultAsync(a => a.Id == r.Body.SourceId && a.DeletedAt == null, ct)
+                ?? throw AppException.NotFound("Προκαταβολή");
+            if (!string.Equals(advance.Currency, r.Body.Currency, StringComparison.OrdinalIgnoreCase))
+                throw AppException.Validation("Το νόμισμα της συσχέτισης διαφέρει από την προκαταβολή.");
+            await new AllocateAdvanceHandler(_db).Handle(new(advance.Id, r.Body.TargetId, r.Body.Amount, r.Body.TargetType), ct);
+            return Unit.Value;
+        }
         _db.ReconciliationLinks.Add(new ReconciliationLink
         {
             Id = Guid.NewGuid(),

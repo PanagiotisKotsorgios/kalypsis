@@ -101,6 +101,8 @@ public class RegisterTemplate : TenantEntity
 public class AdvancePayment : TenantEntity
 {
     public string Number { get; set; } = string.Empty;
+    // Relative to the office. Null is a legacy entry awaiting explicit classification.
+    public string? Direction { get; set; }                         // Incoming / Outgoing
     public DateOnly ReceivedOn { get; set; }
     public string PartyType { get; set; } = "Customer";            // Customer / Producer / Carrier
     public Guid? CustomerId { get; set; }

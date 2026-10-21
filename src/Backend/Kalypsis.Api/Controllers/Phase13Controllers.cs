@@ -209,12 +209,13 @@ public class AdvancePaymentsController : ControllerBase
     private readonly IMediator _mediator;
     public AdvancePaymentsController(IMediator mediator) => _mediator = mediator;
 
-    public record AllocateBody(Guid PolicyId, decimal Amount);
+    public record AllocateBody(Guid PolicyId, decimal Amount, string TargetType = "Policy", Guid? TargetId = null);
+    public record DirectionBody(string Direction);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<AdvancePaymentDto>>> List(
-        [FromQuery] string? status, [FromQuery] string? partyType, CancellationToken ct)
-        => Ok(await _mediator.Send(new ListAdvancePaymentsQuery(status, partyType), ct));
+        [FromQuery] string? status, [FromQuery] string? partyType, [FromQuery] string? direction, CancellationToken ct)
+        => Ok(await _mediator.Send(new ListAdvancePaymentsQuery(status, partyType, direction), ct));
 
     [HttpPost]
     public async Task<ActionResult<AdvancePaymentDto>> Create([FromBody] AdvancePaymentBody body, CancellationToken ct)
@@ -222,7 +223,18 @@ public class AdvancePaymentsController : ControllerBase
 
     [HttpPost("{id:guid}/allocate")]
     public async Task<ActionResult<AdvancePaymentDto>> Allocate(Guid id, [FromBody] AllocateBody body, CancellationToken ct)
-        => Ok(await _mediator.Send(new AllocateAdvanceCommand(id, body.PolicyId, body.Amount), ct));
+        => Ok(await _mediator.Send(new AllocateAdvanceCommand(id, body.TargetId ?? body.PolicyId, body.Amount, body.TargetType), ct));
+
+    [HttpPatch("{id:guid}/direction")]
+    public async Task<IActionResult> SetDirection(Guid id, [FromBody] DirectionBody body, CancellationToken ct)
+    {
+        await _mediator.Send(new SetAdvanceDirectionCommand(id, body.Direction), ct);
+        return NoContent();
+    }
+
+    [HttpGet("{id:guid}/commission-runs")]
+    public async Task<ActionResult<IReadOnlyList<AdvanceCommissionRunDto>>> CommissionRuns(Guid id, CancellationToken ct)
+        => Ok(await _mediator.Send(new GetAdvanceCommissionRunsQuery(id), ct));
 }
 
 [ApiController]

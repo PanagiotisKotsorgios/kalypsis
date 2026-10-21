@@ -100,9 +100,11 @@ public class AdvancePaymentConfiguration : IEntityTypeConfiguration<AdvancePayme
         b.HasIndex(x => new { x.TenantId, x.Number }).IsUnique();
         b.HasIndex(x => new { x.TenantId, x.Status });
         b.Property(x => x.Number).HasMaxLength(40).IsRequired();
+        b.Property(x => x.Direction).HasMaxLength(12);
+        b.Property(x => x.Direction).IsConcurrencyToken();
         b.Property(x => x.PartyType).HasMaxLength(20);
         b.Property(x => x.Amount).HasPrecision(12, 2);
-        b.Property(x => x.AllocatedAmount).HasPrecision(12, 2);
+        b.Property(x => x.AllocatedAmount).HasPrecision(12, 2).IsConcurrencyToken();
         b.Property(x => x.Currency).HasMaxLength(3);
         b.Property(x => x.PaymentMethod).HasMaxLength(40);
         b.Property(x => x.Reference).HasMaxLength(80);
