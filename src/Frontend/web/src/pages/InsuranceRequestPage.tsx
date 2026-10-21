@@ -48,8 +48,16 @@ function subjectMeta(type: string) {
   return { label: "Τι θέλετε να ασφαλίσετε;", placeholder: "Σύντομη περιγραφή", icon: <ShieldOutlinedIcon /> };
 }
 
-export function InsuranceRequestPage() {
-  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+export function InsuranceRequestPage({ embedded = false, initialInsuranceType = "", initialInsuranceSubject = "" }: {
+  embedded?: boolean;
+  initialInsuranceType?: string;
+  initialInsuranceSubject?: string;
+} = {}) {
+  const [form, setForm] = useState<FormState>(() => ({
+    ...EMPTY_FORM,
+    insuranceType: TYPES.includes(initialInsuranceType as typeof TYPES[number]) ? initialInsuranceType : "",
+    insuranceSubject: initialInsuranceSubject.slice(0, 300),
+  }));
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [result, setResult] = useState<{ message: string; reference: string } | null>(null);
   const meta = useMemo(() => subjectMeta(form.insuranceType), [form.insuranceType]);
@@ -82,18 +90,18 @@ export function InsuranceRequestPage() {
     if (validate()) submit.mutate();
   };
 
-  return <Box sx={{ minHeight: "100vh", bgcolor: "#eaf1f8", color: "#102c55", position: "relative", overflow: "hidden" }}>
+  return <Box sx={{ minHeight: embedded ? 0 : "100vh", bgcolor: embedded ? "transparent" : "#eaf1f8", color: "#102c55", position: "relative", overflow: "hidden" }}>
     <Box aria-hidden sx={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 8% 12%, rgba(8,124,235,.17), transparent 30%), radial-gradient(circle at 94% 88%, rgba(30,167,225,.16), transparent 28%), linear-gradient(135deg,#f7fbff 0%,#e7f0f9 100%)" }} />
     <Box aria-hidden sx={{ position: "absolute", width: 360, height: 360, border: "70px solid rgba(8,124,235,.055)", borderRadius: "50%", right: -170, top: -170 }} />
 
     <Container maxWidth="lg" sx={{ position: "relative", zIndex: 1, py: { xs: 2, md: 4 } }}>
-      <Stack component="header" direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: { xs: 2, md: 3 } }}>
+      {!embedded && <Stack component="header" direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: { xs: 2, md: 3 } }}>
         <KalypsisLogo size={58} crop />
         <Stack direction="row" alignItems="center" spacing={0.75} sx={{ color: "#47627f" }}>
           <LockOutlinedIcon sx={{ fontSize: 17, color: "#087ceb" }} />
           <Typography sx={{ fontSize: 12.5, fontWeight: 750, display: { xs: "none", sm: "block" } }}>Ασφαλής αποστολή στοιχείων</Typography>
         </Stack>
-      </Stack>
+      </Stack>}
 
       {result ? <Paper elevation={0} sx={{ maxWidth: 650, mx: "auto", p: { xs: 3, sm: 5 }, borderRadius: 4, textAlign: "center", border: "1px solid #cfe0ef", boxShadow: "0 24px 70px rgba(11,48,92,.13)" }}>
         <CheckCircleRoundedIcon sx={{ fontSize: 68, color: "#159b59", mb: 1.5 }} />
@@ -107,7 +115,7 @@ export function InsuranceRequestPage() {
           <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, alignSelf: "flex-start", px: 1.25, py: 0.65, borderRadius: 5, bgcolor: "#dcecff", color: "#075fae", fontWeight: 850, fontSize: 12.5, mb: 2 }}>
             <ShieldOutlinedIcon sx={{ fontSize: 18 }} /> ΑΙΤΗΜΑ ΑΣΦΑΛΙΣΗΣ
           </Box>
-          <Typography component="h1" sx={{ fontSize: { xs: 32, sm: 42, md: 48 }, lineHeight: 1.06, letterSpacing: -1.3, fontWeight: 950, color: "#0b305c", maxWidth: 560 }}>
+          <Typography component={embedded ? "h2" : "h1"} sx={{ fontSize: { xs: 32, sm: 42, md: 48 }, lineHeight: 1.06, letterSpacing: -1.3, fontWeight: 950, color: "#0b305c", maxWidth: 560 }}>
             Πείτε μας τι θέλετε να ασφαλίσετε.
           </Typography>
           <Typography sx={{ mt: 2, fontSize: { xs: 16, md: 18 }, lineHeight: 1.65, color: "#536b89", maxWidth: 560 }}>
@@ -159,7 +167,7 @@ export function InsuranceRequestPage() {
         </Paper>
       </Box>}
 
-      <Typography component="footer" sx={{ textAlign: "center", color: "#70849d", fontSize: 11.5, mt: 3 }}>© {new Date().getFullYear()} KALYPSIS · Ασφαλής διαχείριση αιτημάτων</Typography>
+      {!embedded && <Typography component="footer" sx={{ textAlign: "center", color: "#70849d", fontSize: 11.5, mt: 3 }}>© {new Date().getFullYear()} KALYPSIS · Ασφαλής διαχείριση αιτημάτων</Typography>}
     </Container>
   </Box>;
 }

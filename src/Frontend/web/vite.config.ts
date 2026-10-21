@@ -13,7 +13,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": {
-        target: "http://localhost:5134",
+        target: process.env.KALYPSIS_DEV_API_TARGET ?? "http://localhost:5134",
         changeOrigin: true
       }
     }

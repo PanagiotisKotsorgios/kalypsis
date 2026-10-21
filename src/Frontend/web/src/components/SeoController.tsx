@@ -95,10 +95,14 @@ export function SeoController() {
   useEffect(() => {
     const normalizedPath = pathname.replace(/\/+$/, "") || "/";
     const privatePath = isPrivatePath(normalizedPath);
-    const meta = PUBLIC_META[normalizedPath] ?? (normalizedPath.startsWith("/download/releases/guide/")
+    const insurancePath = normalizedPath === "/insurance" || normalizedPath.startsWith("/insurance/") || normalizedPath === "/insurance-request";
+    const meta = insurancePath ? {
+      title: "KALYPSIS Insurance — Η κάλυψη που εμπιστεύεστε",
+      description: "Ασφάλιση αυτοκινήτου, κατοικίας, υγείας, ζωής και επιχείρησης. Ζητήστε προσφορά από το ασφαλιστικό γραφείο KALYPSIS.",
+    } : PUBLIC_META[normalizedPath] ?? (normalizedPath.startsWith("/download/releases/guide/")
       ? PUBLIC_META["/download/releases"]
       : null);
-    const indexable = !privatePath && !!meta;
+    const indexable = !privatePath && !insurancePath && !!meta;
     const title = meta?.title ?? (privatePath ? "Kalypsis — Ασφαλής πρόσβαση" : DEFAULT_TITLE);
     const description = meta?.description ?? DEFAULT_DESCRIPTION;
 

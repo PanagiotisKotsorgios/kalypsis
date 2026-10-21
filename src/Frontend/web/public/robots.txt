@@ -11,5 +11,7 @@ Disallow: /reset-password
 Disallow: /register
 Disallow: /sign/
 Disallow: /ermes-app
+Disallow: /insurance
+Disallow: /insurance-request
 
 Sitemap: https://mykalypsis.gr/sitemap.xml

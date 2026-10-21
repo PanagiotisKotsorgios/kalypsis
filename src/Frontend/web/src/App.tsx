@@ -1,4 +1,5 @@
 ﻿import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { lazy, Suspense } from "react";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import PeopleIcon from "@mui/icons-material/People";
 import DescriptionIcon from "@mui/icons-material/Description";
@@ -276,6 +277,7 @@ import { OfficeWebsiteOverviewPage } from "./pages/OfficeWebsiteOverviewPage";
 import { OfficeWebsiteAnalyticsPage } from "./pages/OfficeWebsiteAnalyticsPage";
 import { OfficePublicSitePage } from "./pages/OfficePublicSitePage";
 import { InsuranceRequestPage } from "./pages/InsuranceRequestPage";
+const InsuranceWebsitePage = lazy(() => import("./pages/insurance/InsuranceWebsitePage").then(module => ({ default: module.InsuranceWebsitePage })));
 import { CustomerPortalPage } from "./pages/CustomerPortalPage";
 import { AffiliateProgramPage } from "./pages/AffiliateProgramPage";
 import { PlatformTodoBoardPage } from "./pages/PlatformTodoBoardPage";
@@ -773,6 +775,7 @@ export default function App() {
     typeof window !== "undefined" && window.localStorage.getItem(overrideKey) === "1";
   const showPreloginNotice = !user
     && !location.pathname.startsWith("/app")
+    && !location.pathname.startsWith("/insurance")
     && !location.pathname.startsWith("/ermes-app");
   // Site-wide maintenance hides everything except platform staff
   const isPlatformStaff = user?.role === "PlatformAdmin" || user?.role === "PlatformEmployee";
@@ -825,6 +828,8 @@ export default function App() {
         <Route path="/site/:slug" element={<OfficePublicSitePage />} />
         {/* Intentionally unlisted: direct-link insurance request intake for KALYPSIS. */}
         <Route path="/insurance-request" element={<InsuranceRequestPage />} />
+        {/* Unlisted insurance-office site; excluded from public navigation and indexing. */}
+        <Route path="/insurance/*" element={<Suspense fallback={<PageLoader minHeight="100vh" />}><InsuranceWebsitePage /></Suspense>} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/download" element={<DownloadPage />} />
         <Route path="/download/releases" element={<DesktopReleasesPage />} />
@@ -1256,6 +1261,7 @@ export default function App() {
           /frontoffice-quoting plugin hides it as well. /download itself hides
           the download pill so it doesn't self-recurse. */}
       {!location.pathname.startsWith("/app")
+        && !location.pathname.startsWith("/insurance")
         && !location.pathname.startsWith("/ermes-app")
         && !location.pathname.startsWith("/frontoffice-quoting")
         && !location.pathname.startsWith("/insureone/partners")
