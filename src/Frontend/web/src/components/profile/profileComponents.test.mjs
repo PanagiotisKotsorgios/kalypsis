@@ -21,17 +21,19 @@ test("authenticated top bars hide the language toggle and use a compact red logo
     assert.match(source, /startIcon=\{<LogoutIcon fontSize="small" \/>\}/);
     assert.match(source, />\s*Έξοδος\s*<\/Button>/);
   }
-  assert.match(layout, /spacing=\{\{ xs: 1, md: 1\.75 \}\}/);
-  assert.match(layout, /ml: \{ xs: 1, sm: 1\.5 \}/);
+  assert.match(layout, /spacing=\{\{ xs: 1\.5, md: 2\.5 \}\}/);
+  assert.match(layout, /ml: \{ xs: 2, sm: 3 \}/);
 });
 
 test("notification dropdown follows the compact notification-board design", async () => {
   const source = await readFile(new URL("../NotificationBell.tsx", import.meta.url), "utf8");
-  for (const label of ["Ειδοποίηση", "Ημερομηνία", "Κατάσταση", "Όλες οι κατηγορίες"]) assert.equal(source.includes(label), true, label);
+  for (const label of ["Ειδοποίηση", "Ημερομηνία", "Κατάσταση"]) assert.equal(source.includes(label), true, label);
   assert.match(source, /sm: 560, md: 610/);
   assert.match(source, /bgcolor: "#173a60", color: "#fff"/);
   assert.match(source, /ArticleOutlinedIcon/);
-  assert.match(source, /categoryOptions/);
+  assert.equal(source.includes("Όλες οι κατηγορίες"), false);
+  assert.equal(source.includes('{ key: "info", label: "Ενημερώσεις" }'), false);
+  assert.equal(source.includes("#fff0cf"), false);
   assert.match(source, /FILTER_TONES/);
   assert.match(source, /bgcolor: active \? tone\.active : tone\.soft/);
 });
@@ -43,6 +45,11 @@ test("notifications page uses a compact responsive Kalypsis table and modal filt
   assert.match(source, /showInlineFilters = useMediaQuery/);
   assert.match(source, /Φίλτρα ειδοποιήσεων/);
   assert.match(source, /bgcolor: "#159b59", color: "#fff"/);
+  assert.match(source, /markSelectedRead/);
+  assert.match(source, /deleteSelected/);
+  assert.match(source, /Επιλογή όλων των ειδοποιήσεων της σελίδας/);
+  assert.equal(source.includes("Σύνολο ·"), false);
+  assert.equal(source.includes('label="Ανά σελίδα"'), false);
 });
 
 test("production profiles reuse client fields, pencil/save actions and compact tabs; filters retain API payloads", async () => {

@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import {
   Badge, Box, Button, Chip, ClickAwayListener, Divider, Fade, IconButton,
-  InputAdornment, MenuItem, Paper, Popper, Stack, TextField, Typography
+  InputAdornment, Paper, Popper, Stack, TextField, Typography
 } from "@mui/material";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import SearchIcon from "@mui/icons-material/Search";
@@ -10,14 +10,11 @@ import DoneAllIcon from "@mui/icons-material/DoneAll";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
-import FilterAltOutlinedIcon from "@mui/icons-material/FilterAltOutlined";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
 import {
-  NOTIFICATION_SEVERITY_COLOR,
-  NOTIFICATION_SEVERITY_TINT,
   notificationActionTarget,
   notificationCategoryLabel,
   notificationSearchText,
@@ -45,14 +42,13 @@ const FILTERS: { key: SeverityFilter; label: string }[] = [
   { key: "unread", label: "Μη αναγνωσμένες" },
   { key: "warning", label: "Προσοχή" },
   { key: "error", label: "Σφάλματα" },
-  { key: "success", label: "Επιτυχίες" },
-  { key: "info", label: "Ενημερώσεις" }
+  { key: "success", label: "Επιτυχίες" }
 ];
 
 const FILTER_TONES: Record<SeverityFilter, { soft: string; text: string; active: string }> = {
   all: { soft: "#e6f0fb", text: "#0b4f8a", active: "#0b3a6e" },
   unread: { soft: "#dcecff", text: "#075fae", active: "#087ceb" },
-  warning: { soft: "#fff0cf", text: "#8a5800", active: "#9a6200" },
+  warning: { soft: "#e9e8fb", text: "#494197", active: "#40378c" },
   error: { soft: "#fde7e5", text: "#a52820", active: "#b42318" },
   success: { soft: "#e3f4ea", text: "#126d40", active: "#147a46" },
   info: { soft: "#e5effb", text: "#174f88", active: "#1d4e89" }
@@ -75,7 +71,6 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [severity, setSeverity] = useState<SeverityFilter>("all");
-  const [category, setCategory] = useState("");
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -94,18 +89,14 @@ export function NotificationBell() {
     staleTime: 30_000
   });
   const all = listQ.data ?? [];
-  const categoryOptions = useMemo(() => [...new Set(all.map(n => n.category?.trim()).filter((value): value is string => !!value))]
-    .sort((a, b) => notificationCategoryLabel(a).localeCompare(notificationCategoryLabel(b), "el")), [all]);
-
   const filtered = useMemo(() => {
     const s = search.trim().toLowerCase();
     return all.filter(n => {
       if (severity === "unread" && n.isRead) return false;
       if (severity !== "all" && severity !== "unread" && notificationSeverity(n.category) !== severity) return false;
-      if (category && n.category !== category) return false;
       return !s || notificationSearchText(n).includes(s);
     });
-  }, [all, search, severity, category]);
+  }, [all, search, severity]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -234,7 +225,7 @@ export function NotificationBell() {
                   </Stack>
 
                   <Box sx={{ p: { xs: 1, sm: 1.25 }, borderBottom: "1px solid #dfe7f0", bgcolor: "#edf5fd" }}>
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                    <Stack direction="row">
                       <TextField
                         size="small"
                         fullWidth
@@ -253,12 +244,6 @@ export function NotificationBell() {
                         }}
                         sx={{ flex: 1, "& .MuiOutlinedInput-root": { height: 38, borderRadius: 1.75, fontSize: 13, bgcolor: "#fff" } }}
                       />
-                      <TextField select size="small" value={category} onChange={(event) => { setCategory(event.target.value); resetPaging(); }}
-                        aria-label="Κατηγορία ειδοποιήσεων" sx={{ width: { xs: "100%", sm: 185 }, "& .MuiOutlinedInput-root": { height: 38, borderRadius: 1.75, fontSize: 13, bgcolor: "#fff" } }}
-                        InputProps={{ startAdornment: <InputAdornment position="start"><FilterAltOutlinedIcon sx={{ fontSize: 20, color: "#173e69" }} /></InputAdornment> }}>
-                        <MenuItem value="">Όλες οι κατηγορίες</MenuItem>
-                        {categoryOptions.map(option => <MenuItem key={option} value={option}>{notificationCategoryLabel(option)}</MenuItem>)}
-                      </TextField>
                     </Stack>
 
                     <Stack direction="row" spacing={0.75} flexWrap={{ xs: "nowrap", sm: "wrap" }} sx={{ mt: 1.25, gap: 0.5, overflowX: { xs: "auto", sm: "visible" }, pb: 0.25 }}>
@@ -313,7 +298,7 @@ export function NotificationBell() {
 
                     {!listQ.isLoading && filtered.length === 0 && (
                       <Box sx={{ p: 4, textAlign: "center", color: "#456079", fontSize: 13 }}>
-                        {search || severity !== "all" || category
+                        {search || severity !== "all"
                           ? "Δεν βρέθηκαν ειδοποιήσεις με αυτά τα φίλτρα."
                           : t("notifications.empty")}
                       </Box>
@@ -322,7 +307,8 @@ export function NotificationBell() {
                     {paged.map((n) => {
                       const sev = notificationSeverity(n.category);
                       const isExpanded = expandedId === n.id;
-                      const sevColor = NOTIFICATION_SEVERITY_COLOR[sev];
+                      const tone = FILTER_TONES[sev];
+                      const sevColor = tone.active;
                       const target = notificationActionTarget(n.link);
                       return (
                         <Box
@@ -418,7 +404,7 @@ export function NotificationBell() {
                               sx={{
                                 display: { xs: "none", sm: "inline-flex" }, maxWidth: 118, justifySelf: "start",
                                 height: 24, fontSize: 9.75, fontWeight: 800, color: sevColor,
-                                bgcolor: NOTIFICATION_SEVERITY_TINT[sev], border: `1px solid ${sevColor}26`,
+                                bgcolor: tone.soft, border: `1px solid ${tone.text}35`,
                                 "& .MuiChip-label": { overflow: "hidden", textOverflow: "ellipsis" },
                                 "& .MuiChip-icon": { ml: 1, mr: -0.25 },
                               }} />

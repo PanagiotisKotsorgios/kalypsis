@@ -6,6 +6,7 @@ import {
   Button,
   Card,
   CardContent,
+  Checkbox,
   Chip,
   CircularProgress,
   Dialog,
@@ -43,8 +44,6 @@ import { Link as RouterLink } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
 import { SearchableTextField } from "../components/SearchableTextField";
 import {
-  NOTIFICATION_SEVERITY_COLOR,
-  NOTIFICATION_SEVERITY_TINT,
   notificationActionTarget,
   notificationCategoryLabel,
   notificationSearchText,
@@ -65,10 +64,17 @@ interface NotificationDto {
 type StatusFilter = "all" | "unread" | "read";
 type PeriodFilter = "all" | "today" | "7d" | "30d";
 type SortOrder = "newest" | "oldest";
+const PAGE_SIZE = 20;
 
 const NAVY = "#0b2545";
 const TEXT_MUTED = "#456079";
 const BORDER = "#d9e1ea";
+const NOTIFICATION_TONES = {
+  success: { color: "#147a46", soft: "#e3f4ea" },
+  warning: { color: "#494197", soft: "#e9e8fb" },
+  error: { color: "#b42318", soft: "#fde7e5" },
+  info: { color: "#1d4e89", soft: "#e5effb" }
+} as const;
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString("el-GR", {
@@ -101,8 +107,8 @@ export function NotificationsPage() {
   const [category, setCategory] = useState("all");
   const [period, setPeriod] = useState<PeriodFilter>("all");
   const [sort, setSort] = useState<SortOrder>("newest");
-  const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -136,8 +142,9 @@ export function NotificationsPage() {
 
   const deleteOne = useMutation({
     mutationFn: async (id: string) => api.delete(`/notifications/${id}`),
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       setMessage("Η ειδοποίηση διαγράφηκε.");
+      setSelectedIds(current => current.filter(value => value !== id));
       invalidate();
     },
     onError: (e) => setErr(extractErrorMessage(e))
@@ -148,6 +155,26 @@ export function NotificationsPage() {
     onSuccess: (res) => {
       setMessage(`Διαγράφηκαν ${res.data.count} αναγνωσμένες ειδοποιήσεις.`);
       setPage(1);
+      invalidate();
+    },
+    onError: (e) => setErr(extractErrorMessage(e))
+  });
+
+  const markSelectedRead = useMutation({
+    mutationFn: async (ids: string[]) => Promise.all(ids.map(id => api.post(`/notifications/${id}/read`))),
+    onSuccess: (_, ids) => {
+      setMessage(`${ids.length} ειδοποιήσεις σημειώθηκαν ως αναγνωσμένες.`);
+      setSelectedIds([]);
+      invalidate();
+    },
+    onError: (e) => setErr(extractErrorMessage(e))
+  });
+
+  const deleteSelected = useMutation({
+    mutationFn: async (ids: string[]) => Promise.all(ids.map(id => api.delete(`/notifications/${id}`))),
+    onSuccess: (_, ids) => {
+      setMessage(`Διαγράφηκαν ${ids.length} ειδοποιήσεις.`);
+      setSelectedIds([]);
       invalidate();
     },
     onError: (e) => setErr(extractErrorMessage(e))
@@ -185,9 +212,17 @@ export function NotificationsPage() {
       });
   }, [rows, search, status, category, period, sort]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
-  const pageRows = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const pageRows = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const pageIds = pageRows.map(row => row.id);
+  const selectedSet = new Set(selectedIds);
+  const allPageSelected = pageIds.length > 0 && pageIds.every(id => selectedSet.has(id));
+  const somePageSelected = pageIds.some(id => selectedSet.has(id));
+  const togglePage = () => setSelectedIds(current => allPageSelected
+    ? current.filter(id => !pageIds.includes(id))
+    : [...new Set([...current, ...pageIds])]);
+  const toggleOne = (id: string) => setSelectedIds(current => current.includes(id) ? current.filter(value => value !== id) : [...current, id]);
 
   const resetPage = () => setPage(1);
   const resetFilters = () => {
@@ -226,18 +261,13 @@ export function NotificationsPage() {
         <MenuItem value="newest">Νεότερες πρώτα</MenuItem><MenuItem value="oldest">Παλαιότερες πρώτα</MenuItem>
       </SearchableTextField>
     </FilterFieldWrap>
-    <FilterFieldWrap tip="Πόσες ειδοποιήσεις εμφανίζονται ανά σελίδα.">
-      <SearchableTextField select size="small" label="Ανά σελίδα" value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); resetPage(); }} sx={{ minWidth: stacked ? 0 : 120, width: "100%" }}>
-        {[10, 20, 50].map(size => <MenuItem key={size} value={size}>{size}</MenuItem>)}
-      </SearchableTextField>
-    </FilterFieldWrap>
   </Stack>;
 
   return (
     <Box>
       <Card
         sx={{
-          mb: 2.5,
+          mb: 1.25,
           overflow: "hidden",
           border: `1px solid ${BORDER}`,
           bgcolor: "background.paper",
@@ -245,7 +275,7 @@ export function NotificationsPage() {
           boxShadow: "0 10px 30px rgba(11,37,69,0.06)"
         }}
       >
-        <CardContent sx={{ p: { xs: 2.25, md: 3 } }}>
+        <CardContent sx={{ p: { xs: 1.5, md: 2 } }}>
           <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", md: "center" }} gap={2}>
             <Stack direction="row" spacing={1.5} alignItems="center">
               <Box
@@ -295,19 +325,13 @@ export function NotificationsPage() {
               </Button>
             </Stack>
           </Stack>
-
-          <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 2.25 }}>
-            <Chip label={`Σύνολο · ${rows.length}`} sx={{ bgcolor: "rgba(11,37,69,0.06)", color: NAVY, fontWeight: 800 }} />
-            <Chip label={`Μη αναγνωσμένες · ${unreadCount}`} sx={{ bgcolor: "rgba(30,167,225,0.10)", color: NAVY, fontWeight: 800 }} />
-            <Chip label={`Αναγνωσμένες · ${readCount}`} sx={{ bgcolor: "rgba(11,37,69,0.04)", color: TEXT_MUTED, fontWeight: 800 }} />
-          </Stack>
         </CardContent>
       </Card>
 
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
       {message && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setMessage(null)}>{message}</Alert>}
 
-      <Card sx={{ mb: 2, border: `1px solid ${BORDER}`, boxShadow: "0 10px 30px rgba(11,37,69,0.06)" }}>
+      <Card sx={{ mb: 1.25, border: `1px solid ${BORDER}`, boxShadow: "0 8px 22px rgba(11,37,69,0.05)" }}>
         <CardContent sx={{ px: 1.5, py: 1.25 }}>
           {showInlineFilters ? filterFields() : <Stack direction="row" justifyContent="flex-end">
             <Button variant="contained" startIcon={<FilterAltOutlinedIcon />} onClick={() => setFiltersOpen(true)} sx={{
@@ -364,21 +388,40 @@ export function NotificationsPage() {
         </Card>
       ) : (
         <Card sx={{ border: `1px solid ${BORDER}`, bgcolor: "#f8fafc", boxShadow: "0 10px 28px rgba(11,37,69,0.07)", overflow: "hidden" }}>
+          {selectedIds.length > 0 && <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ xs: "stretch", sm: "center" }} justifyContent="space-between" gap={1}
+            sx={{ px: 1.5, py: 1, bgcolor: "#e3effc", borderBottom: `1px solid ${BORDER}` }}>
+            <Typography sx={{ color: NAVY, fontWeight: 850, fontSize: 13 }}>{selectedIds.length} επιλεγμένες ειδοποιήσεις</Typography>
+            <Stack direction="row" spacing={0.75}>
+              <Button size="small" variant="contained" startIcon={<MarkEmailReadIcon />} disabled={markSelectedRead.isPending}
+                onClick={() => markSelectedRead.mutate(selectedIds)} sx={{ bgcolor: "#159b59", color: "#fff", fontWeight: 850, "&:hover": { bgcolor: "#117f49" } }}>
+                Σήμανση ως αναγνωσμένες
+              </Button>
+              <Button size="small" color="error" variant="contained" startIcon={<DeleteOutlineIcon />} disabled={deleteSelected.isPending}
+                onClick={() => { if (window.confirm(`Να διαγραφούν οι ${selectedIds.length} επιλεγμένες ειδοποιήσεις;`)) deleteSelected.mutate(selectedIds); }} sx={{ fontWeight: 850 }}>
+                Διαγραφή
+              </Button>
+            </Stack>
+          </Stack>}
           <TableContainer sx={{ overflowX: "auto" }}>
             <Table size="small" sx={{ minWidth: 880, tableLayout: "fixed" }} aria-label="Πίνακας ειδοποιήσεων">
               <TableHead>
                 <TableRow sx={{ bgcolor: "#12395f" }}>
-                  <TableCell sx={{ width: "45%", color: "#fff", fontWeight: 850, py: 1.1 }}>Ειδοποίηση</TableCell>
+                  <TableCell padding="checkbox" sx={{ width: 44, py: 0.4 }}>
+                    <Checkbox size="small" checked={allPageSelected} indeterminate={!allPageSelected && somePageSelected} onChange={togglePage}
+                      inputProps={{ "aria-label": "Επιλογή όλων των ειδοποιήσεων της σελίδας" }} sx={{ color: "#fff", "&.Mui-checked, &.MuiCheckbox-indeterminate": { color: "#fff" } }} />
+                  </TableCell>
+                  <TableCell sx={{ width: "42%", color: "#fff", fontWeight: 850, py: 1.1 }}>Ειδοποίηση</TableCell>
                   <TableCell sx={{ width: "17%", color: "#fff", fontWeight: 850 }}>Κατηγορία</TableCell>
                   <TableCell sx={{ width: "16%", color: "#fff", fontWeight: 850 }}>Ημερομηνία</TableCell>
                   <TableCell sx={{ width: "12%", color: "#fff", fontWeight: 850 }}>Κατάσταση</TableCell>
-                  <TableCell align="right" sx={{ width: "10%", color: "#fff", fontWeight: 850 }}>Ενέργειες</TableCell>
+                  <TableCell align="right" sx={{ width: "13%", color: "#fff", fontWeight: 850 }}>Ενέργειες</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {pageRows.map((n, index) => {
                   const sev = notificationSeverity(n.category);
-                  const color = NOTIFICATION_SEVERITY_COLOR[sev];
+                  const tone = NOTIFICATION_TONES[sev];
+                  const color = tone.color;
                   const target = notificationActionTarget(n.link);
                   return (
                     <TableRow key={n.id} hover sx={{
@@ -387,6 +430,9 @@ export function NotificationsPage() {
                       "&:hover": { bgcolor: "#dceafb" },
                       "& td": { borderColor: "#dce5ef", py: 0.85, px: 1.25, verticalAlign: "middle" }
                     }}>
+                      <TableCell padding="checkbox" sx={{ pl: "8px !important", pr: "4px !important" }}>
+                        <Checkbox size="small" checked={selectedSet.has(n.id)} onChange={() => toggleOne(n.id)} inputProps={{ "aria-label": `Επιλογή ειδοποίησης ${n.title}` }} />
+                      </TableCell>
                       <TableCell>
                         <Typography sx={{ color: NAVY, fontSize: 13.25, fontWeight: n.isRead ? 750 : 900, lineHeight: 1.3 }} noWrap title={n.title}>
                           {n.title}
@@ -397,7 +443,7 @@ export function NotificationsPage() {
                       </TableCell>
                       <TableCell>
                         <Chip size="small" label={notificationCategoryLabel(n.category)} sx={{
-                          maxWidth: "100%", height: 24, bgcolor: NOTIFICATION_SEVERITY_TINT[sev], color,
+                          maxWidth: "100%", height: 24, bgcolor: tone.soft, color,
                           border: `1px solid ${color}42`, fontWeight: 850, fontSize: 10.5,
                           "& .MuiChip-label": { overflow: "hidden", textOverflow: "ellipsis" }
                         }} />
@@ -438,7 +484,7 @@ export function NotificationsPage() {
           <Stack direction={{ xs: "column", sm: "row" }} alignItems="center" justifyContent="space-between" gap={1.25}
             sx={{ px: 1.5, py: 1.15, borderTop: `1px solid ${BORDER}`, bgcolor: "#edf3f9" }}>
             <Typography variant="body2" sx={{ color: TEXT_MUTED, fontWeight: 650 }}>
-              Εμφάνιση {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, filtered.length)} από {filtered.length}
+              Εμφάνιση {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} από {filtered.length}
             </Typography>
             <Pagination count={totalPages} page={safePage} onChange={(_, value) => setPage(value)} color="primary" shape="rounded" showFirstButton showLastButton size="small" />
           </Stack>
