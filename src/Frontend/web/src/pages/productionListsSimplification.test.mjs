@@ -38,6 +38,10 @@ test("production saved-filter reset clears selection and restores the button wit
   assert.match(saved, /activeName \?\? \(compact \? "Έτοιμα φίλτρα" : inline \? "Όνομα νέου φίλτρου" : "Αποθηκευμένα"\)/);
   assert.match(saved, /\[entity, clearRequestToken\]/);
   assert.match(saved, /showSaveMenuItem && <MenuItem/);
+  assert.match(saved, /aria-label=\{`Επεξεργασία \$\{r\.name\}`\}/);
+  assert.match(saved, /aria-label=\{`Διαγραφή \$\{r\.name\}`\} color="error"/);
+  assert.match(saved, /Αντικατάσταση με τις τρέχουσες επιλογές φίλτρων/);
+  assert.match(saved, /api\.put<SavedReport>\(`\/saved-reports\/\$\{editingReport\.id\}`/);
 });
 
 test("multi-value reports round-trip and legacy single selections upgrade without stale criteria", () => {

@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import {
   Alert, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  FormControlLabel, IconButton, Menu, MenuItem, Stack, Switch, TextField, Typography
+  FormControlLabel, IconButton, Menu, MenuItem, Stack, Switch, TextField, Tooltip, Typography
 } from "@mui/material";
 import BookmarkIcon from "@mui/icons-material/Bookmark";
 import BookmarkAddIcon from "@mui/icons-material/BookmarkAdd";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
+import EditIcon from "@mui/icons-material/EditOutlined";
 import SaveIcon from "@mui/icons-material/Save";
 import FilterAltOffIcon from "@mui/icons-material/FilterAltOff";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -77,6 +78,9 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad, onClear,
   const [saveOpen, setSaveOpen] = useState(false);
   const [form, setForm] = useState({ name: "", isShared: false });
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [editingReport, setEditingReport] = useState<SavedReport | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", isShared: false });
+  const [replaceFilters, setReplaceFilters] = useState(false);
   useEffect(() => { setActiveId(null); setAnchor(null); }, [entity, clearRequestToken]);
   const clearSelection = () => { setActiveId(null); setAnchor(null); onClear?.(); };
 
@@ -114,6 +118,26 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad, onClear,
         if (onClear) clearSelection();
         else setActiveId(null);
       }
+      void qc.invalidateQueries({ queryKey: ["saved-reports", entity] });
+    },
+  });
+
+  const update = useMutation({
+    mutationFn: async () => {
+      if (!editingReport) throw new Error("Δεν επιλέχθηκε αποθηκευμένο φίλτρο.");
+      const name = editForm.name.trim();
+      if (!name || name.length > 200) throw new Error("Συμπληρώστε όνομα φίλτρου έως 200 χαρακτήρες.");
+      return (await api.put<SavedReport>(`/saved-reports/${editingReport.id}`, {
+        name,
+        isShared: editForm.isShared,
+        filtersJson: replaceFilters ? JSON.stringify(currentFilters) : editingReport.filtersJson,
+      })).data;
+    },
+    onSuccess: (result) => {
+      qc.setQueryData<SavedReport[]>(["saved-reports", entity], previous =>
+        (previous ?? []).map(report => report.id === result.id ? result : report));
+      setEditingReport(null);
+      setReplaceFilters(false);
       void qc.invalidateQueries({ queryKey: ["saved-reports", entity] });
     },
   });
@@ -196,12 +220,30 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad, onClear,
               <Typography sx={{ flex: 1 }} noWrap>{r.name}</Typography>
               {r.isShared && <Chip size="small" label="κοινό" sx={{ height: 18, fontSize: 10 }} />}
               {r.ownedByMe && (
-                <IconButton size="small" onClick={(e) => {
-                  e.stopPropagation();
-                  if (confirm("Διαγραφή αποθηκευμένου;")) del.mutate(r.id);
-                }}>
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
+                <Stack direction="row" spacing={0.25}>
+                  <Tooltip title="Επεξεργασία αποθηκευμένου φίλτρου">
+                    <IconButton size="small" aria-label={`Επεξεργασία ${r.name}`} color="primary" onClick={(e) => {
+                      e.stopPropagation();
+                      update.reset();
+                      setEditingReport(r);
+                      setEditForm({ name: r.name, isShared: r.isShared });
+                      setReplaceFilters(false);
+                      setAnchor(null);
+                    }}>
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Διαγραφή αποθηκευμένου φίλτρου">
+                    <IconButton size="small" aria-label={`Διαγραφή ${r.name}`} color="error" sx={{
+                      color: "#d32f2f", "&:hover": { color: "#fff", bgcolor: "#c62828" },
+                    }} onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm(`Διαγραφή του αποθηκευμένου φίλτρου «${r.name}»;`)) del.mutate(r.id);
+                    }}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </Stack>
               )}
             </Stack>
           </MenuItem>
@@ -213,6 +255,39 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad, onClear,
         <SavedFilterForm name={form.name} isShared={form.isShared} onChange={setForm} pending={save.isPending}
           error={save.isError ? extractErrorMessage(save.error, "Δεν αποθηκεύτηκε το φίλτρο.") : null}
           onSave={() => save.mutate()} onClose={() => setSaveOpen(false)} />
+      </Dialog>
+
+      <Dialog open={!!editingReport} onClose={() => { if (!update.isPending) setEditingReport(null); }} maxWidth="xs" fullWidth>
+        <DialogTitle>Επεξεργασία αποθηκευμένου φίλτρου</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} mt={1}>
+            {update.isError && <Alert severity="error">{extractErrorMessage(update.error, "Δεν ενημερώθηκε το φίλτρο.")}</Alert>}
+            <TextField label="Όνομα φίλτρου" value={editForm.name} autoFocus disabled={update.isPending}
+              inputProps={{ maxLength: 200 }} fullWidth
+              onChange={event => setEditForm({ ...editForm, name: event.target.value })}
+              onKeyDown={event => {
+                if (event.key === "Enter" && editForm.name.trim() && !update.isPending) {
+                  event.preventDefault(); update.mutate();
+                }
+              }} />
+            <FormControlLabel control={<Switch checked={editForm.isShared} disabled={update.isPending}
+              onChange={event => setEditForm({ ...editForm, isShared: event.target.checked })} />}
+              label="Κοινό σε όλο το γραφείο" />
+            <FormControlLabel control={<Switch checked={replaceFilters} disabled={update.isPending}
+              onChange={event => setReplaceFilters(event.target.checked)} />}
+              label="Αντικατάσταση με τις τρέχουσες επιλογές φίλτρων" />
+            <Typography variant="caption" color="text.secondary">
+              Ενεργοποιήστε την αντικατάσταση μόνο αν θέλετε να αποθηκευτούν στο συγκεκριμένο φίλτρο οι επιλογές που εμφανίζονται τώρα στη σελίδα.
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditingReport(null)} disabled={update.isPending} color="error" variant="contained">Άκυρο</Button>
+          <Button variant="contained" startIcon={!update.isPending ? <SaveIcon /> : undefined}
+            onClick={() => update.mutate()} disabled={!editForm.name.trim() || update.isPending}>
+            {update.isPending ? <CircularProgress size={18} /> : "Αποθήκευση αλλαγών"}
+          </Button>
+        </DialogActions>
       </Dialog>
     </>
   );

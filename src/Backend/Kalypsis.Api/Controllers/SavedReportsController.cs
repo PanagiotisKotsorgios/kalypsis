@@ -26,6 +26,7 @@ public class SavedReportsController : ControllerBase
     public record ReportDto(Guid Id, string Entity, string Name, string FiltersJson, bool IsShared,
         bool OwnedByMe, DateTime CreatedAt);
     public record UpsertBody(string Entity, string Name, string FiltersJson, bool IsShared);
+    public record UpdateBody(string Name, string FiltersJson, bool IsShared);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ReportDto>>> List(
@@ -48,7 +49,7 @@ public class SavedReportsController : ControllerBase
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var userId = _current.UserId ?? throw AppException.Unauthorized();
-        if (string.IsNullOrWhiteSpace(body.Entity) || string.IsNullOrWhiteSpace(body.Name))
+        if (string.IsNullOrWhiteSpace(body.Entity) || string.IsNullOrWhiteSpace(body.Name) || body.Name.Trim().Length > 200)
             throw new AppException("saved_report_required", "Συμπληρώστε τύπο και όνομα.", 400);
         var r = new SavedReport
         {
@@ -62,6 +63,27 @@ public class SavedReportsController : ControllerBase
             CreatedAt = _clock.UtcNow
         };
         _db.SavedReports.Add(r);
+        await _db.SaveChangesAsync(ct);
+        return Ok(new ReportDto(r.Id, r.Entity, r.Name, r.FiltersJson, r.IsShared, true, r.CreatedAt));
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<ReportDto>> Update(Guid id, [FromBody] UpdateBody body, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var userId = _current.UserId ?? throw AppException.Unauthorized();
+        var name = body.Name?.Trim();
+        if (string.IsNullOrWhiteSpace(name) || name.Length > 200)
+            throw new AppException("saved_report_required", "Συμπληρώστε όνομα έως 200 χαρακτήρες.", 400);
+
+        var r = await _db.SavedReports.FirstOrDefaultAsync(
+            x => x.Id == id && x.TenantId == tenantId && x.OwnerUserId == userId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Report");
+
+        r.Name = name;
+        r.FiltersJson = string.IsNullOrWhiteSpace(body.FiltersJson) ? "{}" : body.FiltersJson;
+        r.IsShared = body.IsShared;
+        r.UpdatedAt = _clock.UtcNow;
         await _db.SaveChangesAsync(ct);
         return Ok(new ReportDto(r.Id, r.Entity, r.Name, r.FiltersJson, r.IsShared, true, r.CreatedAt));
     }
