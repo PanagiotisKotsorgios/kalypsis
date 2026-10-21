@@ -1,19 +1,23 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { defaultProductionListFilters } from "./productionListFilters.ts";
+import { defaultProductionListFilters, normalizeProductionListFilters, productionListParams, productionCatalogueCarrierIds, productionCarrierSelection, productionBrokerIds, replaceProductionSubcarriers } from "./productionListFilters.ts";
+import axios from "axios";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { createServer } from "vite";
 
 test("clearing a saved production filter restores fresh defaults without keeping previous criteria", () => {
   const today = new Date(2026, 9, 21, 1, 15);
   const initial = defaultProductionListFilters(today);
   assert.equal(initial.from, "2026-10-01"); assert.equal(initial.to, "2026-10-21");
-  const active = { ...initial, insuranceCompanyId: "carrier", producerId: "producer", status: "Active", coverCode: "GLASS", groupBy: "producer", dateField: "issued" };
+  const active = { ...initial, insuranceCompanyIds: ["carrier"], producerIds: ["producer"], statuses: ["Active"], coverCodes: ["GLASS"], groupBy: "producer", dateField: "issued" };
   const reset = defaultProductionListFilters(today);
-  for (const key of ["insuranceCompanyId", "producerId", "policyType", "vehicleUseCategory", "coverCode", "packageCode", "status"]) assert.equal(reset[key], "", key);
+  for (const key of ["insuranceCompanyIds", "producerIds", "policyTypes", "vehicleUseCategories", "coverCodes", "packageCodes", "statuses"]) assert.deepEqual(reset[key], [], key);
   assert.equal(reset.groupBy, "carrier"); assert.equal(reset.dateField, "start");
-  assert.equal(active.coverCode, "GLASS"); assert.notEqual(reset, initial);
-  const nextSaved = { ...defaultProductionListFilters(today), status: "Expired" };
-  assert.equal(nextSaved.insuranceCompanyId, ""); assert.equal(nextSaved.producerId, "");
+  assert.deepEqual(active.coverCodes, ["GLASS"]); assert.notEqual(reset, initial);
+  const nextSaved = normalizeProductionListFilters({ status: "Expired" }, today);
+  assert.deepEqual(nextSaved.insuranceCompanyIds, []); assert.deepEqual(nextSaved.producerIds, []);
   assert.equal(defaultProductionListFilters(new Date(2026, 10, 2)).from, "2026-11-01");
 });
 
@@ -24,7 +28,7 @@ test("production saved-filter reset clears selection and restores the button wit
   assert.match(source, /onClick=\{clearFilters\}/);
   assert.match(source, /setF\(defaultProductionListFilters\(\)\)/);
   assert.match(source, /setClearSavedFilterRequest\(value => value \+ 1\)/);
-  assert.match(source, /setF\(\{ \.\.\.defaultProductionListFilters\(\), \.\.\.next \}\)/);
+  assert.match(source, /setF\(normalizeProductionListFilters\(next\)\)/);
   const reset=saved.slice(saved.indexOf("const clearSelection"), saved.indexOf("const q ="));
   assert.match(reset, /setActiveId\(null\)/); assert.match(reset, /setAnchor\(null\)/); assert.match(reset, /onClear\?\.\(\)/);
   assert.doesNotMatch(reset, /api\.|del\.mutate/);
@@ -32,6 +36,51 @@ test("production saved-filter reset clears selection and restores the button wit
   assert.match(saved, /Χωρίς αποθηκευμένο φίλτρο \(προεπιλογή\)/);
   assert.match(saved, /activeName \?\? \(compact \? "Έτοιμα φίλτρα" : inline \? "Όνομα νέου φίλτρου" : "Αποθηκευμένα"\)/);
   assert.match(saved, /\[entity, clearRequestToken\]/);
+});
+
+test("multi-value reports round-trip and legacy single selections upgrade without stale criteria", () => {
+  const legacy = normalizeProductionListFilters({ insuranceCompanyId: "c1", producerId: "p1", policyType: "Auto", vehicleUseCategory: "Private", coverCode: "FIRE", packageCode: "BASIC", status: "Active", groupBy: "producer" });
+  assert.deepEqual(legacy.insuranceCompanyIds,["c1"]); assert.deepEqual(legacy.producerIds,["p1"]); assert.deepEqual(legacy.coverCodes,["FIRE"]);
+  const multi=normalizeProductionListFilters({ ...legacy, insuranceCompanyIds:["c1","c2","c1"], producerIds:["p1","p2"], coverCodes:["FIRE","GLASS"], statuses:["Active","Expired"] });
+  assert.deepEqual(normalizeProductionListFilters(JSON.parse(JSON.stringify(multi))),multi);
+  assert.deepEqual(multi.insuranceCompanyIds,["c1","c2"]);
+  assert.deepEqual(normalizeProductionListFilters({insuranceCompanyIds:[],insuranceCompanyId:"old"}).insuranceCompanyIds,[]);
+  for(const invalid of [null,[],42,"bad"]) assert.deepEqual(normalizeProductionListFilters(invalid).producerIds,[]);
+  const clean=normalizeProductionListFilters({producerIds:[" p1 ","",null,4,{},"p1"]}); assert.deepEqual(clean.producerIds,["p1"]);
+});
+
+test("list and export serialize repeated query parameters without losing punctuation in catalogue codes", async () => {
+  const filters=normalizeProductionListFilters({insuranceCompanyIds:["c1","c2"],producerIds:["p1","p2"],coverCodes:["FIRE","A,B + Γ"],groupBy:"producer"});
+  const params=productionListParams(filters);
+  const uri=axios.getUri({url:"/production-lists",params,paramsSerializer:{indexes:null}});
+  const query=new URL(uri,"http://localhost").searchParams;
+  assert.deepEqual(query.getAll("insuranceCompanyIds"),["c1","c2"]); assert.deepEqual(query.getAll("producerIds"),["p1","p2"]);
+  assert.deepEqual(query.getAll("coverCodes"),["FIRE","A,B + Γ"]); assert.equal(query.has("statuses"),false);
+  const source=await readFile(new URL("./ProductionListsPage.tsx",import.meta.url),"utf8");
+  assert.equal((source.match(/paramsSerializer: \{ indexes: null \}/g)??[]).length,2);
+  for(const key of ["insuranceCompanyIds","producerIds","policyTypes","vehicleUseCategories","coverCodes","packageCodes","statuses"]) assert.match(source,new RegExp(`values=\\{f\\.${key}\\}`));
+});
+
+test("multiple broker sub-selections retain independent carriers and expand all relevant catalogues", () => {
+  const carriers=[{id:"broker"},{id:"a",parentCompanyId:"broker"},{id:"b",parentCompanyId:"broker"},{id:"standalone"},{id:"broker2"},{id:"c",parentCompanyId:"broker2"}];
+  assert.deepEqual(productionCatalogueCarrierIds(["broker","standalone"],carriers),["broker","standalone","a","b"]);
+  assert.deepEqual(productionBrokerIds(["a","standalone","broker2"],carriers),["broker","broker2"]);
+  assert.deepEqual(replaceProductionSubcarriers(["broker","standalone","broker2"],["a","c"],carriers),["standalone","a","c"]);
+  assert.deepEqual(replaceProductionSubcarriers(["a","standalone","c"],[],carriers),["standalone","broker","broker2"]);
+  assert.deepEqual(productionCarrierSelection(["broker","standalone"],["broker","standalone","a"],carriers),["standalone","a"]);
+  assert.deepEqual(productionCarrierSelection(["a","standalone"],["a","standalone","broker"],carriers),["standalone","broker"]);
+});
+
+test("checkbox multi-select keeps saved selections visible while catalogues load", async () => {
+  const server = await createServer({server:{middlewareMode:true,hmr:false},ssr:{noExternal:[/@mui\//]},appType:"custom"});
+  try {
+    const {selectedMultiOptions, SearchableMultiSelect}=await server.ssrLoadModule("/src/components/SearchableMultiSelect.tsx");
+    assert.deepEqual(selectedMultiOptions(["a","b","a"],[{value:"a",label:"Ασφαλιστική Α"}]),[{value:"a",label:"Ασφαλιστική Α"},{value:"b",label:"b"}]);
+    const html=renderToStaticMarkup(createElement(SearchableMultiSelect,{label:"Ασφαλιστικές",values:["a","b"],options:[{value:"a",label:"Ασφαλιστική Α"},{value:"b",label:"Ασφαλιστική Β"}],onChange(){}}));
+    assert.match(html,/Ασφαλιστική Α/); assert.match(html,/\+1/); assert.match(html,/Καθαρισμός επιλογών/);
+    const source=await readFile(new URL("../components/SearchableMultiSelect.tsx",import.meta.url),"utf8");
+    assert.match(source, /multiple disableCloseOnSelect/); assert.match(source, /checked=\{state.selected\}/); assert.match(source, /onChange\(next.map\(option => option.value\)\)/);
+  } finally {await server.close();}
 });
 
 test("production list keeps a single green coverage action and removes redundant columns", async () => {

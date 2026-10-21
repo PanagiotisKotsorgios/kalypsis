@@ -17,14 +17,15 @@ import ViewColumnIcon from "@mui/icons-material/ViewColumn";
 import TuneIcon from "@mui/icons-material/Tune";
 import BookmarkAddIcon from "@mui/icons-material/BookmarkAdd";
 import FilterListIcon from "@mui/icons-material/FilterList";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { api } from "../api/client";
+import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { money, date } from "../utils/format";
 import { contractDurationLabel } from "../utils/contractDuration";
 import { SavedReportsButton } from "../components/SavedReportsButton";
-import { defaultProductionListFilters } from "./productionListFilters";
+import { defaultProductionListFilters, normalizeProductionListFilters, productionListParams, productionCatalogueCarrierIds, productionCarrierSelection, productionBrokerIds, replaceProductionSubcarriers } from "./productionListFilters";
+import { SearchableMultiSelect } from "../components/SearchableMultiSelect";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
 import {
@@ -60,7 +61,7 @@ interface Result {
   grand: GroupTotal;
 }
 
-const STATUSES = ["Prospect", "Draft", "Active", "Expired", "Cancelled", "Renewed", "PendingRenewal"];
+const STATUSES = ["Prospect", "Draft", "Active", "Expired", "Cancelled", "Renewed", "PendingRenewal", "Undelivered", "AwaitingIssue"];
 const PRODUCTION_FILTERS: FilterVisibilityDescriptor[] = [
   { key: "dateField", label: "Πεδίο ημερομηνίας" }, { key: "from", label: "Από" }, { key: "to", label: "Έως" },
   { key: "carrier", label: "Ασφαλιστική" }, { key: "subcarrier", label: "Υποασφαλιστική" },
@@ -102,14 +103,11 @@ export function ProductionListsPage() {
     queryKey: ["producers-prod-list"],
     queryFn: async () => (await api.get<Producer[]>("/producers")).data
   });
-  // Per-carrier params (what the operator sees once they pick a carrier).
-  const carrierParams = useQuery({
-    queryKey: ["company-parameters-prod-list", f.insuranceCompanyId],
-    queryFn: async () => (await api.get<ParamItem[]>("/company-parameters", {
-      params: { insuranceCompanyId: f.insuranceCompanyId }
-    })).data,
-    enabled: !!f.insuranceCompanyId,
-  });
+  const catalogueCarrierIds = productionCatalogueCarrierIds(f.insuranceCompanyIds, carriers.data ?? []);
+  const carrierParams = useQueries({ queries: catalogueCarrierIds.map(id => ({
+    queryKey: ["company-parameters-prod-list", id],
+    queryFn: async () => (await api.get<ParamItem[]>("/company-parameters", { params: { insuranceCompanyId: id } })).data,
+  })) });
 
   // Tenant-wide params: union of every carrier's Κλάδος/Χρήση/Κάλυψη/Πακέτο,
   // used as the fallback options when no carrier is selected. Distinct
@@ -119,6 +117,8 @@ export function ProductionListsPage() {
     queryKey: ["company-parameters-prod-list", "tenant-wide"],
     queryFn: async () => (await api.get<ParamItem[]>("/company-parameters")).data,
   });
+
+  const catalogueSource = f.insuranceCompanyIds.length ? carrierParams.flatMap(result => result.data ?? []) : (tenantParams.data ?? []);
 
   // Distinct helper — first entry wins for label. Every option keeps a
   // `key` so React can render them without warnings.
@@ -134,7 +134,7 @@ export function ProductionListsPage() {
   // filter server-side) or the item's own code (the backend accepts it
   // as a string and looks it up via Παραμετρικά). No hardcoded fallbacks.
   const branchOptions = useMemo(() => {
-    const source = f.insuranceCompanyId ? (carrierParams.data ?? []) : (tenantParams.data ?? []);
+    const source = catalogueSource;
     const rows = source
       .filter(p => p.kind === "Branch")
       .map(p => ({
@@ -142,11 +142,11 @@ export function ProductionListsPage() {
         value: p.policyType ?? p.code,
         label: p.name,
       }));
-    return f.insuranceCompanyId ? rows : distinctBy(rows);
-  }, [carrierParams.data, tenantParams.data, f.insuranceCompanyId]);
+    return distinctBy(rows);
+  }, [catalogueSource]);
 
   const useOptions = useMemo(() => {
-    const source = f.insuranceCompanyId ? (carrierParams.data ?? []) : (tenantParams.data ?? []);
+    const source = catalogueSource;
     const rows = source
       .filter(p => p.kind === "Use")
       .map(p => ({
@@ -156,44 +156,30 @@ export function ProductionListsPage() {
           : p.code,
         label: p.name,
       }));
-    return f.insuranceCompanyId ? rows : distinctBy(rows);
-  }, [carrierParams.data, tenantParams.data, f.insuranceCompanyId]);
+    return distinctBy(rows);
+  }, [catalogueSource]);
 
   const coverageOptions = useMemo(() => {
-    const source = f.insuranceCompanyId ? (carrierParams.data ?? []) : (tenantParams.data ?? []);
+    const source = catalogueSource;
     const rows = source
       .filter(p => p.kind === "Coverage" && p.code)
       .map(p => ({ key: `cov:${p.code}:${p.id}`, value: p.code, label: `${p.name} (${p.code})` }));
-    return f.insuranceCompanyId ? rows : distinctBy(rows);
-  }, [carrierParams.data, tenantParams.data, f.insuranceCompanyId]);
+    return distinctBy(rows);
+  }, [catalogueSource]);
 
   const packageOptions = useMemo(() => {
-    const source = f.insuranceCompanyId ? (carrierParams.data ?? []) : (tenantParams.data ?? []);
+    const source = catalogueSource;
     const rows = source
       .filter(p => p.kind === "Package" && p.code)
       .map(p => ({ key: `pkg:${p.code}:${p.id}`, value: p.code, label: `${p.name} (${p.code})` }));
-    return f.insuranceCompanyId ? rows : distinctBy(rows);
-  }, [carrierParams.data, tenantParams.data, f.insuranceCompanyId]);
+    return distinctBy(rows);
+  }, [catalogueSource]);
 
-  const params = {
-    from: f.from || undefined,
-    to: f.to || undefined,
-    // Omit when at the "start" default so the query key doesn't split
-    // the cache and old saved-report payloads keep matching.
-    dateField: f.dateField && f.dateField !== "start" ? f.dateField : undefined,
-    insuranceCompanyId: f.insuranceCompanyId || undefined,
-    producerId: f.producerId || undefined,
-    policyType: f.policyType || undefined,
-    vehicleUseCategory: f.vehicleUseCategory || undefined,
-    coverCode: f.coverCode.trim() || undefined,
-    packageCode: f.packageCode || undefined,
-    status: f.status || undefined,
-    groupBy: f.groupBy || undefined
-  };
+  const params = productionListParams(f);
 
   const q = useQuery({
     queryKey: ["production-list", params],
-    queryFn: async () => (await api.get<Result>("/production-lists", { params })).data
+    queryFn: async () => (await api.get<Result>("/production-lists", { params, paramsSerializer: { indexes: null } })).data
   });
   const officeProfile = useQuery({
     queryKey: ["agency-profile"],
@@ -459,7 +445,7 @@ export function ProductionListsPage() {
     const exportableKeys = activeKeys.filter(key => key !== "totals");
     const columnsParam = exportableKeys.length > 0 ? exportableKeys.join(",") : undefined;
     const res = await api.get("/production-lists/export", {
-      params: { ...params, format: fmt, columns: columnsParam },
+      params: { ...params, format: fmt, columns: columnsParam }, paramsSerializer: { indexes: null },
       responseType: "blob"
     });
     const mime = fmt === "csv"  ? "text/csv"
@@ -484,15 +470,14 @@ export function ProductionListsPage() {
     if (f.from) filterBits.push(`Από: ${f.from}`);
     if (f.to)   filterBits.push(`Έως: ${f.to}`);
     filterBits.push(`Πεδίο ημερομηνίας: ${f.dateField === "issued" ? "Ημερομηνία Έκδοσης" : f.dateField === "recorded" ? "Ημερομηνία Καταχώρησης" : "Ημερομηνία Έναρξης"}`);
-    const selectedCarrier = (carriers.data ?? []).find(c => c.id === f.insuranceCompanyId);
-    if (selectedCarrier) filterBits.push(`Εταιρία: ${selectedCarrier.name}`);
-    const selectedProducer = (producers.data ?? []).find(p => p.id === f.producerId);
-    if (selectedProducer) filterBits.push(`Συνεργάτης: ${selectedProducer.name}`);
-    if (f.status) filterBits.push(`Κατάσταση: ${f.status}`);
-    if (f.policyType) filterBits.push(`Κλάδος: ${f.policyType}`);
-    if (f.vehicleUseCategory) filterBits.push(`Χρήση: ${f.vehicleUseCategory}`);
-    if (f.coverCode) filterBits.push(`Κάλυψη: ${f.coverCode}`);
-    if (f.packageCode) filterBits.push(`Πακέτο: ${f.packageCode}`);
+    const labelValues = (values: string[], options: { value: string; label: string }[]) => values.map(value => options.find(option => option.value === value)?.label ?? value).join(", ");
+    if (f.insuranceCompanyIds.length) filterBits.push("Εταιρείες: " + labelValues(f.insuranceCompanyIds, (carriers.data ?? []).map(carrier => ({ value: carrier.id, label: carrier.name }))));
+    if (f.producerIds.length) filterBits.push("Συνεργάτες: " + labelValues(f.producerIds, (producers.data ?? []).map(producer => ({ value: producer.id, label: producer.name }))));
+    if (f.statuses.length) filterBits.push("Καταστάσεις: " + f.statuses.map(status => t(`policies.statuses.${status}`, status)).join(", "));
+    if (f.policyTypes.length) filterBits.push("Κλάδοι: " + labelValues(f.policyTypes, branchOptions));
+    if (f.vehicleUseCategories.length) filterBits.push("Χρήσεις: " + labelValues(f.vehicleUseCategories, useOptions));
+    if (f.coverCodes.length) filterBits.push("Καλύψεις: " + labelValues(f.coverCodes, coverageOptions));
+    if (f.packageCodes.length) filterBits.push("Πακέτα: " + labelValues(f.packageCodes, packageOptions));
     if (f.groupBy) {
       const dim = f.groupBy === "carrier"  ? "εταιρία"
                 : f.groupBy === "producer" ? "συνεργάτη"
@@ -546,7 +531,7 @@ export function ProductionListsPage() {
         </Stack>
         <Box sx={{ flex: 1 }} />
         <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap" sx={{ minWidth: 0, maxWidth: "100%" }}>
-          <SavedReportsButton entity="production-lists" currentFilters={f} onLoad={(next) => setF({ ...defaultProductionListFilters(), ...next })}
+          <SavedReportsButton entity="production-lists" currentFilters={f} onLoad={(next) => setF(normalizeProductionListFilters(next))}
             onClear={clearFilters} clearRequestToken={clearSavedFilterRequest}
             saveRequestToken={saveFilterRequest} />
           {/* «Ετήσια παραγωγή» button removed from the header. The report
@@ -683,15 +668,18 @@ export function ProductionListsPage() {
         </DialogActions>
       </Dialog>
 
+      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: .75 }}>
+        Πολλαπλές επιλογές: «ή» μέσα στο ίδιο πεδίο, συνδυασμός μεταξύ πεδίων. Κενή επιλογή σημαίνει χωρίς περιορισμό.
+      </Typography>
       <ResponsiveFilterPanel
         compactAt="xl"
         compactButtonPlacement="external"
         compactOpen={compactFiltersOpen}
         onCompactOpenChange={setCompactFiltersOpen}
         activeCount={[
-          f.insuranceCompanyId, f.producerId, f.policyType, f.vehicleUseCategory,
-          f.coverCode, f.packageCode, f.status,
-        ].filter(Boolean).length}
+          f.insuranceCompanyIds, f.producerIds, f.policyTypes, f.vehicleUseCategories,
+          f.coverCodes, f.packageCodes, f.statuses,
+        ].filter(values => values.length > 0).length}
         title="Φίλτρα λίστας παραγωγής"
         cardSx={{ py: .85, mb: 1.25 }}
       >
@@ -717,78 +705,37 @@ export function ProductionListsPage() {
             value={f.from} onChange={e => setF({ ...f, from: e.target.value })} />}
           {filterVisibility.visible("to") && <TextField type="date" size="small" InputLabelProps={{ shrink: true }} label={t("productionList.to")}
             value={f.to} onChange={e => setF({ ...f, to: e.target.value })} />}
-          {filterVisibility.visible("carrier") && <SearchableSelect
-            label={t("productionList.carrier")}
-            value={f.insuranceCompanyId}
-            onChange={(v) => setF({ ...f, insuranceCompanyId: v, policyType: "", vehicleUseCategory: "", coverCode: "", packageCode: "" })}
-            emptyLabel={t("common.all")}
-            options={(carriers.data ?? []).filter(c => !c.parentCompanyId).map(c => ({
-              value: c.id, label: c.name, hint: c.isBroker ? "πρακτορείο" : undefined,
-            }))}
-          />}
+          {filterVisibility.visible("carrier") && <SearchableMultiSelect label={t("productionList.carrier")}
+            values={f.insuranceCompanyIds} onChange={values => setF({ ...f, insuranceCompanyIds: productionCarrierSelection(f.insuranceCompanyIds, values, carriers.data ?? []) })}
+            options={(carriers.data ?? []).map(carrier => ({
+              value: carrier.id, label: carrier.name,
+              hint: carrier.parentCompanyId ? "Υποασφαλιστική" : carrier.isBroker ? "Πρακτορείο · περιλαμβάνει τις υποασφαλιστικές του" : undefined,
+            }))} />}
           {(() => {
             const carrierData = carriers.data ?? [];
-            const selected = carrierData.find(c => c.id === f.insuranceCompanyId);
-            // Show the sub-picker when EITHER the broker is selected OR a
-            // sub of the broker is selected — so the user can switch
-            // between subs without going back to the broker first.
-            const broker = selected?.isBroker
-              ? selected
-              : selected?.parentCompanyId
-                ? carrierData.find(c => c.id === selected.parentCompanyId)
-                : null;
-            if (!broker?.isBroker || !filterVisibility.visible("subcarrier")) return null;
-            const subs = carrierData.filter(c => c.parentCompanyId === broker.id);
-            const subValue = selected?.id !== broker.id ? selected?.id ?? "" : "";
-            return (
-              <SearchableSelect
-                label="Υποασφαλιστική"
-                value={subValue}
-                onChange={(v) => setF({ ...f, insuranceCompanyId: v || broker.id })}
-                emptyLabel="— όλες οι υποασφαλιστικές —"
-                options={subs.map(s => ({ value: s.id, label: s.name }))}
-              />
-            );
+            const brokers = productionBrokerIds(f.insuranceCompanyIds, carrierData);
+            if (!brokers.length || !filterVisibility.visible("subcarrier")) return null;
+            const subs = carrierData.filter(carrier => carrier.parentCompanyId && brokers.includes(carrier.parentCompanyId));
+            return <SearchableMultiSelect label="Υποασφαλιστικές"
+              values={f.insuranceCompanyIds.filter(id => subs.some(carrier => carrier.id === id))}
+              onChange={values => setF({ ...f, insuranceCompanyIds: replaceProductionSubcarriers(f.insuranceCompanyIds, values, carrierData) })}
+              helperText="Κενή επιλογή: όλες οι υποασφαλιστικές του αντίστοιχου πρακτορείου."
+              options={subs.map(carrier => ({ value: carrier.id, label: carrier.name, hint: carrierData.find(parent => parent.id === carrier.parentCompanyId)?.name }))} />;
           })()}
-          {filterVisibility.visible("producer") && <SearchableSelect
-            label={t("productionList.producer")}
-            value={f.producerId} onChange={(v) => setF({ ...f, producerId: v })}
-            emptyLabel={t("common.all")}
-            options={(producers.data ?? []).map(p => ({ value: p.id, label: p.name }))}
-          />}
-          {filterVisibility.visible("type") && <SearchableSelect
-            label={t("productionList.type")}
-            value={f.policyType} onChange={(v) => setF({ ...f, policyType: v })}
-            disabled={branchOptions.length === 0}
-            emptyLabel={t("common.all")}
-            options={branchOptions.map(o => ({ value: o.value, label: o.label }))}
-          />}
-          {filterVisibility.visible("use") && <SearchableSelect
-            label="Χρήση οχήματος"
-            value={f.vehicleUseCategory} onChange={(v) => setF({ ...f, vehicleUseCategory: v })}
-            disabled={useOptions.length === 0}
-            emptyLabel={t("common.all")}
-            options={useOptions.map(o => ({ value: o.value, label: o.label }))}
-          />}
-          {filterVisibility.visible("coverage") && <SearchableSelect
-            label="Κάλυψη"
-            value={f.coverCode} onChange={(v) => setF({ ...f, coverCode: v })}
-            disabled={coverageOptions.length === 0}
-            emptyLabel={t("common.all")}
-            options={coverageOptions.map(o => ({ value: o.value, label: o.label }))}
-          />}
-          {filterVisibility.visible("package") && <SearchableSelect
-            label="Πακέτο"
-            value={f.packageCode} onChange={(v) => setF({ ...f, packageCode: v })}
-            disabled={packageOptions.length === 0}
-            emptyLabel={t("common.all")}
-            options={packageOptions.map(o => ({ value: o.value, label: o.label }))}
-          />}
-          {filterVisibility.visible("status") && <SearchableTextField size="small" label={t("productionList.status")} value={f.status}
-            onChange={e => setF({ ...f, status: e.target.value })}>
-            <MenuItem value="">{t("common.all")}</MenuItem>
-            {STATUSES.map(s => <MenuItem key={s} value={s}>{String(t(`policies.statuses.${s}`, s))}</MenuItem>)}
-          </SearchableTextField>}
+          {filterVisibility.visible("producer") && <SearchableMultiSelect label={t("productionList.producer")}
+            values={f.producerIds} onChange={values => setF({ ...f, producerIds: values })}
+            options={(producers.data ?? []).map(producer => ({ value: producer.id, label: producer.name }))} />}
+          {filterVisibility.visible("type") && <SearchableMultiSelect label={t("productionList.type")}
+            values={f.policyTypes} onChange={values => setF({ ...f, policyTypes: values })} options={branchOptions} />}
+          {filterVisibility.visible("use") && <SearchableMultiSelect label="Χρήση οχήματος"
+            values={f.vehicleUseCategories} onChange={values => setF({ ...f, vehicleUseCategories: values })} options={useOptions} />}
+          {filterVisibility.visible("coverage") && <SearchableMultiSelect label="Κάλυψη"
+            values={f.coverCodes} onChange={values => setF({ ...f, coverCodes: values })} options={coverageOptions} />}
+          {filterVisibility.visible("package") && <SearchableMultiSelect label="Πακέτο"
+            values={f.packageCodes} onChange={values => setF({ ...f, packageCodes: values })} options={packageOptions} />}
+          {filterVisibility.visible("status") && <SearchableMultiSelect label={t("productionList.status")}
+            values={f.statuses} onChange={values => setF({ ...f, statuses: values })}
+            options={STATUSES.map(status => ({ value: status, label: t(`policies.statuses.${status}`, status) }))} />}
           {filterVisibility.visible("groupBy") && <SearchableTextField size="small" label={t("productionList.groupBy")} value={f.groupBy}
             onChange={e => setF({ ...f, groupBy: e.target.value })}>
             <MenuItem value="">{t("productionList.noGrouping")}</MenuItem>
@@ -803,6 +750,7 @@ export function ProductionListsPage() {
         </Box>
       </ResponsiveFilterPanel>
 
+      {q.isError && <Alert severity="error" sx={{ mb: 1 }} action={<Button onClick={() => void q.refetch()}>Επανάληψη</Button>}>{extractErrorMessage(q.error)}</Alert>}
       {q.isLoading ? <CircularProgress /> : !q.data ? null : (
         <>
           {/* Grand totals strip */}

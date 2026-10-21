@@ -34,7 +34,14 @@ public record ProductionFilters(
     //   "issued"   → Policy.IssuedAt (carrier issuance / Έκδοση)
     //   "recorded" → Policy.CreatedAt (row insert / Καταχώρηση)
     // Anything else (or null) falls back to "start".
-    string? DateField = null)
+    string? DateField = null,
+    IReadOnlyList<Guid>? InsuranceCompanyIds = null,
+    IReadOnlyList<Guid>? ProducerIds = null,
+    IReadOnlyList<string>? PolicyTypes = null,
+    IReadOnlyList<PolicyStatus>? Statuses = null,
+    IReadOnlyList<string>? VehicleUseCategories = null,
+    IReadOnlyList<string>? CoverCodes = null,
+    IReadOnlyList<string>? PackageCodes = null)
 {
     // Frontend Παραμετρικά dropdowns send either the strict enum value
     // (when the operator wired policyType / vehicleUseCategory on the
@@ -177,51 +184,29 @@ public static class ProductionListBuilder
             if (f.From.HasValue) query = query.Where(p => p.StartDate >= f.From);
             if (f.To.HasValue)   query = query.Where(p => p.StartDate <= f.To);
         }
-        if (f.InsuranceCompanyId.HasValue)
+        query = await ProductionMultiFilters.ApplyAsync(_db, query, f, ct);
+        var requestedCovers = ProductionMultiFilters.Codes(f.CoverCode, f.CoverCodes);
+        var requestedPackages = ProductionMultiFilters.Codes(f.PackageCode, f.PackageCodes);
+        var policies = await query.OrderByDescending(p => p.StartDate)
+            .Take(requestedCovers.Length == 0 && requestedPackages.Length == 0 ? 5000 : int.MaxValue).ToListAsync(ct);
+        if (requestedCovers.Length > 0)
         {
-            // Cascade: when a broker is selected, also include all of its subs
-            // so the production list reflects the whole hierarchy. When a sub
-            // (or a standalone carrier) is selected, only its own policies.
-            var carrierIds = await _db.InsuranceCompanies
-                .Where(c => c.DeletedAt == null
-                    && (c.Id == f.InsuranceCompanyId.Value
-                        || c.ParentCompanyId == f.InsuranceCompanyId.Value))
-                .Select(c => c.Id)
-                .ToListAsync(ct);
-            query = query.Where(p => carrierIds.Contains(p.InsuranceCompanyId));
+            var codes = requestedCovers.Select(code => code.ToUpperInvariant()).ToArray();
+            var normalizedPolicyIds = (await _db.PolicyCovers
+                .Where(c => c.TenantId == tenantId && c.DeletedAt == null && codes.Contains(c.CoverCode.ToUpper()))
+                .Select(c => c.PolicyId).Distinct().ToListAsync(ct)).ToHashSet();
+            policies = policies.Where(p => normalizedPolicyIds.Contains(p.Id)
+                || requestedCovers.Contains(ExtractCoverCode(p.SpecsJson) ?? "", StringComparer.OrdinalIgnoreCase)
+                || (ExtractCoverCode(p.SpecsJson)?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Any(code => requestedCovers.Contains(code, StringComparer.OrdinalIgnoreCase)) ?? false)
+                || (p.CarrierCoverageCode?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Any(code => requestedCovers.Contains(code, StringComparer.OrdinalIgnoreCase)) ?? false)).ToList();
         }
-        if (f.ProducerId.HasValue)         query = query.Where(p => p.ProducerId == f.ProducerId);
-        if (f.PolicyType.HasValue)         query = query.Where(p => p.PolicyType == f.PolicyType);
-        else if (!string.IsNullOrWhiteSpace(f.BranchCodeRaw))
-            // Παραμετρικά without a wired PolicyType enum — filter by
-            // the carrier's own Κλάδος token (e.g. LANCA «ΑΥΤΟ»).
-            query = query.Where(p => p.CarrierBranchCode == f.BranchCodeRaw);
-        if (f.Status.HasValue)             query = query.Where(p => p.Status == f.Status);
-        if (f.VehicleUseCategory.HasValue) query = query.Where(p => p.VehicleUseCategory == f.VehicleUseCategory);
-        else if (!string.IsNullOrWhiteSpace(f.UseCodeRaw))
-            // Παραμετρικά without a wired VehicleUseCategory enum — filter
-            // by the carrier's own token that the bridge captured at import.
-            query = query.Where(p => p.CarrierUseCode == f.UseCodeRaw);
-
-        var policies = await query.OrderByDescending(p => p.StartDate).Take(5000).ToListAsync(ct);
-        var requestedCover = CleanCode(f.CoverCode);
-        if (requestedCover is not null)
-            // Match either SpecsJson (legacy — manual policies from before
-            // CarrierCoverageCode existed) or CarrierCoverageCode, which
-            // bridge imports write as a comma-separated list of raw codes.
+        if (requestedPackages.Length > 0)
             policies = policies.Where(p =>
-                string.Equals(ExtractCoverCode(p.SpecsJson), requestedCover, StringComparison.OrdinalIgnoreCase)
-                || (p.CarrierCoverageCode is not null
-                    && p.CarrierCoverageCode.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                        .Any(c => string.Equals(c, requestedCover, StringComparison.OrdinalIgnoreCase)))).ToList();
-        var requestedPackage = CleanCode(f.PackageCode);
-        if (requestedPackage is not null)
-            // Match either SpecsJson (manual policies from before the column
-            // existed) or the indexed CarrierPackageCode column that the
-            // bridge populates on import.
-            policies = policies.Where(p =>
-                string.Equals(ExtractPackageCode(p.SpecsJson), requestedPackage, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(p.CarrierPackageCode, requestedPackage, StringComparison.OrdinalIgnoreCase)).ToList();
+                requestedPackages.Contains(ExtractPackageCode(p.SpecsJson) ?? "", StringComparer.OrdinalIgnoreCase)
+                || requestedPackages.Contains(p.CarrierPackageCode ?? "", StringComparer.OrdinalIgnoreCase)).ToList();
+        policies = policies.Take(5000).ToList();
 
         // Pull active commission rules so partner commission % can be read from
         // parameterization (NOT the bridge). Most-specific rule wins.

@@ -23,14 +23,20 @@ public class ProductionListsController : ControllerBase
         [FromQuery] string? policyType, [FromQuery] PolicyStatus? status,
         [FromQuery] string? vehicleUseCategory, [FromQuery] string? coverCode,
         [FromQuery] string? packageCode,
-        [FromQuery] string? groupBy, [FromQuery] string? dateField, CancellationToken ct)
+        [FromQuery] string? groupBy, [FromQuery] string? dateField,
+        [FromQuery] Guid[]? insuranceCompanyIds, [FromQuery] Guid[]? producerIds,
+        [FromQuery] string[]? policyTypes, [FromQuery] PolicyStatus[]? statuses,
+        [FromQuery] string[]? vehicleUseCategories, [FromQuery] string[]? coverCodes, [FromQuery] string[]? packageCodes,
+        CancellationToken ct)
         => Ok(await _mediator.Send(new GetProductionListQuery(
             new ProductionFilters(from, to, insuranceCompanyId, producerId,
                 ProductionFilters.ParseBranch(policyType), status,
                 ProductionFilters.ParseUse(vehicleUseCategory), coverCode, groupBy, packageCode,
                 ProductionFilters.RawUseFallback(vehicleUseCategory),
                 ProductionFilters.RawBranchFallback(policyType),
-                DateField: dateField)), ct));
+                DateField: dateField, InsuranceCompanyIds: insuranceCompanyIds, ProducerIds: producerIds,
+                PolicyTypes: policyTypes, Statuses: statuses, VehicleUseCategories: vehicleUseCategories,
+                CoverCodes: coverCodes, PackageCodes: packageCodes)), ct));
 
     [HttpGet("export")]
     public async Task<IActionResult> Export(
@@ -41,6 +47,9 @@ public class ProductionListsController : ControllerBase
         [FromQuery] string? packageCode,
         [FromQuery] string? groupBy, [FromQuery] string? dateField,
         [FromQuery] string? columns,
+        [FromQuery] Guid[]? insuranceCompanyIds, [FromQuery] Guid[]? producerIds,
+        [FromQuery] string[]? policyTypes, [FromQuery] PolicyStatus[]? statuses,
+        [FromQuery] string[]? vehicleUseCategories, [FromQuery] string[]? coverCodes, [FromQuery] string[]? packageCodes,
         [FromQuery] string format = "csv",
         CancellationToken ct = default)
     {
@@ -50,7 +59,9 @@ public class ProductionListsController : ControllerBase
                 ProductionFilters.ParseUse(vehicleUseCategory), coverCode, groupBy, packageCode,
                 ProductionFilters.RawUseFallback(vehicleUseCategory),
                 ProductionFilters.RawBranchFallback(policyType),
-                DateField: dateField),
+                DateField: dateField, InsuranceCompanyIds: insuranceCompanyIds, ProducerIds: producerIds,
+                PolicyTypes: policyTypes, Statuses: statuses, VehicleUseCategories: vehicleUseCategories,
+                CoverCodes: coverCodes, PackageCodes: packageCodes),
             format, columns), ct);
         return File(result.Content, result.MimeType, result.FileName);
     }
