@@ -11,6 +11,8 @@ test("document details use the shared centred profile-dialog presentation", () =
   assert.match(documentsSource, /maxWidth="lg"/);
   assert.match(documentsSource, /bgcolor: "#0b305c"/);
   assert.match(documentsSource, /Κλείσιμο καρτέλας εγγράφου/);
+  assert.match(documentsSource, /caretColor: "#fff"/);
+  assert.match(documentsSource, /MuiInputBase-input[\s\S]*?color: "#fff"/);
   assert.doesNotMatch(documentsSource, /<Drawer\s/);
 });
 

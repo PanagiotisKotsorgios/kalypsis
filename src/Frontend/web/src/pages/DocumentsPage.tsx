@@ -554,6 +554,13 @@ function DocumentPreviewDialog({ doc, canEdit, onClose, onChanged }: {
                     autoFocus
                     value={fileName}
                     onChange={(e) => setFileName(e.target.value)}
+                    sx={{
+                      "& .MuiInputBase-root": { bgcolor: "rgba(255,255,255,.1)", color: "#fff" },
+                      "& .MuiInputBase-input": { color: "#fff", caretColor: "#fff", fontWeight: 750 },
+                      "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,.7)" },
+                      "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#fff" },
+                      "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#fff", borderWidth: 2 },
+                    }}
                   />
                 </Stack>
               ) : (
