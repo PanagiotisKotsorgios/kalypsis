@@ -575,7 +575,7 @@ public class ExportProductionListHandler : IRequestHandler<ExportProductionListQ
         // the same office header and total-row styling as every other list).
         if (!string.IsNullOrWhiteSpace(q.Columns))
         {
-            var sheet = await BuildSelectedSheetAsync(rows, q.Columns!, ct);
+            var sheet = await BuildSelectedSheetAsync(rows, q.Columns!, q.Filters, ct);
             return q.Format.ToLowerInvariant() switch
             {
                 "csv"  => new ExportResult(ExportFormatter.BuildCsv(sheet), "text/csv", $"production-{ts}.csv"),
@@ -598,7 +598,11 @@ public class ExportProductionListHandler : IRequestHandler<ExportProductionListQ
         };
     }
 
-    private async Task<Sheet> BuildSelectedSheetAsync(List<ProductionRowDto> rows, string columns, CancellationToken ct)
+    private async Task<Sheet> BuildSelectedSheetAsync(
+        List<ProductionRowDto> rows,
+        string columns,
+        ProductionFilters filters,
+        CancellationToken ct)
     {
         var all = new (string Key, string Label)[]
         {
@@ -614,12 +618,18 @@ public class ExportProductionListHandler : IRequestHandler<ExportProductionListQ
         var selected = all.Where(x => requested.Contains(x.Key, StringComparer.OrdinalIgnoreCase)).ToArray();
         if (selected.Length == 0) selected = all;
 
-        var groups = GroupForExport(rows);
+        var groups = GroupForExport(rows, filters.GroupBy);
         var output = new List<IReadOnlyList<string>>();
+        if (groups.Count == 0)
+        {
+            output.AddRange(rows.Select(row => selected.Select(x => Value(x.Key, row)).ToArray()));
+        }
         foreach (var group in groups)
         {
-            output.AddRange(group.Select(row => selected.Select(x => Value(x.Key, row)).ToArray()));
-            output.Add(selected.Select(x => SummaryValue(x.Key, group.Key, group.ToList())).ToArray());
+            var dimension = GroupDimensionLabel(filters.GroupBy);
+            output.Add(selected.Select((_, index) => index == 0 ? $"ΟΜΑΔΑ: {dimension} · {group.Key}" : "").ToArray());
+            output.AddRange(group.Rows.Select(row => selected.Select(x => Value(x.Key, row)).ToArray()));
+            output.Add(selected.Select(x => SummaryValue(x.Key, group.Key, group.Rows)).ToArray());
         }
         output.Add(selected.Select(x => SummaryValue(x.Key, "", rows)).ToArray());
 
@@ -636,8 +646,10 @@ public class ExportProductionListHandler : IRequestHandler<ExportProductionListQ
             office?.Phone ?? tenant?.ContactPhone, office?.Email ?? tenant?.ContactEmail,
             string.IsNullOrWhiteSpace(tenant?.VatNumber) ? null : $"ΑΦΜ: {tenant!.VatNumber}"
         }.Where(x => !string.IsNullOrWhiteSpace(x));
+        var filterSummary = await BuildFilterSummaryAsync(filters, rows.Count, ct);
         return new Sheet("Λίστες παραγωγής", selected.Select(x => x.Label).ToArray(), output,
-            $"{rows.Count} συμβόλαια", label, string.Join(" · ", details));
+            filterSummary, label, string.Join(" · ", details),
+            HeaderTitle: string.IsNullOrWhiteSpace(label) ? "Λίστες παραγωγής" : label);
 
         static string Value(string key, ProductionRowDto r) => key switch
         {
@@ -682,9 +694,98 @@ public class ExportProductionListHandler : IRequestHandler<ExportProductionListQ
         static string F(decimal value) => value.ToString("F2", CultureInfo.InvariantCulture);
     }
 
-    // Rows are always written carrier-by-carrier (alphabetical), customer-alphabetical
-    // within each carrier, with a subtotal line per carrier and a grand total at the
-    // end. This mirrors how the user reads paper παραγωγή lists at the agency.
+    private async Task<string> BuildFilterSummaryAsync(ProductionFilters filters, int rowCount, CancellationToken ct)
+    {
+        var bits = new List<string> { $"{rowCount} συμβόλαια" };
+        if (filters.From.HasValue) bits.Add($"Από: {filters.From.Value:dd/MM/yyyy}");
+        if (filters.To.HasValue) bits.Add($"Έως: {filters.To.Value:dd/MM/yyyy}");
+        bits.Add($"Πεδίο ημερομηνίας: {filters.DateField?.ToLowerInvariant() switch
+        {
+            "issued" => "Ημερομηνία Έκδοσης",
+            "recorded" => "Ημερομηνία Καταχώρησης",
+            _ => "Ημερομηνία Έναρξης"
+        }}");
+        if (filters.InsuranceCompanyId.HasValue)
+        {
+            var carrier = await _db.InsuranceCompanies.AsNoTracking()
+                .Where(x => x.Id == filters.InsuranceCompanyId.Value)
+                .Select(x => x.Name)
+                .FirstOrDefaultAsync(ct);
+            if (!string.IsNullOrWhiteSpace(carrier)) bits.Add($"Εταιρεία: {carrier}");
+        }
+        if (filters.ProducerId.HasValue)
+        {
+            var producer = await _db.Producers.AsNoTracking()
+                .Where(x => x.Id == filters.ProducerId.Value)
+                .Select(x => x.Name)
+                .FirstOrDefaultAsync(ct);
+            if (!string.IsNullOrWhiteSpace(producer)) bits.Add($"Συνεργάτης: {producer}");
+        }
+        if (filters.PolicyType.HasValue) bits.Add($"Κλάδος: {filters.PolicyType}");
+        else if (!string.IsNullOrWhiteSpace(filters.BranchCodeRaw)) bits.Add($"Κλάδος: {filters.BranchCodeRaw}");
+        if (filters.Status.HasValue) bits.Add($"Κατάσταση: {filters.Status}");
+        if (filters.VehicleUseCategory.HasValue) bits.Add($"Χρήση: {filters.VehicleUseCategory}");
+        else if (!string.IsNullOrWhiteSpace(filters.UseCodeRaw)) bits.Add($"Χρήση: {filters.UseCodeRaw}");
+        if (!string.IsNullOrWhiteSpace(filters.CoverCode)) bits.Add($"Κάλυψη: {filters.CoverCode}");
+        if (!string.IsNullOrWhiteSpace(filters.PackageCode)) bits.Add($"Πακέτο: {filters.PackageCode}");
+        var grouping = filters.GroupBy?.ToLowerInvariant() switch
+        {
+            "carrier" => "ανά εταιρεία",
+            "producer" => "ανά συνεργάτη",
+            "type" => "ανά κλάδο",
+            "month" => "ανά μήνα",
+            _ => null
+        };
+        if (grouping is not null) bits.Add($"Ομαδοποίηση: {grouping}");
+        return string.Join(" · ", bits);
+    }
+
+    private static string GroupDimensionLabel(string? groupBy) => groupBy?.ToLowerInvariant() switch
+    {
+        "carrier" => "Εταιρεία",
+        "producer" => "Συνεργάτης",
+        "type" => "Κλάδος",
+        "month" => "Μήνας",
+        _ => "Ομάδα"
+    };
+
+    private sealed record ExportGroup(string Key, IReadOnlyList<ProductionRowDto> Rows);
+
+    // Use the exact grouping selected in the production-list UI. An empty
+    // grouping keeps the export flat, just like the on-screen table.
+    private static List<ExportGroup> GroupForExport(List<ProductionRowDto> rows, string? groupBy)
+    {
+        Func<ProductionRowDto, string>? selector = groupBy?.ToLowerInvariant() switch
+        {
+            "carrier" => row => row.InsuranceCompany,
+            "producer" => row => string.IsNullOrWhiteSpace(row.Producer) ? "Χωρίς συνεργάτη" : row.Producer!,
+            "type" => row => row.PolicyType,
+            "month" => row => row.StartDate.ToString("yyyy-MM"),
+            _ => null
+        };
+        if (selector is null) return new List<ExportGroup>();
+
+        var grouped = rows
+            .GroupBy(selector)
+            .Select(group => new ExportGroup(
+                group.Key,
+                group.OrderByDescending(row => row.StartDate).ToList()))
+            .ToList();
+
+        grouped.Sort((left, right) =>
+        {
+            var leftEmpty = left.Key is "Χωρίς συνεργάτη" or "—";
+            var rightEmpty = right.Key is "Χωρίς συνεργάτη" or "—";
+            if (leftEmpty != rightEmpty) return leftEmpty ? 1 : -1;
+            return string.Equals(groupBy, "month", StringComparison.OrdinalIgnoreCase)
+                ? string.Compare(right.Key, left.Key, StringComparison.Ordinal)
+                : string.Compare(left.Key, right.Key, new CultureInfo("el-GR"), CompareOptions.IgnoreCase);
+        });
+        return grouped;
+    }
+
+    // Legacy fixed-layout exports retain their carrier grouping. The web UI
+    // uses the selected-column export path above, which follows GroupBy.
     private static List<IGrouping<string, ProductionRowDto>> GroupForExport(List<ProductionRowDto> rows)
         => rows
             .OrderBy(r => r.InsuranceCompany, StringComparer.Create(new CultureInfo("el-GR"), true))

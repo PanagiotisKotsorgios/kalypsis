@@ -64,6 +64,27 @@ test("company workspace tabs follow the requested operational order", async () =
   const positions = ["Γενικά", "Επικοινωνία", "Παραγωγή", "Παραμετρικά", "Έγγραφα", "Πεδία"].map(label => tabs.indexOf(`label: "${label}"`));
   assert.ok(positions.every(position => position >= 0));
   assert.deepEqual([...positions].sort((a, b) => a - b), positions);
+  assert.match(source, />Εταιρείες &amp; Πρακτορεία</);
+  assert.match(source, /Λειτουργική εικόνα ασφαλιστικών εταιρειών και συνεργαζόμενων πρακτορείων\./);
+  assert.equal(source.includes("Εταιρείες &amp; Πρακτορεία Παραγωγής"), false);
+  assert.equal(source.includes("παραγωγή, συμβόλαια, ζημιές, επαφές και υπεύθυνοι"), false);
+});
+
+test("production exports use the office heading and the selected table grouping", async () => {
+  const page = await readFile(new URL("./ProductionListsPage.tsx", import.meta.url), "utf8");
+  const handler = await readFile(new URL("../../../../Backend/Kalypsis.Application/Features/ProductionLists/ProductionListsHandlers.cs", import.meta.url), "utf8");
+  const formatter = await readFile(new URL("../../../../Backend/Kalypsis.Application/Common/Exports/ExportFormatter.cs", import.meta.url), "utf8");
+
+  assert.match(page, /title: officeProfile\.data\?\.name\?\.trim\(\) \|\| "Λίστες παραγωγής"/);
+  assert.match(page, /params: \{ \.\.\.params, format: fmt, columns: columnsParam \}/);
+  assert.match(handler, /BuildSelectedSheetAsync\(rows, q\.Columns!, q\.Filters, ct\)/);
+  assert.match(handler, /GroupForExport\(rows, filters\.GroupBy\)/);
+  for (const group of ["carrier", "producer", "type", "month"]) {
+    assert.match(handler, new RegExp(`"${group}" =>`));
+  }
+  assert.match(handler, /HeaderTitle: string\.IsNullOrWhiteSpace\(label\) \? "Λίστες παραγωγής" : label/);
+  assert.match(formatter, /string\? HeaderTitle = null/);
+  assert.match(formatter, /sheet\.HeaderTitle/);
 });
 
 test("document folders page and legacy route no longer exist", async () => {

@@ -16,7 +16,13 @@ public record Sheet(
     IReadOnlyList<IReadOnlyList<string>> Rows,
     string? Subtitle = null,
     string? TenantLabel = null,
-    string? OfficeDetails = null);
+    string? OfficeDetails = null,
+    /// <summary>
+    /// Optional document heading. When omitted, exports retain the standard
+    /// "Kalypsis — {Title}" heading. Feature exports can instead put the
+    /// office identity first while keeping Kalypsis branding in the footer.
+    /// </summary>
+    string? HeaderTitle = null);
 
 public static class ExportFormatter
 {
@@ -67,13 +73,18 @@ public static class ExportFormatter
 
         var lastCol = Math.Max(1, sheet.Headers.Count);
 
-        ws.Cell(1, 1).Value = $"Kalypsis — {sheet.Title}";
+        var headerTitle = string.IsNullOrWhiteSpace(sheet.HeaderTitle)
+            ? $"Kalypsis — {sheet.Title}"
+            : sheet.HeaderTitle!;
+        ws.Cell(1, 1).Value = headerTitle;
         ws.Cell(1, 1).Style.Font.Bold = true;
         ws.Cell(1, 1).Style.Font.FontSize = 14;
         ws.Range(1, 1, 1, lastCol).Merge();
 
         var subtitleParts = new List<string> { $"Εξαγωγή: {DateTime.UtcNow:dd/MM/yyyy HH:mm} UTC", $"{sheet.Rows.Count} γραμμές" };
-        if (!string.IsNullOrWhiteSpace(sheet.TenantLabel)) subtitleParts.Insert(0, sheet.TenantLabel!);
+        if (!string.IsNullOrWhiteSpace(sheet.TenantLabel)
+            && !string.Equals(sheet.TenantLabel, headerTitle, StringComparison.OrdinalIgnoreCase))
+            subtitleParts.Insert(0, sheet.TenantLabel!);
         if (!string.IsNullOrWhiteSpace(sheet.OfficeDetails)) subtitleParts.Insert(1, sheet.OfficeDetails!);
         if (!string.IsNullOrWhiteSpace(sheet.Subtitle)) subtitleParts.Add(sheet.Subtitle!);
         ws.Cell(2, 1).Value = string.Join(" · ", subtitleParts);
@@ -119,6 +130,15 @@ public static class ExportFormatter
                 totalRange.Style.Border.TopBorder = XLBorderStyleValues.Thin;
                 totalRange.Style.Border.TopBorderColor = XLColor.FromHtml("#66bb6a");
             }
+            else if (IsGroupHeaderRow(sheet.Rows[rIdx]))
+            {
+                var groupRange = ws.Range(5 + rIdx, 1, 5 + rIdx, lastCol);
+                groupRange.Style.Font.Bold = true;
+                groupRange.Style.Font.FontColor = XLColor.FromHtml("#0b5cad");
+                groupRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#e6edf5");
+                groupRange.Style.Border.TopBorder = XLBorderStyleValues.Thin;
+                groupRange.Style.Border.BottomBorder = XLBorderStyleValues.Thin;
+            }
         }
 
         // Branding trailer: two blank rows + a bold copyright line so the
@@ -128,6 +148,8 @@ public static class ExportFormatter
         ws.Cell(trailerStart, 1).Value = BrandLine;
         ws.Cell(trailerStart, 1).Style.Font.Bold = true;
         ws.Cell(trailerStart, 1).Style.Font.FontColor = XLColor.FromHtml("#0b2545");
+        if (!string.IsNullOrWhiteSpace(sheet.HeaderTitle))
+            ws.Cell(trailerStart, 1).Style.Font.FontSize = 9;
         ws.Range(trailerStart, 1, trailerStart, lastCol).Merge();
 
         ws.Cell(trailerStart + 1, 1).Value = CopyrightLine;
@@ -141,7 +163,9 @@ public static class ExportFormatter
         ws.Cell(trailerStart + 2, 1).Style.Font.Italic = true;
         ws.Range(trailerStart + 2, 1, trailerStart + 2, lastCol).Merge();
 
-        ws.PageSetup.Header.Left.AddText(BrandLine);
+        // A feature-specific office heading must remain the only identity at
+        // the top of the page. Kalypsis stays in the footer/trailer.
+        ws.PageSetup.Header.Left.AddText(headerTitle);
         ws.PageSetup.Footer.Right.AddText(CopyrightLine);
 
         ws.SheetView.FreezeRows(4);
@@ -165,9 +189,14 @@ public static class ExportFormatter
 
                 p.Header().Column(col =>
                 {
-                    col.Item().Text($"Kalypsis — {sheet.Title}").FontSize(16).Bold();
+                    var headerTitle = string.IsNullOrWhiteSpace(sheet.HeaderTitle)
+                        ? $"Kalypsis — {sheet.Title}"
+                        : sheet.HeaderTitle!;
+                    col.Item().Text(headerTitle).FontSize(16).Bold();
                     var subtitleParts = new List<string> { $"Εξαγωγή: {DateTime.UtcNow:dd/MM/yyyy HH:mm} UTC", $"{sheet.Rows.Count} γραμμές" };
-                    if (!string.IsNullOrWhiteSpace(sheet.TenantLabel)) subtitleParts.Insert(0, sheet.TenantLabel!);
+                    if (!string.IsNullOrWhiteSpace(sheet.TenantLabel)
+                        && !string.Equals(sheet.TenantLabel, headerTitle, StringComparison.OrdinalIgnoreCase))
+                        subtitleParts.Insert(0, sheet.TenantLabel!);
                     if (!string.IsNullOrWhiteSpace(sheet.OfficeDetails)) subtitleParts.Insert(1, sheet.OfficeDetails!);
                     if (!string.IsNullOrWhiteSpace(sheet.Subtitle)) subtitleParts.Add(sheet.Subtitle!);
                     col.Item().Text(string.Join(" · ", subtitleParts)).FontSize(9).Italic();
@@ -190,11 +219,13 @@ public static class ExportFormatter
                     foreach (var row in sheet.Rows)
                     {
                         var isTotal = IsTotalRow(row);
-                        var bg = isTotal ? "#e8f5e9" : (rowIndex++ % 2 == 1 ? "#f4f6fa" : "#ffffff");
+                        var isGroupHeader = IsGroupHeaderRow(row);
+                        var bg = isTotal ? "#e8f5e9" : isGroupHeader ? "#e6edf5" : (rowIndex++ % 2 == 1 ? "#f4f6fa" : "#ffffff");
                         foreach (var cell in row)
                             t.Cell().Background(bg).Border(0.5f).BorderColor(isTotal ? "#66bb6a" : "#d9e2ec").Padding(3).Text(text =>
                             {
                                 if (isTotal) text.Span(cell ?? "").FontColor("#1b5e20").Bold();
+                                else if (isGroupHeader) text.Span(cell ?? "").FontColor("#0b5cad").Bold();
                                 else text.Span(cell ?? "");
                             });
                     }
@@ -247,6 +278,9 @@ public static class ExportFormatter
             || first.Contains("TOTAL", StringComparison.OrdinalIgnoreCase)
             || first.Contains("SUBTOTAL", StringComparison.OrdinalIgnoreCase);
     }
+
+    private static bool IsGroupHeaderRow(IReadOnlyList<string> row)
+        => row.Count > 0 && (row[0] ?? "").StartsWith("ΟΜΑΔΑ:", StringComparison.OrdinalIgnoreCase);
 
     private static string SafeSheetName(string raw)
     {

@@ -213,9 +213,9 @@ export default function ProductionCompaniesAgenciesPage() {
           <Stack direction="row" spacing={1.25} alignItems="center">
             {tab === 0 ? <BusinessIcon color="primary" sx={{ fontSize: 34 }} /> : <HandshakeIcon color="primary" sx={{ fontSize: 34 }} />}
             <Box>
-              <Typography variant="h4" fontWeight={850}>Εταιρείες &amp; Πρακτορεία Παραγωγής</Typography>
+              <Typography variant="h4" fontWeight={850}>Εταιρείες &amp; Πρακτορεία</Typography>
               <Typography variant="body2" color="text.secondary">
-                Λειτουργική εικόνα ασφαλιστικών εταιρειών και συνεργαζόμενων πρακτορείων: παραγωγή, συμβόλαια, ζημιές, επαφές και υπεύθυνοι.
+                Λειτουργική εικόνα ασφαλιστικών εταιρειών και συνεργαζόμενων πρακτορείων.
               </Typography>
             </Box>
           </Stack>

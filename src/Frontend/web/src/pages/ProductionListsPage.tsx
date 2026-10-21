@@ -450,6 +450,9 @@ export function ProductionListsPage() {
         if (!hideAgencyCols) subtotalBits.push(`${money(totals.agency)} προμ. έδρας`);
         lines.push(esc(subtotalBits.join(" · ")));
       }
+      lines.push("");
+      lines.push(esc("Kalypsis — Πλατφόρμα Διαχείρισης Ασφαλιστικού Γραφείου"));
+      lines.push(esc(`© ${new Date().getFullYear()} Kalypsis · https://mykalypsis.gr`));
       const csv = `﻿${lines.join("\r\n")}\r\n`;
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
@@ -491,11 +494,16 @@ export function ProductionListsPage() {
     const filterBits: string[] = [];
     if (f.from) filterBits.push(`Από: ${f.from}`);
     if (f.to)   filterBits.push(`Έως: ${f.to}`);
+    filterBits.push(`Πεδίο ημερομηνίας: ${f.dateField === "issued" ? "Ημερομηνία Έκδοσης" : f.dateField === "recorded" ? "Ημερομηνία Καταχώρησης" : "Ημερομηνία Έναρξης"}`);
     const selectedCarrier = (carriers.data ?? []).find(c => c.id === f.insuranceCompanyId);
     if (selectedCarrier) filterBits.push(`Εταιρία: ${selectedCarrier.name}`);
     const selectedProducer = (producers.data ?? []).find(p => p.id === f.producerId);
     if (selectedProducer) filterBits.push(`Συνεργάτης: ${selectedProducer.name}`);
     if (f.status) filterBits.push(`Κατάσταση: ${f.status}`);
+    if (f.policyType) filterBits.push(`Κλάδος: ${f.policyType}`);
+    if (f.vehicleUseCategory) filterBits.push(`Χρήση: ${f.vehicleUseCategory}`);
+    if (f.coverCode) filterBits.push(`Κάλυψη: ${f.coverCode}`);
+    if (f.packageCode) filterBits.push(`Πακέτο: ${f.packageCode}`);
     if (f.groupBy) {
       const dim = f.groupBy === "carrier"  ? "εταιρία"
                 : f.groupBy === "producer" ? "συνεργάτη"
@@ -506,12 +514,12 @@ export function ProductionListsPage() {
 
     const printCols = visibleColumns.map(c => ({ key: c.key, label: c.label, map: c.text }));
     printTable<Row>({
-      title: t("productionList.title"),
+      title: officeProfile.data?.name?.trim() || "Λίστες παραγωγής",
       subtitle: filterBits.join(" · "),
       columns: printCols,
       rows,
       office: officeProfile.data ? {
-        name: officeProfile.data.name,
+        name: null,
         code: officeProfile.data.code,
         email: officeProfile.data.contactEmail,
         phone: officeProfile.data.contactPhone,
