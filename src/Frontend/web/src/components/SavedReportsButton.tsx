@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   FormControlLabel, IconButton, Menu, MenuItem, Stack, Switch, TextField, Typography
@@ -54,7 +54,7 @@ export function SavedFilterForm({ name, isShared, onChange, pending, error, onSa
  *      currentFilters={f}
  *      onLoad={(filters) => setF(filters)} />
  */
-export function SavedReportsButton<T>({ entity, currentFilters, onLoad, inline = false, compact = false }: {
+export function SavedReportsButton<T>({ entity, currentFilters, onLoad, inline = false, compact = false, saveRequestToken = 0 }: {
   entity: string;
   currentFilters: T;
   onLoad: (filters: T) => void;
@@ -62,6 +62,8 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad, inline =
   inline?: boolean;
   /** Keep only selector/save buttons in the toolbar; naming happens in a modal. */
   compact?: boolean;
+  /** Increment from a parent actions menu to open the shared save-filter dialog. */
+  saveRequestToken?: number;
 }) {
   const qc = useQueryClient();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
@@ -85,6 +87,16 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad, inline =
       void qc.invalidateQueries({ queryKey: ["saved-reports", entity] });
     },
   });
+
+  useEffect(() => {
+    if (saveRequestToken > 0) {
+      save.reset();
+      setSaveOpen(true);
+    }
+    // The mutation object is intentionally excluded: only an explicit token
+    // change from the parent toolbar may open this dialog.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveRequestToken]);
 
   const del = useMutation({
     mutationFn: async (id: string) => api.delete(`/saved-reports/${id}`),

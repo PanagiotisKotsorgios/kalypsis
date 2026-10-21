@@ -15,6 +15,7 @@ import GridOnIcon from "@mui/icons-material/GridOn";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import ViewColumnIcon from "@mui/icons-material/ViewColumn";
 import TuneIcon from "@mui/icons-material/Tune";
+import BookmarkAddIcon from "@mui/icons-material/BookmarkAdd";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
@@ -97,6 +98,7 @@ export function ProductionListsPage() {
     status: "", groupBy: "carrier"
   });
   const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
+  const [saveFilterRequest, setSaveFilterRequest] = useState(0);
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
   const [filterSettingsOpen, setFilterSettingsOpen] = useState(false);
   const filterVisibility = useFilterVisibility("production-lists", PRODUCTION_FILTERS);
@@ -545,7 +547,8 @@ export function ProductionListsPage() {
         </Stack>
         <Box sx={{ flex: 1 }} />
         <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap" sx={{ minWidth: 0, maxWidth: "100%" }}>
-          <SavedReportsButton entity="production-lists" currentFilters={f} onLoad={(next) => setF({ ...f, ...next })} />
+          <SavedReportsButton entity="production-lists" currentFilters={f} onLoad={(next) => setF({ ...f, ...next })}
+            saveRequestToken={saveFilterRequest} />
           {/* «Ετήσια παραγωγή» button removed from the header. The report
               is still reachable via /app/production-report (old bookmarks
               keep working); it's no longer a standalone entry point in
@@ -569,30 +572,42 @@ export function ProductionListsPage() {
             transformOrigin={{ vertical: "top", horizontal: "right" }}
             slotProps={{ paper: { sx: { minWidth: 255, maxWidth: "calc(100vw - 24px)" } } }}
           >
-            <MenuItem onClick={() => { setActionsAnchor(null); openPrint(); }}>
-              <ListItemIcon><PrintIcon fontSize="small" /></ListItemIcon>
+            <MenuItem onClick={() => { setActionsAnchor(null); setSaveFilterRequest(value => value + 1); }}
+              sx={{ color: "#0b5cad", "&:hover": { bgcolor: "#e7f1fc", color: "#084d91" } }}>
+              <ListItemIcon sx={{ color: "#0b5cad" }}><BookmarkAddIcon fontSize="small" /></ListItemIcon>
+              <ListItemText primary="Αποθήκευση νέου φίλτρου" secondary="Προσθήκη στα αποθηκευμένα φίλτρα" />
+            </MenuItem>
+            <Divider />
+            <MenuItem onClick={() => { setActionsAnchor(null); openPrint(); }}
+              sx={{ color: "#456b91", "&:hover": { bgcolor: "#edf2f7", color: "#345573" } }}>
+              <ListItemIcon sx={{ color: "#456b91" }}><PrintIcon fontSize="small" /></ListItemIcon>
               <ListItemText primary={t("common.print", "Εκτύπωση")} />
             </MenuItem>
             <Divider />
-            <MenuItem onClick={() => { setActionsAnchor(null); void downloadExport("csv"); }}>
-              <ListItemIcon><TableChartIcon fontSize="small" /></ListItemIcon>
+            <MenuItem onClick={() => { setActionsAnchor(null); void downloadExport("csv"); }}
+              sx={{ color: "#087f73", "&:hover": { bgcolor: "#e5f6f3", color: "#06675e" } }}>
+              <ListItemIcon sx={{ color: "#087f73" }}><TableChartIcon fontSize="small" /></ListItemIcon>
               <ListItemText primary="Εξαγωγή CSV" />
             </MenuItem>
-            <MenuItem onClick={() => { setActionsAnchor(null); void downloadExport("xlsx"); }}>
-              <ListItemIcon><GridOnIcon fontSize="small" /></ListItemIcon>
+            <MenuItem onClick={() => { setActionsAnchor(null); void downloadExport("xlsx"); }}
+              sx={{ color: "#167c45", "&:hover": { bgcolor: "#e7f5ec", color: "#116337" } }}>
+              <ListItemIcon sx={{ color: "#167c45" }}><GridOnIcon fontSize="small" /></ListItemIcon>
               <ListItemText primary="Εξαγωγή Excel" />
             </MenuItem>
-            <MenuItem onClick={() => { setActionsAnchor(null); void downloadExport("pdf"); }}>
-              <ListItemIcon><PictureAsPdfIcon fontSize="small" /></ListItemIcon>
+            <MenuItem onClick={() => { setActionsAnchor(null); void downloadExport("pdf"); }}
+              sx={{ color: "#c73545", "&:hover": { bgcolor: "#fdecef", color: "#a72836" } }}>
+              <ListItemIcon sx={{ color: "#c73545" }}><PictureAsPdfIcon fontSize="small" /></ListItemIcon>
               <ListItemText primary="Εξαγωγή PDF" />
             </MenuItem>
             <Divider />
-            <MenuItem onClick={() => { setActionsAnchor(null); setColumnSettingsOpen(true); }}>
-              <ListItemIcon><ViewColumnIcon fontSize="small" /></ListItemIcon>
+            <MenuItem onClick={() => { setActionsAnchor(null); setColumnSettingsOpen(true); }}
+              sx={{ color: "#5b55a5", "&:hover": { bgcolor: "#efedfb", color: "#474184" } }}>
+              <ListItemIcon sx={{ color: "#5b55a5" }}><ViewColumnIcon fontSize="small" /></ListItemIcon>
               <ListItemText primary="Στήλες πίνακα & εξαγωγής" secondary={`${selection.activeKeys.length}/${pickerDescriptors.length} ενεργές`} />
             </MenuItem>
-            <MenuItem onClick={() => { setActionsAnchor(null); setFilterSettingsOpen(true); }}>
-              <ListItemIcon><TuneIcon fontSize="small" /></ListItemIcon>
+            <MenuItem onClick={() => { setActionsAnchor(null); setFilterSettingsOpen(true); }}
+              sx={{ color: "#a45b00", "&:hover": { bgcolor: "#fff3df", color: "#814700" } }}>
+              <ListItemIcon sx={{ color: "#a45b00" }}><TuneIcon fontSize="small" /></ListItemIcon>
               <ListItemText
                 primary="Εμφανιζόμενα φίλτρα"
                 secondary={`${PRODUCTION_FILTERS.filter((filter) => !filterVisibility.off.has(filter.key)).length}/${PRODUCTION_FILTERS.length} ενεργά`}

@@ -32,6 +32,12 @@ test("production filters collapse early and their visible fields are user config
   assert.match(source, /downloadExport\("csv"\)/);
   assert.match(source, /downloadExport\("xlsx"\)/);
   assert.match(source, /downloadExport\("pdf"\)/);
+  assert.match(source, /Αποθήκευση νέου φίλτρου/);
+  assert.match(source, /setSaveFilterRequest\(value => value \+ 1\)/);
+  assert.match(source, /saveRequestToken=\{saveFilterRequest\}/);
+  assert.match(source, /#087f73/);
+  assert.match(source, /#167c45/);
+  assert.match(source, /#c73545/);
   for (const key of ["dateField", "from", "to", "carrier", "producer", "type", "use", "coverage", "package", "status", "groupBy"]) {
     assert.match(source, new RegExp(`filterVisibility\\.visible\\("${key}"\\)`));
   }
