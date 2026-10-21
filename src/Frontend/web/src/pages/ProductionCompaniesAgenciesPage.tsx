@@ -282,7 +282,13 @@ export default function ProductionCompaniesAgenciesPage() {
 }
 
 function CompanyDirectoryTable({ isBroker = false, companies, selectedIds, onToggle, onToggleAll, onOpen, onEdit, onDelete }: { isBroker?: boolean; companies: CompanyDto[]; selectedIds: Set<string>; onToggle: (id: string) => void; onToggleAll: (checked: boolean) => void; onOpen: (company: CompanyDto) => void; onEdit: (company: CompanyDto) => void; onDelete: (company: CompanyDto) => void }) {
-  const selectable = companies.filter(company => !company.isGlobal);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  useEffect(() => { setPage(0); }, [companies, isBroker]);
+  const lastPage = Math.max(0, Math.ceil(companies.length / rowsPerPage) - 1);
+  const safePage = Math.min(page, lastPage);
+  const visibleRows = companies.slice(safePage * rowsPerPage, safePage * rowsPerPage + rowsPerPage);
+  const selectable = visibleRows.filter(company => !company.isGlobal);
   const allSelected = selectable.length > 0 && selectable.every(company => selectedIds.has(company.id));
   const someSelected = selectable.some(company => selectedIds.has(company.id));
   return <Card variant="outlined" sx={{ overflow: "hidden" }}>
@@ -295,7 +301,7 @@ function CompanyDirectoryTable({ isBroker = false, companies, selectedIds, onTog
           <TableCell sx={{ fontWeight: 800 }}>Επικοινωνία</TableCell><TableCell align="right" sx={{ fontWeight: 800 }}>Παραμετρικά</TableCell>
           <TableCell align="right" sx={{ fontWeight: 800 }}>Ενέργειες</TableCell>
         </TableRow></TableHead>
-        <TableBody>{companies.map(company => <TableRow key={company.id} hover onClick={() => onOpen(company)} sx={{ cursor: "pointer", "&:last-child td": { borderBottom: 0 } }}>
+        <TableBody>{visibleRows.map(company => <TableRow key={company.id} hover onClick={() => onOpen(company)} sx={{ cursor: "pointer", "&:last-child td": { borderBottom: 0 } }}>
           <TableCell padding="checkbox"><Checkbox size="small" checked={selectedIds.has(company.id)} disabled={company.isGlobal} onClick={event => event.stopPropagation()} onChange={() => onToggle(company.id)} inputProps={{ "aria-label": `Επιλογή ${company.name}` }} /></TableCell>
           <TableCell><Stack direction="row" spacing={1} alignItems="center"><BusinessIcon color="primary" fontSize="small" /><Box><Typography fontWeight={750}>{company.name}</Typography>{company.bridgeLinked && <Chip size="small" color="info" variant="outlined" label="Γέφυρα" sx={{ mt: .25 }} />}</Box></Stack></TableCell>
           <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{company.code || "—"}</TableCell>
@@ -311,6 +317,11 @@ function CompanyDirectoryTable({ isBroker = false, companies, selectedIds, onTog
         </TableRow>)}{companies.length === 0 && <TableRow><TableCell colSpan={8}><EmptyDirectory text={isBroker ? "Δεν βρέθηκαν συνεργαζόμενα πρακτορεία." : "Δεν βρέθηκαν ασφαλιστικές εταιρείες."} /></TableCell></TableRow>}</TableBody>
       </Table>
     </Box>
+    <TablePagination component="div" count={companies.length} page={safePage}
+      onPageChange={(_event, next) => setPage(next)} rowsPerPage={rowsPerPage}
+      onRowsPerPageChange={event => { setRowsPerPage(Number(event.target.value)); setPage(0); }}
+      rowsPerPageOptions={[10, 25, 50, 100]} labelRowsPerPage="Εγγραφές ανά σελίδα"
+      labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`} />
   </Card>;
 }
 
@@ -692,14 +703,14 @@ function CompanyCommunicationSection({ companyId, workspace }: { companyId: stri
   const chooseContact = (id: string) => { const contact = contacts.find(row => row.id === id); setForm(current => ({ ...current, contactId: id, contactName: contact?.name ?? "", contactEmail: contact?.email ?? "", contactPhone: contact?.phone || contact?.mobile || "" })); };
   return <Stack spacing={1}>
     <Button variant="outlined" color="primary" startIcon={<ContactPhoneIcon />} onClick={() => setHistoryOpen(true)} sx={{ alignSelf: "flex-start" }}>Τελευταίες επικοινωνίες ({communications.length})</Button>
-    <Dialog open={historyOpen} onClose={() => setHistoryOpen(false)} fullWidth maxWidth="lg">
+    <Dialog open={historyOpen} onClose={() => setHistoryOpen(false)} fullWidth maxWidth="xl">
       <DialogTitle>Τελευταίες επικοινωνίες</DialogTitle>
       <DialogContent dividers>
         <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} gap={1} sx={{ mb: 1.25 }}><Typography variant="body2" color="text.secondary">Πλήρες ιστορικό επικοινωνίας με την ασφαλιστική εταιρεία.</Typography><Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => setOpen(true)}>Νέα επικοινωνία</Button></Stack>
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "minmax(260px,1fr) 180px 180px" }, gap: 1, mb: 1 }}>
-          <TextField size="small" label="Αναζήτηση" placeholder="Θέμα, επαφή, email, τηλέφωνο…" value={historySearch} onChange={event => setHistorySearch(event.target.value)} InputProps={{ startAdornment: <SearchIcon fontSize="small" sx={{ mr: .75, color: "text.secondary" }} /> }} />
-          <TextField select size="small" label="Κανάλι" value={historyKind} onChange={event => setHistoryKind(event.target.value)} SelectProps={{ native: true }}><option value="">Όλα τα κανάλια</option>{Array.from(new Set(communications.map(item => item.kind))).map(kind => <option key={kind} value={kind}>{kind}</option>)}</TextField>
-          <TextField select size="small" label="Κατεύθυνση" value={historyDirection} onChange={event => setHistoryDirection(event.target.value)} SelectProps={{ native: true }}><option value="">Όλες</option><option value="Inbound">Εισερχόμενη</option><option value="Outbound">Εξερχόμενη</option><option value="Internal">Εσωτερική</option></TextField>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0,1fr)", md: "minmax(300px,1fr) minmax(210px,.55fr) minmax(210px,.55fr)" }, gap: 1.25, mb: 1.25, alignItems: "start", "& .MuiFormControl-root": { minWidth: 0, width: "100%" } }}>
+          <TextField size="small" label="Αναζήτηση" placeholder="Θέμα, επαφή, email, τηλέφωνο…" value={historySearch} onChange={event => setHistorySearch(event.target.value)} InputLabelProps={{ shrink: true }} InputProps={{ startAdornment: <SearchIcon fontSize="small" sx={{ mr: .75, color: "text.secondary" }} /> }} />
+          <TextField select size="small" label="Κανάλι" value={historyKind} onChange={event => setHistoryKind(event.target.value)} InputLabelProps={{ shrink: true }} SelectProps={{ native: true }}><option value="">Όλα τα κανάλια</option>{Array.from(new Set(communications.map(item => item.kind))).map(kind => <option key={kind} value={kind}>{kind}</option>)}</TextField>
+          <TextField select size="small" label="Κατεύθυνση" value={historyDirection} onChange={event => setHistoryDirection(event.target.value)} InputLabelProps={{ shrink: true }} SelectProps={{ native: true }}><option value="">Όλες</option><option value="Inbound">Εισερχόμενη</option><option value="Outbound">Εξερχόμενη</option><option value="Internal">Εσωτερική</option></TextField>
         </Box>
         <Card variant="outlined" sx={{ overflow: "hidden" }}>
           <Box sx={{ maxHeight: 430, overflow: "auto" }}><Table size="small" stickyHeader sx={{ minWidth: 900 }}><TableHead><TableRow><TableCell>Ημερομηνία</TableCell><TableCell>Κανάλι</TableCell><TableCell>Κατεύθυνση</TableCell><TableCell>Επαφή</TableCell><TableCell>Θέμα / σημείωση</TableCell><TableCell align="right">Ενέργειες</TableCell></TableRow></TableHead><TableBody>{pagedCommunications.map(item => <TableRow key={item.id} hover><TableCell sx={{ whiteSpace: "nowrap" }}>{new Date(item.occurredAt).toLocaleString("el-GR")}</TableCell><TableCell><Chip size="small" color="info" variant="outlined" label={item.kind} /></TableCell><TableCell><Chip size="small" variant="outlined" label={item.direction === "Inbound" ? "Εισερχόμενη" : item.direction === "Outbound" ? "Εξερχόμενη" : "Εσωτερική"} /></TableCell><TableCell><Typography variant="body2" fontWeight={700}>{item.contactName || "—"}</Typography><Typography variant="caption" color="text.secondary">{item.contactEmail || item.contactPhone || "Χωρίς στοιχεία"}</Typography></TableCell><TableCell sx={{ maxWidth: 360 }}><Typography variant="body2" fontWeight={700} noWrap title={item.subject || "Χωρίς θέμα"}>{item.subject || "Χωρίς θέμα"}</Typography><Typography variant="caption" color="text.secondary" noWrap display="block" title={item.body || ""}>{item.body || "—"}</Typography></TableCell><TableCell align="right"><Tooltip title="Διαγραφή"><IconButton size="small" color="error" aria-label="Διαγραφή επικοινωνίας" onClick={() => remove.mutate(item.id)}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip></TableCell></TableRow>)}{pagedCommunications.length === 0 && <TableRow><TableCell colSpan={6}><Typography color="text.secondary" textAlign="center" sx={{ py: 4 }}>Δεν βρέθηκαν επικοινωνίες.</Typography></TableCell></TableRow>}</TableBody></Table></Box>
@@ -1281,7 +1292,7 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
                 type={field.fieldType === "date" ? "date" : field.fieldType === "number" ? "number" : "text"} />
             </Box>)}</Box>
         </Stack>}
-        {tab === 3 && <Stack spacing={1.5}><ProfileMetricGrid items={[["Κλάδοι", String(p.branchCount), "info"], ["Πακέτα", String(p.packageCount), "info"], ["Χρήσεις", String(p.useCount), "info"], ["Καλύψεις", String(p.coverageCount), "info"], ["Γέφυρα", p.bridgeLinked ? "Συνδεδεμένη" : "Χωρίς σύνδεση", p.bridgeLinked ? "success" : "warning"]]} /><ProfileSection title="Σύνδεση εταιρείας"><ProfileLine label="Πηγή γέφυρας" value={p.bridgeLinkedSourceCarrier} /><ProfileLine label="Κατάσταση" value={p.isActive ? "Ενεργή" : "Ανενεργή"} /><ProfileLine label="Δημιουργήθηκε" value={date(p.createdAt)} /></ProfileSection>{renderPlacedFields("connection")}</Stack>}
+        {tab === 3 && <Stack spacing={1.5}><ProfileMetricGrid items={[["Κλάδοι", String(p.branchCount), "info"], ["Πακέτα", String(p.packageCount), "info"], ["Χρήσεις", String(p.useCount), "info"], ["Καλύψεις", String(p.coverageCount), "info"], ["Γέφυρα", p.bridgeLinked ? "Συνδεδεμένη" : "Χωρίς σύνδεση", p.bridgeLinked ? "success" : "warning"]]} /><ProfileSection title="Σύνδεση εταιρείας"><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" }, gap: .75 }}>{[["Πηγή γέφυρας", p.bridgeLinkedSourceCarrier], ["Κατάσταση", p.isActive ? "Ενεργή" : "Ανενεργή"], ["Δημιουργήθηκε", date(p.createdAt)]].map(([label, value]) => <Box key={label} sx={{ minWidth: 0, px: 1.1, py: .85, border: "1px solid #d6e3f0", borderRadius: 1.5, bgcolor: "#f8fafc" }}><Typography variant="caption" color="text.secondary" fontWeight={750} display="block">{label}</Typography><Typography variant="body2" color="#102d55" fontWeight={850} noWrap title={value || "—"}>{value || "—"}</Typography></Box>)}</Box></ProfileSection>{renderPlacedFields("connection")}</Stack>}
 
         {tab === 1 && <Stack spacing={.75}>
           <ProfileSection title="Πρόσωπα, στελέχη & πολλαπλές επικοινωνίες">

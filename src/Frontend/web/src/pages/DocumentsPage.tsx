@@ -15,7 +15,6 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
-  Drawer,
   IconButton,
   InputAdornment,
   MenuItem,
@@ -388,7 +387,7 @@ export function DocumentsPage() {
         />
       )}
 
-      <DocumentPreviewDrawer
+      <DocumentPreviewDialog
         doc={previewOf}
         canEdit={canEdit}
         onClose={() => setPreviewOf(null)}
@@ -411,9 +410,9 @@ function MimeIcon({ mime, sx }: { mime: string; sx?: object }) {
 }
 
 /* ============================================================================
-   DocumentPreviewDrawer
+   DocumentPreviewDialog
    ----------------------------------------------------------------------------
-   Slides in from the right when a row is clicked. Shows:
+   Opens as a centred profile popup when a row is clicked. Shows:
      - Header with the MIME icon, filename, chips (type + size), metadata,
        and a close button.
      - Inline preview iframe backed by /api/documents/{id}/preview so PDFs
@@ -424,7 +423,7 @@ function MimeIcon({ mime, sx }: { mime: string; sx?: object }) {
    The Replace flow reuses a hidden file input; Rename/ChangeType update
    only the DB row (no re-upload).
    ========================================================================= */
-function DocumentPreviewDrawer({ doc, canEdit, onClose, onChanged }: {
+function DocumentPreviewDialog({ doc, canEdit, onClose, onChanged }: {
   doc: DocumentDto | null;
   canEdit: boolean;
   onClose: () => void;
@@ -525,21 +524,27 @@ function DocumentPreviewDrawer({ doc, canEdit, onClose, onChanged }: {
   };
 
   return (
-    <Drawer
-      anchor="right"
+    <Dialog
       open={!!doc}
       onClose={onClose}
+      fullWidth
+      maxWidth="lg"
       PaperProps={{
         sx: {
-          width: { xs: "100%", sm: "min(720px, 96vw)" },
-          display: "flex", flexDirection: "column"
+          width: { xs: "calc(100% - 16px)", sm: "min(1120px, 96vw)" },
+          height: { xs: "calc(100dvh - 16px)", sm: "min(900px, 92vh)" },
+          maxHeight: { xs: "calc(100dvh - 16px)", sm: "92vh" },
+          m: { xs: 1, sm: 2 }, display: "flex", flexDirection: "column",
+          overflow: "hidden", borderRadius: { xs: 2, sm: 3 },
+          bgcolor: "#edf3f9", border: "1px solid #d6e3f0",
+          boxShadow: "0 24px 70px rgba(11,48,92,.24)"
         }
       }}
     >
       {doc && (
         <>
-          <Stack direction="row" alignItems="center" spacing={2} sx={{ p: 2 }}>
-            <MimeIcon mime={doc.mimeType} sx={{ fontSize: 32 }} />
+          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ px: { xs: 1.25, sm: 2 }, py: 1.25, bgcolor: "#0b305c", color: "#fff" }}>
+            <Box sx={{ display: "grid", placeItems: "center", width: 42, height: 42, borderRadius: 2, bgcolor: "rgba(255,255,255,.14)", flex: "0 0 auto", "& .MuiSvgIcon-root": { color: "#fff" } }}><MimeIcon mime={doc.mimeType} sx={{ fontSize: 28 }} /></Box>
             <Box sx={{ flex: 1, minWidth: 0 }}>
               {editing ? (
                 <Stack direction="row" spacing={1} alignItems="center">
@@ -552,28 +557,28 @@ function DocumentPreviewDrawer({ doc, canEdit, onClose, onChanged }: {
                   />
                 </Stack>
               ) : (
-                <Typography sx={{ fontWeight: 700 }} noWrap title={doc.fileName}>
+                <Typography sx={{ fontWeight: 850, color: "#fff" }} noWrap title={doc.fileName}>
                   {doc.fileName}
                 </Typography>
               )}
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{ color: "rgba(255,255,255,.78)" }}>
                 {Math.round(doc.sizeBytes / 1024)} KB · {doc.mimeType} · {date(doc.createdAt)}
               </Typography>
               {!editing && doc.notes && (
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, whiteSpace: "pre-wrap" }}>
+                <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: "pre-wrap", color: "rgba(255,255,255,.82)" }}>
                   <strong>Σημείωση:</strong> {doc.notes}
                 </Typography>
               )}
             </Box>
-            <Chip size="small" label={t(`documents.types.${doc.documentType}`)} />
-            <IconButton onClick={onClose}><CloseIcon /></IconButton>
+            <Chip size="small" label={t(`documents.types.${doc.documentType}`)} sx={{ bgcolor: "rgba(255,255,255,.15)", color: "#fff", fontWeight: 800 }} />
+            <IconButton onClick={onClose} aria-label="Κλείσιμο καρτέλας εγγράφου" sx={{ color: "#fff", bgcolor: "rgba(255,255,255,.1)", "&:hover": { bgcolor: "rgba(255,255,255,.2)" } }}><CloseIcon /></IconButton>
           </Stack>
           <Divider />
 
           {err && <Alert severity="error" onClose={() => setErr(null)} sx={{ m: 2 }}>{err}</Alert>}
 
           {/* Actions rail */}
-          <Stack direction="row" spacing={1} sx={{ p: 2, flexWrap: "wrap", gap: 1 }}>
+          <Stack direction="row" spacing={1} sx={{ px: { xs: 1.25, sm: 2 }, py: 1.25, flexWrap: "wrap", gap: 1, bgcolor: "#f8fafc" }}>
             <Button size="small" variant="outlined" startIcon={<DownloadIcon />} onClick={download}>
               {t("documents.download")}
             </Button>
@@ -650,8 +655,8 @@ function DocumentPreviewDrawer({ doc, canEdit, onClose, onChanged }: {
 
           {/* Linked entities — the operator's map into the rest of the app.
               Clicking either row navigates to the underlying record and
-              closes the drawer, so a document can never be an orphan. */}
-          <Stack spacing={0.5} sx={{ px: 2, py: 1.5, bgcolor: "background.default" }}>
+              closes the popup, so a document can never be an orphan. */}
+          <Stack spacing={0.5} sx={{ px: { xs: 1.25, sm: 2 }, py: 1.25, bgcolor: "#edf3f9" }}>
             <Typography sx={{
               fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase",
               color: "text.secondary", fontWeight: 700, mb: 0.5
@@ -725,7 +730,7 @@ function DocumentPreviewDrawer({ doc, canEdit, onClose, onChanged }: {
                   const url = `${window.location.origin}/app/documents#doc=${doc.id}`;
                   await navigator.clipboard.writeText(url);
                   // Notify the parent list to flash the toast — the
-                  // drawer instance is created inside DocumentsPage,
+                  // popup instance is created inside DocumentsPage,
                   // so window custom-event is the least-invasive channel
                   // to bridge back without threading a prop.
                   window.dispatchEvent(new CustomEvent("kalypsis:doc-link-copied"));
@@ -745,10 +750,14 @@ function DocumentPreviewDrawer({ doc, canEdit, onClose, onChanged }: {
           </Stack>
           <Divider />
 
-          {/* Preview surface — fills the remaining drawer height. */}
+          {/* Preview surface — fills the remaining popup height. */}
           <Box sx={{
             flex: 1,
-            bgcolor: "action.hover",
+            minHeight: 0,
+            m: { xs: .75, sm: 1.25 },
+            border: "1px solid #d6e3f0",
+            borderRadius: 2,
+            bgcolor: "#e6edf5",
             display: "flex", alignItems: "stretch", justifyContent: "stretch",
             overflow: "hidden"
           }}>
@@ -781,9 +790,14 @@ function DocumentPreviewDrawer({ doc, canEdit, onClose, onChanged }: {
               </Stack>
             )}
           </Box>
+          <DialogActions sx={{ px: { xs: 1.25, sm: 2 }, py: .75, bgcolor: "#f8fafc", borderTop: "1px solid #d6e3f0" }}>
+            <Button color="error" variant="contained" startIcon={<CloseIcon />} onClick={onClose} sx={{ color: "#fff", fontWeight: 800 }}>
+              Κλείσιμο
+            </Button>
+          </DialogActions>
         </>
       )}
-    </Drawer>
+    </Dialog>
   );
 }
 
