@@ -163,6 +163,11 @@ public sealed class UpdatePolicyVehicleHandler : IRequestHandler<UpdatePolicyVeh
         var policy = await _db.Policies.FirstOrDefaultAsync(x => x.Id == request.Id && x.TenantId == tenantId, ct)
             ?? throw AppException.NotFound("Συμβόλαιο");
         var body = request.Body;
+        if (body.ReplaceDetails)
+        {
+            try { VehicleOwnershipRules.Validate(body.SpecsJson); }
+            catch (System.Text.Json.JsonException) { throw AppException.Validation("Μη έγκυρα τεχνικά στοιχεία οχήματος."); }
+        }
 
         if (body.ClearVehicleRegistrationPlate)
             policy.VehicleRegistrationPlate = null;
@@ -405,7 +410,7 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
             p.SpecialCommissionPercent,
             p.SpecsJson,
             p.NetPremium, p.VatAmount, p.StampDutyAmount, p.InsuranceContributionAmount, p.OtherChargesAmount,
-            p.NextRenewalDate,
+            p.NextRenewalDate ?? p.EndDate,
             p.RenewalTransferToProducerId, renewalProducerName,
             p.RenewalTransferToCarrierId, renewalCarrierName,
             p.RetainCommissionsOnRenewal, p.RetainDocumentNumberOnRenewal, p.RetainSpecialCommissionsOnRenewal,
@@ -524,7 +529,7 @@ public class UpdatePolicyExtendedHandler : IRequestHandler<UpdatePolicyExtendedC
         p.PremiumIncludesVat = b.PremiumIncludesVat;
         p.SpecialCommissionPercent = b.SpecialCommissionPercent;
         p.SpecsJson = b.SpecsJson;
-        p.NextRenewalDate = b.NextRenewalDate;
+        p.NextRenewalDate = b.NextRenewalDate ?? p.EndDate;
         p.RenewalTransferToProducerId = renewalProducerId;
         p.RenewalTransferToCarrierId = renewalCarrierId;
         p.RetainCommissionsOnRenewal = b.RetainCommissionsOnRenewal;

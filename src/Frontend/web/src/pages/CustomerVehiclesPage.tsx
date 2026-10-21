@@ -6,6 +6,8 @@ import { DetailProfileTabs } from "../components/profile/DetailProfileTabs";
 import { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback, profileDialogPaperSx, profileFieldGridSx, useProfileFieldEditor, type ProfileFieldSession } from "../components/profile/ProfileFieldEditor";
 import { VEHICLE_SPEC_FIELDS, mergeVehicleSpecs } from "../components/profile/vehicleProfile";
 import { vehicleOwnerHistory } from "../components/profile/vehicleHistory";
+import { vehicleCoOwners, ownershipFieldValues, mergeVehicleOwnership, ownershipCreationChanges } from "../components/profile/vehicleOwnership";
+import { VehicleOwnershipFields, VehicleOwnershipInputs } from "../components/profile/VehicleOwnershipFields";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, InputAdornment, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Tooltip, Typography } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
@@ -167,6 +169,7 @@ export function VehicleDetailDialog({ open, plate, policyIds: suppliedPolicyIds,
     ["vehicleUseCategory", first?.vehicleUseCategory ?? first?.carrierUseCode ?? ""],
     ["reasonForCirculation", first?.reasonForCirculation ?? ""],
     ...VEHICLE_SPEC_FIELDS.map(([key]) => ["spec:" + key, String(specs[key] ?? "")]),
+    ...Object.entries(ownershipFieldValues(vehicleCoOwners(first?.specsJson, first?.customerDisplay, first?.customerVat ?? ""))),
   ]);
   const session = useProfileFieldEditor({
     sessionKey: open ? plate + ":" + policyIds.join(",") : "", initialEditing: initialEditing && canWrite, values, refresh: invalidateVehicle, onClose,
@@ -176,6 +179,10 @@ export function VehicleDetailDialog({ open, plate, policyIds: suppliedPolicyIds,
       const latest = qc.getQueryData<{ details: VehiclePolicyDetail[] }>(queryKey)?.details.find(row => row.id === first.id) ?? first;
       const pick = (key: string, fallback?: string | null) => changes[key] === undefined ? fallback ?? null : changes[key].trim() || null;
       const specChanges = Object.fromEntries(Object.entries(changes).filter(([key]) => key.startsWith("spec:")).map(([key, value]) => [key.slice(5), value]));
+      const ownershipChanges = Object.fromEntries(Object.entries(changes).filter(([key]) => key.startsWith("owner:")));
+      let nextSpecs = Object.keys(specChanges).length ? mergeVehicleSpecs(latest.specsJson, specChanges) : latest.specsJson;
+      if (Object.keys(ownershipChanges).length || changes["spec:ownerCount"] !== undefined)
+        nextSpecs = mergeVehicleOwnership(nextSpecs, ownershipChanges, latest.customerDisplay, latest.customerVat ?? "");
       const saved = (await api.patch<VehiclePolicyDetail>(`/policies/${latest.id}/vehicle`, {
         vehicleRegistrationPlate: pick("vehicleRegistrationPlate", latest.vehicleRegistrationPlate),
         vehicleUseCategory: pick("vehicleUseCategory", latest.vehicleUseCategory ?? latest.carrierUseCode),
@@ -183,7 +190,7 @@ export function VehicleDetailDialog({ open, plate, policyIds: suppliedPolicyIds,
         driverVatNumber: latest.customerVat ?? null,
         // The endpoint replaces all details: preserve contract-only data, never expose it as vehicle data.
         characteristic: latest.characteristic, deductible: latest.deductible, position: latest.position, notes: latest.policyNotes,
-        specsJson: Object.keys(specChanges).length ? mergeVehicleSpecs(latest.specsJson, specChanges) : latest.specsJson,
+        specsJson: nextSpecs,
         replaceDetails: true, clearVehicleRegistrationPlate: changes.vehicleRegistrationPlate !== undefined && !changes.vehicleRegistrationPlate.trim(),
       })).data;
       qc.setQueryData(queryKey, (previous: typeof q.data) => previous ? { ...previous, details: previous.details.map(row => row.id === saved.id ? saved : row) } : previous);
@@ -213,6 +220,7 @@ export function VehicleDetailDialog({ open, plate, policyIds: suppliedPolicyIds,
       {[removeAllVehicle].map((mutation, index) => mutation.isError ? <Alert key={index} severity="error">{extractErrorMessage(mutation.error)}</Alert> : null)}
       {first && tab === 0 && <VehicleProfileFields session={canWrite ? session : undefined} values={values} owner={first.customerDisplay} ownerVat={first.customerVat} />}
       {tab === 1 && <Stack spacing={1}>
+        <VehicleOwnershipFields values={values} session={canWrite ? session : undefined} />
         <Typography variant="body2" color="text.secondary">Ιστορικό ιδιοκτητών βάσει καταχωρημένων ασφαλιστηρίων. Οι περίοδοι αφορούν ασφαλιστική κάλυψη και όχι πιστοποίηση μεταβίβασης.</Typography>
         <Box sx={{ overflowX: "auto" }}><Table size="small">
           <TableHead><TableRow><TableCell>Ιδιοκτήτης / πελάτης</TableCell><TableCell>ΑΦΜ</TableCell><TableCell>Πρώτη κάλυψη</TableCell><TableCell>Τελευταία κάλυψη</TableCell><TableCell>Συμβόλαια</TableCell><TableCell /></TableRow></TableHead>
@@ -263,9 +271,10 @@ export function VehicleProfileFields({ session, values, owner, ownerVat }: { ses
     {field("vehicleUseCategory", "Χρήση / κατηγορία")}
     {field("reasonForCirculation", "Λόγος κυκλοφορίας")}
     {VEHICLE_SPEC_FIELDS.map(([key, label]) => field("spec:" + key, label, {
-      multiline: key === "vehicleNotes", type: dateVehicleFields.has(key) ? "date" : "text",
+      multiline: key === "vehicleNotes", type: key === "ownerCount" ? "number" : dateVehicleFields.has(key) ? "date" : "text",
       options: booleanVehicleFields.has(key) ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Ναι", label: "Ναι" }, { value: "Όχι", label: "Όχι" }, { value: "true", label: "Ναι" }, { value: "false", label: "Όχι" }] : key === "condition" ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Καινούργιο", label: "Καινούργιο" }, { value: "Μεταχειρισμένο", label: "Μεταχειρισμένο" }] : key === "fuelType" ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Βενζίνη", label: "Βενζίνη" }, { value: "Πετρέλαιο", label: "Πετρέλαιο" }, { value: "Υβριδικό", label: "Υβριδικό" }, { value: "Ηλεκτρικό", label: "Ηλεκτρικό" }, { value: "Υγραέριο", label: "Υγραέριο (LPG)" }, { value: "Φυσικό αέριο", label: "Φυσικό αέριο (CNG)" }] : key === "bodyType" ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Hatchback", label: "Hatchback" }, { value: "Sedan", label: "Sedan" }, { value: "SUV", label: "SUV" }, { value: "Station Wagon", label: "Station Wagon" }, { value: "Coupe", label: "Coupe" }, { value: "Cabrio", label: "Cabrio" }, { value: "Van", label: "Van" }, { value: "Pickup", label: "Pickup" }] : undefined,
     }))}
+    <VehicleOwnershipFields values={values} session={session} />
   </Box>;
 }
 
@@ -344,6 +353,8 @@ const emptyVehicleForm = (policyId = ""): AddVehicleForm => ({
 
 function AddVehicleDialog({ open, rows, onClose, onSaved }: { open: boolean; rows: VehiclePolicyRow[]; onClose: () => void; onSaved: (plate: string) => void }) {
   const [form, setForm] = useState<AddVehicleForm>(() => emptyVehicleForm(rows[0]?.id));
+  const [ownershipValues, setOwnershipValues] = useState<Record<string, string>>({});
+  useEffect(() => { setOwnershipValues({}); }, [open, form.policyId]);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (open) { setForm(emptyVehicleForm(rows[0]?.id)); setError(null); }
@@ -362,7 +373,7 @@ function AddVehicleDialog({ open, rows, onClose, onSaved }: { open: boolean; row
         vehicleRegistrationPlate: form.plate.trim(), vehicleUseCategory: form.use.trim() || null,
         driverVatNumber: current.customerVat ?? null, reasonForCirculation: current.reasonForCirculation,
         characteristic: current.characteristic, deductible: current.deductible, position: current.position, notes: current.policyNotes,
-        specsJson: mergeVehicleSpecs(current.specsJson, specs), replaceDetails: true
+        specsJson: mergeVehicleOwnership(mergeVehicleSpecs(current.specsJson, specs), ownershipCreationChanges(ownershipValues, form.ownerCount), current.customerDisplay, current.customerVat ?? ""), replaceDetails: true
       });
     },
     onSuccess: () => onSaved(form.plate.trim().toUpperCase()),
@@ -390,11 +401,12 @@ function AddVehicleDialog({ open, rows, onClose, onSaved }: { open: boolean; row
               <TextField label="Εκτιμώμενη αξία" value={form.estimatedValue} onChange={e => set("estimatedValue", e.target.value)} />
               <TextField label="Ημερομηνία αγοράς" type="date" value={form.purchaseDate} onChange={e => set("purchaseDate", e.target.value)} InputLabelProps={{ shrink: true }} />
               <TextField select label="Κατάσταση" value={form.condition} onChange={e => set("condition", e.target.value)}><MenuItem value="Καινούργιο">Καινούργιο</MenuItem><MenuItem value="Μεταχειρισμένο">Μεταχειρισμένο</MenuItem></TextField>
-              <TextField label="Αριθμός ιδιοκτητών" value={form.ownerCount} onChange={e => set("ownerCount", e.target.value)} />
+              <TextField label="Αριθμός ιδιοκτητών" type="number" inputProps={{ min: 1, max: 100, step: 1 }} value={form.ownerCount} onChange={e => set("ownerCount", e.target.value)} />
               <TextField label="Χρήση" value={form.use} onChange={e => set("use", e.target.value)} />
               <TextField label="Χρώμα" value={form.color} onChange={e => set("color", e.target.value)} />
               <TextField label="Θέσεις" value={form.seats} onChange={e => set("seats", e.target.value)} />
             </Box>
+            <VehicleOwnershipInputs count={form.ownerCount} values={ownershipValues} onChange={setOwnershipValues} primaryName={rows.find(row => row.id === form.policyId)?.customerDisplay ?? ""} />
             <TextField label="Σημειώσεις οχήματος" value={form.notes} onChange={e => set("notes", e.target.value)} multiline minRows={2} />
             {error && <Alert severity="error">{error}</Alert>}
           </Stack>

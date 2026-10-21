@@ -294,6 +294,7 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
             Status = r.Status,
             StartDate = r.StartDate,
             EndDate = r.EndDate,
+            NextRenewalDate = r.EndDate,
             Premium = r.Premium,
             NetPremium = r.NetPremium,
             SpecialCommissionPercent = r.SpecialCommissionPercent,
@@ -498,6 +499,7 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
         p.CarrierPackageCode = string.IsNullOrWhiteSpace(b.PackageCode) ? null : b.PackageCode.Trim();
         p.CarrierCoverageCode = string.IsNullOrWhiteSpace(b.CoverCode)  ? null : b.CoverCode.Trim();
         p.StartDate = b.StartDate;
+        p.NextRenewalDate = PolicyRenewalDates.FollowExpiry(p.NextRenewalDate, p.EndDate, b.EndDate);
         p.EndDate = b.EndDate;
         p.Premium = b.Premium;
         p.NetPremium = b.NetPremium;
@@ -687,6 +689,7 @@ public class RenewPolicyCommandHandler : IRequestHandler<RenewPolicyCommand, Pol
             Status = PolicyStatus.Active,
             StartDate = b.StartDate,
             EndDate = b.EndDate,
+            NextRenewalDate = b.EndDate,
             Premium = b.Premium,
             Currency = src.Currency,
             CreatedByUserId = _current.UserId,

@@ -23,6 +23,13 @@ import { SearchableSelect as OriginalSearchableSelect } from "./SearchableSelect
 import { VehicleDetailDialog } from "../pages/CustomerVehiclesPage";
 import { contractDurationLabel } from "../utils/contractDuration";
 import EditIcon from "@mui/icons-material/Edit";
+import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
+import { ThemeProvider, type Theme } from "@mui/material/styles";
+
+// A modal policy sits above ordinary dialogs; its child menus/dialogs must sit higher still.
+export const policyOverlayTheme = (theme: Theme): Theme => ({
+  ...theme, zIndex: { ...theme.zIndex, modal: 1800, snackbar: 1900, tooltip: 2000 },
+});
 
 // Mirrors PolicyDetailDto from the backend (see PolicyDetailQuery.cs).
 export interface PolicyDetail {
@@ -266,7 +273,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
       premiumIncludesVat: data.premiumIncludesVat,
       specialCommissionPercent: data.specialCommissionPercent?.toString() ?? "",
       specsJson: data.specsJson ?? "",
-      nextRenewalDate: data.nextRenewalDate ?? "",
+      nextRenewalDate: data.nextRenewalDate ?? data.endDate,
       renewalTransferToProducerId: data.renewalTransferToProducerId ?? "",
       renewalTransferToCarrierId: data.renewalTransferToCarrierId ?? "",
       retainCommissionsOnRenewal: data.retainCommissionsOnRenewal,
@@ -334,7 +341,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   });
   const claims = useQuery({
     queryKey: ["policy-claims", policyId],
-    enabled: open && (tab === 6 || (modalPresentation && modalTab === 3)) && !!policyId,
+    enabled: open && !modalPresentation && tab === 6 && !!policyId,
     queryFn: async () => (await api.get<any[]>("/claims", { params: { policyId } })).data
   });
   const receipts = useQuery({
@@ -345,7 +352,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   const communications = useQuery({
     queryKey: ["policy-communications", policyId],
     // Communications lazy-load moved to the merged Δραστηριότητα tab (index 11).
-    enabled: open && (tab === 11 || (modalPresentation && modalTab === 4)) && !!policyId,
+    enabled: open && (tab === 11 || (modalPresentation && modalTab === 5)) && !!policyId,
     queryFn: async () => (await api.get<PolicyCommunicationRow[]>(`/policies/${policyId}/communications`)).data
   });
   const commissionMatrix = useQuery({
@@ -498,6 +505,9 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
       ...Object.fromEntries(Object.keys(form).map(key => [key, String(q.data?.[key as keyof PolicyDetail] ?? "")])),
       ...Object.fromEntries(POLICY_CORE_KEYS.map(key => [key, String(q.data?.[key as keyof PolicyDetail] ?? "")])),
       policyType: q.data?.carrierBranchCode || q.data?.policyType || "",
+      vehicleUseCategory: q.data?.vehicleUseCategory || q.data?.carrierUseCode || "",
+      packageCode: q.data?.carrierPackageCode || "",
+      coverCode: q.data?.carrierCoverageCode || "",
     }, onClose, refresh: () => { void qc.invalidateQueries({ queryKey: ["policy-detail", policyId] }); void qc.invalidateQueries({ queryKey: ["policies"] }); },
     write: async (changes, accept) => {
       if (readOnly || !q.data) throw new Error("Δεν επιτρέπεται η επεξεργασία συμβολαίου.");
@@ -576,11 +586,13 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   const showFinancials = modalPresentation ? modalTab === 1 : tab === 1;
   const showContract = modalPresentation ? modalTab === 2 : tab === 2;
   const showMovements = modalPresentation ? modalTab === 3 : false;
-  const showDocumentsHistory = modalPresentation ? modalTab === 4 : false;
+  const showDocuments = modalPresentation && modalTab === 4;
+  const showHistory = modalPresentation && modalTab === 5;
   const canEdit = !readOnly && (!modalPresentation || editing);
+  const catalogue = useCarrierCatalogue(open ? q.data?.insuranceCompanyId : null);
 
   return (
-    <PolicyFieldsContext.Provider value={{session, readOnly}}><Drawer anchor="right" open={open} onClose={session.requestClose}
+    <ThemeProvider theme={policyOverlayTheme}><PolicyFieldsContext.Provider value={{session, readOnly}}><Drawer anchor="right" open={open} onClose={session.requestClose}
       transitionDuration={modalPresentation ? 0 : undefined}
       ModalProps={modalPresentation ? { sx: { zIndex: 1600 } } : undefined}
       PaperProps={{ sx: modalPresentation ? {
@@ -645,21 +657,17 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
           ) : null}
         </Box>
 
-        {/* Tab consolidation pass — Αντικείμενα + Καλύψεις collapsed into
-            a single "Δεδομένα συμβολαίου" tab (renders both sub-sections
-            stacked), Ιστορικό + Επικοινωνία collapsed into "Δραστηριότητα"
-            (audit timeline + comms feed one under the other). Fewer tabs
-            = less mental load per policy for the operator. */}
+        {/* Compact, distinct document/history tabs for nested policy cards. */}
         <DetailProfileTabs value={modalPresentation ? modalTab : tab} onChange={value => modalPresentation ? selectTab(value) : setTab(value)} items={modalPresentation ? [
           {label:"Γενικά",icon:<InfoOutlinedIcon />}, {label:"Οικονομικά",icon:<AccountBalanceWalletOutlinedIcon />},
           {label:"Στοιχεία συμβολαίου",icon:<DescriptionOutlinedIcon />}, {label:"Κινήσεις",icon:<ReceiptLongOutlinedIcon />},
-          {label:"Έγγραφα & ιστορικό",icon:<HistoryOutlinedIcon />},
+          {label:"Έγγραφα",icon:<DescriptionOutlinedIcon />}, {label:"Ιστορικό",icon:<HistoryOutlinedIcon />},
         ] : [
           {label:"Γενικά",icon:<InfoOutlinedIcon />}, {label:t("policyDetail.tab.financials"),icon:<AccountBalanceWalletOutlinedIcon />},
-          {label:t("policyDetail.tab.parties"),icon:<PersonOutlineIcon />}, {label:t("policyDetail.tab.renewal"),icon:<DescriptionOutlinedIcon />},
+          {label:"Στοιχεία συμβολαίου",icon:<DescriptionOutlinedIcon />}, {label:t("policyDetail.tab.renewal"),icon:<DescriptionOutlinedIcon />},
           {label:t("policyDetail.tab.delivery"),icon:<DescriptionOutlinedIcon />}, {label:t("policyDetail.tab.endorsements"),icon:<DescriptionOutlinedIcon />},
           {label:t("policyDetail.tab.claims"),icon:<DescriptionOutlinedIcon />}, {label:t("policyDetail.tab.receipts"),icon:<ReceiptLongOutlinedIcon />},
-          {label:"PDF Συμβολαίου",icon:<DescriptionOutlinedIcon />}, {label:"Δεδομένα συμβολαίου",icon:<DescriptionOutlinedIcon />},
+          {label:"PDF Συμβολαίου",icon:<DescriptionOutlinedIcon />}, {label:"Καλύψεις",icon:<DescriptionOutlinedIcon />},
           {label:"Δόσεις",icon:<ReceiptLongOutlinedIcon />}, {label:"Δραστηριότητα",icon:<HistoryOutlinedIcon />},
         ]} />
 
@@ -681,7 +689,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
               {showSummary && <Stack spacing={.75}>
                 <PolicyProfileFields session={readOnly ? undefined : session} values={session.values} policy={p}
                   companies={carriersLookup.data ?? []} customers={customersLookup.data ?? []} />
-                <Stack direction="row" spacing={.75} useFlexGap flexWrap="wrap">
+                <Stack direction="row" spacing={.75} useFlexGap flexWrap="wrap" sx={{ "& .MuiButton-root": { bgcolor: "success.main", color: "#fff", borderColor: "success.main", "&:hover": { bgcolor: "success.dark", borderColor: "success.dark" } } }}>
                   <Button size="small" variant="outlined" onClick={() => setCustomerPreviewOpen(true)}>Καρτέλα πελάτη</Button>
                   <Button size="small" variant="outlined" onClick={() => setVehiclePreviewOpen(true)}>Καρτέλα οχήματος</Button>
                   {!readOnly && <Button size="small" variant="outlined" onClick={() => setVehiclePickerOpen(true)}>Σύνδεση οχήματος</Button>}
@@ -695,10 +703,10 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                 </Box>
               </Stack>}
 
-              {showContract && <Box sx={profileFieldGridSx}>
-                <ProfileEditableField label="Σημειώσεις συμβολαίου" value={p.policyNotes} />
-                <TextField profileKey="specsJson" label="Παραμετρικά στοιχεία (JSON)" value={form.specsJson} multiline />
-              </Box>}
+              {showContract && <Stack spacing={1}>
+                <PolicyContractFields policy={p} session={readOnly ? undefined : session} values={session.values} uses={catalogue.uses} packages={catalogue.packages} />
+                <PolicySummarySection title="Καλύψεις"><PolicyCoversTab policyId={p.id} readOnly={!canEdit} /></PolicySummarySection>
+              </Stack>}
 
               {showFinancials && (readOnly ? (
                 <Alert severity="info">
@@ -710,13 +718,13 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                     <PolicyPremiumFields policy={p} matrix={commissionMatrix.data} matrixLoading={commissionMatrix.isLoading} session={session} />
                     <Stack direction="row" gap={.75} flexWrap="wrap" sx={{ mt: .75 }}>
                       <Button size="small" variant="outlined" startIcon={<AccountBalanceWalletOutlinedIcon />} onClick={() => setCommissionDetailsOpen(true)}>Κατανομή & ειδικά ποσοστά</Button>
-                      <Button size="small" disabled={commissionMatrix.isFetching} onClick={() => void commissionMatrix.refetch()}>Επανυπολογισμός προμηθειών</Button>
+                      <Button size="small" variant="contained" color="success" sx={{ color: "#fff" }} disabled={commissionMatrix.isFetching} onClick={() => void commissionMatrix.refetch()}>Επανυπολογισμός προμηθειών</Button>
                     </Stack>
                   </PolicySummarySection>
                   <PolicySummarySection title="Είσπραξη & ρυθμίσεις">
                     <Box sx={{ ...profileFieldGridSx, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))" }}>
                       <PolicySummaryLine label={t("policyDetail.totalReceived")} value={settlementAmount(p.totalReceived, p.currency)} mono />
-                      <PolicySummaryLine label={t("policyDetail.outstanding")} value={settlementAmount(p.outstanding, p.currency)} mono />
+                      <PolicyOutstandingField amount={p.outstanding} currency={p.currency} />
                       <TextField profileKey="paymentFrequency" select label={t("policyDetail.paymentFrequency")} value={form.paymentFrequency}>{FREQUENCIES.map(f => <MenuItem key={f} value={f}>{FREQUENCY_LABELS[f] ?? f}</MenuItem>)}</TextField>
                       <TextField profileKey="paymentCollectionMethod" select label="Τρόπος είσπραξης" value={form.paymentCollectionMethod}><MenuItem value="">Δεν έχει οριστεί</MenuItem>{COLLECTION_METHODS.map(m => <MenuItem key={m} value={m}>{COLLECTION_METHODS_LABEL[m]}</MenuItem>)}</TextField>
                       <PolicyBooleanField profileKey="paidDirectlyToCarrier" label="Πληρωμή απευθείας στην ασφαλιστική" />
@@ -725,7 +733,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                   </PolicySummarySection>
                   <PolicySettlementPanel policy={p} readOnly={readOnly} onSettle={setSettlementMode} />
                   {p.covers.length > 0 && <PolicySummarySection title="Αναλυτικές καλύψεις"><CoversBreakdown p={p} /></PolicySummarySection>}
-                  <Dialog open={commissionDetailsOpen} onClose={() => setCommissionDetailsOpen(false)} fullWidth maxWidth="lg">
+                  <Dialog open={commissionDetailsOpen} onClose={() => setCommissionDetailsOpen(false)} fullWidth maxWidth="lg" sx={{ zIndex: 1800 }}>
                     <DialogTitle>Κατανομή προμηθειών & ειδικά ποσοστά</DialogTitle>
                     <DialogContent dividers sx={{ overflowX: "auto" }}>
                       {session.error && <Alert severity="error">{session.error}</Alert>}
@@ -741,126 +749,11 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                 </Stack>
               ))}
 
-              {/* PARTIES */}
-              {showContract && modalPresentation && (
-                <Stack spacing={1.25}>
-                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" }, gap: 1.25 }}>
-                    <PolicySummarySection title="Πελάτης">
-                      <PolicySummaryLine label="Όνομα" value={p.customerDisplay} />
-                      {p.customerVat && <PolicySummaryLine label="ΑΦΜ" value={p.customerVat} mono />}
-                      {p.customerEmail && <PolicySummaryLine label="Email" value={<a href={`mailto:${p.customerEmail}`}>{p.customerEmail}</a>} />}
-                      {p.customerPhone && <PolicySummaryLine label="Τηλέφωνο" value={<a href={`tel:${p.customerPhone}`}>{p.customerPhone}</a>} />}
-                      <Button size="small" variant="contained" color="primary" startIcon={<PersonOutlineIcon />} onClick={() => setCustomerPreviewOpen(true)} sx={{ mt: .75, color: "#fff", fontWeight: 700 }}>Άνοιγμα καρτέλας πελάτη</Button>
-                    </PolicySummarySection>
-                    <PolicySummarySection title="Ασφαλιστική εταιρεία">
-                      <PolicySummaryLine label="Επωνυμία" value={p.insuranceCompanyName} />
-                      {p.insuranceCompanyCode && <PolicySummaryLine label="Κωδικός" value={p.insuranceCompanyCode} mono />}
-                    </PolicySummarySection>
-                    <PolicySummarySection title="Συνεργάτης">
-                      <PolicySummaryLine label="Όνομα" value={p.producerName ?? "—"} />
-                      {p.producerCode && <PolicySummaryLine label="Κωδικός" value={p.producerCode} mono />}
-                      {!readOnly && <Button size="small" variant="outlined" onClick={() => setChangeProducerOpen(true)} sx={{ mt: .75 }}>Αλλαγή συνεργάτη</Button>}
-                    </PolicySummarySection>
-                  </Box>
-
-                  <PolicySummarySection title="Ανανέωση, παράδοση & καλύψεις">
-                    {(
-                      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: 1 }}>
-                        <TextField profileKey="nextRenewalDate" size="small" type="date" label={t("policyDetail.nextRenewal")} InputLabelProps={{ shrink: true }} value={form.nextRenewalDate} onChange={e => setForm({ ...form, nextRenewalDate: e.target.value })} />
-                        <TextField profileKey="deliveredAt" size="small" type="date" label={t("policyDetail.deliveredAt")} InputLabelProps={{ shrink: true }} value={form.deliveredAt} onChange={e => setForm({ ...form, deliveredAt: e.target.value })} />
-                        <TextField profileKey="deliveredTo" size="small" label={t("policyDetail.deliveredTo")} value={form.deliveredTo} onChange={e => setForm({ ...form, deliveredTo: e.target.value })} />
-                        <TextField profileKey="deliveryMethod" select size="small" label={t("policyDetail.deliveryMethod")} value={form.deliveryMethod} onChange={e => setForm({ ...form, deliveryMethod: e.target.value })}><MenuItem value="">—</MenuItem>{DELIVERY_METHODS.map(m => <MenuItem key={m} value={m}>{DELIVERY_METHOD_LABELS[m] ?? m}</MenuItem>)}</TextField>
-                        <TextField profileKey="renewalInstructions" size="small" label={t("policyDetail.renewalInstructions")} value={form.renewalInstructions} onChange={e => setForm({ ...form, renewalInstructions: e.target.value })} sx={{ gridColumn: { sm: "1 / -1" } }} />
-                        <PolicyBooleanField profileKey="retainCommissionsOnRenewal" label={t("policyDetail.retainCommissions")} />
-                        <PolicyBooleanField profileKey="retainDocumentNumberOnRenewal" label={t("policyDetail.retainDocNumber")} />
-                      </Box>
-                    )}
-                  </PolicySummarySection>
-
-                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.25 }}>
-                    <PolicySummarySection title="Αντικείμενα"><PolicyObjectsTab policyId={p.id} readOnly={!canEdit} /></PolicySummarySection>
-                    <PolicySummarySection title="Καλύψεις"><PolicyCoversTab policyId={p.id} readOnly={!canEdit} /></PolicySummarySection>
-                  </Box>
-                </Stack>
-              )}
-              {showContract && !modalPresentation && (
-                <Stack spacing={2}>
-                  <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
-                    <Typography variant="overline" color="text.secondary" fontWeight={700}>{t("policyDetail.customer")}</Typography>
-                    <Button size="small" variant="outlined" color="primary" startIcon={<PersonOutlineIcon />} onClick={() => setCustomerPreviewOpen(true)}>Προβολή καρτέλας</Button>
-                  </Stack>
-                  <KV label={t("policyDetail.name")} value={p.customerDisplay} />
-                  {p.customerVat && <KV label="ΑΦΜ" value={p.customerVat} mono />}
-                  {p.customerEmail && <KV label="Email" value={<a href={`mailto:${p.customerEmail}`}>{p.customerEmail}</a>} />}
-                  {p.customerPhone && <KV label={t("policyDetail.phone")} value={<a href={`tel:${p.customerPhone}`}>{p.customerPhone}</a>} />}
-                  <Divider />
-                  <Typography variant="overline" color="text.secondary" fontWeight={700}>{t("policyDetail.insurer")}</Typography>
-                  <KV label={t("policyDetail.name")} value={p.insuranceCompanyName} />
-                  {p.insuranceCompanyCode && <KV label={t("policyDetail.code")} value={p.insuranceCompanyCode} mono />}
-                  <Divider />
-                  <Stack direction="row" alignItems="center" justifyContent="space-between">
-                    <Typography variant="overline" color="text.secondary" fontWeight={700}>{t("policyDetail.producer")}</Typography>
-                    {canEdit && (
-                    <Button size="small" variant="text" onClick={() => setChangeProducerOpen(true)}>
-                      Αλλαγή συνεργάτη
-                    </Button>
-                    )}
-                  </Stack>
-                  <KV label={t("policyDetail.name")} value={p.producerName ?? "—"} />
-                  {p.producerCode && <KV label={t("policyDetail.code")} value={p.producerCode} mono />}
-                  {modalPresentation && (
-                    <>
-                      <Divider />
-                      <Typography variant="overline" color="text.secondary" fontWeight={800}>
-                        Ανανέωση, παράδοση και καλύψεις
-                      </Typography>
-                      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: 1 }}>
-                        <TextField profileKey="nextRenewalDate" size="small" type="date" label={t("policyDetail.nextRenewal")} InputLabelProps={{ shrink: true }}
-                          disabled={!canEdit}
-                          value={form.nextRenewalDate} onChange={e => setForm({ ...form, nextRenewalDate: e.target.value })} />
-                        <TextField profileKey="deliveredAt" size="small" type="date" label={t("policyDetail.deliveredAt")} InputLabelProps={{ shrink: true }}
-                          disabled={!canEdit}
-                          value={form.deliveredAt} onChange={e => setForm({ ...form, deliveredAt: e.target.value })} />
-                        <TextField profileKey="deliveredTo" size="small" label={t("policyDetail.deliveredTo")} value={form.deliveredTo}
-                          disabled={!canEdit}
-                          onChange={e => setForm({ ...form, deliveredTo: e.target.value })} />
-                        <TextField profileKey="deliveryMethod" select size="small" label={t("policyDetail.deliveryMethod")} value={form.deliveryMethod}
-                          disabled={!canEdit}
-                          onChange={e => setForm({ ...form, deliveryMethod: e.target.value })}>
-                          <MenuItem value="">—</MenuItem>
-                          {DELIVERY_METHODS.map(m => <MenuItem key={m} value={m}>{DELIVERY_METHOD_LABELS[m] ?? m}</MenuItem>)}
-                        </TextField>
-                      </Box>
-                      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} flexWrap="wrap" useFlexGap>
-                        <PolicyBooleanField profileKey="retainCommissionsOnRenewal" label={t("policyDetail.retainCommissions")} />
-                        <PolicyBooleanField profileKey="retainDocumentNumberOnRenewal" label={t("policyDetail.retainDocNumber")} />
-                      </Stack>
-                      <TextField profileKey="renewalInstructions" size="small" fullWidth multiline minRows={2} label={t("policyDetail.renewalInstructions")}
-                        disabled={!canEdit}
-                        value={form.renewalInstructions} onChange={e => setForm({ ...form, renewalInstructions: e.target.value })} />
-                      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1 }}>
-                        <Box sx={{ p: 1, border: "1px solid", borderColor: "divider", borderRadius: 1.25, bgcolor: "rgba(248,250,252,.78)" }}>
-                          <Typography variant="caption" color="text.secondary" fontWeight={800} display="block" mb={.5}>Αντικείμενα</Typography>
-                          <PolicyObjectsTab policyId={p.id} readOnly={!canEdit} />
-                        </Box>
-                        <Box sx={{ p: 1, border: "1px solid", borderColor: "divider", borderRadius: 1.25, bgcolor: "rgba(248,250,252,.78)" }}>
-                          <Typography variant="caption" color="text.secondary" fontWeight={800} display="block" mb={.5}>Καλύψεις</Typography>
-                          <PolicyCoversTab policyId={p.id} readOnly={!canEdit} />
-                        </Box>
-                      </Box>
-                    </>
-                  )}
-                </Stack>
-              )}
-
               {/* RENEWAL */}
               {tab === 3 && (
                 <Stack spacing={2.5}>
                   <TextField profileKey="nextRenewalDate" type="date" fullWidth label={t("policyDetail.nextRenewal")} InputLabelProps={{ shrink: true }}
                     value={form.nextRenewalDate} onChange={e => setForm({ ...form, nextRenewalDate: e.target.value })} />
-                  <PolicyBooleanField profileKey="retainCommissionsOnRenewal" label={t("policyDetail.retainCommissions")} />
-                  <PolicyBooleanField profileKey="retainDocumentNumberOnRenewal" label={t("policyDetail.retainDocNumber")} />
-                  <PolicyBooleanField profileKey="retainSpecialCommissionsOnRenewal" label={t("policyDetail.retainSpecialCommissions")} />
                   <TextField profileKey="renewalInstructions" fullWidth multiline rows={3} label={t("policyDetail.renewalInstructions")}
                     value={form.renewalInstructions} onChange={e => setForm({ ...form, renewalInstructions: e.target.value })}
                     placeholder={t("policyDetail.renewalInstructionsPlaceholder")} />
@@ -931,11 +824,6 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                     cols={[{ key: "endorsementNumber", label: t("policyDetail.endorsementNo") }, { key: "issuedAt", label: t("policyDetail.issuedAt") }, { key: "premiumDelta", label: "Διαφορά ασφαλίστρου", numeric: true }, { key: "description", label: t("common.description") }]}
                     emptyKey="policyDetail.noEndorsements" />}
                   <Divider />
-                  <Typography variant="overline" color="text.secondary" fontWeight={800}>Ζημιές</Typography>
-                  {claims.isLoading ? <CircularProgress size={22} /> : <SimpleList rows={claims.data ?? []}
-                    cols={[{ key: "claimNumber", label: t("policyDetail.claimNo") }, { key: "incidentDate", label: t("policyDetail.incidentDate") }, { key: "status", label: t("common.status"), format: (v) => v ? String(t(`claimStatus.${v}`, v)) : "—" }, { key: "approvedAmount", label: t("policyDetail.amount"), numeric: true }]}
-                    emptyKey="policyDetail.noClaims" />}
-                  <Divider />
                   <Typography variant="overline" color="text.secondary" fontWeight={800}>Εισπράξεις</Typography>
                   {receipts.isLoading ? <CircularProgress size={22} /> : <SimpleList rows={receipts.data ?? []}
                     cols={[{ key: "number", label: t("policyDetail.receiptNo") }, { key: "receivedOn", label: t("policyDetail.paidOn") }, { key: "method", label: t("policyDetail.method"), format: (v) => v ? String(t(`paymentMethod.${v}`, v)) : "—" }, { key: "amount", label: t("policyDetail.amount"), numeric: true }]}
@@ -946,45 +834,16 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                 </Stack>
               )}
               {tab === 8 && !modalPresentation && <PolicyContractPdf policyId={p.id} readOnly={readOnly} />}
-              {showDocumentsHistory && (
-                <Stack spacing={1.5}>
-                  <Typography variant="overline" color="text.secondary" fontWeight={800}>Έγγραφο συμβολαίου</Typography>
-                  <PolicyContractPdf policyId={p.id} readOnly={readOnly} />
-                  <Divider />
-                  <Typography variant="overline" color="text.secondary" fontWeight={800}>Ιστορικό αλλαγών</Typography>
-                  <EntityAuditTimeline entityName="Policy" entityId={p.id} />
-                  <Divider />
-                  <Typography variant="overline" color="text.secondary" fontWeight={800}>Επικοινωνίες</Typography>
-                  <PolicyCommunicationsTab
-                    policyId={p.id}
-                    loading={communications.isLoading}
-                    rows={communications.data ?? []}
-                    readOnly={!canEdit}
-                    onSaved={() => void qc.invalidateQueries({ queryKey: ["policy-communications", p.id] })}
-                  />
-                </Stack>
-              )}
-              {/* Merged "Δεδομένα συμβολαίου": objects (insured items) on
-                  top, covers table below, one Divider between them so the
-                  operator sees the shape of the contract in a single glance
-                  instead of jumping between two tabs. */}
-              {tab === 9 && !modalPresentation && (
-                <Stack spacing={3}>
-                  <Box>
-                    <Typography variant="overline" color="text.secondary" fontWeight={700} sx={{ mb: 1, display: "block" }}>
-                      Αντικείμενα
-                    </Typography>
-                    <PolicyObjectsTab policyId={p.id} />
-                  </Box>
-                  <Divider />
-                  <Box>
-                    <Typography variant="overline" color="text.secondary" fontWeight={700} sx={{ mb: 1, display: "block" }}>
-                      Καλύψεις
-                    </Typography>
-                    <PolicyCoversTab policyId={p.id} />
-                  </Box>
-                </Stack>
-              )}
+              {showDocuments && <PolicyContractPdf policyId={p.id} readOnly={readOnly} />}
+              {showHistory && <Stack spacing={1}>
+                <Typography variant="subtitle2" fontWeight={800}>Ιστορικό αλλαγών</Typography>
+                <EntityAuditTimeline entityName="Policy" entityId={p.id} />
+                <Divider />
+                <Typography variant="subtitle2" fontWeight={800}>Επικοινωνίες</Typography>
+                <PolicyCommunicationsTab policyId={p.id} loading={communications.isLoading} rows={communications.data ?? []}
+                  readOnly={!canEdit} onSaved={() => void qc.invalidateQueries({ queryKey: ["policy-communications", p.id] })} />
+              </Stack>}
+              {tab === 9 && !modalPresentation && <PolicyCoversTab policyId={p.id} readOnly={readOnly} />}
               {tab === 10 && !modalPresentation && <PolicyInstallmentsTab policyId={p.id} />}
               {/* Merged "Δραστηριότητα": audit trail (created / edited /
                   fields changed) on top, communications log (emails /
@@ -1101,7 +960,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
           }}
         />
       )}
-    </Drawer></PolicyFieldsContext.Provider>
+    </Drawer></PolicyFieldsContext.Provider></ThemeProvider>
   );
 }
 
@@ -1393,10 +1252,6 @@ function nodeCopyText(value: React.ReactNode): string {
   return "";
 }
 
-function KV({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
-  const link = isValidElement<{ href?: string }>(value) ? value.props.href : undefined;
-  return <ProfileEditableField label={label} value={nodeCopyText(value)} mono={mono} link={link} />;
-}
 function PolicySummarySection({ title, children }: { title: string; children: React.ReactNode }) {
   return <Box sx={{ p: .75, bgcolor: "#edf3f9", border: "1px solid #d6e3f0", borderRadius: 1.25 }}><Typography variant="subtitle2" fontWeight={800} sx={{ mb: .5 }}>{title}</Typography>{children}</Box>;
 }
@@ -1463,7 +1318,7 @@ function PolicySettlementPanel({ policy, readOnly, onSettle }: {
             <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap sx={{ mt: .45 }}>
               <Typography variant="body2"><strong>Υποχρέωση:</strong> {settlementAmount(row.due, policy.currency)}</Typography>
               <Typography variant="body2" color="success.dark"><strong>Πληρωμένο:</strong> {settlementAmount(row.paid, policy.currency)}</Typography>
-              <Typography variant="body2" color={row.outstanding > 0 ? "error.dark" : "success.dark"}><strong>Υπόλοιπο:</strong> {settlementAmount(row.outstanding, policy.currency)}</Typography>
+              <Typography variant="body2" color={row.outstanding > 0 ? "#fff" : "success.dark"} sx={row.outstanding > 0 ? { bgcolor: "#D00000", px: .65, py: .15, borderRadius: .65, fontWeight: 750 } : undefined}><strong>Υπόλοιπο:</strong> {settlementAmount(row.outstanding, policy.currency)}</Typography>
             </Stack>
             {!readOnly && row.action && row.outstanding > 0 && (
               <Button size="small" variant="outlined" color={row.color} sx={{ mt: .75, fontWeight: 750 }} onClick={() => onSettle(row.action!)}>
@@ -2031,7 +1886,7 @@ function PolicyContractPdf({ policyId, readOnly = false }: { policyId: string; r
 
 /* ============== EXTENSION TABS ============== */
 
-function PolicyObjectsTab({ policyId, readOnly = false }: { policyId: string; readOnly?: boolean }) {
+export function PolicyObjectsTab({ policyId, readOnly = false }: { policyId: string; readOnly?: boolean }) {
   const qc = useQueryClient();
   const q = useQuery({
     queryKey: ["policy-objects", policyId],
@@ -2953,6 +2808,41 @@ const LEVEL_LABEL: Record<string, string> = {
   Assistant: "Βοηθός",
   Agency: "Γραφείο"
 };
+
+export function PolicyOutstandingField({ amount, currency }: { amount: number; currency: string }) {
+  return <Box sx={amount > 0 ? {
+    "& [role=button]": { bgcolor: "#D00000 !important", borderColor: "#AD0000 !important", "&:hover": { bgcolor: "#AD0000 !important" } },
+    "& [role=button] .MuiTypography-root, & [role=button] .MuiIconButton-root": { color: "#fff !important" },
+  } : undefined}><ProfileEditableField label="Ανεξόφλητο" value={settlementAmount(amount, currency)} mono /></Box>;
+}
+
+/** Only data not already present in General; mappings use the carrier's catalogue. */
+export function PolicyContractFields({ policy, values, session, uses = [], packages = [] }: {
+  policy: PolicyDetail; values: Record<string, string>; session?: ProfileFieldSession;
+  uses?: { value: string; label: string }[]; packages?: { value: string; label: string }[];
+}) {
+  const field = (key: string, label: string, extra: Partial<React.ComponentProps<typeof ProfileEditableField>> = {}) =>
+    <ProfileEditableField key={key} field={session ? key : undefined} session={session} label={label} value={values[key]} {...extra} />;
+  const options = (items: { value: string; label: string }[], current?: string) => {
+    const rows = [{ value: "", label: "Δεν έχει οριστεί" }, ...items];
+    if (current && !rows.some(row => row.value === current)) rows.push({ value: current, label: current });
+    return rows;
+  };
+  return <Box sx={{ ...profileFieldGridSx, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))" }}>
+    {field("vehicleUseCategory", "Χρήση", { options: options(uses, values.vehicleUseCategory) })}
+    {field("packageCode", "Πακέτο", { options: options(packages, values.packageCode) })}
+    {field("coverCode", "Κωδικοί καλύψεων")}
+    <ProfileEditableField label="Επόμενη ανανέωση (αυτόματα)" value={policy.nextRenewalDate || policy.endDate} type="date" />
+    {field("deliveredAt", "Ημερομηνία παράδοσης", { type: "date" })}
+    {field("deliveredTo", "Παραδόθηκε σε")}
+    {field("deliveryMethod", "Τρόπος παράδοσης", { options: options(DELIVERY_METHODS.map(value => ({ value, label: DELIVERY_METHOD_LABELS[value] ?? value })), values.deliveryMethod) })}
+    {field("renewalInstructions", "Οδηγίες ανανέωσης", { multiline: true })}
+    <ProfileEditableField label="Απαλλαγή" value={policy.deductible == null ? "" : settlementAmount(policy.deductible, policy.currency)} mono />
+    <ProfileEditableField label="Χαρακτηριστικό συμβολαίου" value={policy.characteristic} />
+    <ProfileEditableField label="Θέση / σημείο ασφάλισης" value={policy.position} />
+    <ProfileEditableField label="Σημειώσεις συμβολαίου" value={policy.policyNotes} multiline />
+  </Box>;
+}
 
 /** Compact premiums and calculated commissions; unavailable totals are never fabricated. */
 export function PolicyPremiumFields({ policy, matrix, matrixLoading, session }: {

@@ -1,5 +1,5 @@
-export const POLICY_CORE_KEYS = ["insuranceCompanyId", "producerId", "policyType", "startDate", "endDate", "premium", "currency", "status", "netPremium", "vatAmount"] as const;
-const UPDATE_KEYS = [...POLICY_CORE_KEYS, "specialCommissionPercent", "vehicleUseCategory", "coverCode", "packageCode", "applicationNumber", "contractPartyCustomerId", "previousInsuranceCompanyId", "issuedAt", "vehicleRegistrationPlate", "paidDirectlyToCarrier"];
+export const POLICY_CORE_KEYS = ["insuranceCompanyId", "producerId", "policyType", "startDate", "endDate", "premium", "currency", "status", "netPremium", "vatAmount", "vehicleUseCategory", "coverCode", "packageCode"] as const;
+const UPDATE_KEYS = [...POLICY_CORE_KEYS, "specialCommissionPercent", "applicationNumber", "contractPartyCustomerId", "previousInsuranceCompanyId", "issuedAt", "vehicleRegistrationPlate", "paidDirectlyToCarrier"];
 export function policyCorePayload(current: Record<string, unknown>, changes: Record<string, string>) {
   const body: Record<string, unknown> = Object.fromEntries(UPDATE_KEYS.map(key => [key, current[key] ?? null]));
   for (const [key, value] of Object.entries(changes)) {

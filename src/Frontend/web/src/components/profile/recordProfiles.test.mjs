@@ -6,6 +6,7 @@ import { createServer } from "vite";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import i18next from "i18next";
 import { I18nextProvider } from "react-i18next";
+import { readFile } from "node:fs/promises";
 
 test("vehicle, policy, producer and claim profiles reuse client controls and preserve existing data", async t => {
   globalThis.sessionStorage ??= { getItem: () => null, setItem() {}, removeItem() {} };
@@ -18,7 +19,8 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
   const ids = html => [...html.matchAll(/data-profile-field="([^"]+)"/g)].map(match => match[1]);
   try {
     const { VehicleProfileFields } = await server.ssrLoadModule("/src/pages/CustomerVehiclesPage.tsx");
-    const { PolicyProfileFields, PolicyPremiumFields } = await server.ssrLoadModule("/src/components/PolicyDetailDrawer.tsx");
+    const { VehicleOwnershipFields, VehicleOwnershipInputs } = await server.ssrLoadModule("/src/components/profile/VehicleOwnershipFields.tsx");
+    const { PolicyProfileFields, PolicyPremiumFields, PolicyContractFields, PolicyOutstandingField, policyOverlayTheme } = await server.ssrLoadModule("/src/components/PolicyDetailDrawer.tsx");
     const { vehicleOwnerHistory } = await server.ssrLoadModule("/src/components/profile/vehicleHistory.ts");
     const { ProducerProfileFields } = await server.ssrLoadModule("/src/components/ProducerDetailDrawer.tsx");
     const { ClaimProfileFields } = await server.ssrLoadModule("/src/components/ClaimDetailDrawer.tsx");
@@ -41,6 +43,17 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
       assert.equal(view.includes("Αντιγραφή Μάρκα"), true); assert.equal(view.includes("Επεξεργασία Ηλιοροφή"), true);
       assert.equal(edit.includes("Αποθήκευση Ηλιοροφή"), true); assert.equal(edit.includes("Αποθήκευση ΑΦΜ ιδιοκτήτη"), false); assert.equal(view.includes("012345678"), true);
       for (const text of ["Χαρακτηριστικό", "Απαλλαγή", "Θέση / spot", "Τρόπος είσπραξης", "Πληρωμή απευθείας"]) assert.equal(view.includes(text), false);
+    });
+    await t.test("multiple owners get individual percentage fields in view/edit and creation; single owners do not", () => {
+      const values = { "spec:ownerCount": "2", "owner:0:name": "Άννα", "owner:0:percentage": "60", "owner:1:name": "Γιάννης", "owner:1:percentage": "40" };
+      const {view, edit} = layout(VehicleOwnershipFields, { values, session: session(values) });
+      for (const key of ["owner:0:percentage", "owner:1:percentage"]) assert.equal(ids(view).includes(key), true);
+      assert.match(view, /100%/);
+      assert.match(edit, /Αποθήκευση Ποσοστό ιδιοκτησίας/);
+      assert.equal(render(VehicleOwnershipFields, { values: { "spec:ownerCount": "1" } }), "");
+      const create = render(VehicleOwnershipInputs, { count: "2", values: {}, onChange() {} });
+      assert.match(create, /Ιδιοκτήτης 1/); assert.match(create, /Ιδιοκτήτης 2/);
+      assert.equal((create.match(/type="number"/g) ?? []).length, 2);
     });
     await t.test("vehicle JSON updates preserve nested insurer data, support clearing and reject broken source", () => {
       const raw = JSON.stringify({make:"Old",sunroof:true,insurer:{reference:"keep",items:[1,2]}});
@@ -79,6 +92,33 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
       const {view,edit}=layout(PolicyProfileFields,{policy,values,session:session(values),companies:[],customers:[]});
       assert.equal(view.includes("Επεξεργασία Έναρξη"),true); assert.equal(edit.includes("Αποθήκευση Έναρξη"),true);
       assert.equal(edit.includes("Αποθήκευση Διάρκεια"),false); assert.equal(edit.includes("Αποθήκευση Αριθμός συμβολαίου"),false);
+    });
+    await t.test("policy contract details exclude General duplicates, hide JSON and keep editable catalogue values", () => {
+      const policy = { endDate: "2027-01-01", nextRenewalDate: null, currency: "EUR", deductible: 100, policyNotes: "Όροι" };
+      const values = { vehicleUseCategory: "Private", packageCode: "BASIC", coverCode: "FIRE,GLASS", deliveredAt: "2026-01-01", deliveredTo: "Πελάτης" };
+      const {view,edit} = layout(PolicyContractFields, { policy, values, session: session(values), uses: [{value:"Private",label:"Ιδιωτική χρήση"}], packages: [{value:"BASIC",label:"Βασικό πακέτο"}] });
+      assert.match(view, /Βασικό πακέτο/); assert.match(view, /Ιδιωτική χρήση/); assert.match(view, /2027-01-01/);
+      assert.equal(ids(view).includes("specsJson"), false);
+      for (const key of ["insuranceCompanyId", "policyType", "customerDisplay", "startDate", "endDate", "premium", "applicationNumber"])
+        assert.equal(ids(view).includes(key), false, key);
+      assert.match(edit, /Αποθήκευση Πακέτο/);
+      assert.equal(edit.includes("Αποθήκευση Επόμενη ανανέωση"), false);
+      const payload = policyCorePayload({ insuranceCompanyId:"carrier", policyType:"Auto", currency:"EUR", status:"Active", premium:100, startDate:"2026-01-01", endDate:"2027-01-01", coverCode:"OLD" }, { vehicleUseCategory:"Private", packageCode:"BASIC", coverCode:"FIRE,GLASS" });
+      assert.equal(payload.packageCode,"BASIC"); assert.equal(payload.coverCode,"FIRE,GLASS");
+    });
+    await t.test("policy debt has a red value surface and nested popups stay above the policy modal", async () => {
+      const unpaid = render(PolicyOutstandingField, { amount: 100, currency: "EUR" });
+      assert.match(unpaid, /#D00000/); assert.match(unpaid, /#fff/); assert.match(unpaid, /100,00 EUR/);
+      assert.equal(render(PolicyOutstandingField, { amount: 0, currency: "EUR" }).includes("#D00000"), false);
+      const childTheme = policyOverlayTheme({ zIndex: { modal: 1300, drawer: 1200, snackbar: 1400, tooltip: 1500 } });
+      assert.equal(childTheme.zIndex.modal,1800); assert.equal(childTheme.zIndex.drawer,1200);
+      const source = await readFile(new URL("../PolicyDetailDrawer.tsx",import.meta.url),"utf8");
+      assert.match(source, /<Dialog open=\{commissionDetailsOpen\}[^\n]+zIndex: 1800/);
+      assert.match(source, /label:"Έγγραφα",icon:<DescriptionOutlinedIcon \/>\}, \{label:"Ιστορικό"/);
+      assert.equal(source.includes("Παραμετρικά στοιχεία (JSON)"),false);
+      assert.equal(source.includes('<PolicyBooleanField profileKey="retain'),false);
+      const movements = source.slice(source.indexOf("{showMovements &&"),source.indexOf("{showDocuments &&"));
+      assert.equal(movements.includes(">Ζημιές<"),false);
     });
     await t.test("compact financial fields retain copy/save controls and sum each commission level exactly once", () => {
       const policy = { premium: 100, netPremium: 80, currency: "EUR", producerName: "Συνεργάτης" };

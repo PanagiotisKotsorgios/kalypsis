@@ -53,6 +53,9 @@ import { useNavigate, useParams, Link as RouterLink } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { VehicleDetailDialog, vehicleStatusLabel } from "./CustomerVehiclesPage";
+import { VehicleOwnershipInputs } from "../components/profile/VehicleOwnershipFields";
+import { mergeVehicleOwnership, ownershipCreationChanges } from "../components/profile/vehicleOwnership";
+import { mergeVehicleSpecs } from "../components/profile/vehicleProfile";
 import { InlineValueField, type InlineValueOption } from "../components/InlineValueField";
 import { drivingFields, persistCustomerEdits, type CustomerDrafts } from "../components/customer/customerEditSession";
 import { customerDraftErrors, customerFieldError, fieldMaxLength } from "../components/customer/customerValidation";
@@ -756,20 +759,29 @@ const blankAddVehicleForm = (policyId = ""): AddVehicleForm => ({
 
 function AddCustomerVehicleDialog({ open, rows, onClose, onSaved }: { open: boolean; rows: CustomerVehicleRow[]; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState<AddVehicleForm>(() => blankAddVehicleForm(rows[0]?.id));
+  const [ownershipValues, setOwnershipValues] = useState<Record<string, string>>({});
+  useEffect(() => { setOwnershipValues({}); }, [open, form.policyId]);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => { if (open) { setForm(blankAddVehicleForm(rows[0]?.id)); setError(null); } }, [open, rows]);
   const update = useMutation({
     mutationFn: async () => {
-      const specs: Record<string, unknown> = {
+      const specs: Record<string, string> = {
         make: form.make.trim(), model: form.model.trim(), year: form.year.trim(), vin: form.vin.trim(), engineCapacity: form.engineCapacity.trim(),
         taxableHorsepower: form.taxableHorsepower.trim(), estimatedValue: form.estimatedValue.trim(), purchaseDate: form.purchaseDate,
         condition: form.condition, ownerCount: form.ownerCount.trim(), youngDriver: form.youngDriver ? "Ναι" : "Όχι", sunroof: form.sunroof ? "Ναι" : "Όχι",
         color: form.color.trim(), seats: form.seats.trim()
       };
       Object.keys(specs).forEach(key => { const value = specs[key]; if (value === "" || value === undefined) delete specs[key]; });
+      const current = (await api.get<{
+        specsJson?: string | null; customerDisplay: string; customerVat?: string | null; reasonForCirculation?: string | null;
+        characteristic?: string | null; deductible?: number | null; position?: string | null;
+      }>(`/policies/${form.policyId}/detail`)).data;
       return api.patch(`/policies/${form.policyId}/vehicle`, {
         vehicleRegistrationPlate: form.plate.trim(), vehicleUseCategory: form.use.trim() || null,
-        specsJson: JSON.stringify(specs), notes: form.notes.trim() || null, replaceDetails: true
+        driverVatNumber: current.customerVat ?? null, reasonForCirculation: current.reasonForCirculation,
+        characteristic: current.characteristic, deductible: current.deductible, position: current.position,
+        specsJson: mergeVehicleOwnership(mergeVehicleSpecs(current.specsJson, specs), ownershipCreationChanges(ownershipValues, form.ownerCount), current.customerDisplay, current.customerVat ?? ""),
+        notes: form.notes.trim() || null, replaceDetails: true
       });
     },
     onSuccess: onSaved,
@@ -795,11 +807,12 @@ function AddCustomerVehicleDialog({ open, rows, onClose, onSaved }: { open: bool
           <TextField label="Εκτιμώμενη αξία" value={form.estimatedValue} onChange={e => set("estimatedValue", e.target.value)} />
           <TextField label="Ημερομηνία αγοράς" type="date" value={form.purchaseDate} onChange={e => set("purchaseDate", e.target.value)} InputLabelProps={{ shrink: true }} />
           <TextField select label="Κατάσταση" value={form.condition} onChange={e => set("condition", e.target.value)}><MenuItem value="Καινούργιο">Καινούργιο</MenuItem><MenuItem value="Μεταχειρισμένο">Μεταχειρισμένο</MenuItem></TextField>
-          <TextField label="Αριθμός ιδιοκτητών" value={form.ownerCount} onChange={e => set("ownerCount", e.target.value)} />
+          <TextField label="Αριθμός ιδιοκτητών" type="number" inputProps={{ min: 1, max: 100, step: 1 }} value={form.ownerCount} onChange={e => set("ownerCount", e.target.value)} />
           <TextField label="Χρήση" value={form.use} onChange={e => set("use", e.target.value)} />
           <TextField label="Χρώμα" value={form.color} onChange={e => set("color", e.target.value)} />
           <TextField label="Θέσεις" value={form.seats} onChange={e => set("seats", e.target.value)} />
         </Box>
+        <VehicleOwnershipInputs count={form.ownerCount} values={ownershipValues} onChange={setOwnershipValues} />
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
           <FormControlLabel control={<Switch checked={form.youngDriver} onChange={e => set("youngDriver", e.target.checked)} />} label="Νέος οδηγός / οδηγεί παιδί" />
           <FormControlLabel control={<Switch checked={form.sunroof} onChange={e => set("sunroof", e.target.checked)} />} label="Ηλιοροφή" />
