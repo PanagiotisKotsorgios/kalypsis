@@ -1197,13 +1197,9 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
     ["Ημερομηνία λήξης σύμβασης", ["contract-expiry", "λήξη σύμβασης"]],
     ["Google Maps", ["google maps", "maps"]],
   ];
-  const socialFields: [string, string[]][] = [
-    ["Facebook", ["facebook", "fb"]], ["Instagram", ["instagram", "insta"]],
-    ["LinkedIn", ["linkedin", "linked in"]], ["X / Twitter", ["twitter", "x.com"]],
-  ];
-  const knownCustomIds = new Set([...addressFields, ...socialFields].map(([, aliases]) => customField(...aliases)?.id).filter(Boolean));
+  const knownCustomIds = new Set(addressFields.map(([, aliases]) => customField(...aliases)?.id).filter(Boolean));
   const isSocialCustomField = (field: CompanyWorkspaceField) =>
-    /facebook|instagram|linkedin|twitter|x\.com|tiktok|youtube/i.test(`${field.key} ${field.label}`);
+    /facebook|instagram|linked\s*in|twitter|x\.com|tiktok|youtube|social|κοινωνικ[άα]\s+δ[ίι]κτυα|\bfb\b|\binsta\b/i.test(`${field.key} ${field.label}`);
   const isDuplicateCoreField = (field: CompanyWorkspaceField) => {
     const label = `${field.key} ${field.label}`.toLocaleLowerCase("el-GR").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[-_]/g, " ");
     return /κωδικος συνεργασιας|cooperation code|agent code|υπευθυνος λογαριασμου|account manager/.test(label);
@@ -1294,8 +1290,7 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
               <Button size="small" variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => openContactEditor()}>Προσθήκη επαφής</Button>
             </Stack>
             <CompanyProfileFields session={session} contact />
-            <Box sx={{ ...profileFieldGridSx, mt: .75 }}>{socialFields.map(([label, aliases]) => renderCustomField(label, aliases))}</Box>
-            <Box sx={{ ...profileFieldGridSx, mt: .75 }}>{(workspace?.fields ?? []).filter(field => field.isActive && (isContactCustomField(field) || isSocialCustomField(field)) && !knownCustomIds.has(field.id) && !isDuplicateCoreField(field)).map(field => <Box key={field.id} sx={{ minWidth: 0 }}><ProfileEditableField label={field.label} field={"custom:" + field.id} session={session} link={field.value ?? undefined} type={field.fieldType === "date" ? "date" : field.fieldType === "number" ? "number" : "text"} /></Box>)}</Box>
+            <Box sx={{ ...profileFieldGridSx, mt: .75 }}>{(workspace?.fields ?? []).filter(field => field.isActive && isContactCustomField(field) && !isSocialCustomField(field) && !knownCustomIds.has(field.id) && !isDuplicateCoreField(field)).map(field => <Box key={field.id} sx={{ minWidth: 0 }}><ProfileEditableField label={field.label} field={"custom:" + field.id} session={session} link={field.value ?? undefined} type={field.fieldType === "date" ? "date" : field.fieldType === "number" ? "number" : "text"} /></Box>)}</Box>
             {workspaceQ.isLoading && <Typography variant="body2" color="text.secondary">Φόρτωση επαφών…</Typography>}
             {!workspaceQ.isLoading && (workspace?.contacts ?? []).filter(contact => contact.isActive).length === 0 && <Typography variant="body2" color="text.secondary">Δεν έχουν καταχωρηθεί επιπλέον στελέχη.</Typography>}
             {(workspace?.contacts ?? []).filter(contact => contact.isActive).map(contact => <Box key={contact.id} sx={{ mt: .75, pt: .75, borderTop: "1px solid", borderColor: "divider" }}><Stack direction="row" justifyContent="space-between" alignItems="center" gap={1}><Typography variant="subtitle2" fontWeight={800}>{contact.name}{contact.isPrimary && <Chip size="small" color="primary" label="Κύρια" sx={{ ml: .75 }} />}</Typography><Stack direction="row" spacing={.5}><Button size="small" variant="outlined" startIcon={<EditIcon />} onClick={() => openContactEditor(contact)}>Επεξεργασία</Button><IconButton size="small" color="error" aria-label="Διαγραφή επαφής" onClick={() => void deleteContact(contact)}><DeleteOutlineIcon fontSize="small" /></IconButton></Stack></Stack><Box sx={{ ...profileFieldGridSx, mt: .5 }}><ProfileEditableField label="Ρόλος / τμήμα" value={[contact.role, contact.department].filter(Boolean).join(" · ")} /><ProfileEditableField label="Email" value={contact.email} link={contact.email ? `mailto:${contact.email}` : undefined} /><ProfileEditableField label="Τηλέφωνο" value={contact.phone} link={contact.phone ? `tel:${contact.phone}` : undefined} /><ProfileEditableField label="Κινητό" value={contact.mobile} link={contact.mobile ? `tel:${contact.mobile}` : undefined} />{contact.notes && <ProfileEditableField label="Σημειώσεις" value={contact.notes} multiline />}</Box></Box>)}
