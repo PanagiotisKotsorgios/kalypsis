@@ -32,7 +32,6 @@ import {
   Typography
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
-import FilterListIcon from "@mui/icons-material/FilterList";
 import CloseIcon from "@mui/icons-material/Close";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -56,7 +55,6 @@ import { useAuth } from "../auth/AuthContext";
 import { api, extractErrorMessage } from "../api/client";
 import { date } from "../utils/format";
 import { SearchableTextField } from "../components/SearchableTextField";
-import { QuickFilterBar } from "../components/QuickFilterBar";
 import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
 
 type DocumentType = "Policy" | "GreenCard" | "Roadside" | "Invoice" | "Other";
@@ -178,7 +176,6 @@ export function DocumentsPage() {
     });
   }, [allRows, q, type, from, to]);
   const anyFilterActive = q || type || from || to;
-  const clearDocumentFilters = () => { setQ(""); setType(""); setFrom(""); setTo(""); };
 
   return (
     <Box>
@@ -208,20 +205,12 @@ export function DocumentsPage() {
       <ResponsiveFilterPanel
         activeCount={anyFilterActive ? 1 : 0}
         title="Φίλτρα εγγράφων"
-        quickFilters={<QuickFilterBar
-          activeCount={anyFilterActive ? 1 : 0}
-          onClear={clearDocumentFilters}
-          options={[
-            { key: "all", label: "Όλα", active: !anyFilterActive, onClick: clearDocumentFilters },
-            { key: "policy", label: "Συμβόλαια", active: type === "Policy", onClick: () => setType("Policy") },
-            { key: "green", label: "Πράσινες κάρτες", active: type === "GreenCard", onClick: () => setType("GreenCard") },
-            { key: "recent30", label: "Τελευταίες 30 ημέρες", active: Boolean(from && from === new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10)), onClick: () => { setFrom(new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10)); setTo(""); } },
-            { key: "recent90", label: "Τελευταίες 90 ημέρες", active: Boolean(from && from === new Date(Date.now() - 89 * 86400000).toISOString().slice(0, 10)), onClick: () => { setFrom(new Date(Date.now() - 89 * 86400000).toISOString().slice(0, 10)); setTo(""); } },
-          ]}
-        />}
+        compactButtonSx={{
+          bgcolor: "#159b59", color: "#fff", borderColor: "#159b59",
+          "&:hover": { bgcolor: "#117e49", color: "#fff", borderColor: "#117e49" },
+        }}
       >
         <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }} flexWrap="wrap" useFlexGap>
-          <FilterListIcon color="action" fontSize="small" sx={{ display: { xs: "none", md: "inline-flex" } }} />
           <TextField
             size="small"
             placeholder="Αναζήτηση…"
@@ -229,7 +218,6 @@ export function DocumentsPage() {
             onChange={(e) => setQ(e.target.value)}
             sx={{ minWidth: 220, flex: 1 }}
             InputProps={{
-              startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
               endAdornment: (
                 <InputAdornment position="end">
                   {q && <IconButton size="small" onClick={() => setQ("")}><CloseIcon fontSize="small" /></IconButton>}

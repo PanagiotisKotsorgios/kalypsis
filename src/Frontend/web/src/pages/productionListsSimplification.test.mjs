@@ -184,6 +184,10 @@ test("document folders page and legacy route no longer exist", async () => {
   assert.equal(documents.includes("DocumentManagerPage"), false);
   assert.equal(documents.includes("tab=folders"), false);
   assert.equal(documents.includes("Φάκελοι εγγράφων"), false);
+  assert.equal(documents.includes("quickFilters={<QuickFilterBar"), false);
+  assert.equal(documents.includes('<FilterListIcon color="action"'), false);
+  assert.equal(documents.includes('startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,'), false);
+  assert.match(documents, /compactButtonSx=\{\{[\s\S]*?bgcolor: "#159b59", color: "#fff"/);
   assert.equal(app.includes('path="document-manager"'), false);
   assert.equal(app.includes("documents?tab=folders"), false);
 });

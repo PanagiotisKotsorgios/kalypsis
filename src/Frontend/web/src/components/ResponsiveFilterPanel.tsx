@@ -23,6 +23,7 @@ export function ResponsiveFilterPanel({
   compactOpen: controlledCompactOpen,
   onCompactOpenChange,
   compactAt = "md",
+  compactButtonSx,
 }: {
   children: ReactNode;
   quickFilters?: ReactNode;
@@ -41,6 +42,8 @@ export function ResponsiveFilterPanel({
   onCompactOpenChange?: (open: boolean) => void;
   /** Breakpoint at and below which the full filter form moves into a drawer. */
   compactAt?: "sm" | "md" | "lg" | "xl";
+  /** Page-scoped visual treatment for the compact full-filter trigger. */
+  compactButtonSx?: object;
 }) {
   const theme = useTheme();
   // Treat phones and narrow tablets as compact so dense filter forms never
@@ -92,7 +95,7 @@ export function ResponsiveFilterPanel({
                 variant={activeCount > 0 ? "contained" : "outlined"}
                 startIcon={<FilterListIcon />}
                 onClick={() => setCompactOpen(true)}
-                sx={{ flexShrink: 0, whiteSpace: "nowrap" }}
+                sx={{ flexShrink: 0, whiteSpace: "nowrap", ...compactButtonSx }}
               >
                 {title}{activeCount > 0 ? ` (${activeCount})` : ""}
               </Button>
