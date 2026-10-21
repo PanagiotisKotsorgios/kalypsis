@@ -66,7 +66,7 @@ import { api, extractErrorMessage } from "../api/client";
 import { useTableState } from "../components/useTableState";
 import { useColumnPreferences } from "../hooks/useColumnPreferences";
 import { ColumnPreferencesButton } from "../components/ColumnPreferencesButton";
-import { TableToolbar, NumberedPager } from "../components/TableToolbar";
+import { TableToolbar, NumberedPager, RecordCountChip } from "../components/TableToolbar";
 import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { BulkImportDialog, type BulkImportResult } from "../components/BulkImportDialog";
@@ -414,6 +414,7 @@ export function CustomersPage() {
         <Stack direction="row" alignItems="center" spacing={0.5}>
           <Typography variant="h4" sx={{ fontSize: { xs: "1.55rem", sm: "2rem" }, fontWeight: 800 }}>{t("customers.title")}</Typography>
           <HelpHint id="page.customers" />
+          <RecordCountChip count={table.filtered.length} />
         </Stack>
         <Button data-tour="customers-actions" variant="contained" size="large"
           startIcon={<MoreHorizIcon />} endIcon={<KeyboardArrowDownIcon />}
@@ -543,10 +544,12 @@ export function CustomersPage() {
         </Alert>
       )}
 
-      <Box sx={{ mb: 2 }}>
+      <Box sx={{ mb: 0 }}>
         <TableToolbar<CustomerListRow>
           query={search} onQuery={(value) => { setSearch(value); table.setQuery(value); }}
           hideSearch
+          hideCount
+          hidePageSize
           count={filteredCustomers.length} filteredCount={table.filtered.length}
           pageSize={table.pageSize} onPageSize={table.setPageSize}
           exportRows={table.filtered}
@@ -701,9 +704,9 @@ export function CustomersPage() {
               </TableBody>
             </Table>
           </TableContainer>
-          <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+          <Box sx={{ display: "flex", justifyContent: "center", px: 2, py: 1 }}>
             <NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage}
-              totalRows={table.filtered.length} pageSize={table.pageSize} />
+              totalRows={table.filtered.length} pageSize={table.pageSize} onPageSize={table.setPageSize} />
           </Box>
         </Card>
       )}

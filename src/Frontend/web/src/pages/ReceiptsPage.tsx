@@ -16,7 +16,7 @@ import { DataExportButton } from "../components/DataExportButton";
 import { money, date } from "../utils/format";
 import { useTableState } from "../components/useTableState";
 import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
-import { NumberedPager } from "../components/TableToolbar";
+import { NumberedPager, RecordCountChip } from "../components/TableToolbar";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { InlineCreateCustomerDialog } from "../components/InlineCreateCustomerDialog";
@@ -190,6 +190,7 @@ export function ReceiptsPage() {
           <Stack direction="row" alignItems="center" spacing={0.5}>
             <Typography variant="h4" sx={{ fontWeight: 800 }}>{t("receipts.title")}</Typography>
             <HelpHint id="page.receipts" />
+            <RecordCountChip count={table.filtered.length} />
           </Stack>
           <Typography color="text.secondary">{t("receipts.subtitle")}</Typography>
         </Box>
@@ -313,8 +314,8 @@ export function ReceiptsPage() {
               ))}
             </TableBody>
           </Table>
-          <Box sx={{ display: "flex", justifyContent: "center", py: 1.5 }}>
-            <NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage} totalRows={table.filtered.length} pageSize={table.pageSize} />
+          <Box sx={{ display: "flex", justifyContent: "center", px: 2, py: 1 }}>
+            <NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage} totalRows={table.filtered.length} pageSize={table.pageSize} onPageSize={table.setPageSize} />
           </Box>
         </Card>
       )}

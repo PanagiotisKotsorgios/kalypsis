@@ -53,3 +53,22 @@ test("table toolbar accepts external actions without duplicate buttons", async (
   assert.match(toolbar, /actionRequest\.action === "columns"/);
   assert.match(picker, /openRequestToken/);
 });
+
+test("core record lists keep count in the heading and page size in the footer", async () => {
+  const pages = await Promise.all([
+    "CustomersPage.tsx",
+    "PoliciesPage.tsx",
+    "ClaimsPage.tsx",
+    "ProducersPage.tsx",
+    "ReceiptsPage.tsx",
+  ].map(read));
+
+  for (const source of pages) {
+    assert.match(source, /<RecordCountChip count=\{table\.filtered\.length\}/);
+    assert.match(source, /<NumberedPager[\s\S]{0,260}onPageSize=\{table\.setPageSize\}/);
+  }
+
+  const policies = pages[1];
+  assert.doesNotMatch(policies, /quickFiltersOpen|policyQuickFilters/);
+  assert.match(policies, /setAdvancedFiltersOpen\(true\)/);
+});

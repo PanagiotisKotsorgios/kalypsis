@@ -36,7 +36,7 @@ import { api, extractErrorMessage } from "../api/client";
 import { ClaimDetailDrawer } from "../components/ClaimDetailDrawer";
 import { useTableState } from "../components/useTableState";
 import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
-import { TableToolbar, NumberedPager } from "../components/TableToolbar";
+import { TableToolbar, NumberedPager, RecordCountChip } from "../components/TableToolbar";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
@@ -306,6 +306,7 @@ export function ClaimsPage() {
               {isCustomer ? t("claims.customerTitle") : t("claims.agencyTitle")}
             </Typography>
             <HelpHint id="page.claims" />
+            <RecordCountChip count={table.filtered.length} />
           </Stack>
           <Typography color="text.secondary">
             {isCustomer ? t("claims.customerLead") : t("claims.agencyLead")}
@@ -484,7 +485,7 @@ export function ClaimsPage() {
 
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
 
-      <Box sx={{ mb: 2 }}>
+      <Box sx={{ mb: 0 }}>
         <TableToolbar<ClaimDto>
           query={table.query} onQuery={table.setQuery}
           count={allClaims.length} filteredCount={table.filtered.length}
@@ -496,6 +497,8 @@ export function ClaimsPage() {
           hideSearch
           actionRequest={toolbarAction}
           hideActionButtons
+          hideCount
+          hidePageSize
           exportColumns={[
             { key: "claimNumber", label: "Αρ. Ζημιάς" },
             { key: "policyNumber", label: "Αρ. Συμβ." },
@@ -596,8 +599,8 @@ export function ClaimsPage() {
               </TableBody>
             </Table>
           </TableContainer>
-          <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
-            <NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage} totalRows={table.filtered.length} pageSize={table.pageSize} />
+          <Box sx={{ display: "flex", justifyContent: "center", px: 2, py: 1 }}>
+            <NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage} totalRows={table.filtered.length} pageSize={table.pageSize} onPageSize={table.setPageSize} />
           </Box>
         </Card>
       )}

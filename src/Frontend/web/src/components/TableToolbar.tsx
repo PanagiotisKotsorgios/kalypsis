@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  Box, Button, IconButton, InputAdornment, MenuItem, Stack, TextField, Typography
+  Box, Button, Chip, IconButton, InputAdornment, MenuItem, Stack, TextField, Typography
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
@@ -21,11 +21,17 @@ import { useAuth } from "../auth/AuthContext";
 /* ============================================================================
    Numbered pager — renders 1, 2, … current ±2, … last, with prev/next/jumpers.
    ========================================================================= */
-export function NumberedPager({ page, totalPages, onPage, totalRows, pageSize }: {
+export function RecordCountChip({ count, label = "εγγραφές" }: { count: number; label?: string }) {
+  return <Chip size="small" label={`${count} ${label}`} sx={{ bgcolor: "#159B59", color: "#fff", fontWeight: 800, height: 26, "& .MuiChip-label": { px: 1.15 } }} />;
+}
+
+export function NumberedPager({ page, totalPages, onPage, totalRows, pageSize, onPageSize, pageSizeOptions = [10, 25, 50, 100, 250] }: {
   page: number; totalPages: number; onPage: (p: number) => void;
   /** Optional metadata — when both are supplied we show «1–25 από 137». */
   totalRows?: number;
   pageSize?: number;
+  onPageSize?: (size: number) => void;
+  pageSizeOptions?: number[];
 }) {
   const { t } = useTranslation();
 
@@ -58,7 +64,8 @@ export function NumberedPager({ page, totalPages, onPage, totalRows, pageSize }:
     : null;
 
   return (
-    <Stack direction="row" alignItems="center" spacing={0.5} flexWrap="wrap">
+    <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ xs: "stretch", sm: "center" }} justifyContent="space-between" spacing={1} sx={{ width: "100%" }}>
+      <Stack direction="row" alignItems="center" justifyContent={{ xs: "center", sm: "flex-start" }} spacing={0.5} flexWrap="wrap">
       {rangeLabel && (
         <Typography variant="body2" color="text.secondary" sx={{ mr: 1, fontVariantNumeric: "tabular-nums" }}>
           {rangeLabel}
@@ -86,6 +93,11 @@ export function NumberedPager({ page, totalPages, onPage, totalRows, pageSize }:
       <IconButton size="small" disabled={page >= totalPages} onClick={() => onPage(totalPages)} title={t("pager.last")}>
         <LastPageIcon fontSize="small" />
       </IconButton>
+      </Stack>
+      {pageSize !== undefined && onPageSize && <TextField select size="small" label={t("table.pageSize")} value={pageSize}
+        onChange={(event) => onPageSize(Number(event.target.value))} sx={{ width: { xs: "100%", sm: 112 }, flexShrink: 0 }}>
+        {pageSizeOptions.map(size => <MenuItem key={size} value={size}>{size}</MenuItem>)}
+      </TextField>}
     </Stack>
   );
 }
@@ -110,6 +122,8 @@ export function TableToolbar<T>({
   rightSlot,
   actionRequest,
   hideActionButtons = false,
+  hideCount = false,
+  hidePageSize = false,
 }: {
   query: string;
   onQuery: (s: string) => void;
@@ -154,6 +168,10 @@ export function TableToolbar<T>({
   actionRequest?: { token: number; action: "csv" | "xlsx" | "pdf" | "print" | "columns" };
   /** Hide duplicate inline actions when a page-level menu controls them. */
   hideActionButtons?: boolean;
+  /** Count may be rendered beside the page title as a RecordCountChip. */
+  hideCount?: boolean;
+  /** Page size may be rendered beside the bottom NumberedPager. */
+  hidePageSize?: boolean;
 }) {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -342,8 +360,10 @@ export function TableToolbar<T>({
     officeInfo.vatNumber ? `ΑΦΜ: ${officeInfo.vatNumber}` : null]
     .filter(Boolean).join(" · ");
 
+  const hasVisibleControls = !hideSearch || !hideCount || !hidePageSize || !hideActionButtons || Boolean(rightSlot);
+
   return (
-    <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ md: "center" }} sx={{ mb: 2 }}
+    <Stack direction={{ xs: "column", md: "row" }} spacing={hasVisibleControls ? 2 : 0} alignItems={{ md: "center" }} sx={{ mb: hasVisibleControls ? 2 : 0, position: "relative" }}
       data-export-office-name={officeInfo.name || undefined}
       data-export-office-details={officeExportDetails || undefined}>
       {!hideSearch && <TextField
@@ -352,16 +372,16 @@ export function TableToolbar<T>({
           InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
           sx={{ maxWidth: 480 }}
         />}
-      <Typography variant="body2" color="text.secondary" sx={{ minWidth: 130 }}>
+      {!hideCount && <Typography variant="body2" color="text.secondary" sx={{ minWidth: 130 }}>
         {filteredCount === count
           ? t("table.totalCount", { n: count })
           : t("table.filteredCount", { n: filteredCount, total: count })}
-      </Typography>
+      </Typography>}
       <Box sx={{ flex: 1 }} />
-      <TextField select size="small" label={t("table.pageSize")} value={pageSize}
+      {!hidePageSize && <TextField select size="small" label={t("table.pageSize")} value={pageSize}
         onChange={(e) => onPageSize(Number(e.target.value))} sx={{ width: 110 }}>
         {[10, 25, 50, 100, 250].map(n => <MenuItem key={n} value={n}>{n}</MenuItem>)}
-      </TextField>
+      </TextField>}
       {!hideActionButtons && <Stack direction="row" spacing={1} alignItems="center">
         {!hideColumnPicker && pickerDescriptors.length > 1 && (
           <ExportColumnPicker

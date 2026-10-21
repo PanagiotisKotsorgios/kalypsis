@@ -52,7 +52,6 @@ import { useSearchParams, Link as RouterLink } from "react-router-dom";
 import EventRepeatIcon from "@mui/icons-material/EventRepeat";
 import EditNoteIcon from "@mui/icons-material/EditNote";
 import CancelPresentationIcon from "@mui/icons-material/CancelPresentation";
-import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import TuneIcon from "@mui/icons-material/Tune";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
@@ -72,7 +71,7 @@ import { useAuth } from "../auth/AuthContext";
 import { api, extractErrorMessage } from "../api/client";
 import { PolicyDetailDrawer } from "../components/PolicyDetailDrawer";
 import { useTableState } from "../components/useTableState";
-import { TableToolbar, NumberedPager } from "../components/TableToolbar";
+import { TableToolbar, NumberedPager, RecordCountChip } from "../components/TableToolbar";
 import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import { PolicyDeliveryPage } from "./PolicyDeliveryPage";
 import { GroupPoliciesPage } from "./GroupPoliciesPage";
@@ -228,7 +227,6 @@ export function PoliciesPage() {
   const [pendingAction, setPendingAction] = useState<PolicyConfirmationAction | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
-  const [quickFiltersOpen, setQuickFiltersOpen] = useState(false);
   const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
   const [sectionsAnchor, setSectionsAnchor] = useState<HTMLElement | null>(null);
   const [saveFilterRequest, setSaveFilterRequest] = useState(0);
@@ -493,26 +491,6 @@ export function PoliciesPage() {
     },
   });
 
-  const policyQuickFilters = (
-    <QuickFilterBar
-      activeCount={policyFilterCount}
-      onClear={clearPolicyFilters}
-      options={[
-        { key: "all", label: "Όλα", active: policyFilterCount === 0, onClick: clearPolicyFilters },
-        ...([5, 10, 20, 30, 60, 90] as const).map(days => ({
-          key: `expiry-${days}`,
-          label: `Λήγουν ≤${days} ημέρες`,
-          active: expiryWindow === String(days),
-          color: days <= 20 ? "error" as const : days <= 30 ? "warning" as const : "info" as const,
-          onClick: () => { setExpiryWindow(String(days) as typeof expiryWindow); setStatusFilter("Active"); setQuickFiltersOpen(false); },
-        })),
-        { key: "prospects", label: "Πιθανά", active: statusFilter === "Prospect", color: "warning", onClick: () => { setExpiryWindow(""); setStatusFilter("Prospect"); setQuickFiltersOpen(false); } },
-        { key: "direct", label: "Πληρώθηκαν απευθείας", active: paymentRouteFilter === "direct", color: "info", onClick: () => { setPaymentRouteFilter("direct"); setQuickFiltersOpen(false); } },
-        { key: "office", label: "Πληρωμή στο γραφείο", active: paymentRouteFilter === "office", onClick: () => { setPaymentRouteFilter("office"); setQuickFiltersOpen(false); } },
-      ]}
-    />
-  );
-
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} gap={2} flexWrap="wrap">
@@ -522,6 +500,7 @@ export function PoliciesPage() {
               {isCustomer ? t("policies.customerTitle") : t("policies.agencyTitle")}
             </Typography>
             <HelpHint id="page.policies" />
+            <RecordCountChip count={table.filtered.length} />
           </Stack>
           <Typography color="text.secondary">
             {isCustomer ? t("policies.customerLead") : t("policies.agencyLead")}
@@ -582,8 +561,8 @@ export function PoliciesPage() {
                 gridTemplateColumns: {
                   xs: "1fr",
                   sm: "repeat(4, minmax(0, 1fr))",
-                  md: "minmax(220px, 1.4fr) 120px 120px auto auto",
-                  lg: "minmax(240px, 1.4fr) 125px 125px auto auto",
+                  md: "minmax(220px, 1.4fr) 120px 120px auto",
+                  lg: "minmax(240px, 1.4fr) 125px 125px auto",
                 },
                 gap: 0.75,
                 alignItems: "center",
@@ -602,39 +581,7 @@ export function PoliciesPage() {
                />
                 <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }} value={fromDate} onChange={(e) => setFromDate(e.target.value)} sx={{ minWidth: 0, width: "100%" }} />
                 <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }} value={toDate} onChange={(e) => setToDate(e.target.value)} sx={{ minWidth: 0, width: "100%" }} />
-               <Button
-                 size="small"
-                 variant={policyFilterCount > 0 ? "contained" : "outlined"}
-                 startIcon={<TuneIcon />}
-                 onClick={() => setAdvancedFiltersOpen(true)}
-                  sx={{
-                    whiteSpace: "nowrap",
-                    minWidth: 0,
-                    bgcolor: "#e3f2fd",
-                    color: "#1565c0",
-                    borderColor: "#90caf9",
-                    "&:hover": { bgcolor: "#bbdefb", borderColor: "#64b5f6", color: "#0d47a1" },
-                  }}
-               >
-                 Σύνθετα φίλτρα{policyFilterCount > 0 ? ` (${policyFilterCount})` : ""}
-               </Button>
-               <Button
-                 size="small"
-                 variant="outlined"
-                 startIcon={<FilterAltIcon />}
-                 onClick={() => setQuickFiltersOpen(true)}
-                  sx={{
-                    whiteSpace: "nowrap",
-                    minWidth: 0,
-                    bgcolor: "#e3f2fd",
-                    color: "#1565c0",
-                    borderColor: "#90caf9",
-                    "&:hover": { bgcolor: "#bbdefb", borderColor: "#64b5f6", color: "#0d47a1" },
-                  }}
-               >
-                 Γρήγορα φίλτρα
-               </Button>
-               <Box sx={{ gridColumn: { xs: "1", sm: "1 / -1", md: "1 / -1" }, display: "flex", justifyContent: "flex-end", minWidth: 0 }}>
+               <Box sx={{ display: "flex", justifyContent: "flex-end", minWidth: 0 }}>
                  <SavedReportsButton
                    entity="policies"
                    currentFilters={savedPolicyFilters}
@@ -700,11 +647,6 @@ export function PoliciesPage() {
                <Button color="error" variant="contained" onClick={clearPolicyFilters}>Καθαρισμός φίλτρων</Button>
                <Button variant="contained" onClick={() => setAdvancedFiltersOpen(false)}>Εφαρμογή</Button>
              </DialogActions>
-           </Dialog>
-           <Dialog open={quickFiltersOpen} onClose={() => setQuickFiltersOpen(false)} fullWidth maxWidth="md">
-             <DialogTitle>Γρήγορα φίλτρα</DialogTitle>
-             <DialogContent dividers>{policyQuickFilters}</DialogContent>
-             <DialogActions><Button variant="contained" onClick={() => setQuickFiltersOpen(false)}>Κλείσιμο</Button></DialogActions>
            </Dialog>
          </>
        )}
@@ -841,7 +783,7 @@ export function PoliciesPage() {
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
       ) : (
         <Card>
-          <Box sx={{ px: 2, pt: 2 }}>
+          <Box sx={{ px: 0, pt: 0 }}>
             <TableToolbar<PolicyDto>
               query={table.query} onQuery={table.setQuery}
               count={allRows.length} filteredCount={table.filtered.length}
@@ -853,6 +795,8 @@ export function PoliciesPage() {
               hideSearch
               actionRequest={toolbarAction}
               hideActionButtons
+              hideCount
+              hidePageSize
               exportColumns={[
                 { key: "policyNumber", label: "Αρ. Συμβ." },
                 { key: "policyType", label: "Κλάδος" },
@@ -1053,8 +997,8 @@ export function PoliciesPage() {
               </TableBody>
             </Table>
           </TableContainer>
-          <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
-            <NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage} totalRows={table.filtered.length} pageSize={table.pageSize} />
+          <Box sx={{ display: "flex", justifyContent: "center", px: 2, py: 1 }}>
+            <NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage} totalRows={table.filtered.length} pageSize={table.pageSize} onPageSize={table.setPageSize} />
           </Box>
         </Card>
       )}

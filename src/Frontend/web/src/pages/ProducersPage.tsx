@@ -42,7 +42,7 @@ import PeopleIcon from "@mui/icons-material/People";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import { useTableState } from "../components/useTableState";
 import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
-import { TableToolbar, NumberedPager } from "../components/TableToolbar";
+import { TableToolbar, NumberedPager, RecordCountChip } from "../components/TableToolbar";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { money } from "../utils/format";
@@ -282,6 +282,7 @@ export function ProducersPage() {
           <Stack direction="row" alignItems="center" spacing={0.5}>
             <Typography variant="h4" sx={{ fontWeight: 800 }}>{t("producers.title")}</Typography>
             <HelpHint id="page.producers" />
+            <RecordCountChip count={table.filtered.length} />
           </Stack>
           <Typography color="text.secondary">{t("producers.subtitle")}</Typography>
         </Box>
@@ -454,7 +455,7 @@ export function ProducersPage() {
       </ResponsiveFilterPanel>
       )}
 
-      <Box sx={{ mb: 2 }}>
+      <Box sx={{ mb: 0 }}>
         <TableToolbar<ProducerDto>
           query={table.query} onQuery={table.setQuery}
           count={allRows.length} filteredCount={table.filtered.length}
@@ -466,6 +467,8 @@ export function ProducersPage() {
           hideSearch
           actionRequest={toolbarAction}
           hideActionButtons
+          hideCount
+          hidePageSize
           exportColumns={[
             { key: "code", label: "Κωδικός" },
             { key: "name", label: "Όνομα" },
@@ -571,8 +574,8 @@ export function ProducersPage() {
               </TableBody>
             </Table>
           </TableContainer>
-          <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
-            <NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage} totalRows={table.filtered.length} pageSize={table.pageSize} />
+          <Box sx={{ display: "flex", justifyContent: "center", px: 2, py: 1 }}>
+            <NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage} totalRows={table.filtered.length} pageSize={table.pageSize} onPageSize={table.setPageSize} />
           </Box>
         </Card>
       )}
