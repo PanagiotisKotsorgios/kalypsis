@@ -60,6 +60,7 @@ import TableChartIcon from "@mui/icons-material/TableChart";
 import GridOnIcon from "@mui/icons-material/GridOn";
 import PrintIcon from "@mui/icons-material/Print";
 import ViewColumnIcon from "@mui/icons-material/ViewColumn";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
@@ -245,7 +246,7 @@ export function CustomersPage() {
   const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
   const [saveFilterRequest, setSaveFilterRequest] = useState(0);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDto | null>(null);
-  const [toolbarAction, setToolbarAction] = useState<{ token: number; action: "csv" | "xlsx" | "print" | "columns" }>({ token: 0, action: "csv" });
+  const [toolbarAction, setToolbarAction] = useState<{ token: number; action: "csv" | "xlsx" | "pdf" | "print" | "columns" }>({ token: 0, action: "csv" });
   const [error, setError] = useState<string | null>(null);
 
   const customersQuery = useQuery({
@@ -464,6 +465,10 @@ export function CustomersPage() {
             sx={{ color: "#167c45", "&:hover": { bgcolor: "#e7f5ec", color: "#116337" } }}>
             <ListItemIcon sx={{ color: "#167c45" }}><GridOnIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή Excel" />
           </MenuItem>
+          <MenuItem onClick={() => { setActionsAnchor(null); setToolbarAction(value => ({ token: value.token + 1, action: "pdf" })); }}
+            sx={{ color: "#c73545", "&:hover": { bgcolor: "#fdecef", color: "#a72836" } }}>
+            <ListItemIcon sx={{ color: "#c73545" }}><PictureAsPdfIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή PDF" />
+          </MenuItem>
           <MenuItem onClick={() => { setActionsAnchor(null); setToolbarAction(value => ({ token: value.token + 1, action: "print" })); }}
             sx={{ color: "#456b91", "&:hover": { bgcolor: "#edf2f7", color: "#345573" } }}>
             <ListItemIcon sx={{ color: "#456b91" }}><PrintIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εκτύπωση" />
@@ -548,15 +553,24 @@ export function CustomersPage() {
           count={filteredCustomers.length} filteredCount={table.filtered.length}
           pageSize={table.pageSize} onPageSize={table.setPageSize}
           exportRows={table.filtered}
+          snapshotExport
+          columnSelectionId="customers"
+          printTitle="Λίστα πελατών"
+          printSubtitle={[
+            search.trim() ? `Αναζήτηση: ${search.trim()}` : null,
+            filters.cities.length ? `Πόλη: ${filters.cities.join(", ")}` : null,
+            filters.producerIds.length ? `Συνεργάτης: ${producerOptions.filter(option => filters.producerIds.includes(option.value)).map(option => option.label).join(", ")}` : null,
+            customerFilterCount ? `${customerFilterCount} ενεργά φίλτρα` : null,
+          ].filter(Boolean).join(" · ")}
           exportFileName={`customers-${new Date().toISOString().slice(0, 10)}`}
           exportColumns={[
             { key: "number", label: "Αρ. Πελάτη", map: (r) => r.customerNumber },
-            { key: "type", label: "Τύπος" },
+            { key: "type", label: "Τύπος", map: (r) => r.type === "Company" ? t("customers.company") : t("customers.individual") },
             { key: "name", label: "Ονοματεπώνυμο / Επωνυμία", map: (r) => r.type === "Company" ? r.companyName : `${r.firstName ?? ""} ${r.lastName ?? ""}`.trim() },
             { key: "email", label: "Email" },
             { key: "phone", label: "Τηλέφωνο" },
             { key: "notes", label: "Σημειώσεις" },
-            { key: "balance", label: "Υπόλοιπο / πληρωμές", map: (r) => r.account?.balance ?? null },
+            { key: "balance", label: "Υπόλοιπο / πληρωμές", map: (r) => r.account ? `${r.account.balance.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : "—" },
             { key: "paymentStatus", label: "Συμπεριφορά πληρωμών", map: (r) => paymentStatus(r.account) },
             { key: "city", label: "Πόλη" }
           ]}

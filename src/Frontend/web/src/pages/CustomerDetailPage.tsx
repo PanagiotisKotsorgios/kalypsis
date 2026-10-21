@@ -214,7 +214,6 @@ const CUSTOMER_PROFILE_TAB_LABELS = [
   { label: "Οχήματα", icon: <DirectionsCarIcon fontSize="small" /> },
   { label: "Οικονομικά", icon: <AccountBalanceWalletOutlinedIcon fontSize="small" /> },
   { label: "Εκκρεμή", icon: <InfoOutlinedIcon fontSize="small" /> },
-  { label: "Έγγραφα", icon: <FolderIcon fontSize="small" /> },
   { label: "Ιστορικό", icon: <HistoryIcon fontSize="small" /> },
 ];
 
@@ -470,9 +469,6 @@ export function CustomerDetailPage({ customerId, initialCustomer, onClose }: {
         <CustomerObligations customerId={id} />
       </CustomerTabLayout>}
       {tab === 6 && <CustomerTabLayout>
-        <Box sx={{ gridColumn: { lg: "1 / -1" } }}><GdprActionsTab customerId={id} /></Box>
-      </CustomerTabLayout>}
-      {tab === 7 && <CustomerTabLayout>
         <CustomerHistory customerId={id} />
       </CustomerTabLayout>}
       </Box>
@@ -1190,7 +1186,7 @@ export function DesktopCustomerFields({ customer, section = "general", editing, 
     { value: "Blocked", label: "Αποκλεισμένος" },
   ];
   const left: DesktopCustomerField[] = [
-    { label: "Κωδ. πελάτη", value: customer.customerNumber },
+    { id: "customerNumber", label: "Κωδ. πελάτη", value: customer.customerNumber },
     { label: "ΑΦΜ", key: "vatNumber", value: customer.vatNumber },
     { label: "Επώνυμο", key: "lastName", value: customer.lastName },
     { label: "Όνομα", key: "firstName", value: customer.firstName },
@@ -1204,8 +1200,8 @@ export function DesktopCustomerFields({ customer, section = "general", editing, 
     { label: "Σημ. πελάτη", key: "notes", value: customer.notes },
   ];
   const right: DesktopCustomerField[] = [
-    { label: "Ημ. δημιουργίας", value: dateTime },
-    { label: "Ημ. ενημέρωσης", value: dash },
+    { id: "createdAt", label: "Ημ. δημιουργίας", value: dateTime },
+    { id: "updatedAt", label: "Ημ. ενημέρωσης", value: dash },
     { label: "Δ.Ο.Υ.", key: "taxOffice", value: customer.taxOffice },
     { label: "Αριθ. ταυτότητας", key: "idNumber", value: customer.idNumber },
     { label: "e-mail", key: "email", value: customer.email, type: "email" },
@@ -1226,8 +1222,6 @@ export function DesktopCustomerFields({ customer, section = "general", editing, 
     { label: "Email", key: "email", value: customer.email, type: "email" },
     { label: "2ο email", key: "secondaryEmail", value: customer.secondaryEmail, type: "email" },
     { label: "Διεύθυνση", key: "address", value: customer.address },
-    { label: "Πόλη", key: "city", value: customer.city },
-    { label: "Ταχ. κώδικας", key: "postalCode", value: customer.postalCode },
     { label: "Περιφέρεια", key: "region", value: customer.region },
   ];
 
@@ -1264,7 +1258,20 @@ export function DesktopCustomerFields({ customer, section = "general", editing, 
 
   // All customer identity, tax, family and driving information now lives in
   // General. This avoids a second catch-all tab and keeps one edit workflow.
-  const allGeneralFields = [...left, ...right, ...additional];
+  const fieldOrder = [
+    ...(customer.type === "Company" ? ["companyName"] : []),
+    "firstName", "lastName", "fatherName", "motherName", "gender",
+    "birthDate", "age", "nationality", "idNumber", "passportNumber", "amka",
+    "maritalStatus", "spouseName",
+    "phone", "mobilePhone", "email", "address", "city", "postalCode", "region",
+    "occupation", "companyName", "vatNumber", "taxOffice", "gemiNumber", "legalForm", "notes",
+    "customerNumber", "type", "status",
+    "hasDrivingLicense", "isDriver", "isNewDriver", "driverLicenseNumber",
+    "driverLicenseClass", "driverLicenseIssueDate", "driverLicenseExpiryDate",
+    "createdAt", "updatedAt",
+  ];
+  const allGeneralFields = [...left, ...right, ...additional].sort((a, b) =>
+    fieldOrder.indexOf(a.key ?? a.id ?? "") - fieldOrder.indexOf(b.key ?? b.id ?? ""));
   const generalFields = fieldKeys !== undefined ? allGeneralFields.filter(field => field.key && fieldKeys.includes(field.key))
     : allGeneralFields;
   const columnCount = wide ? 3 : 2;
@@ -2123,7 +2130,8 @@ async function extractFormPreviewError(error: unknown): Promise<string> {
   return extractErrorMessage(error);
 }
 
-function GdprActionsTab({ customerId }: { customerId: string }) {
+/** Retained for the future documents workspace; currently absent from customer navigation. */
+export function GdprActionsTab({ customerId }: { customerId: string }) {
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
 

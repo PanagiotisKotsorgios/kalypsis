@@ -257,7 +257,7 @@ export function CustomerHistory({ customerId }: { customerId: string }) {
         {q.data.items.map(row => <TableRow key={row.id}>
           <TableCell sx={{ whiteSpace: "nowrap" }}>{new Date(row.date).toLocaleString("el-GR")}</TableCell>
           <TableCell>{historyKinds[row.kind] ?? row.kind}</TableCell><TableCell>{row.title}</TableCell><TableCell>{row.reference || "—"}</TableCell>
-          <TableCell><Button size="small" onClick={() => setSelected(row)}>Λεπτομέρειες</Button></TableCell>
+          <TableCell><Button size="small" variant="contained" color="success" sx={{ color: "#fff", "&:hover": { color: "#fff", bgcolor: "success.dark" } }} onClick={() => setSelected(row)}>Λεπτομέρειες</Button></TableCell>
         </TableRow>)}
       </DataTable><Pagination size="small" count={Math.ceil(q.data.total / q.data.pageSize)} page={q.data.page} onChange={(_, value) => setPage(value)} /></>}
     <CustomerPopup open={!!selected} title={selected?.title ?? "Λεπτομέρειες"} onClose={() => setSelected(null)}>

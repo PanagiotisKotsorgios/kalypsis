@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  Box, Button, Chip, IconButton, InputAdornment, MenuItem, Stack, TextField, Typography
+  Alert, Box, Button, Chip, IconButton, InputAdornment, MenuItem, Stack, TextField, Typography
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
@@ -11,7 +11,8 @@ import PrintIcon from "@mui/icons-material/Print";
 import { printActionSx } from "./actionButtonStyles";
 import { useTranslation } from "react-i18next";
 import * as XLSX from "xlsx";
-import { api } from "../api/client";
+import { api, extractErrorMessage } from "../api/client";
+import { buildTableExportSnapshot } from "../utils/tableExportSnapshot";
 import { printTable, type ExportOfficeInfo } from "../utils/printableTable";
 import { ExportColumnPicker, useExportColumnSelection, type ExportColumnDescriptor } from "./ExportColumnPicker";
 import { ExportFormatMenu, type ExportFormat } from "./ExportFormatMenu";
@@ -124,6 +125,7 @@ export function TableToolbar<T>({
   hideActionButtons = false,
   hideCount = false,
   hidePageSize = false,
+  snapshotExport = false,
 }: {
   query: string;
   onQuery: (s: string) => void;
@@ -172,6 +174,8 @@ export function TableToolbar<T>({
   hideCount?: boolean;
   /** Page size may be rendered beside the bottom NumberedPager. */
   hidePageSize?: boolean;
+  /** Format the exact browser table snapshot on the server for all formats. */
+  snapshotExport?: boolean;
 }) {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -185,7 +189,7 @@ export function TableToolbar<T>({
     staleTime: 5 * 60 * 1000,
   });
   const officeInfo: ExportOfficeInfo = {
-    name: officeQuery.data?.name ?? user?.tenantName ?? "Kalypsis",
+    name: officeQuery.data?.name ?? user?.tenantName ?? (snapshotExport ? "Γραφείο" : "Kalypsis"),
     code: officeQuery.data?.code,
     email: officeQuery.data?.contactEmail,
     phone: officeQuery.data?.contactPhone,
@@ -213,12 +217,13 @@ export function TableToolbar<T>({
   const pickerId = columnSelectionId ?? serverEntity ?? exportFileName;
   const selection = useExportColumnSelection(pickerId, pickerDescriptors);
   const [columnPickerRequest, setColumnPickerRequest] = useState(0);
+  const [exportError, setExportError] = useState<string | null>(null);
   const selectedKeys = new Set(selection.activeKeys);
 
   // Filter export columns by (a) the display-column whitelist if the caller
   // passed one, and (b) the export-column picker selection. Preserves the
   // caller's declared order.
-  const effectiveColumns = allExportColumns.filter(c => {
+  const selectedColumns = allExportColumns.filter(c => {
     const k = String(c.key);
     if (!selectedKeys.has(k)) return false;
     if (visibleColumnKeys && visibleColumnKeys.length > 0 && !visibleColumnKeys.includes(k)) {
@@ -229,6 +234,24 @@ export function TableToolbar<T>({
     }
     return true;
   });
+  const effectiveColumns = snapshotExport && visibleColumnKeys
+    ? visibleColumnKeys.flatMap(key => selectedColumns.filter(column => String(column.key) === key))
+    : selectedColumns;
+
+  async function downloadSnapshot(format: "csv" | "xlsx" | "pdf") {
+    setExportError(null);
+    if (!effectiveColumns.length) {
+      setExportError("Επιλέξτε τουλάχιστον μία στήλη για την εξαγωγή.");
+      return;
+    }
+    try {
+      const snapshot = buildTableExportSnapshot(printTitle ?? exportFileName, effectiveColumns, exportRows, printSubtitle);
+      const response = await api.post("/table-exports", snapshot, { params: { format }, responseType: "blob" });
+      const mime = format === "csv" ? "text/csv;charset=utf-8"
+        : format === "xlsx" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "application/pdf";
+      triggerDownload(new Blob([response.data], { type: mime }), `${exportFileName}.${format}`);
+    } catch (error) { setExportError(extractErrorMessage(error)); }
+  }
 
   const buildClientMatrix = (): any[][] => {
     const officeDetails = [officeInfo.address, officeInfo.phone, officeInfo.email,
@@ -261,6 +284,7 @@ export function TableToolbar<T>({
   };
 
   const downloadCsv = () => {
+    if (snapshotExport) return void downloadSnapshot("csv");
     if (serverEntity) return void downloadFromServer("csv");
     const ws = XLSX.utils.aoa_to_sheet(buildClientMatrix());
     XLSX.utils.sheet_add_aoa(ws, buildBrandingTrailer(), { origin: -1 });
@@ -269,6 +293,7 @@ export function TableToolbar<T>({
     triggerDownload(blob, `${exportFileName}.csv`);
   };
   const downloadXlsx = () => {
+    if (snapshotExport) return void downloadSnapshot("xlsx");
     if (serverEntity) return void downloadFromServer("xlsx");
     const ws = XLSX.utils.aoa_to_sheet(buildClientMatrix());
     XLSX.utils.sheet_add_aoa(ws, buildBrandingTrailer(), { origin: -1 });
@@ -304,22 +329,29 @@ export function TableToolbar<T>({
     const buf = XLSX.write(wb, { type: "array", bookType: "xlsx", cellStyles: true });
     triggerDownload(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), `${exportFileName}.xlsx`);
   };
-  const downloadPdf = () => { if (serverEntity) void downloadFromServer("pdf"); };
+  const downloadPdf = () => {
+    if (snapshotExport) void downloadSnapshot("pdf");
+    else if (serverEntity) void downloadFromServer("pdf");
+  };
 
   // Print is always client-side — even when a serverEntity is defined we
   // don't round-trip to the backend, because the visible column selection
   // and any pending filters live only in the browser.
   const openPrint = () => {
+    if (snapshotExport && !effectiveColumns.length) {
+      setExportError("Επιλέξτε τουλάχιστον μία στήλη για την εκτύπωση.");
+      return;
+    }
     printTable({
-      title: printTitle ?? exportFileName,
-      subtitle: printSubtitle,
+      title: snapshotExport ? officeInfo.name || "Γραφείο" : printTitle ?? exportFileName,
+      subtitle: snapshotExport ? [printTitle, printSubtitle].filter(Boolean).join(" · ") : printSubtitle,
       columns: effectiveColumns.map(c => ({
         key: String(c.key),
         label: c.label,
         map: c.map ? (r: T) => c.map!(r) : undefined,
       })),
       rows: exportRows,
-      office: officeInfo,
+      office: snapshotExport ? { ...officeInfo, name: null } : officeInfo,
     });
   };
 
@@ -366,6 +398,7 @@ export function TableToolbar<T>({
     <Stack direction={{ xs: "column", md: "row" }} spacing={hasVisibleControls ? 2 : 0} alignItems={{ md: "center" }} sx={{ mb: hasVisibleControls ? 2 : 0, position: "relative" }}
       data-export-office-name={officeInfo.name || undefined}
       data-export-office-details={officeExportDetails || undefined}>
+      {exportError && <Alert severity="error" onClose={() => setExportError(null)}>{exportError}</Alert>}
       {!hideSearch && <TextField
           size="small" fullWidth placeholder={t("table.searchPlaceholder")} value={query}
           onChange={(e) => onQuery(e.target.value)}
@@ -396,7 +429,7 @@ export function TableToolbar<T>({
         {/* Consolidated CSV / Excel / PDF selector. PDF is server-side only,
             so it appears in the menu only when a serverEntity is configured. */}
         <ExportFormatMenu
-          formats={serverEntity ? ["csv", "xlsx", "pdf"] : ["csv", "xlsx"]}
+          formats={serverEntity || snapshotExport ? ["csv", "xlsx", "pdf"] : ["csv", "xlsx"]}
           onExport={(fmt: ExportFormat) => {
             if (fmt === "csv") downloadCsv();
             else if (fmt === "xlsx") downloadXlsx();

@@ -52,6 +52,11 @@ test("card-wide editing uses the existing field controls without autofocus or ed
         "taxOffice", "passportNumber", "maritalStatus", "spouseName", "motherName", "gemiNumber", "legalForm", "notes",
         "driverLicenseNumber", "driverLicenseClass", "driverLicenseIssueDate", "driverLicenseExpiryDate"];
       for (const field of expected) assert.equal(general.split(`data-customer-field="${field}"`).length - 1, 1, `${field} must appear once in General`);
+      const orderedFields = [...general.matchAll(/data-customer-field="([^"]+)"/g)].map(match => match[1]);
+      assert.deepEqual(orderedFields.slice(0, 5), ["firstName", "lastName", "fatherName", "motherName", "gender"]);
+      assert.equal(orderedFields.indexOf("postalCode"), orderedFields.indexOf("city") + 1);
+      const contact = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(DesktopCustomerFields, { customer, editing, section: "contact" })));
+      for (const field of ["city", "postalCode"]) assert.equal(contact.includes(`data-customer-field="${field}"`), false);
       for (const removedField of ["activityCode", "employer", "source", "tagsJson", "photoUrl", "zone"]) assert.equal(general.includes(`data-customer-field="${removedField}"`), false, removedField);
       assert.equal(general.includes('data-customer-field="paymentDueDate"'), false);
       assert.equal(general.includes("Προφίλ και οικογενειακή κατάσταση"), false);
@@ -63,6 +68,8 @@ test("card-wide editing uses the existing field controls without autofocus or ed
       const tabs = renderToStaticMarkup(createElement(CustomerProfileTabs, { value: 0, onChange() {} }));
       assert.equal(tabs.includes("Ζημιές"), false);
       assert.equal(tabs.includes("Λοιπά"), false);
+      assert.equal(tabs.includes("Έγγραφα"), false);
+      assert.equal(tabs.includes("Ιστορικό"), true);
       const other = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(DesktopCustomerFields, { customer, editing, fieldKeys: [] })));
       assert.equal(other.includes("Δεν έχουν οριστεί ακόμη πεδία"), true);
       assert.equal(other.includes("data-customer-field="), false);
