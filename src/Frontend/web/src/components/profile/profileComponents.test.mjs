@@ -52,6 +52,19 @@ test("notifications page uses a compact responsive Kalypsis table and modal filt
   assert.equal(source.includes('label="Ανά σελίδα"'), false);
 });
 
+test("hidden public insurance intake is unlisted, validated and persisted to the platform inbox", async () => {
+  const app = await readFile(new URL("../../App.tsx", import.meta.url), "utf8");
+  const page = await readFile(new URL("../../pages/InsuranceRequestPage.tsx", import.meta.url), "utf8");
+  const controller = await readFile(new URL("../../../../../Backend/Kalypsis.Api/Controllers/OfficeWebsiteController.cs", import.meta.url), "utf8");
+  assert.match(app, /path="\/insurance-request" element=\{<InsuranceRequestPage \/>\}/);
+  for (const label of ["Κλάδος ασφάλισης", "Ονοματεπώνυμο", "Email", "Τηλέφωνο", "Αποστολή αιτήματος ασφάλισης"]) assert.equal(page.includes(label), true, label);
+  assert.match(page, /kalypsis\/insurance-request/);
+  assert.match(controller, /EnableRateLimiting\("public-contact"\)/);
+  assert.match(controller, /x\.Code == "PLATFORM"/);
+  assert.match(controller, /IsPublished = false/);
+  assert.match(controller, /Source = "kalypsis-hidden-insurance-form"/);
+});
+
 test("production profiles reuse client fields, pencil/save actions and compact tabs; filters retain API payloads", async () => {
   globalThis.sessionStorage ??= { getItem: () => null, setItem() {}, removeItem() {} };
   globalThis.localStorage ??= { getItem: () => null, setItem() {}, removeItem() {} };

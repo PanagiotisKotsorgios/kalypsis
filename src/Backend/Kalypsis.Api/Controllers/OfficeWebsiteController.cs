@@ -10,6 +10,7 @@ using Kalypsis.Domain.Enums;
 using Kalypsis.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace Kalypsis.Api.Controllers;
@@ -244,6 +245,8 @@ public sealed class PublicOfficeWebsiteController : ControllerBase
         string OffersJson, string BannersJson, string FormConfigJson);
     public sealed record PublicRequestBody(string? FullName, string? Email, string? Phone, string? Product,
         string? Message, string? PreferredContact, bool ConsentGiven, string? Source);
+    public sealed record InsuranceRequestBody(string? FullName, string? InsuranceType, string? InsuranceSubject,
+        string? Email, string? Phone, string? PreferredContact, string? Message, bool ConsentGiven);
     public sealed record PublicEventBody(string? EventType, string? Path, string? Referrer, string? Source,
         string? Campaign, string? Device, string? SessionKey);
 
@@ -296,6 +299,97 @@ public sealed class PublicOfficeWebsiteController : ControllerBase
                 $"Νέα αίτηση από {name}: {message}", AllowCustomerRecipient: true, TenantId: row.TenantId), ct);
         }
         return Ok(new { message = "Το αίτημά σας καταχωρήθηκε. Θα επικοινωνήσουμε σύντομα." });
+    }
+
+    /// <summary>
+    /// Hidden, unlisted KALYPSIS insurance-office request form. The backing
+    /// website intentionally remains unpublished, while its inbox stores the
+    /// requests under the PLATFORM tenant for later follow-up.
+    /// </summary>
+    [HttpPost("kalypsis/insurance-request")]
+    [AllowAnonymous]
+    [EnableRateLimiting("public-contact")]
+    public async Task<IActionResult> SubmitKalypsisInsuranceRequest([FromBody] InsuranceRequestBody body, CancellationToken ct)
+    {
+        var name = (body.FullName ?? "").Trim();
+        var email = (body.Email ?? "").Trim().ToLowerInvariant();
+        var phone = (body.Phone ?? "").Trim();
+        var insuranceType = (body.InsuranceType ?? "").Trim();
+        var subject = (body.InsuranceSubject ?? "").Trim();
+        var notes = (body.Message ?? "").Trim();
+        var preferredContact = (body.PreferredContact ?? "phone").Trim().ToLowerInvariant();
+
+        var allowedTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Αυτοκίνητο", "Μοτοσικλέτα", "Κατοικία", "Υγεία", "Ζωή",
+            "Επαγγελματική ασφάλιση", "Ταξιδιωτική ασφάλιση", "Άλλο"
+        };
+        if (name.Length is < 2 or > 200 || !body.ConsentGiven)
+            return BadRequest(new { message = "Συμπληρώστε το ονοματεπώνυμο και αποδεχθείτε τη συγκατάθεση επικοινωνίας." });
+        if (!allowedTypes.Contains(insuranceType))
+            return BadRequest(new { message = "Επιλέξτε έναν έγκυρο κλάδο ασφάλισης." });
+        if (subject.Length is < 2 or > 300)
+            return BadRequest(new { message = "Συμπληρώστε το βασικό στοιχείο που θέλετε να ασφαλίσετε." });
+        if (phone.Count(char.IsDigit) is < 10 or > 15)
+            return BadRequest(new { message = "Συμπληρώστε ένα έγκυρο τηλέφωνο επικοινωνίας." });
+        try { _ = new MailAddress(email); }
+        catch { return BadRequest(new { message = "Το email δεν είναι έγκυρο." }); }
+        if (email.Length > 254 || notes.Length > 3000 || preferredContact is not ("phone" or "email"))
+            return BadRequest(new { message = "Ελέγξτε τα στοιχεία του αιτήματος και δοκιμάστε ξανά." });
+
+        var tenant = await _db.Tenants.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Code == "PLATFORM" && x.IsActive && x.DeletedAt == null, ct);
+        if (tenant is null) return StatusCode(StatusCodes.Status503ServiceUnavailable,
+            new { message = "Η υπηρεσία αιτημάτων δεν είναι προσωρινά διαθέσιμη." });
+
+        var website = await _db.OfficeWebsites.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.TenantId == tenant.Id && x.Slug == "kalypsis-insurance" && x.DeletedAt == null, ct);
+        if (website is null)
+        {
+            website = new OfficeWebsite
+            {
+                Id = Guid.NewGuid(), TenantId = tenant.Id, Slug = "kalypsis-insurance",
+                SiteName = "KALYPSIS Ασφαλιστικό Γραφείο", Tagline = "Ασφάλιση με ανθρώπινη υποστήριξη",
+                HeroTitle = "Αίτημα ασφάλισης", HeroBody = "Πείτε μας τι θέλετε να ασφαλίσετε και θα επικοινωνήσουμε μαζί σας.",
+                LogoUrl = "/kalypsis-logo.jpg", BrandColorHex = "#087CEB", PostsJson = "[]", OffersJson = "[]",
+                BannersJson = "[]", FormConfigJson = "{}", IsPublished = false
+            };
+            _db.OfficeWebsites.Add(website);
+        }
+
+        var reference = $"KI-{_clock.UtcNow:yyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
+        var storedMessage = $"Στοιχείο ασφάλισης: {subject}" +
+            (string.IsNullOrWhiteSpace(notes) ? "" : $"\nΣημειώσεις: {notes}") + $"\nΚωδικός αιτήματος: {reference}";
+        _db.OfficeWebsiteRequests.Add(new OfficeWebsiteRequest
+        {
+            Id = Guid.NewGuid(), TenantId = tenant.Id, OfficeWebsiteId = website.Id,
+            FullName = name, Email = email, Phone = phone, Product = insuranceType,
+            Message = storedMessage, PreferredContact = preferredContact, ConsentGiven = true,
+            Status = "New", Source = "kalypsis-hidden-insurance-form"
+        });
+
+        var admins = await _db.Users.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenant.Id && x.IsActive && x.Role == Role.PlatformAdmin).ToListAsync(ct);
+        foreach (var admin in admins)
+            _db.Notifications.Add(new Notification
+            {
+                Id = Guid.NewGuid(), TenantId = tenant.Id, UserId = admin.Id,
+                Title = "Νέο αίτημα ασφάλισης", Body = $"{name} · {insuranceType} · {phone}",
+                Category = "insurance-request", Link = "/app/notifications"
+            });
+        await _db.SaveChangesAsync(ct);
+
+        var recipient = string.IsNullOrWhiteSpace(tenant.ContactEmail) ? "info@mykalypsis.gr" : tenant.ContactEmail;
+        static string Enc(string value) => System.Net.WebUtility.HtmlEncode(value) ?? "";
+        var html = $"<h2>Νέο αίτημα ασφάλισης</h2><p><strong>Κωδικός:</strong> {Enc(reference)}</p>" +
+            $"<p><strong>Ονοματεπώνυμο:</strong> {Enc(name)}</p><p><strong>Κλάδος:</strong> {Enc(insuranceType)}</p>" +
+            $"<p><strong>Στοιχείο ασφάλισης:</strong> {Enc(subject)}</p><p><strong>Τηλέφωνο:</strong> {Enc(phone)}</p>" +
+            $"<p><strong>Email:</strong> {Enc(email)}</p><p><strong>Προτιμώμενη επικοινωνία:</strong> {Enc(preferredContact)}</p>" +
+            (string.IsNullOrWhiteSpace(notes) ? "" : $"<p><strong>Σημειώσεις:</strong><br>{Enc(notes).Replace("\n", "<br>")}</p>");
+        await _email.SendAsync(new EmailMessage(recipient!, tenant.Name, $"Νέο αίτημα ασφάλισης · {reference}", html,
+            $"Νέο αίτημα {reference} από {name} για {insuranceType}.", AllowCustomerRecipient: true, TenantId: tenant.Id), ct);
+
+        return Ok(new { message = "Το αίτημά σας καταχωρήθηκε. Θα επικοινωνήσουμε μαζί σας το συντομότερο δυνατό.", reference });
     }
 
     [HttpPost("{slug}/events")]

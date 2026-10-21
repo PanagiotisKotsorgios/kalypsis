@@ -30,6 +30,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   "claims": "Ζημιές",
   "request": "Αίτημα",
   "service-request": "Αίτημα",
+  "insurance-request": "Αίτημα ασφάλισης",
   "document": "Έγγραφο",
   "documents": "Έγγραφα",
   "document-required": "Απαιτείται έγγραφο",

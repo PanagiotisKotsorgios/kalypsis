@@ -275,6 +275,7 @@ import { OfficeWebsitePage } from "./pages/OfficeWebsitePage";
 import { OfficeWebsiteOverviewPage } from "./pages/OfficeWebsiteOverviewPage";
 import { OfficeWebsiteAnalyticsPage } from "./pages/OfficeWebsiteAnalyticsPage";
 import { OfficePublicSitePage } from "./pages/OfficePublicSitePage";
+import { InsuranceRequestPage } from "./pages/InsuranceRequestPage";
 import { CustomerPortalPage } from "./pages/CustomerPortalPage";
 import { AffiliateProgramPage } from "./pages/AffiliateProgramPage";
 import { PlatformTodoBoardPage } from "./pages/PlatformTodoBoardPage";
@@ -822,6 +823,8 @@ export default function App() {
         <Route path="/register/agency" element={<Navigate to="/register" replace />} />
         <Route path="/register/agent" element={<Navigate to="/register" replace />} />
         <Route path="/site/:slug" element={<OfficePublicSitePage />} />
+        {/* Intentionally unlisted: direct-link insurance request intake for KALYPSIS. */}
+        <Route path="/insurance-request" element={<InsuranceRequestPage />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/download" element={<DownloadPage />} />
         <Route path="/download/releases" element={<DesktopReleasesPage />} />
