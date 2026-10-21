@@ -72,7 +72,7 @@ interface CustomerDto {
   vatNumber?: string | null;
   email?: string;
   phone?: string;
-  notes?: string;
+  notes?: string | null;
   paymentDueDate?: string | null;
   address?: string | null;
   city?: string | null;
@@ -250,9 +250,15 @@ function CustomerTabLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function CustomerDetailPage() {
-  const { id = "" } = useParams<{ id: string }>();
+export function CustomerDetailPage({ customerId, initialCustomer, onClose }: {
+  customerId?: string;
+  initialCustomer?: CustomerDto;
+  onClose?: () => void;
+} = {}) {
+  const { id: routeId = "" } = useParams<{ id: string }>();
+  const id = customerId ?? routeId;
   const navigate = useNavigate();
+  const closeCard = onClose ?? (() => navigate("/app/customers"));
   const { user } = useAuth();
   const qc = useQueryClient();
   const [tab, setTab] = useState(0);
@@ -265,7 +271,8 @@ export function CustomerDetailPage() {
   const customerQ = useQuery({
     queryKey: ["customer", id],
     queryFn: async () => (await api.get<CustomerDto>(`/customers/${id}`)).data,
-    enabled: !!id
+    enabled: !!id,
+    placeholderData: initialCustomer?.id === id ? initialCustomer : undefined,
   });
   const hasUnsavedChanges = Object.entries(drafts).some(([key, value]) => value !== String(customerQ.data?.[key as keyof CustomerDto] ?? ""));
   useEffect(() => {
@@ -332,19 +339,25 @@ export function CustomerDetailPage() {
   }
   if (customerQ.isError) {
     return (
-      <Box sx={{ p: 4 }}>
-        <Alert severity="error">{extractErrorMessage(customerQ.error)}</Alert>
-        <Button component={RouterLink} to="/app/customers" sx={{ mt: 2 }}>Πίσω στη λίστα</Button>
-      </Box>
+      <Dialog open fullWidth maxWidth="sm" onClose={closeCard}>
+        <DialogTitle>Καρτέλα πελάτη</DialogTitle>
+        <DialogContent><Alert severity="error">{extractErrorMessage(customerQ.error)}</Alert></DialogContent>
+        <DialogActions>
+          <Button onClick={() => void customerQ.refetch()}>Δοκιμή ξανά</Button>
+          <Button color="error" onClick={closeCard}>Κλείσιμο</Button>
+        </DialogActions>
+      </Dialog>
     );
   }
   const customer = customerQ.data!;
-  const canManageCustomer = user?.role === "AgencyAdmin" || user?.role === "AgencyOfficeAdmin" || user?.role === "AgencyUser";
+  // List data can paint the card immediately. Enable writes only once the
+  // complete detail response is available so omitted fields cannot be lost.
+  const canManageCustomer = !customerQ.isPlaceholderData && (user?.role === "AgencyAdmin" || user?.role === "AgencyOfficeAdmin" || user?.role === "AgencyUser");
   const discard = () => { setDrafts({}); setEditAll(false); saveFields.reset(); };
   const requestClose = () => {
     if (saveFields.isPending) return;
     if (hasUnsavedChanges) setDiscardAction("close");
-    else navigate("/app/customers");
+    else closeCard();
   };
   const fieldEditing: CustomerFieldEditing = {
     editAll: editAll && canManageCustomer, drafts, saving: saveFields.isPending, canEdit: canManageCustomer,
@@ -513,7 +526,7 @@ export function CustomerDetailPage() {
           <Button onClick={() => setDiscardAction(null)}>Επιστροφή στην καρτέλα</Button>
           <Button color="error" variant="contained" onClick={() => {
             const action = discardAction; setDiscardAction(null); discard();
-            if (action === "close") navigate("/app/customers");
+            if (action === "close") closeCard();
           }}>Απόρριψη αλλαγών</Button>
         </DialogActions>
       </Dialog>

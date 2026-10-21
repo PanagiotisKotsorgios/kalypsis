@@ -22,7 +22,8 @@ test("production profiles reuse client fields, pencil/save actions and compact t
       begin: () => events.push("begin"), saveAll: () => events.push("saveAll"), cancel: () => events.push("cancel"), requestClose: () => events.push("close"),
       error: null, toast: "", confirm: null, clearToast() {}, dismissConfirm() {}, discard() {} };
     const view = render(CompanyProfileFields, { session });
-    const keys = ["name", "code", "afmVat", "country", "agentCode", "website", "contactName", "contactEmail", "contactPhone", "isActive", "notes"];
+    const keys = ["name", "code", "afmVat", "country", "website", "contactName", "contactEmail", "contactPhone", "isActive", "notes"];
+    assert.equal(view.includes('data-profile-field="agentCode"'), false);
     for (const key of keys) assert.equal(view.split(`data-profile-field="${key}"`).length - 1, 1, key);
     assert.equal(view.includes("<input"), false);
     assert.equal(view.includes("Αντιγραφή Επωνυμία"), true);
@@ -101,8 +102,8 @@ test("production profiles reuse client fields, pencil/save actions and compact t
     assert.equal(companySource.includes('label: "Παραγωγή & συμβόλαια"'), false);
     assert.equal(companySource.includes('title="Όλα τα συμβόλαια εταιρείας"'), false);
     assert.equal(companySource.includes('title="Όλα τα συμβόλαια στην εταιρεία"'), true);
-    assert.equal(companySource.includes('label="Από ημερομηνία έναρξης"'), true);
-    assert.equal(companySource.includes('label="Έως ημερομηνία έναρξης"'), true);
+    assert.equal(companySource.includes('label="Έναρξη από"'), true);
+    assert.equal(companySource.includes('label="Έναρξη έως"'), true);
     assert.equal(companySource.split("<TablePagination").length >= 3, true);
     assert.equal(companySource.includes('label="Κωδικός από γέφυρα"'), true);
     for (const removed of ["Κλάδος / τύπος συμβολαίου (προαιρετικό)", "Κατηγορία χρήσης οχήματος (προαιρετικό)", "Γονικός κωδικός"]) assert.equal(companySource.includes(`label="${removed}"`), false, removed);

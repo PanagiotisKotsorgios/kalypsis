@@ -42,7 +42,7 @@ test("card-wide editing uses the existing field controls without autofocus or ed
     // Load the actual General sheet, not a duplicate test-only implementation.
     globalThis.sessionStorage ??= { getItem: () => null, setItem() {}, removeItem() {} };
     globalThis.localStorage ??= { getItem: () => null, setItem() {}, removeItem() {} };
-    const { DesktopCustomerFields, CustomerProfileTabs } = await server.ssrLoadModule("/src/pages/CustomerDetailPage.tsx");
+    const { DesktopCustomerFields, CustomerProfileTabs, CustomerDetailPage } = await server.ssrLoadModule("/src/pages/CustomerDetailPage.tsx");
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const customer = { id: "test", customerNumber: "C-TEST", type: "Individual", status: "Active", firstName: "Δοκιμή" };
     const editing = { editAll: false, drafts: {}, saving: false, canEdit: true, onDraftChange() {}, async onCommitField() {} };
@@ -70,6 +70,24 @@ test("card-wide editing uses the existing field controls without autofocus or ed
       assert.equal(subset.includes('data-customer-field="taxOffice"'), true);
       assert.equal(subset.includes('data-customer-field="passportNumber"'), true);
       assert.equal(subset.includes('data-customer-field="firstName"'), false);
+      // The actual modal renders the clicked list row immediately, before a
+      // detail request has completed, without caching that partial row as a
+      // complete customer record.
+      const { AuthProvider } = await server.ssrLoadModule("/src/auth/AuthContext.tsx");
+      const { MemoryRouter } = await import("react-router-dom");
+      const { ThemeProvider, createTheme } = await server.ssrLoadModule("@mui/material/styles");
+      const theme = createTheme({ components: { MuiDialog: { defaultProps: { disablePortal: true } } } });
+      const immediateCard = renderToStaticMarkup(createElement(QueryClientProvider, { client },
+        createElement(AuthProvider, null,
+          createElement(MemoryRouter, { initialEntries: ["/app/customers"] },
+            createElement(ThemeProvider, { theme }, createElement(CustomerDetailPage, {
+              customerId: customer.id, initialCustomer: customer, onClose() {},
+            }))))));
+      assert.equal(immediateCard.includes('role="dialog"'), true);
+      assert.equal(immediateCard.includes("Δοκιμή"), true);
+      assert.equal(immediateCard.includes('data-customer-field="firstName"'), true);
+      assert.equal(immediateCard.includes("MuiCircularProgress-root"), false);
+      assert.equal(client.getQueryData(["customer", customer.id]), undefined);
       const { AuditFieldChanges } = await server.ssrLoadModule("/src/components/audit/AuditFieldChanges.tsx");
       const history = renderToStaticMarkup(createElement(AuditFieldChanges, { changes: [{ field: "Phone", label: "Τηλέφωνο", before: "2101234567", after: "2109876543", beforeRecorded: true, afterRecorded: true }] }));
       for (const text of ["Πριν", "Μετά", "2101234567", "2109876543"]) assert.equal(history.includes(text), true);

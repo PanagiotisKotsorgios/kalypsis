@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
+import { CustomerDetailPage } from "./CustomerDetailPage";
 import { FilterHelp } from "../components/FilterHelp";
 import {
   Alert,
@@ -61,7 +62,6 @@ import PrintIcon from "@mui/icons-material/Print";
 import ViewColumnIcon from "@mui/icons-material/ViewColumn";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Link as RouterLink } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
 import { useTableState } from "../components/useTableState";
 import { useColumnPreferences } from "../hooks/useColumnPreferences";
@@ -239,11 +239,12 @@ export function CustomersPage() {
   const [filters, setFilters] = useState<CustomerListFilters>(() => ({ ...EMPTY_CUSTOMER_LIST_FILTERS }));
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [createStatus, setCreateStatus] = useState<CustomerStatus | null>(null);
-  const [createdCustomer, setCreatedCustomer] = useState<{ id: string; label: string } | null>(null);
+  const [createdCustomer, setCreatedCustomer] = useState<{ id: string; label: string; customer: CustomerDto } | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<CustomerDto | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
   const [saveFilterRequest, setSaveFilterRequest] = useState(0);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerDto | null>(null);
   const [toolbarAction, setToolbarAction] = useState<{ token: number; action: "csv" | "xlsx" | "print" | "columns" }>({ token: 0, action: "csv" });
   const [error, setError] = useState<string | null>(null);
 
@@ -265,7 +266,7 @@ export function CustomersPage() {
         const label = result.customer.type === "Company"
           ? result.customer.companyName || result.customer.customerNumber
           : `${result.customer.firstName ?? ""} ${result.customer.lastName ?? ""}`.trim() || result.customer.customerNumber;
-        setCreatedCustomer({ id: result.customer.id, label });
+        setCreatedCustomer({ id: result.customer.id, label, customer: result.customer });
       }
     },
     onError: (err) => setError(extractErrorMessage(err))
@@ -416,12 +417,20 @@ export function CustomersPage() {
           <HelpHint id="page.customers" />
           <RecordCountChip count={table.filtered.length} />
         </Stack>
+        <Stack direction="row" spacing={.75} useFlexGap flexWrap="wrap" sx={{ width: { xs: "100%", sm: "auto" }, alignItems: "center" }}>
+        <SavedReportsButton entity="customers" currentFilters={savedCustomerFilters} onLoad={loadSavedCustomerFilters}
+          saveRequestToken={saveFilterRequest} />
+        <Button variant={activeCustomerFilterCount(filters) > 0 ? "contained" : "outlined"} startIcon={<FilterListIcon />}
+          onClick={() => setFiltersOpen(true)} sx={{ minHeight: 40, whiteSpace: "nowrap" }}>
+          Περισσότερα{activeCustomerFilterCount(filters) > 0 ? ` (${activeCustomerFilterCount(filters)})` : ""}
+        </Button>
         <Button data-tour="customers-actions" variant="contained" size="large"
           startIcon={<MoreHorizIcon />} endIcon={<KeyboardArrowDownIcon />}
           onClick={event => setActionsAnchor(event.currentTarget)} aria-haspopup="menu"
-          aria-expanded={Boolean(actionsAnchor)} sx={{ minWidth: 142, whiteSpace: "nowrap", width: { xs: "100%", sm: "auto" } }}>
+          aria-expanded={Boolean(actionsAnchor)} sx={{ minWidth: 142, whiteSpace: "nowrap", flexGrow: { xs: 1, sm: 0 } }}>
           Ενέργειες
         </Button>
+        </Stack>
         <Menu anchorEl={actionsAnchor} open={Boolean(actionsAnchor)} onClose={() => setActionsAnchor(null)}
           anchorOrigin={{ vertical: "bottom", horizontal: "right" }} transformOrigin={{ vertical: "top", horizontal: "right" }}
           slotProps={{ paper: { sx: { minWidth: 285, maxWidth: "calc(100vw - 24px)" } } }}>
@@ -474,7 +483,7 @@ export function CustomersPage() {
       <Card variant="outlined" sx={{ mb: { xs: 1.25, md: 2 }, p: { xs: 1, sm: 1.25 }, bgcolor: "#EDF2F7", borderColor: "#C8D5E4", overflow: "visible" }}>
         <Box sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(180px, 2fr) repeat(3, minmax(110px, 1fr)) auto auto auto" },
+          gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(180px, 2fr) repeat(3, minmax(110px, 1fr)) auto" },
           gap: { xs: 0.75, md: 1 }, alignItems: "center", minWidth: 0,
         }}>
           <TextField size="small" label="Αναζήτηση πελατών" value={search}
@@ -483,20 +492,12 @@ export function CustomersPage() {
             InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
             sx={{ minWidth: 0, width: "100%", "& .MuiInputBase-input": { minWidth: 0 } }} />
 
-          <Box sx={{ display: { xs: "flex", lg: "none" }, gap: 0.75, flexWrap: "wrap", minWidth: 0 }}>
-            <Button variant={customerFilterCount > 0 ? "contained" : "outlined"} startIcon={<FilterListIcon />}
-              onClick={() => setFiltersOpen(true)} sx={{ minHeight: 40, flex: "1 1 150px", whiteSpace: "nowrap" }}>
-              Φίλτρα{customerFilterCount > 0 ? ` (${customerFilterCount})` : ""}
-            </Button>
-            <Box sx={{ flex: "1 1 150px", minWidth: 0, display: "flex", "& > *": { flex: 1, minWidth: 0 } }}>
-              <SavedReportsButton entity="customers" currentFilters={savedCustomerFilters} onLoad={loadSavedCustomerFilters}
-                saveRequestToken={saveFilterRequest} />
-            </Box>
-            {customerFilterCount > 0 && <Button size="small" variant="contained" color="error" startIcon={<FilterAltOffIcon />}
+          {customerFilterCount > 0 && <Box sx={{ display: { xs: "flex", lg: "none" }, gap: 0.75, flexWrap: "wrap", minWidth: 0 }}>
+            <Button size="small" variant="contained" color="error" startIcon={<FilterAltOffIcon />}
               onClick={clearFilters} sx={{ minHeight: 40, flex: "1 1 150px", whiteSpace: "nowrap", color: "common.white" }}>
               Καθαρισμός
-            </Button>}
-          </Box>
+            </Button>
+          </Box>}
 
           <Box sx={{ display: { xs: "none", lg: "contents" } }}>
             <CustomerMultiSelect label="Είδος" values={filters.types} options={[
@@ -506,12 +507,6 @@ export function CustomersPage() {
               onChange={cities => { setFilters({ ...filters, cities }); table.setPage(1); }} minWidth={115} />
             <CustomerMultiSelect label="Συνεργάτης" values={filters.producerIds} options={producerOptions}
               onChange={producerIds => { setFilters({ ...filters, producerIds }); table.setPage(1); }} minWidth={130} />
-            <Button variant={activeCustomerFilterCount(filters) > 0 ? "contained" : "outlined"} startIcon={<FilterListIcon />}
-              onClick={() => setFiltersOpen(true)} sx={{ minHeight: 40, whiteSpace: "nowrap" }}>
-              Περισσότερα{activeCustomerFilterCount(filters) > 0 ? ` (${activeCustomerFilterCount(filters)})` : ""}
-            </Button>
-            <SavedReportsButton entity="customers" currentFilters={savedCustomerFilters} onLoad={loadSavedCustomerFilters}
-              saveRequestToken={saveFilterRequest} />
             {customerFilterCount > 0 ? <Button size="small" variant="contained" color="error" startIcon={<FilterAltOffIcon />}
               onClick={clearFilters} sx={{ minHeight: 40, whiteSpace: "nowrap", color: "common.white" }}>
               Καθαρισμός
@@ -535,7 +530,7 @@ export function CustomersPage() {
           onClose={() => setCreatedCustomer(null)}
           sx={{ mb: 2, alignItems: "center" }}
           action={
-            <Button component={RouterLink} to={`/app/customers/${createdCustomer.id}`} color="inherit" size="small">
+            <Button onClick={() => setSelectedCustomer(createdCustomer.customer)} color="inherit" size="small">
               Άνοιγμα καρτέλας
             </Button>
           }
@@ -614,7 +609,7 @@ export function CustomersPage() {
                       bgcolor: "rgba(245, 158, 11, 0.12)",
                       "&:hover": { bgcolor: "rgba(245, 158, 11, 0.20)" }
                     } : { cursor: "pointer" }}
-                    onClick={() => { window.location.href = `/app/customers/${c.id}`; }}
+                    onClick={() => setSelectedCustomer(c)}
                     onContextMenu={(e) => rowMenu.open(e, c)}
                   >
                     {customerCols.visibleColumns.map(col => {
@@ -712,6 +707,8 @@ export function CustomersPage() {
       )}
       {headerMenu.menu}
       {rowMenu.menu}
+      {selectedCustomer && <CustomerDetailPage key={selectedCustomer.id} customerId={selectedCustomer.id}
+        initialCustomer={selectedCustomer} onClose={() => setSelectedCustomer(null)} />}
 
       <CreateCustomerDialog
         open={createStatus !== null}

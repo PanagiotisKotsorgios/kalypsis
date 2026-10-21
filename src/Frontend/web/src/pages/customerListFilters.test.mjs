@@ -60,7 +60,7 @@ test("customer filters adapt cleanly from phones to desktop", async () => {
   ]);
   assert.match(page, /display: \{ xs: "flex", lg: "none" \}/);
   assert.match(page, /display: \{ xs: "none", lg: "contents" \}/);
-  assert.match(page, /Φίλτρα\{customerFilterCount/);
+  assert.match(page, /Περισσότερα\{activeCustomerFilterCount/);
   assert.match(page, /gridTemplateColumns: \{ xs: "minmax\(0, 1fr\)", lg:/);
   assert.match(dialog, /fullScreen=\{fullScreen\}/);
   assert.match(dialog, /maxHeight: fullScreen \? "100dvh" : "92dvh"/);

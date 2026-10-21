@@ -55,6 +55,7 @@ public sealed class InsuranceCompanyRecordsController : ControllerBase
     public record FieldBody(string Label, string Key, string FieldType,
         string[]? Options, bool IsRequired, int SortOrder = 0);
     public record CategoryBody(string Name, string? Color, int SortOrder = 0);
+    public record MoveDocumentBody(Guid? FolderId);
     public record ContactBody(string Name, string? Role, string? Department, string? Email,
         string? Phone, string? Mobile, string? Notes, string PreferredChannel = "Email",
         bool IsPrimary = false);
@@ -299,6 +300,26 @@ public sealed class InsuranceCompanyRecordsController : ControllerBase
             ?? throw AppException.NotFound("Έγγραφο εταιρείας");
         var stream = await _storage.DownloadAsync(doc.StoragePath, ct);
         return File(stream, doc.MimeType, doc.FileName);
+    }
+
+    [HttpPut("documents/{documentId:guid}/folder")]
+    [RequirePermission("documents.write")]
+    public async Task<IActionResult> MoveDocument(Guid companyId, Guid documentId,
+        [FromBody] MoveDocumentBody body, CancellationToken ct)
+    {
+        await Company(companyId, ct);
+        var doc = await _db.InsuranceCompanyDocuments.FirstOrDefaultAsync(d =>
+            d.Id == documentId && d.InsuranceCompanyId == companyId
+            && d.TenantId == TenantId && d.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Έγγραφο εταιρείας");
+        if (body.FolderId.HasValue && !await _db.InsuranceCompanyFolders.AnyAsync(f =>
+            f.Id == body.FolderId.Value && f.InsuranceCompanyId == companyId
+            && f.TenantId == TenantId && f.DeletedAt == null, ct))
+            throw AppException.Validation("Ο φάκελος προορισμού δεν βρέθηκε στην εταιρεία.");
+        doc.FolderId = body.FolderId;
+        doc.UpdatedAt = _clock.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
     }
 
     [HttpDelete("documents/{documentId:guid}")]

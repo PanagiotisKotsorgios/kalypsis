@@ -16,6 +16,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 import EditIcon from "@mui/icons-material/Edit";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import FolderIcon from "@mui/icons-material/Folder";
+import DriveFileMoveIcon from "@mui/icons-material/DriveFileMove";
 import HomeWorkIcon from "@mui/icons-material/HomeWork";
 import HandshakeIcon from "@mui/icons-material/Handshake";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
@@ -369,14 +370,14 @@ function CompanyPoliciesSection({ companyId }: { companyId: string }) {
       <Chip size="small" color="info" variant="outlined" label={`${rows.length} / ${(policiesQ.data ?? []).length} συμβόλαια`} />
     </Stack>
     <Popover open={!!filterAnchor} anchorEl={filterAnchor} onClose={() => setFilterAnchor(null)} anchorOrigin={{ vertical: "bottom", horizontal: "right" }} transformOrigin={{ vertical: "top", horizontal: "right" }}>
-      <Stack spacing={1.25} sx={{ p: 1.75, width: { xs: 270, sm: 330 } }}>
+      <Stack spacing={1.25} sx={{ p: 1.75, width: { xs: "calc(100vw - 24px)", sm: 480 }, maxWidth: "100%", boxSizing: "border-box" }}>
         <Typography fontWeight={800}>Φίλτρα συμβολαίων</Typography>
         <TextField select size="small" label="Κατάσταση" value={status} onChange={event => setStatus(event.target.value)} SelectProps={{ native: true }}><option value="all">Όλες</option>{statuses.map(option => <option key={option} value={option}>{policyStatusLabel(option)}</option>)}</TextField>
         <TextField select size="small" label="Κλάδος" value={type} onChange={event => setType(event.target.value)} SelectProps={{ native: true }}><option value="all">Όλοι</option>{types.map(option => <option key={option} value={option}>{policyTypeLabel(option)}</option>)}</TextField>
         <TextField select size="small" label="Λήξη" value={expiry} onChange={event => setExpiry(event.target.value)} SelectProps={{ native: true }}><option value="all">Όλες οι ημερομηνίες</option><option value="expired">Έχουν λήξει</option><option value="next30">Λήγουν σε 30 ημέρες</option><option value="next90">Λήγουν σε 90 ημέρες</option></TextField>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-          <TextField fullWidth type="date" size="small" label="Από ημερομηνία έναρξης" value={fromDate} onChange={event => setFromDate(event.target.value)} InputLabelProps={{ shrink: true }} />
-          <TextField fullWidth type="date" size="small" label="Έως ημερομηνία έναρξης" value={toDate} onChange={event => setToDate(event.target.value)} InputLabelProps={{ shrink: true }} />
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ "& > *": { minWidth: 0, flex: 1 } }}>
+          <TextField fullWidth type="date" size="small" label="Έναρξη από" value={fromDate} onChange={event => setFromDate(event.target.value)} InputLabelProps={{ shrink: true }} />
+          <TextField fullWidth type="date" size="small" label="Έναρξη έως" value={toDate} onChange={event => setToDate(event.target.value)} InputLabelProps={{ shrink: true }} />
         </Stack>
         <Button color="error" variant="outlined" onClick={clearFilters}>Καθαρισμός φίλτρων</Button>
       </Stack>
@@ -1001,7 +1002,7 @@ function ProductionCompanyEditorDialog({ open, item, onClose, onSaved }: {
 }
 
 const COMPANY_CORE_FIELDS = [
-  ["name", "Επωνυμία"], ["code", "Κωδικός"], ["afmVat", "ΑΦΜ / VAT"], ["country", "Χώρα"], ["agentCode", "Κωδικός συνεργασίας"],
+  ["name", "Επωνυμία"], ["code", "Κωδικός"], ["afmVat", "ΑΦΜ / VAT"], ["country", "Χώρα"],
   ["website", "Ιστοσελίδα"], ["contactName", "Υπεύθυνος"], ["contactEmail", "Email"], ["contactPhone", "Τηλέφωνο"], ["isActive", "Κατάσταση"], ["notes", "Σημειώσεις"],
 ] as const;
 
@@ -1194,10 +1195,19 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
     ["Διεύθυνση", ["address", "διεύθυνση", "εδρα", "έδρα"]], ["Πόλη", ["city", "πόλη"]], ["Τ.Κ.", ["postal", "ταχυδρομ", "τκ", "zip"], true],
     ["Σύμβαση με ασφαλιστική εταιρεία", ["company-contract", "σύμβαση με ασφαλιστική"]],
     ["Ημερομηνία λήξης σύμβασης", ["contract-expiry", "λήξη σύμβασης"]],
-    ["Facebook", ["facebook", "fb"]], ["Instagram", ["instagram", "insta"]], ["LinkedIn", ["linkedin", "linked in"]],
-    ["X / Twitter", ["twitter", "x.com"]], ["Google Maps", ["google maps", "maps"]],
+    ["Google Maps", ["google maps", "maps"]],
   ];
-  const knownCustomIds = new Set(addressFields.map(([, aliases]) => customField(...aliases)?.id).filter(Boolean));
+  const socialFields: [string, string[]][] = [
+    ["Facebook", ["facebook", "fb"]], ["Instagram", ["instagram", "insta"]],
+    ["LinkedIn", ["linkedin", "linked in"]], ["X / Twitter", ["twitter", "x.com"]],
+  ];
+  const knownCustomIds = new Set([...addressFields, ...socialFields].map(([, aliases]) => customField(...aliases)?.id).filter(Boolean));
+  const isSocialCustomField = (field: CompanyWorkspaceField) =>
+    /facebook|instagram|linkedin|twitter|x\.com|tiktok|youtube/i.test(`${field.key} ${field.label}`);
+  const isDuplicateCoreField = (field: CompanyWorkspaceField) => {
+    const label = `${field.key} ${field.label}`.toLocaleLowerCase("el-GR").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[-_]/g, " ");
+    return /κωδικος συνεργασιας|cooperation code|agent code|υπευθυνος λογαριασμου|account manager/.test(label);
+  };
   const isContactCustomField = (field: CompanyWorkspaceField) => companyFieldPlacement(field) === "contact";
   const placedFields = (placement: CompanyFieldPlacement) => (workspace?.fields ?? []).filter(field => field.isActive && companyFieldPlacement(field) === placement);
   const renderPlacedFields = (placement: CompanyFieldPlacement) => {
@@ -1269,7 +1279,7 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
 
           <CompanyProfileFields session={session} isBroker={p.isBroker ?? company?.isBroker} />
           <Box sx={profileFieldGridSx}>{addressFields.map(([label, aliases, mono]) => renderCustomField(label, aliases, mono))}</Box>
-          <Box sx={profileFieldGridSx}>{(workspace?.fields ?? []).filter(field => field.isActive && companyFieldPlacement(field) === "general" && !knownCustomIds.has(field.id)).map(field =>
+          <Box sx={profileFieldGridSx}>{(workspace?.fields ?? []).filter(field => field.isActive && companyFieldPlacement(field) === "general" && !knownCustomIds.has(field.id) && !isSocialCustomField(field) && !isDuplicateCoreField(field)).map(field =>
             <Box key={field.id} sx={{ minWidth: 0 }}>
               <ProfileEditableField label={field.label} field={"custom:" + field.id} session={session} link={field.value ?? undefined}
                 type={field.fieldType === "date" ? "date" : field.fieldType === "number" ? "number" : "text"} />
@@ -1284,7 +1294,8 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
               <Button size="small" variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => openContactEditor()}>Προσθήκη επαφής</Button>
             </Stack>
             <CompanyProfileFields session={session} contact />
-            <Box sx={{ ...profileFieldGridSx, mt: .75 }}>{(workspace?.fields ?? []).filter(field => field.isActive && isContactCustomField(field)).map(field => <Box key={field.id} sx={{ minWidth: 0 }}><ProfileEditableField label={field.label} field={"custom:" + field.id} session={session} link={field.value ?? undefined} type={field.fieldType === "date" ? "date" : field.fieldType === "number" ? "number" : "text"} /></Box>)}</Box>
+            <Box sx={{ ...profileFieldGridSx, mt: .75 }}>{socialFields.map(([label, aliases]) => renderCustomField(label, aliases))}</Box>
+            <Box sx={{ ...profileFieldGridSx, mt: .75 }}>{(workspace?.fields ?? []).filter(field => field.isActive && (isContactCustomField(field) || isSocialCustomField(field)) && !knownCustomIds.has(field.id) && !isDuplicateCoreField(field)).map(field => <Box key={field.id} sx={{ minWidth: 0 }}><ProfileEditableField label={field.label} field={"custom:" + field.id} session={session} link={field.value ?? undefined} type={field.fieldType === "date" ? "date" : field.fieldType === "number" ? "number" : "text"} /></Box>)}</Box>
             {workspaceQ.isLoading && <Typography variant="body2" color="text.secondary">Φόρτωση επαφών…</Typography>}
             {!workspaceQ.isLoading && (workspace?.contacts ?? []).filter(contact => contact.isActive).length === 0 && <Typography variant="body2" color="text.secondary">Δεν έχουν καταχωρηθεί επιπλέον στελέχη.</Typography>}
             {(workspace?.contacts ?? []).filter(contact => contact.isActive).map(contact => <Box key={contact.id} sx={{ mt: .75, pt: .75, borderTop: "1px solid", borderColor: "divider" }}><Stack direction="row" justifyContent="space-between" alignItems="center" gap={1}><Typography variant="subtitle2" fontWeight={800}>{contact.name}{contact.isPrimary && <Chip size="small" color="primary" label="Κύρια" sx={{ ml: .75 }} />}</Typography><Stack direction="row" spacing={.5}><Button size="small" variant="outlined" startIcon={<EditIcon />} onClick={() => openContactEditor(contact)}>Επεξεργασία</Button><IconButton size="small" color="error" aria-label="Διαγραφή επαφής" onClick={() => void deleteContact(contact)}><DeleteOutlineIcon fontSize="small" /></IconButton></Stack></Stack><Box sx={{ ...profileFieldGridSx, mt: .5 }}><ProfileEditableField label="Ρόλος / τμήμα" value={[contact.role, contact.department].filter(Boolean).join(" · ")} /><ProfileEditableField label="Email" value={contact.email} link={contact.email ? `mailto:${contact.email}` : undefined} /><ProfileEditableField label="Τηλέφωνο" value={contact.phone} link={contact.phone ? `tel:${contact.phone}` : undefined} /><ProfileEditableField label="Κινητό" value={contact.mobile} link={contact.mobile ? `tel:${contact.mobile}` : undefined} />{contact.notes && <ProfileEditableField label="Σημειώσεις" value={contact.notes} multiline />}</Box></Box>)}
@@ -1363,6 +1374,11 @@ function CompanyDocumentsWorkspace({ companyId, view }: { companyId: string; vie
   const [previewDocument, setPreviewDocument] = useState<CompanyWorkspaceDocument | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [movingDocument, setMovingDocument] = useState<CompanyWorkspaceDocument | null>(null);
+  const [destinationFolderId, setDestinationFolderId] = useState("");
+  const [movePending, setMovePending] = useState(false);
+  const [moveError, setMoveError] = useState<string | null>(null);
+  const [documentNotice, setDocumentNotice] = useState<string | null>(null);
   const workspaceQ = useQuery({
     queryKey: ["production-company-workspace", companyId],
     queryFn: async () => (await api.get<CompanyWorkspace>(`/insurance-companies/${companyId}/workspace`)).data,
@@ -1378,6 +1394,23 @@ function CompanyDocumentsWorkspace({ companyId, view }: { companyId: string; vie
   const pagedFields = activeFields.slice(fieldPage * fieldRowsPerPage, fieldPage * fieldRowsPerPage + fieldRowsPerPage);
   const endpoint = `/insurance-companies/${companyId}/workspace`;
   const refresh = () => void qc.invalidateQueries({ queryKey: ["production-company-workspace", companyId] });
+  const openMoveDocument = (document: CompanyWorkspaceDocument) => {
+    setMovingDocument(document);
+    setDestinationFolderId(document.folderId ?? "");
+    setMoveError(null);
+  };
+  const moveDocument = async () => {
+    if (!movingDocument) return;
+    setMovePending(true);
+    setMoveError(null);
+    try {
+      await api.put(`${endpoint}/documents/${movingDocument.id}/folder`, { folderId: destinationFolderId || null });
+      await qc.invalidateQueries({ queryKey: ["production-company-workspace", companyId] });
+      setDocumentNotice(`Το αρχείο «${movingDocument.fileName}» μεταφέρθηκε επιτυχώς.`);
+      setMovingDocument(null);
+    } catch (e) { setMoveError(extractErrorMessage(e)); }
+    finally { setMovePending(false); }
+  };
   const createFolder = async () => {
     try {
       await api.post(`${endpoint}/folders`, { name: folderName, description: folderDescription || null, parentFolderId: selectedFolderId, color: "#0b2545", sortOrder: 0 });
@@ -1458,6 +1491,7 @@ function CompanyDocumentsWorkspace({ companyId, view }: { companyId: string; vie
   if (workspaceQ.isLoading) return <Box sx={{ display: "flex", justifyContent: "center", py: 5 }}><CircularProgress /></Box>;
   return <Stack spacing={1.5} sx={{ "& .MuiButton-sizeSmall": { minHeight: 32, px: 1.2, borderRadius: 1.25, fontWeight: 750 }, "& .MuiButton-sizeSmall.MuiButton-outlined": { bgcolor: "#1976d2", color: "#fff", borderColor: "#1976d2", "&:hover": { bgcolor: "#0d47a1", borderColor: "#0d47a1" } }, "& .MuiButton-sizeSmall.MuiButton-containedPrimary": { color: "#fff", "&:hover": { bgcolor: "#0d47a1" } } }}>
     {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
+    {documentNotice && <Alert severity="success" onClose={() => setDocumentNotice(null)}>{documentNotice}</Alert>}
     {view === "documents" && <>
     <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" gap={1}>
       <Typography variant="body2" color="text.secondary">Οργανώστε συμβάσεις, αλληλογραφία, τιμοκαταλόγους και κάθε αρχείο της εταιρείας σε δικούς σας φακέλους.</Typography>
@@ -1480,10 +1514,30 @@ function CompanyDocumentsWorkspace({ companyId, view }: { companyId: string; vie
         <Card variant="outlined" onDragEnter={() => setDragging(true)} onDragLeave={() => setDragging(false)} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); setDragging(false); if (e.dataTransfer.files.length) onFiles(e.dataTransfer.files); }} sx={{ p: 1.5, border: "2px dashed", borderColor: dragging ? "primary.main" : "divider", bgcolor: dragging ? "rgba(25,118,210,.06)" : "transparent", textAlign: "center" }}>
           <CloudUploadIcon color={dragging ? "primary" : "disabled"} sx={{ fontSize: 34 }} /><Typography fontWeight={750}>Σύρετε αρχεία εδώ ή επιλέξτε από τον υπολογιστή</Typography><Typography variant="caption" color="text.secondary">PDF, Word, Excel, εικόνες και άλλα ασφαλή έγγραφα έως 50 MB ανά αρχείο.</Typography><Button component="label" size="small" sx={{ mt: 0.75 }} disabled={uploading}>Επιλογή αρχείων<input hidden type="file" multiple onChange={e => { if (e.target.files) onFiles(e.target.files); e.currentTarget.value = ""; }} /></Button>{uploading && <CircularProgress size={18} sx={{ ml: 1 }} />}
         </Card>
-        <Card variant="outlined" sx={{ overflow: "hidden" }}><Box sx={{ overflow: "auto", maxHeight: 430 }}><Table size="small" stickyHeader sx={{ minWidth: 760 }}><TableHead><TableRow><TableCell>Αρχείο</TableCell><TableCell>Κατηγορία</TableCell><TableCell>Μέγεθος</TableCell><TableCell>Ημερομηνία</TableCell><TableCell align="right">Ενέργειες</TableCell></TableRow></TableHead><TableBody>{pagedDocuments.map(document => <TableRow key={document.id} hover><TableCell><Typography fontWeight={700}>{document.fileName}</Typography>{document.description && <Typography variant="caption" color="text.secondary">{document.description}</Typography>}{document.isConfidential && <Chip size="small" color="warning" label="Εμπιστευτικό" sx={{ ml: 0.75 }} />}</TableCell><TableCell>{document.category}</TableCell><TableCell>{(document.sizeBytes / 1024).toFixed(0)} KB</TableCell><TableCell>{new Date(document.createdAt).toLocaleDateString("el-GR")}</TableCell><TableCell align="right"><Tooltip title="Προεπισκόπηση"><IconButton size="small" color="primary" onClick={() => void previewFile(document)} aria-label={`Προεπισκόπηση ${document.fileName}`}><VisibilityIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Λήψη"><IconButton size="small" onClick={() => void downloadDocument(document)}><DownloadIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Διαγραφή"><IconButton size="small" color="error" onClick={() => void deleteDocument(document)}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip></TableCell></TableRow>)}{pagedDocuments.length === 0 && <TableRow><TableCell colSpan={5}><Typography color="text.secondary" textAlign="center" sx={{ py: 3 }}>Δεν υπάρχουν αρχεία σε αυτή την προβολή.</Typography></TableCell></TableRow>}</TableBody></Table></Box><TablePagination component="div" count={selectedDocuments.length} page={documentPage} onPageChange={(_event, next) => setDocumentPage(next)} rowsPerPage={documentRowsPerPage} onRowsPerPageChange={event => { setDocumentRowsPerPage(Number(event.target.value)); setDocumentPage(0); }} rowsPerPageOptions={[5, 10, 25, 50]} labelRowsPerPage="Αρχεία ανά σελίδα" labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`} /></Card>
+        <Card variant="outlined" sx={{ overflow: "hidden" }}><Box sx={{ overflow: "auto", maxHeight: 430 }}><Table size="small" stickyHeader sx={{ minWidth: 760 }}><TableHead><TableRow><TableCell>Αρχείο</TableCell><TableCell>Κατηγορία</TableCell><TableCell>Μέγεθος</TableCell><TableCell>Ημερομηνία</TableCell><TableCell align="right">Ενέργειες</TableCell></TableRow></TableHead><TableBody>{pagedDocuments.map(document => <TableRow key={document.id} hover><TableCell><Typography fontWeight={700}>{document.fileName}</Typography>{document.description && <Typography variant="caption" color="text.secondary">{document.description}</Typography>}{document.isConfidential && <Chip size="small" color="warning" label="Εμπιστευτικό" sx={{ ml: 0.75 }} />}</TableCell><TableCell>{document.category}</TableCell><TableCell>{(document.sizeBytes / 1024).toFixed(0)} KB</TableCell><TableCell>{new Date(document.createdAt).toLocaleDateString("el-GR")}</TableCell><TableCell align="right"><Tooltip title="Προεπισκόπηση"><IconButton size="small" color="primary" onClick={() => void previewFile(document)} aria-label={`Προεπισκόπηση ${document.fileName}`}><VisibilityIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Λήψη"><IconButton size="small" onClick={() => void downloadDocument(document)}><DownloadIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Μεταφορά σε φάκελο"><IconButton size="small" color="primary" aria-label={`Μεταφορά ${document.fileName} σε φάκελο`} onClick={() => openMoveDocument(document)}><DriveFileMoveIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Διαγραφή"><IconButton size="small" color="error" onClick={() => void deleteDocument(document)}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip></TableCell></TableRow>)}{pagedDocuments.length === 0 && <TableRow><TableCell colSpan={5}><Typography color="text.secondary" textAlign="center" sx={{ py: 3 }}>Δεν υπάρχουν αρχεία σε αυτή την προβολή.</Typography></TableCell></TableRow>}</TableBody></Table></Box><TablePagination component="div" count={selectedDocuments.length} page={documentPage} onPageChange={(_event, next) => setDocumentPage(next)} rowsPerPage={documentRowsPerPage} onRowsPerPageChange={event => { setDocumentRowsPerPage(Number(event.target.value)); setDocumentPage(0); }} rowsPerPageOptions={[5, 10, 25, 50]} labelRowsPerPage="Αρχεία ανά σελίδα" labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`} /></Card>
       </Stack>
     </Box>
     </>}
+    <Dialog open={movingDocument !== null} onClose={() => { if (!movePending) setMovingDocument(null); }} fullWidth maxWidth="sm">
+      <DialogTitle>Μεταφορά εγγράφου</DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2}>
+          <Typography sx={{ overflowWrap: "anywhere" }}>{movingDocument?.fileName}</Typography>
+          {moveError && <Alert severity="error">{moveError}</Alert>}
+          <TextField select fullWidth size="small" label="Φάκελος προορισμού" value={destinationFolderId}
+            onChange={event => setDestinationFolderId(event.target.value)} SelectProps={{ native: true }} disabled={movePending}>
+            <option value="">Χωρίς φάκελο</option>
+            {(workspace?.folders ?? []).map(folder => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
+          </TextField>
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button variant="contained" color="error" startIcon={<CloseIcon />} disabled={movePending} onClick={() => setMovingDocument(null)}>Ακύρωση</Button>
+        <Button variant="contained" startIcon={movePending ? <CircularProgress size={16} color="inherit" /> : <DriveFileMoveIcon />}
+          disabled={movePending || destinationFolderId === (movingDocument?.folderId ?? "")}
+          onClick={() => void moveDocument()}>Μεταφορά</Button>
+      </DialogActions>
+    </Dialog>
     {view === "fields" && <ProfileSection title="Διαχείριση προσαρμόσιμων πεδίων"><Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} gap={1} sx={{ mb: 1 }}><Typography variant="body2" color="text.secondary">Ορίστε τον τύπο, το tab εμφάνισης και τη σειρά των πρόσθετων πεδίων της εταιρείας.</Typography><Button size="small" variant="contained" color="primary" startIcon={<AddIcon />} onClick={openNewField}>Νέο προσαρμόσιμο πεδίο</Button></Stack><Card variant="outlined" sx={{ overflow: "hidden" }}><Box sx={{ overflow: "auto", maxHeight: 460 }}><Table size="small" stickyHeader sx={{ minWidth: 760 }}><TableHead><TableRow><TableCell>Ετικέτα</TableCell><TableCell>Κλειδί</TableCell><TableCell>Τύπος</TableCell><TableCell>Εμφάνιση στο tab</TableCell><TableCell>Υποχρεωτικό</TableCell><TableCell align="right">Ενέργειες</TableCell></TableRow></TableHead><TableBody>{pagedFields.map(field => <TableRow key={field.id} hover><TableCell sx={{ fontWeight: 750 }}>{field.label}</TableCell><TableCell sx={{ fontFamily: "monospace" }}>{field.key}</TableCell><TableCell>{field.fieldType === "date" ? "Ημερομηνία" : field.fieldType === "number" ? "Αριθμός" : field.fieldType === "url" ? "Σύνδεσμος" : "Κείμενο"}</TableCell><TableCell><Chip size="small" variant="outlined" color="primary" label={companyFieldPlacementLabel[companyFieldPlacement(field)]} /></TableCell><TableCell>{field.isRequired ? "Ναι" : "Όχι"}</TableCell><TableCell align="right"><Tooltip title="Επεξεργασία"><IconButton size="small" color="primary" onClick={() => openExistingField(field)}><EditIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Διαγραφή"><IconButton size="small" color="error" onClick={() => void deleteFieldDefinition(field)}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip></TableCell></TableRow>)}{pagedFields.length === 0 && <TableRow><TableCell colSpan={6}><Typography color="text.secondary" textAlign="center" sx={{ py: 3 }}>Δεν έχουν οριστεί προσαρμόσιμα πεδία.</Typography></TableCell></TableRow>}</TableBody></Table></Box><TablePagination component="div" count={activeFields.length} page={fieldPage} onPageChange={(_event, next) => setFieldPage(next)} rowsPerPage={fieldRowsPerPage} onRowsPerPageChange={event => { setFieldRowsPerPage(Number(event.target.value)); setFieldPage(0); }} rowsPerPageOptions={[5, 10, 25, 50]} labelRowsPerPage="Πεδία ανά σελίδα" labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`} /></Card></ProfileSection>}
     {view === "documents" && <><Dialog open={folderDialog} onClose={() => setFolderDialog(false)} fullWidth maxWidth="xs"><DialogTitle>Νέος φάκελος εταιρείας</DialogTitle><DialogContent><Stack spacing={1.5} sx={{ pt: 1 }}><TextField label="Όνομα φακέλου" value={folderName} onChange={e => setFolderName(e.target.value)} autoFocus /><TextField label="Περιγραφή" value={folderDescription} onChange={e => setFolderDescription(e.target.value)} multiline minRows={2} /></Stack></DialogContent><DialogActions><Button onClick={() => setFolderDialog(false)}>Άκυρο</Button><Button variant="contained" onClick={() => void createFolder()} disabled={!folderName.trim()}>Δημιουργία</Button></DialogActions></Dialog>
     <Dialog open={categoryDialog} onClose={() => setCategoryDialog(false)} fullWidth maxWidth="xs"><DialogTitle>Νέα κατηγορία εγγράφων</DialogTitle><DialogContent><TextField fullWidth sx={{ mt: 1 }} label="Όνομα κατηγορίας" value={categoryName} onChange={e => setCategoryName(e.target.value)} autoFocus /></DialogContent><DialogActions><Button onClick={() => setCategoryDialog(false)}>Άκυρο</Button><Button variant="contained" onClick={() => void createCategory()} disabled={!categoryName.trim()}>Δημιουργία</Button></DialogActions></Dialog></>}
