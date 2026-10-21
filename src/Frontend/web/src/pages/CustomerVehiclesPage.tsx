@@ -239,6 +239,8 @@ export function VehicleDetailDialog({ open, plate, policyIds: suppliedPolicyIds,
 export function VehicleProfileFields({ session, values, owner, ownerVat }: { session?: ProfileFieldSession; values: Record<string, string>; owner?: string; ownerVat?: string | null }) {
   const field = (key: string, label: string, extra: Partial<React.ComponentProps<typeof ProfileEditableField>> = {}) =>
     <ProfileEditableField key={key} field={session ? key : undefined} session={session} value={values[key]} label={label} {...extra} />;
+  const booleanVehicleFields = new Set(["sunroof", "youngDriver", "rearDualWheels", "alarm", "immobilizer"]);
+  const dateVehicleFields = new Set(["purchaseDate", "firstRegistrationDate", "transferDate", "emissionsCardExpiry", "inspectionDate", "nextInspectionDate"]);
   return <Box sx={profileFieldGridSx}>
     {field("vehicleRegistrationPlate", "Πινακίδα", { mono: true })}
     {field("vehicleUseCategory", "Χρήση / κατηγορία")}
@@ -246,8 +248,8 @@ export function VehicleProfileFields({ session, values, owner, ownerVat }: { ses
     <ProfileEditableField label="Ιδιοκτήτης / πελάτης" value={owner} />
     <ProfileEditableField label="ΑΦΜ ιδιοκτήτη (αυτόματο)" value={ownerVat} mono />
     {VEHICLE_SPEC_FIELDS.map(([key, label]) => field("spec:" + key, label, {
-      multiline: key === "vehicleNotes", type: key === "purchaseDate" || key === "firstRegistrationDate" ? "date" : "text",
-      options: key === "sunroof" || key === "youngDriver" ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Ναι", label: "Ναι" }, { value: "Όχι", label: "Όχι" }, { value: "true", label: "Ναι" }, { value: "false", label: "Όχι" }] : key === "condition" ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Καινούργιο", label: "Καινούργιο" }, { value: "Μεταχειρισμένο", label: "Μεταχειρισμένο" }] : key === "fuelType" ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Βενζίνη", label: "Βενζίνη" }, { value: "Πετρέλαιο", label: "Πετρέλαιο" }, { value: "Υβριδικό", label: "Υβριδικό" }, { value: "Ηλεκτρικό", label: "Ηλεκτρικό" }, { value: "Υγραέριο", label: "Υγραέριο (LPG)" }, { value: "Φυσικό αέριο", label: "Φυσικό αέριο (CNG)" }] : key === "bodyType" ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Hatchback", label: "Hatchback" }, { value: "Sedan", label: "Sedan" }, { value: "SUV", label: "SUV" }, { value: "Station Wagon", label: "Station Wagon" }, { value: "Coupe", label: "Coupe" }, { value: "Cabrio", label: "Cabrio" }, { value: "Van", label: "Van" }, { value: "Pickup", label: "Pickup" }] : undefined,
+      multiline: key === "vehicleNotes", type: dateVehicleFields.has(key) ? "date" : "text",
+      options: booleanVehicleFields.has(key) ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Ναι", label: "Ναι" }, { value: "Όχι", label: "Όχι" }, { value: "true", label: "Ναι" }, { value: "false", label: "Όχι" }] : key === "condition" ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Καινούργιο", label: "Καινούργιο" }, { value: "Μεταχειρισμένο", label: "Μεταχειρισμένο" }] : key === "fuelType" ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Βενζίνη", label: "Βενζίνη" }, { value: "Πετρέλαιο", label: "Πετρέλαιο" }, { value: "Υβριδικό", label: "Υβριδικό" }, { value: "Ηλεκτρικό", label: "Ηλεκτρικό" }, { value: "Υγραέριο", label: "Υγραέριο (LPG)" }, { value: "Φυσικό αέριο", label: "Φυσικό αέριο (CNG)" }] : key === "bodyType" ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Hatchback", label: "Hatchback" }, { value: "Sedan", label: "Sedan" }, { value: "SUV", label: "SUV" }, { value: "Station Wagon", label: "Station Wagon" }, { value: "Coupe", label: "Coupe" }, { value: "Cabrio", label: "Cabrio" }, { value: "Van", label: "Van" }, { value: "Pickup", label: "Pickup" }] : undefined,
     }))}
   </Box>;
 }

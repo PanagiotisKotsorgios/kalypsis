@@ -34,6 +34,9 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
       const values = { vehicleRegistrationPlate: "ABC1234", "spec:make": "Toyota", "spec:sunroof": "true" };
       const {view,edit} = layout(VehicleProfileFields, { values, owner: "Ιδιοκτήτης", ownerVat: "012345678", session: session(values) });
       for (const [key] of VEHICLE_SPEC_FIELDS) assert.equal(ids(view).filter(id => id === "spec:" + key).length, 1, key);
+      for (const key of ["wheelbaseMm", "doors", "grossWeightKg", "tonnage", "wheelCount", "rearDualWheels", "alarm", "immobilizer", "storageLocation", "emissionsCo2", "inspectionDate", "nextInspectionDate"]) {
+        assert.equal(ids(view).includes("spec:" + key), true, key);
+      }
       assert.equal(view.includes("Αντιγραφή Μάρκα"), true); assert.equal(view.includes("Επεξεργασία Ηλιοροφή"), true);
       assert.equal(edit.includes("Αποθήκευση Ηλιοροφή"), true); assert.equal(edit.includes("Αποθήκευση ΑΦΜ ιδιοκτήτη"), false); assert.equal(view.includes("012345678"), true);
       for (const text of ["Χαρακτηριστικό", "Απαλλαγή", "Θέση / spot", "Τρόπος είσπραξης", "Πληρωμή απευθείας"]) assert.equal(view.includes(text), false);

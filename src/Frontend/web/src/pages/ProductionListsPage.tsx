@@ -689,9 +689,9 @@ export function ProductionListsPage() {
             value={f.dateField}
             onChange={(v) => setF({ ...f, dateField: v || "start" })}
             options={[
-              { value: "start", label: "Έναρξη κάλυψης" },
-              { value: "issued", label: "Έκδοση από ασφαλιστική" },
-              { value: "recorded", label: "Καταχώρηση στο σύστημα" },
+              { value: "issued", label: "Ημερομηνία Έκδοσης" },
+              { value: "start", label: "Ημερομηνία Έναρξης" },
+              { value: "recorded", label: "Ημερομηνία Καταχώρησης" },
             ]}
           />}
           {filterVisibility.visible("from") && <TextField type="date" size="small" InputLabelProps={{ shrink: true }} label={t("productionList.from")}

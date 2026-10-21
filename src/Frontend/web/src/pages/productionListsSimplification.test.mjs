@@ -43,6 +43,17 @@ test("production filters collapse early and their visible fields are user config
   }
   assert.match(picker, /localStorage\.setItem/);
   assert.match(picker, /Εμφανιζόμενα φίλτρα/);
+  for (const label of ["Ημερομηνία Έκδοσης", "Ημερομηνία Έναρξης", "Ημερομηνία Καταχώρησης"]) {
+    assert.match(source, new RegExp(label));
+  }
+});
+
+test("company workspace tabs follow the requested operational order", async () => {
+  const source = await readFile(new URL("./ProductionCompaniesAgenciesPage.tsx", import.meta.url), "utf8");
+  const tabs = source.slice(source.indexOf("const SPLIT_WORKSPACE_TAB_LABELS"), source.indexOf("export function WorkspaceProfileTabs"));
+  const positions = ["Γενικά", "Επικοινωνία", "Παραγωγή", "Παραμετρικά", "Έγγραφα", "Πεδία"].map(label => tabs.indexOf(`label: "${label}"`));
+  assert.ok(positions.every(position => position >= 0));
+  assert.deepEqual([...positions].sort((a, b) => a - b), positions);
 });
 
 test("document folders page and legacy route no longer exist", async () => {

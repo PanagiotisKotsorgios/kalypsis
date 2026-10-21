@@ -4,6 +4,13 @@ export const VEHICLE_SPEC_FIELDS = [
   ["engineCapacity", "Κυβισμός (cc)"], ["enginePowerKw", "Ισχύς (kW)"], ["taxableHorsepower", "Φορολογήσιμοι ίπποι"], ["estimatedValue", "Εκτιμώμενη αξία"],
   ["purchaseDate", "Ημερομηνία αγοράς"], ["condition", "Κατάσταση οχήματος"], ["ownerCount", "Αριθμός ιδιοκτητών"],
   ["color", "Χρώμα"], ["seats", "Θέσεις"], ["mileage", "Χιλιόμετρα"], ["youngDriver", "Νέος οδηγός"], ["sunroof", "Ηλιοροφή"],
+  ["transferDate", "Ημερομηνία μεταβίβασης"], ["doors", "Πόρτες"], ["wheelbaseMm", "Μεταξόνιο (mm)"],
+  ["wheelCount", "Αριθμός τροχών"], ["grossWeightKg", "Μικτό βάρος (kg)"], ["tonnage", "Τονάζ"],
+  ["rearDualWheels", "Διπλοί πίσω τροχοί"], ["alarm", "Συναγερμός"], ["immobilizer", "Immobilizer"],
+  ["storageLocation", "Χώρος φύλαξης"], ["emissionsCo2", "Εκπομπές CO₂ (g/km)"],
+  ["registrationCertificateNumber", "Αριθμός άδειας κυκλοφορίας"], ["specialLicense", "Ειδική άδεια / δίπλωμα"],
+  ["emissionsCardNumber", "Κάρτα καυσαερίων"], ["emissionsCardExpiry", "Λήξη κάρτας καυσαερίων"],
+  ["inspectionCertificateNumber", "Αριθμός δελτίου ΚΤΕΟ"], ["inspectionDate", "Ημερομηνία ΚΤΕΟ"], ["nextInspectionDate", "Επόμενο ΚΤΕΟ"],
   ["vehicleNotes", "Σημειώσεις οχήματος"],
 ] as const;
 
