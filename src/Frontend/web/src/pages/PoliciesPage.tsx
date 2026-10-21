@@ -88,6 +88,7 @@ import { SavedReportsButton } from "../components/SavedReportsButton";
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
 type PolicyStatus = "Draft" | "Active" | "Expired" | "Cancelled" | "Renewed" | "PendingRenewal" | "Undelivered" | "AwaitingIssue" | "Prospect";
 type PaymentRoute = "" | "direct" | "office";
+type PolicyDateFilterField = "issued" | "start" | "end";
 
 interface PolicyDto {
   id: string;
@@ -104,6 +105,7 @@ interface PolicyDto {
   deliveredAt: string | null;
   startDate: string;
   endDate: string;
+  issuedAt?: string | null;
   premium: number;
   vehicleRegistrationPlate?: string | null;
   netPremium: string;
@@ -195,6 +197,7 @@ export function PoliciesPage() {
   const [carrierFilter, setCarrierFilter] = useState<string>("");
   const [subCarrierFilter, setSubCarrierFilter] = useState<string[]>([]);
   const [producerFilter, setProducerFilter] = useState<string>("");
+  const [dateFilterField, setDateFilterField] = useState<PolicyDateFilterField>("start");
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
   // ALIS-parity search filters — plate + application number + premium range
@@ -354,8 +357,13 @@ export function PoliciesPage() {
         }
       }
       if (producerFilter && p.producerId !== producerFilter) return false;
-      if (fromDate && p.startDate < fromDate) return false;
-      if (toDate   && p.startDate > toDate)   return false;
+      const selectedDate = (dateFilterField === "issued"
+        ? (p.issuedAt ?? p.createdAt)
+        : dateFilterField === "end"
+          ? p.endDate
+          : p.startDate)?.slice(0, 10) ?? "";
+      if (fromDate && selectedDate < fromDate) return false;
+      if (toDate && selectedDate > toDate) return false;
       if (paymentRouteFilter === "direct" && !p.paidDirectlyToCarrier) return false;
       if (paymentRouteFilter === "office" && p.paidDirectlyToCarrier) return false;
       if (expiryWindow) {
@@ -367,7 +375,7 @@ export function PoliciesPage() {
       }
       return true;
     });
-  }, [rawRows, carriersQuery.data, carrierFilter, subCarrierFilter, producerFilter, fromDate, toDate, expiryWindow, paymentRouteFilter]);
+  }, [rawRows, carriersQuery.data, carrierFilter, subCarrierFilter, producerFilter, dateFilterField, fromDate, toDate, expiryWindow, paymentRouteFilter]);
 
   // Phase 15.2 — client-side search + sort + pagination.
   const table = useTableState<PolicyDto>({
@@ -380,6 +388,7 @@ export function PoliciesPage() {
   const rows = table.paged;
   const clearPolicyFilters = () => {
     setCarrierFilter(""); setSubCarrierFilter([]); setProducerFilter("");
+    setDateFilterField("start");
     setFromDate(""); setToDate(""); setStatusFilter(""); setTypeFilter(""); setSearch("");
     setPlateFilter(""); setAppNumberFilter(""); setPremiumMin(""); setPremiumMax("");
     setExpiryWindow("");
@@ -392,7 +401,7 @@ export function PoliciesPage() {
   ].filter(Boolean).length;
   const savedPolicyFilters = {
     search, statusFilter, typeFilter, carrierFilter, subCarrierFilter, producerFilter,
-    fromDate, toDate, plateFilter, appNumberFilter, premiumMin, premiumMax,
+    dateFilterField, fromDate, toDate, plateFilter, appNumberFilter, premiumMin, premiumMax,
     expiryWindow, paymentRouteFilter,
   };
   const loadSavedPolicyFilters = (filters: Partial<typeof savedPolicyFilters>) => {
@@ -402,6 +411,7 @@ export function PoliciesPage() {
     setCarrierFilter(filters.carrierFilter ?? "");
     setSubCarrierFilter(filters.subCarrierFilter ?? []);
     setProducerFilter(filters.producerFilter ?? "");
+    setDateFilterField((filters.dateFilterField ?? "start") as PolicyDateFilterField);
     setFromDate(filters.fromDate ?? "");
     setToDate(filters.toDate ?? "");
     setPlateFilter(filters.plateFilter ?? "");
@@ -560,9 +570,9 @@ export function PoliciesPage() {
                 display: "grid",
                 gridTemplateColumns: {
                   xs: "1fr",
-                  sm: "repeat(4, minmax(0, 1fr))",
-                  md: "minmax(220px, 1.4fr) 120px 120px auto",
-                  lg: "minmax(240px, 1.4fr) 125px 125px auto",
+                  sm: "repeat(2, minmax(0, 1fr))",
+                  md: "minmax(220px, 1.35fr) minmax(205px, .9fr) minmax(155px, .65fr) minmax(155px, .65fr)",
+                  xl: "minmax(260px, 1.45fr) minmax(220px, .9fr) minmax(165px, .65fr) minmax(165px, .65fr) auto",
                 },
                 gap: 0.75,
                 alignItems: "center",
@@ -573,15 +583,21 @@ export function PoliciesPage() {
                  placeholder="Αναζήτηση αριθμού συμβολαίου, πελάτη, ΑΦΜ ή πινακίδας…"
                  value={search}
                  onChange={(e) => setSearch(e.target.value)}
-                  sx={{ minWidth: 0, gridColumn: { xs: "auto", sm: "span 2", md: "auto", lg: "auto" } }}
+                  sx={{ minWidth: 0, gridColumn: { xs: "auto", sm: "span 2", md: "auto" } }}
                  InputProps={{
                    startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
                    endAdornment: <FilterHelp title="Αναζήτηση σε αριθμό συμβολαίου, πελάτη, ΑΦΜ, απόδειξη ή πινακίδα οχήματος." />,
                  }}
                />
-                <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }} value={fromDate} onChange={(e) => setFromDate(e.target.value)} sx={{ minWidth: 0, width: "100%" }} />
-                <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }} value={toDate} onChange={(e) => setToDate(e.target.value)} sx={{ minWidth: 0, width: "100%" }} />
-               <Box sx={{ display: "flex", justifyContent: "flex-end", minWidth: 0 }}>
+                <TextField select size="small" label="Οι ημερομηνίες αφορούν" value={dateFilterField}
+                  onChange={(e) => setDateFilterField(e.target.value as PolicyDateFilterField)} sx={{ minWidth: 205, width: "100%" }}>
+                  <MenuItem value="issued">Ημερομηνία έκδοσης</MenuItem>
+                  <MenuItem value="start">Ημερομηνία έναρξης ισχύος</MenuItem>
+                  <MenuItem value="end">Ημερομηνία λήξης</MenuItem>
+                </TextField>
+                <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }} value={fromDate} onChange={(e) => setFromDate(e.target.value)} sx={{ minWidth: 155, width: "100%" }} />
+                <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }} value={toDate} onChange={(e) => setToDate(e.target.value)} sx={{ minWidth: 155, width: "100%" }} />
+               <Box sx={{ display: "flex", justifyContent: { xs: "stretch", xl: "flex-end" }, minWidth: 0, gridColumn: { xs: "auto", sm: "span 2", md: "1 / -1", xl: "auto" } }}>
                  <SavedReportsButton
                    entity="policies"
                    currentFilters={savedPolicyFilters}

@@ -72,3 +72,14 @@ test("core record lists keep count in the heading and page size in the footer", 
   assert.doesNotMatch(policies, /quickFiltersOpen|policyQuickFilters/);
   assert.match(policies, /setAdvancedFiltersOpen\(true\)/);
 });
+
+test("policy date range clearly selects the business date it filters", async () => {
+  const source = await read("PoliciesPage.tsx");
+  assert.match(source, /type PolicyDateFilterField = "issued" \| "start" \| "end"/);
+  assert.match(source, /label="Οι ημερομηνίες αφορούν"/);
+  assert.match(source, /Ημερομηνία έκδοσης/);
+  assert.match(source, /Ημερομηνία έναρξης ισχύος/);
+  assert.match(source, /Ημερομηνία λήξης/);
+  assert.match(source, /p\.issuedAt \?\? p\.createdAt/);
+  assert.match(source, /dateFilterField, fromDate, toDate/);
+});
