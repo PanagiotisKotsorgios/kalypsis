@@ -77,7 +77,9 @@ test("production exports use the office heading and the selected table grouping"
 
   assert.match(page, /title: officeProfile\.data\?\.name\?\.trim\(\) \|\| "Λίστες παραγωγής"/);
   assert.match(page, /params: \{ \.\.\.params, format: fmt, columns: columnsParam \}/);
-  assert.match(handler, /BuildSelectedSheetAsync\(rows, q\.Columns!, q\.Filters, ct\)/);
+  assert.match(handler, /BuildSelectedSheetAsync\(rows, q\.Columns \?\? "", q\.Filters, ct\)/);
+  assert.equal(handler.includes('("vat", "Φόρος ασφαλίστρων")'), false);
+  assert.equal(handler.includes("Gross,Net,VAT"), false);
   assert.match(handler, /GroupForExport\(rows, filters\.GroupBy\)/);
   for (const group of ["carrier", "producer", "type", "month"]) {
     assert.match(handler, new RegExp(`"${group}" =>`));

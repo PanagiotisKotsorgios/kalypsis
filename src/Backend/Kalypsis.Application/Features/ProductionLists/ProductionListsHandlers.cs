@@ -1,6 +1,4 @@
 using System.Globalization;
-using System.Text;
-using ClosedXML.Excel;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
 using Kalypsis.Application.Common.Exports;
@@ -8,9 +6,6 @@ using Kalypsis.Domain.Entities;
 using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
 
 namespace Kalypsis.Application.Features.ProductionLists;
 
@@ -303,7 +298,8 @@ public static class ProductionListBuilder
                     && m.Description != null
                     && m.Description.StartsWith("[bridge:"))
                 .GroupBy(m => m.PolicyId!.Value)
-                .ToDictionaryAsync(g => g.Key, g => g.Sum(x => x.Amount), ct);
+                .Select(g => new { PolicyId = g.Key, Amount = g.Sum(x => x.Amount) })
+                .ToDictionaryAsync(g => g.PolicyId, g => g.Amount, ct);
 
         // The materialised commission matrix is the source of truth for a
         // policy-level override. In particular, a manual producer percentage
@@ -570,31 +566,14 @@ public class ExportProductionListHandler : IRequestHandler<ExportProductionListQ
         var rows = await ProductionListBuilder.BuildRowsAsync(_db, tenantId, q.Filters, ct);
         var ts = DateTime.UtcNow.ToString("yyyyMMdd-HHmm");
 
-        // When the table sends its active column list, use the shared
-        // formatter so CSV/XLSX/PDF contain exactly those columns (including
-        // the same office header and total-row styling as every other list).
-        if (!string.IsNullOrWhiteSpace(q.Columns))
-        {
-            var sheet = await BuildSelectedSheetAsync(rows, q.Columns!, q.Filters, ct);
-            return q.Format.ToLowerInvariant() switch
-            {
-                "csv"  => new ExportResult(ExportFormatter.BuildCsv(sheet), "text/csv", $"production-{ts}.csv"),
-                "xlsx" => new ExportResult(ExportFormatter.BuildXlsx(sheet), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"production-{ts}.xlsx"),
-                "pdf"  => new ExportResult(ExportFormatter.BuildPdf(sheet), "application/pdf", $"production-{ts}.pdf"),
-                _ => throw new AppException("export_format_unsupported", $"Μη υποστηριζόμενη μορφή: {q.Format}", 400)
-            };
-        }
-
+        // All formats share the visible-table projection, including legacy callers.
+        var sheet = await BuildSelectedSheetAsync(rows, q.Columns ?? "", q.Filters, ct);
         return q.Format.ToLowerInvariant() switch
         {
-            "csv"   => new ExportResult(BuildCsv(rows), "text/csv", $"production-{ts}.csv"),
-            "xlsx"  => new ExportResult(BuildXlsx(rows, q.Filters), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"production-{ts}.xlsx"),
-            "pdf"   => new ExportResult(BuildPdf(rows, q.Filters), "application/pdf", $"production-{ts}.pdf"),
-            _ => throw new AppException("export_format_unsupported",
-                $"Μη υποστηριζόμενο format: {q.Format}", 400,
-                title: "Μη έγκυρο format",
-                why: "Δεκτά: csv, xlsx, pdf.",
-                fix: "Επιλέξτε ξανά από το dropdown εξαγωγής.")
+            "csv" => new ExportResult(ExportFormatter.BuildCsv(sheet), "text/csv", $"production-{ts}.csv"),
+            "xlsx" => new ExportResult(ExportFormatter.BuildXlsx(sheet), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"production-{ts}.xlsx"),
+            "pdf" => new ExportResult(ExportFormatter.BuildPdf(sheet), "application/pdf", $"production-{ts}.pdf"),
+            _ => throw new AppException("export_format_unsupported", $"Μη υποστηριζόμενη μορφή: {q.Format}", 400)
         };
     }
 
@@ -610,7 +589,7 @@ public class ExportProductionListHandler : IRequestHandler<ExportProductionListQ
             ("endDate", "Λήξη"), ("customerName", "Πελάτης"), ("carrier", "Εταιρεία"),
             ("producer", "Συνεργάτης"), ("type", "Κλάδος"), ("use", "Χρήση"),
             ("cover", "Καλύψεις"), ("status", "Κατάσταση"), ("gross", "Μικτά"),
-            ("net", "Καθαρά"), ("vat", "Φόρος ασφαλίστρων"), ("bridgeComm", "Προμ. έδρας πριν την κατανομή"),
+            ("net", "Καθαρά"), ("bridgeComm", "Προμ. έδρας πριν την κατανομή"),
             ("partnerPct", "Ποσοστό συνεργάτη"), ("partner", "Προμ. συνεργάτη"),
             ("agency", "Προμ. έδρας"), ("check", "Έλεγχος")
         };
@@ -666,7 +645,6 @@ public class ExportProductionListHandler : IRequestHandler<ExportProductionListQ
             "status" => r.Status,
             "gross" => F(r.Gross),
             "net" => F(r.Net),
-            "vat" => F(r.Vat),
             "bridgeComm" => $"{F(r.IncomingAgencyCommission)} ({r.IncomingAgencyCommissionPercent:F1}%)",
             "partnerPct" => $"{r.PartnerCommissionPercent:F1}%",
             "partner" => F(r.PartnerCommission),
@@ -680,7 +658,6 @@ public class ExportProductionListHandler : IRequestHandler<ExportProductionListQ
             "status" => $"{source.Count} συμβόλαια",
             "gross" => F(source.Sum(x => x.Gross)),
             "net" => F(source.Sum(x => x.Net)),
-            "vat" => F(source.Sum(x => x.Vat)),
             "partner" => F(source.Sum(x => x.PartnerCommission)),
             "agency" => F(source.Sum(x => x.AgencyCommission)),
             _ => ""
@@ -784,246 +761,4 @@ public class ExportProductionListHandler : IRequestHandler<ExportProductionListQ
         return grouped;
     }
 
-    // Legacy fixed-layout exports retain their carrier grouping. The web UI
-    // uses the selected-column export path above, which follows GroupBy.
-    private static List<IGrouping<string, ProductionRowDto>> GroupForExport(List<ProductionRowDto> rows)
-        => rows
-            .OrderBy(r => r.InsuranceCompany, StringComparer.Create(new CultureInfo("el-GR"), true))
-            .ThenBy(r => r.CustomerName,      StringComparer.Create(new CultureInfo("el-GR"), true))
-            .GroupBy(r => r.InsuranceCompany)
-            .ToList();
-
-    private static byte[] BuildCsv(List<ProductionRowDto> rows)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("PolicyNumber,StartDate,EndDate,Customer,Carrier,Producer,Type,Status,Gross,Net,VAT,PartnerComm%,PartnerComm,AgencyComm%,AgencyComm");
-        foreach (var grp in GroupForExport(rows))
-        {
-            foreach (var r in grp)
-                sb.AppendLine(string.Join(",",
-                    Csv(r.PolicyNumber), r.StartDate, r.EndDate,
-                    Csv(r.CustomerName), Csv(r.InsuranceCompany), Csv(r.Producer ?? ""),
-                    r.PolicyType, r.Status,
-                    F(r.Gross), F(r.Net), F(r.Vat),
-                    F(r.PartnerCommissionPercent), F(r.PartnerCommission),
-                    F(r.AgencyCommissionPercent), F(r.AgencyCommission)));
-            sb.AppendLine(string.Join(",",
-                "", "", "", "", Csv($"ΣΥΝΟΛΟ {grp.Key}"), "", "", $"{grp.Count()} συμβ.",
-                F(grp.Sum(x => x.Gross)), F(grp.Sum(x => x.Net)), F(grp.Sum(x => x.Vat)),
-                "", F(grp.Sum(x => x.PartnerCommission)), "", F(grp.Sum(x => x.AgencyCommission))));
-        }
-        sb.AppendLine(string.Join(",",
-            "", "", "", "", "\"ΓΕΝΙΚΟ ΣΥΝΟΛΟ\"", "", "", $"{rows.Count} συμβ.",
-            F(rows.Sum(x => x.Gross)), F(rows.Sum(x => x.Net)), F(rows.Sum(x => x.Vat)),
-            "", F(rows.Sum(x => x.PartnerCommission)), "", F(rows.Sum(x => x.AgencyCommission))));
-        return new UTF8Encoding(true).GetBytes(sb.ToString());
-
-        static string Csv(string s) => "\"" + s.Replace("\"", "\"\"") + "\"";
-        static string F(decimal d) => d.ToString("F2", CultureInfo.InvariantCulture);
-    }
-
-    private static byte[] BuildXlsx(List<ProductionRowDto> rows, ProductionFilters f)
-    {
-        using var wb = new XLWorkbook();
-        var ws = wb.Worksheets.Add("Production");
-
-        // Header banner
-        ws.Cell(1, 1).Value = "Kalypsis — Λίστα Παραγωγής";
-        ws.Cell(1, 1).Style.Font.Bold = true;
-        ws.Cell(1, 1).Style.Font.FontSize = 14;
-        ws.Range(1, 1, 1, 15).Merge();
-        ws.Cell(2, 1).Value = $"Φίλτρα: {f.From?.ToString() ?? "—"} → {f.To?.ToString() ?? "—"} · {f.PolicyType?.ToString() ?? "όλοι κλάδοι"} · {f.Status?.ToString() ?? "όλες καταστάσεις"}";
-        ws.Cell(2, 1).Style.Font.Italic = true;
-        ws.Range(2, 1, 2, 15).Merge();
-
-        var headers = new[] { "Αρ.Συμβ.", "Έναρξη", "Λήξη", "Πελάτης", "Εταιρία", "Συνεργάτης", "Κλάδος",
-            "Κατάσταση", "Μεικτό", "Καθαρό", "ΦΠΑ", "Προμ.Συν.%", "Προμ.Συν.€", "Προμ.Γρ.%", "Προμ.Γρ.€" };
-        for (int i = 0; i < headers.Length; i++)
-        {
-            var c = ws.Cell(4, i + 1);
-            c.Value = headers[i];
-            c.Style.Font.Bold = true;
-            c.Style.Fill.BackgroundColor = XLColor.FromHtml("#0b2545");
-            c.Style.Font.FontColor = XLColor.White;
-        }
-
-        int r0 = 5;
-        int cur = r0;
-        var groups = GroupForExport(rows);
-        foreach (var grp in groups)
-        {
-            // Carrier header band (visual separator)
-            ws.Cell(cur, 1).Value = grp.Key;
-            ws.Cell(cur, 1).Style.Font.Bold = true;
-            ws.Cell(cur, 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#e6edf5");
-            ws.Range(cur, 1, cur, 15).Merge();
-            ws.Range(cur, 1, cur, 15).Style.Border.BottomBorder = XLBorderStyleValues.Thin;
-            cur++;
-
-            int groupStart = cur;
-            foreach (var r in grp)
-            {
-                ws.Cell(cur, 1).Value = r.PolicyNumber;
-                ws.Cell(cur, 2).Value = r.StartDate.ToString("yyyy-MM-dd");
-                ws.Cell(cur, 3).Value = r.EndDate.ToString("yyyy-MM-dd");
-                ws.Cell(cur, 4).Value = r.CustomerName;
-                ws.Cell(cur, 5).Value = r.InsuranceCompany;
-                ws.Cell(cur, 6).Value = r.Producer ?? "";
-                ws.Cell(cur, 7).Value = r.PolicyType;
-                ws.Cell(cur, 8).Value = r.Status;
-                ws.Cell(cur, 9).Value = (double)r.Gross;
-                ws.Cell(cur, 10).Value = (double)r.Net;
-                ws.Cell(cur, 11).Value = (double)r.Vat;
-                ws.Cell(cur, 12).Value = (double)r.PartnerCommissionPercent;
-                ws.Cell(cur, 13).Value = (double)r.PartnerCommission;
-                ws.Cell(cur, 14).Value = (double)r.AgencyCommissionPercent;
-                ws.Cell(cur, 15).Value = (double)r.AgencyCommission;
-                cur++;
-            }
-
-            // Per-carrier subtotal row
-            int sub = cur;
-            ws.Cell(sub, 1).Value = $"ΣΥΝΟΛΟ {grp.Key}";
-            ws.Cell(sub, 8).Value = $"{grp.Count()} συμβ.";
-            ws.Cell(sub, 9).FormulaA1 = $"=SUM(I{groupStart}:I{sub - 1})";
-            ws.Cell(sub, 10).FormulaA1 = $"=SUM(J{groupStart}:J{sub - 1})";
-            ws.Cell(sub, 11).FormulaA1 = $"=SUM(K{groupStart}:K{sub - 1})";
-            ws.Cell(sub, 13).FormulaA1 = $"=SUM(M{groupStart}:M{sub - 1})";
-            ws.Cell(sub, 15).FormulaA1 = $"=SUM(O{groupStart}:O{sub - 1})";
-            ws.Range(sub, 1, sub, 15).Style.Font.Bold = true;
-            ws.Range(sub, 1, sub, 15).Style.Fill.BackgroundColor = XLColor.FromHtml("#e8f5e9");
-            ws.Range(sub, 1, sub, 15).Style.Font.FontColor = XLColor.FromHtml("#1b5e20");
-            ws.Range(sub, 1, sub, 15).Style.Border.TopBorder = XLBorderStyleValues.Thin;
-            cur = sub + 1;
-            // visual gap between groups
-            cur++;
-        }
-
-        // Grand total
-        int tot = cur;
-        ws.Cell(tot, 1).Value = "ΓΕΝΙΚΟ ΣΥΝΟΛΟ";
-        ws.Cell(tot, 8).Value = $"{rows.Count} συμβ.";
-        // Sum across carrier subtotals — find the subtotal rows we wrote.
-        // Simpler & robust: just sum every cell in the data range (subtotals add
-        // back the same amounts → we instead sum source rows directly).
-        ws.Cell(tot, 9).Value  = (double)rows.Sum(x => x.Gross);
-        ws.Cell(tot, 10).Value = (double)rows.Sum(x => x.Net);
-        ws.Cell(tot, 11).Value = (double)rows.Sum(x => x.Vat);
-        ws.Cell(tot, 13).Value = (double)rows.Sum(x => x.PartnerCommission);
-        ws.Cell(tot, 15).Value = (double)rows.Sum(x => x.AgencyCommission);
-        ws.Range(tot, 1, tot, 15).Style.Font.Bold = true;
-        ws.Range(tot, 1, tot, 15).Style.Fill.BackgroundColor = XLColor.FromHtml("#2e7d32");
-        ws.Range(tot, 1, tot, 15).Style.Font.FontColor = XLColor.White;
-        ws.Range(tot, 1, tot, 15).Style.Border.TopBorder = XLBorderStyleValues.Double;
-
-        // Format numeric cols
-        ws.Range(r0, 9, tot, 11).Style.NumberFormat.Format = "#,##0.00 €";
-        ws.Range(r0, 12, tot, 12).Style.NumberFormat.Format = "0.00\"%\"";
-        ws.Range(r0, 13, tot, 13).Style.NumberFormat.Format = "#,##0.00 €";
-        ws.Range(r0, 14, tot, 14).Style.NumberFormat.Format = "0.00\"%\"";
-        ws.Range(r0, 15, tot, 15).Style.NumberFormat.Format = "#,##0.00 €";
-        ws.Columns().AdjustToContents();
-
-        using var ms = new MemoryStream();
-        wb.SaveAs(ms);
-        return ms.ToArray();
-    }
-
-    private static byte[] BuildPdf(List<ProductionRowDto> rows, ProductionFilters f)
-    {
-        QuestPDF.Settings.License = LicenseType.Community;
-        var doc = QuestPDF.Fluent.Document.Create(d =>
-        {
-            d.Page(p =>
-            {
-                p.Size(PageSizes.A4.Landscape());
-                p.Margin(1.4f, QuestPDF.Infrastructure.Unit.Centimetre);
-                p.DefaultTextStyle(s => s.FontSize(9));
-
-                p.Header().Column(col =>
-                {
-                    col.Item().Text("Kalypsis — Λίστα Παραγωγής").FontSize(16).Bold();
-                    col.Item().Text($"Φίλτρα: {f.From?.ToString() ?? "—"} → {f.To?.ToString() ?? "—"} · "
-                        + $"{f.PolicyType?.ToString() ?? "όλοι κλάδοι"} · {f.Status?.ToString() ?? "όλες"} · "
-                        + $"{rows.Count} γραμμές").FontSize(9).Italic();
-                });
-
-                p.Content().Table(t =>
-                {
-                    t.ColumnsDefinition(c =>
-                    {
-                        c.RelativeColumn(2);   // PolicyNo
-                        c.RelativeColumn(1.6f); // Date
-                        c.RelativeColumn(3);   // Customer
-                        c.RelativeColumn(2.4f); // Carrier
-                        c.RelativeColumn(2);   // Producer
-                        c.RelativeColumn(1.2f); // Type
-                        c.RelativeColumn(1.4f); // Gross
-                        c.RelativeColumn(1.4f); // Net
-                        c.RelativeColumn(1.2f); // Partner€
-                        c.RelativeColumn(1.2f); // Agency€
-                    });
-                    t.Header(h =>
-                    {
-                        h.Cell().Background("#0b2545").Padding(4).Text("Αρ.Συμβ").FontColor(Colors.White).Bold();
-                        h.Cell().Background("#0b2545").Padding(4).Text("Έναρξη").FontColor(Colors.White).Bold();
-                        h.Cell().Background("#0b2545").Padding(4).Text("Πελάτης").FontColor(Colors.White).Bold();
-                        h.Cell().Background("#0b2545").Padding(4).Text("Εταιρία").FontColor(Colors.White).Bold();
-                        h.Cell().Background("#0b2545").Padding(4).Text("Συνεργάτης").FontColor(Colors.White).Bold();
-                        h.Cell().Background("#0b2545").Padding(4).Text("Κλάδος").FontColor(Colors.White).Bold();
-                        h.Cell().Background("#0b2545").Padding(4).AlignRight().Text("Μεικτό").FontColor(Colors.White).Bold();
-                        h.Cell().Background("#0b2545").Padding(4).AlignRight().Text("Καθαρό").FontColor(Colors.White).Bold();
-                        h.Cell().Background("#0b2545").Padding(4).AlignRight().Text("Προμ.Συν").FontColor(Colors.White).Bold();
-                        h.Cell().Background("#0b2545").Padding(4).AlignRight().Text("Προμ.Γρ").FontColor(Colors.White).Bold();
-                    });
-                    foreach (var grp in GroupForExport(rows))
-                    {
-                        // Carrier band — span all 10 columns
-                        t.Cell().ColumnSpan(10).Background("#e6edf5").Padding(4).Text(grp.Key).Bold();
-
-                        foreach (var r in grp)
-                        {
-                            t.Cell().BorderBottom(0.5f).BorderColor("#dadada").Padding(3).Text(r.PolicyNumber);
-                            t.Cell().BorderBottom(0.5f).BorderColor("#dadada").Padding(3).Text(r.StartDate.ToString("dd/MM/yy"));
-                            t.Cell().BorderBottom(0.5f).BorderColor("#dadada").Padding(3).Text(r.CustomerName);
-                            t.Cell().BorderBottom(0.5f).BorderColor("#dadada").Padding(3).Text(r.InsuranceCompany);
-                            t.Cell().BorderBottom(0.5f).BorderColor("#dadada").Padding(3).Text(r.Producer ?? "—");
-                            t.Cell().BorderBottom(0.5f).BorderColor("#dadada").Padding(3).Text(r.PolicyType);
-                            t.Cell().BorderBottom(0.5f).BorderColor("#dadada").Padding(3).AlignRight().Text(r.Gross.ToString("N2"));
-                            t.Cell().BorderBottom(0.5f).BorderColor("#dadada").Padding(3).AlignRight().Text(r.Net.ToString("N2"));
-                            t.Cell().BorderBottom(0.5f).BorderColor("#dadada").Padding(3).AlignRight().Text(r.PartnerCommission.ToString("N2"));
-                            t.Cell().BorderBottom(0.5f).BorderColor("#dadada").Padding(3).AlignRight().Text(r.AgencyCommission.ToString("N2"));
-                        }
-
-                        // Per-carrier subtotal
-                        t.Cell().Background("#e8f5e9").Padding(4).Text($"ΣΥΝΟΛΟ {grp.Key}").FontColor("#1b5e20").Bold();
-                        t.Cell().Background("#f5f8fc").Padding(4).Text("");
-                        t.Cell().Background("#f5f8fc").Padding(4).Text("");
-                        t.Cell().Background("#f5f8fc").Padding(4).Text("");
-                        t.Cell().Background("#f5f8fc").Padding(4).Text("");
-                        t.Cell().Background("#f5f8fc").Padding(4).Text($"{grp.Count()} συμβ.").Bold();
-                        t.Cell().Background("#f5f8fc").Padding(4).AlignRight().Text(grp.Sum(x => x.Gross).ToString("N2")).Bold();
-                        t.Cell().Background("#f5f8fc").Padding(4).AlignRight().Text(grp.Sum(x => x.Net).ToString("N2")).Bold();
-                        t.Cell().Background("#f5f8fc").Padding(4).AlignRight().Text(grp.Sum(x => x.PartnerCommission).ToString("N2")).Bold();
-                        t.Cell().Background("#f5f8fc").Padding(4).AlignRight().Text(grp.Sum(x => x.AgencyCommission).ToString("N2")).Bold();
-                    }
-
-                    // Grand total band (navy)
-                    t.Cell().Background("#0b2545").Padding(4).Text("ΓΕΝΙΚΟ ΣΥΝΟΛΟ").FontColor(Colors.White).Bold();
-                    t.Cell().Background("#0b2545").Padding(4).Text("").FontColor(Colors.White);
-                    t.Cell().Background("#0b2545").Padding(4).Text("").FontColor(Colors.White);
-                    t.Cell().Background("#0b2545").Padding(4).Text("").FontColor(Colors.White);
-                    t.Cell().Background("#0b2545").Padding(4).Text("").FontColor(Colors.White);
-                    t.Cell().Background("#0b2545").Padding(4).Text($"{rows.Count} συμβ.").FontColor(Colors.White).Bold();
-                    t.Cell().Background("#0b2545").Padding(4).AlignRight().Text(rows.Sum(r => r.Gross).ToString("N2")).FontColor(Colors.White).Bold();
-                    t.Cell().Background("#0b2545").Padding(4).AlignRight().Text(rows.Sum(r => r.Net).ToString("N2")).FontColor(Colors.White).Bold();
-                    t.Cell().Background("#0b2545").Padding(4).AlignRight().Text(rows.Sum(r => r.PartnerCommission).ToString("N2")).FontColor(Colors.White).Bold();
-                    t.Cell().Background("#0b2545").Padding(4).AlignRight().Text(rows.Sum(r => r.AgencyCommission).ToString("N2")).FontColor(Colors.White).Bold();
-                });
-
-                p.Footer().AlignRight().Text(t => { t.Span("Σελ. "); t.CurrentPageNumber(); t.Span(" / "); t.TotalPages(); });
-            });
-        });
-        return doc.GeneratePdf();
-    }
 }

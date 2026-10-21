@@ -1152,7 +1152,6 @@ interface FormBody {
   premium: number;
   netPremium: string;
   specialCommissionPercent: string;
-  insuranceTaxAmount: string;
   currency: string;
   status: PolicyStatus;
   paidDirectlyToCarrier: boolean;
@@ -1222,7 +1221,6 @@ function PolicyFormDialog({
     premium: 0,
     netPremium: "",
     specialCommissionPercent: "",
-    insuranceTaxAmount: "",
     currency: "EUR",
     status: "Active",
     paidDirectlyToCarrier: false,
@@ -1256,7 +1254,6 @@ function PolicyFormDialog({
         premium: policy.premium,
         netPremium: "",
         specialCommissionPercent: "",
-        insuranceTaxAmount: "",
         currency: policy.currency,
         status: policy.status,
         paidDirectlyToCarrier: policy.paidDirectlyToCarrier ?? false,
@@ -1280,7 +1277,6 @@ function PolicyFormDialog({
         premium: 0,
         netPremium: "",
         specialCommissionPercent: "",
-        insuranceTaxAmount: "",
         currency: "EUR",
         status: initialStatus,
         paidDirectlyToCarrier: false,
@@ -1304,16 +1300,10 @@ function PolicyFormDialog({
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      // Build the API payload explicitly.  Do not spread `form` here: the form
-      // contains UI-only fields (notably `insuranceTaxAmount`) whose names do
-      // not exist on CreatePolicyBody/UpdatePolicyBody.  The API deliberately
-      // rejects unmapped JSON properties, so spreading the form made every
-      // manual policy create fail with a generic 400 validation response.
+      // Keep historical accounting data when editing; no tax input is exposed.
       const existingTax = policy ? (await api.get<{ vatAmount: number | null }>(`/policies/${policy.id}/detail`)).data.vatAmount : null;
-      const taxAmount = form.insuranceTaxAmount !== ""
-        ? Number(form.insuranceTaxAmount)
-        : policy ? existingTax : (form.netPremium !== "" && form.premium > 0
-          ? Math.max(0, form.premium - Number(form.netPremium)) : null);
+      const taxAmount = policy ? existingTax : (form.netPremium !== "" && form.premium > 0
+        ? Math.max(0, form.premium - Number(form.netPremium)) : null);
       const body = {
         insuranceCompanyId: form.insuranceCompanyId,
         producerId: form.producerId || null,

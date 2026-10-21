@@ -351,6 +351,8 @@ export function CustomersPage() {
       if (value !== undefined) (next as unknown as Record<string, unknown>)[key] = value;
     });
     setSearch(saved.search ?? "");
+    // Retired consent controls must not become invisible criteria from older saved filters.
+    next.communication = []; next.gdpr = []; next.marketing = []; next.portal = []; next.needsForm = [];
     setFilters(next);
     table.setQuery(saved.search ?? "");
     table.setPage(1);

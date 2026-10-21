@@ -195,6 +195,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   const [vehiclePreviewOpen, setVehiclePreviewOpen] = useState(false);
   const [vehiclePickerOpen, setVehiclePickerOpen] = useState(false);
   const [vehicleSearch, setVehicleSearch] = useState("");
+  const [commissionDetailsOpen, setCommissionDetailsOpen] = useState(false);
   const [settlementMode, setSettlementMode] = useState<PolicySettlementMode | null>(null);
   const modalPresentation = presentation === "modal";
   const selectTab = (next: number | string) => {
@@ -209,6 +210,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
 
   useEffect(() => {
     if (open) {
+      setCommissionDetailsOpen(false);
       setModalTab(0);
       setTab(0);
     }
@@ -698,134 +700,46 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                 <TextField profileKey="specsJson" label="Παραμετρικά στοιχεία (JSON)" value={form.specsJson} multiline />
               </Box>}
 
-              {showFinancials && modalPresentation && (
-                <Stack spacing={1.25}>
-                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.25 }}>
-                    <PolicySummarySection title="Ασφάλιστρα & ανάλυση">
-                      <PolicySummaryLine label={t("policyDetail.premium")} value={`${p.premium.toFixed(2)} ${p.currency}`} mono />
-                      {p.netPremium !== null && <PolicySummaryLine label="Καθαρά ασφάλιστρα" value={`${p.netPremium.toFixed(2)} ${p.currency}`} mono />}
-                      {p.stampDutyAmount !== null && <PolicySummaryLine label="Χαρτόσημο" value={`${p.stampDutyAmount.toFixed(2)} ${p.currency}`} mono />}
-                      {p.insuranceContributionAmount !== null && <PolicySummaryLine label="Ασφαλιστική εισφορά" value={`${p.insuranceContributionAmount.toFixed(2)} ${p.currency}`} mono />}
-                      {p.otherChargesAmount !== null && <PolicySummaryLine label="Λοιπές επιβαρύνσεις" value={`${p.otherChargesAmount.toFixed(2)} ${p.currency}`} mono />}
-                      <PolicySummaryLine label={t("policyDetail.totalReceived")} value={`${p.totalReceived.toFixed(2)} ${p.currency}`} valueColor="success.dark" mono />
-                      <PolicySummaryLine label={t("policyDetail.outstanding")} value={`${p.outstanding.toFixed(2)} ${p.currency}`} valueColor={p.outstanding > 0 ? "error.dark" : undefined} mono />
-                    </PolicySummarySection>
-                    <PolicySummarySection title="Είσπραξη & ρυθμίσεις">
-                      {(
-                        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1 }}>
-                          <TextField profileKey="paymentFrequency" select fullWidth size="small" label={t("policyDetail.paymentFrequency")} value={form.paymentFrequency} onChange={e => setForm({ ...form, paymentFrequency: e.target.value })}>{FREQUENCIES.map(f => <MenuItem key={f} value={f}>{FREQUENCY_LABELS[f] ?? f}</MenuItem>)}</TextField>
-                          <TextField profileKey="paymentCollectionMethod" select fullWidth size="small" label="Τρόπος είσπραξης" value={form.paymentCollectionMethod} onChange={e => setForm({ ...form, paymentCollectionMethod: e.target.value })}><MenuItem value="">—</MenuItem>{COLLECTION_METHODS.map(m => <MenuItem key={m} value={m}>{COLLECTION_METHODS_LABEL[m]}</MenuItem>)}</TextField>
-                          <TextField profileKey="specialCommissionPercent" type="number" fullWidth size="small" label={t("policyDetail.specialCommission")} value={form.specialCommissionPercent} onChange={e => setForm({ ...form, specialCommissionPercent: e.target.value })} />
-                          <PolicyBooleanField profileKey="paidDirectlyToCarrier" label="Πληρωμή απευθείας στην ασφαλιστική" />
-                          <PolicyBooleanField profileKey="premiumIncludesVat" label="Περιλαμβάνει φόρο" />
-                        </Box>
-                      )}
-                    </PolicySummarySection>
-                  </Box>
-                  <PolicySummarySection title="Πηγή τιμών & προμήθειες">
-                    <PolicySettlementPanel policy={p} readOnly={readOnly} onSettle={setSettlementMode} />
-                    <BridgeVsParametrizationCard policy={p} matrix={commissionMatrix.data} matrixLoading={commissionMatrix.isLoading} onCompute={() => commissionMatrix.refetch()} />
-                    <Divider sx={{ my: 1 }} />
-                    <PolicyCommissionMatrixTab loading={commissionMatrix.isLoading} matrix={commissionMatrix.data} currency={p.currency} readOnly={!canEdit} overrideJson={form.specialLevelPercentsJson} onOverrideChange={next => { setForm({ ...form, specialLevelPercentsJson: next }); session.change("specialLevelPercentsJson", next); }} onSave={() => { void session.commit("specialLevelPercentsJson", form.specialLevelPercentsJson).catch(() => {}); }} saving={save.isPending} fallback={{ premium: p.premium, totalCommissions: p.totalCommissions, currency: p.currency }} />
+              {showFinancials && (readOnly ? (
+                <Alert severity="info">
+                  Η παραμετροποίηση και ο πίνακας προμηθειών ανήκουν στο γραφείο. Η δική σας ανάλυση ανά συμβόλαιο και μήνα είναι διαθέσιμη στον Πίνακα ελέγχου.
+                </Alert>
+              ) : (
+                <Stack spacing={1}>
+                  <PolicySummarySection title={`Ασφάλιστρα & ανάλυση · ${p.currency}`}>
+                    <PolicyPremiumFields policy={p} matrix={commissionMatrix.data} matrixLoading={commissionMatrix.isLoading} session={session} />
+                    <Stack direction="row" gap={.75} flexWrap="wrap" sx={{ mt: .75 }}>
+                      <Button size="small" variant="outlined" startIcon={<AccountBalanceWalletOutlinedIcon />} onClick={() => setCommissionDetailsOpen(true)}>Κατανομή & ειδικά ποσοστά</Button>
+                      <Button size="small" disabled={commissionMatrix.isFetching} onClick={() => void commissionMatrix.refetch()}>Επανυπολογισμός προμηθειών</Button>
+                    </Stack>
                   </PolicySummarySection>
-                  {p.covers.length > 0 && <PolicySummarySection title="Αναλυτικές καλύψεις"><CoversBreakdown p={p} /></PolicySummarySection>}
-                </Stack>
-              )}
-              {showFinancials && !modalPresentation && (
-                readOnly ? (
-                  <Alert severity="info">
-                    Η παραμετροποίηση και ο πίνακας προμηθειών ανήκουν στο γραφείο. Η δική σας ανάλυση ανά συμβόλαιο και μήνα είναι διαθέσιμη στον Πίνακα ελέγχου.
-                  </Alert>
-                ) : (
-                <Stack spacing={2.5}>
-                  {/* ---------- Πηγή τιμών ---------- */}
-                  {/* Bridge-imported vs Kalypsis-computed values at a glance.
-                      Gross / Net come from the policy row itself (populated
-                      by the bridge parser on import, or manually entered).
-                      Producer / Agency commissions are computed on demand
-                      from the office's commission-rules matrix — the button
-                      below fetches / refreshes them. */}
+                  <PolicySummarySection title="Είσπραξη & ρυθμίσεις">
+                    <Box sx={{ ...profileFieldGridSx, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))" }}>
+                      <PolicySummaryLine label={t("policyDetail.totalReceived")} value={settlementAmount(p.totalReceived, p.currency)} mono />
+                      <PolicySummaryLine label={t("policyDetail.outstanding")} value={settlementAmount(p.outstanding, p.currency)} mono />
+                      <TextField profileKey="paymentFrequency" select label={t("policyDetail.paymentFrequency")} value={form.paymentFrequency}>{FREQUENCIES.map(f => <MenuItem key={f} value={f}>{FREQUENCY_LABELS[f] ?? f}</MenuItem>)}</TextField>
+                      <TextField profileKey="paymentCollectionMethod" select label="Τρόπος είσπραξης" value={form.paymentCollectionMethod}><MenuItem value="">Δεν έχει οριστεί</MenuItem>{COLLECTION_METHODS.map(m => <MenuItem key={m} value={m}>{COLLECTION_METHODS_LABEL[m]}</MenuItem>)}</TextField>
+                      <PolicyBooleanField profileKey="paidDirectlyToCarrier" label="Πληρωμή απευθείας στην ασφαλιστική" />
+                      <TextField profileKey="specialCommissionPercent" type="number" label={t("policyDetail.specialCommission")} value={form.specialCommissionPercent} />
+                    </Box>
+                  </PolicySummarySection>
                   <PolicySettlementPanel policy={p} readOnly={readOnly} onSettle={setSettlementMode} />
-                  <BridgeVsParametrizationCard
-                    policy={p}
-                    matrix={commissionMatrix.data}
-                    matrixLoading={commissionMatrix.isLoading}
-                    onCompute={() => commissionMatrix.refetch()}
-                  />
-
-                  <KV label={t("policyDetail.premium")} value={`${p.premium.toFixed(2)} ${p.currency}`} />
-
-                  {/* Tax / duty breakdown: rendered only when at least one
-                      of the split-out numbers exists so cover-less legacy
-                      policies stay compact. */}
-                  {(p.netPremium !== null || p.vatAmount !== null || p.stampDutyAmount !== null
-                    || p.insuranceContributionAmount !== null || p.otherChargesAmount !== null) && (
-                    <TaxBreakdown p={p} />
-                  )}
-
-                  {/* Covers breakdown — shown only when the policy actually
-                      has PolicyCover rows on file. Highlights any drift
-                      between the stated premium and the sum of covers so the
-                      operator can spot bad data before it feeds commission
-                      calculations. */}
-                  {p.covers && p.covers.length > 0 && <CoversBreakdown p={p} />}
-                  <TextField profileKey="paymentFrequency" select fullWidth label={t("policyDetail.paymentFrequency")} value={form.paymentFrequency}
-                    disabled={!canEdit}
-                    onChange={e => setForm({ ...form, paymentFrequency: e.target.value })}>
-                    {FREQUENCIES.map(f => <MenuItem key={f} value={f}>{FREQUENCY_LABELS[f] ?? f}</MenuItem>)}
-                  </TextField>
-                  <TextField profileKey="paymentCollectionMethod" select fullWidth label="Τρόπος είσπραξης" value={form.paymentCollectionMethod}
-                    disabled={!canEdit}
-                    onChange={e => setForm({ ...form, paymentCollectionMethod: e.target.value })}>
-                    <MenuItem value="">—</MenuItem>
-                    {COLLECTION_METHODS.map(m => <MenuItem key={m} value={m}>{COLLECTION_METHODS_LABEL[m]}</MenuItem>)}
-                  </TextField>
-                  <PolicyBooleanField profileKey="paidDirectlyToCarrier" label="Ο πελάτης πλήρωσε απευθείας στην ασφαλιστική" />
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: -1.5 }}>
-                    Η πληρωμή δεν περνά από το ταμείο του γραφείου και δεν εμφανίζεται ως εκκρεμής οφειλή προς την ασφαλιστική.
-                  </Typography>
-                  <PolicyBooleanField profileKey="premiumIncludesVat" label="Το ασφάλιστρο περιλαμβάνει φόρο ασφαλίστρων" />
-                  <TextField profileKey="specialCommissionPercent" type="number" fullWidth label={t("policyDetail.specialCommission")}
-                    disabled={!canEdit}
-                    value={form.specialCommissionPercent}
-                    onChange={e => setForm({ ...form, specialCommissionPercent: e.target.value })}
-                    helperText={t("policyDetail.specialCommissionHelp")} />
-                  <Divider />
-                  <KV label={t("policyDetail.totalReceived")} value={`${p.totalReceived.toFixed(2)} ${p.currency}`} />
-                  <KV label={t("policyDetail.outstanding")} value={`${p.outstanding.toFixed(2)} ${p.currency}`} />
-                  <KV label={t("policyDetail.totalCommissions")} value={`${p.totalCommissions.toFixed(2)} ${p.currency}`} />
-
-                  {/* ---------- Πίνακας προμηθειών (πρώην tab «Προμήθειες») ---------- */}
-                  {/* Full ALIS-style matrix — one row per hierarchy level
-                      (Producer / Manager / Unit / Assistant / Agency) with
-                      %, €, and payable net columns plus a totals
-                      footer. Was on its own tab; folded into Οικονομικά so
-                      the operator has one place for every money-related
-                      field. Overrides are edited via specialLevelPercentsJson
-                      and persist through the same save handler as the rest
-                      of the tab. */}
-                  <Divider sx={{ my: 1 }} />
-                  <Typography variant="overline" color="text.secondary" fontWeight={700}>
-                    Πίνακας προμηθειών
-                  </Typography>
-                  <PolicyCommissionMatrixTab
-                    loading={commissionMatrix.isLoading}
-                    matrix={commissionMatrix.data}
-                    currency={p.currency}
-                    readOnly={!canEdit}
-                    overrideJson={form.specialLevelPercentsJson}
-                    onOverrideChange={(next) => { setForm({ ...form, specialLevelPercentsJson: next }); session.change("specialLevelPercentsJson", next); }}
-                    onSave={() => { void session.commit("specialLevelPercentsJson", form.specialLevelPercentsJson).catch(() => {}); }}
-                    saving={save.isPending}
-                    fallback={{
-                      premium: p.premium,
-                      totalCommissions: p.totalCommissions,
-                      currency: p.currency,
-                    }}
-                  />
+                  {p.covers.length > 0 && <PolicySummarySection title="Αναλυτικές καλύψεις"><CoversBreakdown p={p} /></PolicySummarySection>}
+                  <Dialog open={commissionDetailsOpen} onClose={() => setCommissionDetailsOpen(false)} fullWidth maxWidth="lg">
+                    <DialogTitle>Κατανομή προμηθειών & ειδικά ποσοστά</DialogTitle>
+                    <DialogContent dividers sx={{ overflowX: "auto" }}>
+                      {session.error && <Alert severity="error">{session.error}</Alert>}
+                      {commissionMatrix.isError && <Alert severity="error">Δεν φορτώθηκε η κατανομή προμηθειών. Δοκιμάστε επανυπολογισμό.</Alert>}
+                      <PolicyCommissionMatrixTab loading={commissionMatrix.isLoading} matrix={commissionMatrix.data} currency={p.currency}
+                        readOnly={readOnly} overrideJson={form.specialLevelPercentsJson}
+                        onOverrideChange={next => { setForm({ ...form, specialLevelPercentsJson: next }); session.change("specialLevelPercentsJson", next); }}
+                        onSave={next => session.commit("specialLevelPercentsJson", next)}
+                        saving={session.busy || save.isPending} fallback={{ premium: p.premium, totalCommissions: p.totalCommissions, currency: p.currency }} />
+                    </DialogContent>
+                    <DialogActions><Button startIcon={<CloseIcon />} color="error" variant="contained" onClick={() => setCommissionDetailsOpen(false)}>Κλείσιμο</Button></DialogActions>
+                  </Dialog>
                 </Stack>
-                )
-              )}
+              ))}
 
               {/* PARTIES */}
               {showContract && modalPresentation && (
@@ -1396,47 +1310,6 @@ function ChangeProducerDialog({ open, onClose, policyId, policyNumber, currentPr
         </Button>
       </DialogActions>
     </Dialog>
-  );
-}
-
-/**
- * Καθαρό / ΦΠΑ / Χαρτόσημο / Εισφορές / Λοιπά — the split-out numbers that
- * make up the gross premium. Only fields that are non-null render; a policy
- * that only tracks the top-line stays uncluttered.
- */
-function TaxBreakdown({ p }: { p: PolicyDetail }) {
-  const rows: { label: string; value: number | null }[] = [
-    { label: "Καθαρό ασφάλιστρο", value: p.netPremium },
-    { label: "Χαρτόσημο",          value: p.stampDutyAmount },
-    { label: "Ασφαλιστική εισφορά", value: p.insuranceContributionAmount },
-    { label: "Λοιπές επιβαρύνσεις", value: p.otherChargesAmount },
-  ].filter(r => r.value !== null && r.value !== 0);
-  if (rows.length === 0) return null;
-  const breakdownSum = rows.reduce((s, r) => s + (r.value ?? 0), 0) + (p.vatAmount ?? 0);
-  const grossMatches = Math.abs(breakdownSum - p.premium) < 0.02;
-  return (
-    <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, p: 1.5 }}>
-      <Stack direction="row" alignItems="center" spacing={1} mb={1}>
-        <Typography variant="overline" color="text.secondary" fontWeight={700}>Ανάλυση</Typography>
-        {!grossMatches && (
-          <Chip size="small" color="warning" variant="outlined"
-            label={`Διαφορά με μεικτό: ${(p.premium - breakdownSum).toFixed(2)} ${p.currency}`}
-            sx={{ height: 20, fontSize: 11, fontWeight: 700 }} />
-        )}
-      </Stack>
-      <Stack spacing={0.5}>
-        {rows.map(r => (
-          <Stack key={r.label} direction="row" justifyContent="space-between">
-            <Typography sx={{ color: "text.secondary" }}>{r.label}</Typography>
-            <Typography sx={{ fontFamily: "monospace" }}>{(r.value ?? 0).toFixed(2)} {p.currency}</Typography>
-          </Stack>
-        ))}
-        <Stack direction="row" justifyContent="space-between" sx={{ pt: 0.75, borderTop: "1px dashed", borderColor: "divider" }}>
-          <Typography sx={{ fontWeight: 700 }}>Άθροισμα ανάλυσης</Typography>
-          <Typography sx={{ fontFamily: "monospace", fontWeight: 700 }}>{breakdownSum.toFixed(2)} {p.currency}</Typography>
-        </Stack>
-      </Stack>
-    </Box>
   );
 }
 
@@ -2862,7 +2735,7 @@ function PolicyCommissionMatrixTab({ loading, matrix, currency, readOnly = false
   readOnly?: boolean;
   overrideJson: string;
   onOverrideChange: (nextJson: string) => void;
-  onSave: () => void;
+  onSave: (nextJson: string) => Promise<void>;
   saving: boolean;
   // Only consulted when the calculated matrix is empty — used to surface
   // the bridge-imported agency-commission total.
@@ -2985,7 +2858,7 @@ function PolicyCommissionOverrideEditor({ readOnly = false, overrideJson, onChan
   readOnly?: boolean;
   overrideJson: string;
   onChange: (nextJson: string) => void;
-  onSave: () => void;
+  onSave: (nextJson: string) => Promise<void>;
   saving: boolean;
 }) {
   const [editing, setEditing] = useState(false);
@@ -3011,20 +2884,19 @@ function PolicyCommissionOverrideEditor({ readOnly = false, overrideJson, onChan
     });
   }, [editing, parsed]);
 
-  const commit = () => {
+  const commit = async () => {
     const map: Record<string, number> = {};
     for (const [k, v] of Object.entries(draft)) {
       const n = Number(v);
       if (v.trim() !== "" && Number.isFinite(n) && n > 0) map[k] = n;
     }
-    onChange(Object.keys(map).length > 0 ? JSON.stringify(map) : "");
-    onSave();
-    setEditing(false);
+    const next = Object.keys(map).length > 0 ? JSON.stringify(map) : "";
+    onChange(next);
+    try { await onSave(next); setEditing(false); } catch { /* Keep the failed draft editable. */ }
   };
-  const clearOverride = () => {
+  const clearOverride = async () => {
     onChange("");
-    onSave();
-    setEditing(false);
+    try { await onSave(""); setEditing(false); } catch { /* Keep the failed draft editable. */ }
   };
 
   const hasOverride = Object.keys(parsed).length > 0;
@@ -3082,110 +2954,23 @@ const LEVEL_LABEL: Record<string, string> = {
   Agency: "Γραφείο"
 };
 
-/**
- * Compact side-by-side card that renders at the top of the Οικονομικά tab:
- *   • Left column  — ασφάλιστρα: gross + net premium from the policy row.
- *   • Right column — προμήθειες γραφείου και συνεργάτη
- *     computed on demand from the office's commission-rules matrix. Loads
- *     once when the tab opens, refetches when the operator hits "Υπολογισμός
- *     από παραμετροποίηση". A footer button jumps to the full commission
- *     matrix tab (index 14) for editing.
- */
-function BridgeVsParametrizationCard({ policy, matrix, matrixLoading, onCompute }: {
-  policy: {
-    premium: number;
-    netPremium: number | null;
-    currency: string;
-    producerName: string | null;
-  };
-  matrix: PolicyCommissionMatrix | undefined;
+/** Compact premiums and calculated commissions; unavailable totals are never fabricated. */
+export function PolicyPremiumFields({ policy, matrix, matrixLoading, session }: {
+  policy: Pick<PolicyDetail, "premium" | "netPremium" | "currency" | "producerName">;
+  matrix?: PolicyCommissionMatrix;
   matrixLoading: boolean;
-  onCompute: () => void;
+  session?: ProfileFieldSession;
 }) {
-  const fmt = (n: number) => `${n.toFixed(2)} ${policy.currency}`;
-  // Split matrix rows into "agency" (office cut) and "producer" (per-tier
-  // producers). Sum each side so the operator sees one number per bucket
-  // even when the office has a multi-level hierarchy.
-  const agencyTotal = (matrix?.rows ?? [])
-    .filter(r => r.hierarchyLevel === "Agency")
-    .reduce((a, r) => a + r.grossAmount, 0);
-  const producerTotal = (matrix?.rows ?? [])
-    .filter(r => r.hierarchyLevel !== "Agency")
-    .reduce((a, r) => a + r.grossAmount, 0);
-  const hasMatrix = (matrix?.rows ?? []).length > 0;
-
-  return (
-    <Box sx={{
-      p: 2, borderRadius: 1,
-      border: 1, borderColor: "divider",
-      bgcolor: "background.paper"
-    }}>
-      <Stack direction="row" spacing={2} sx={{
-        display: "grid",
-        gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-        gap: 2,
-      }}>
-        {/* Bridge column */}
-        <Box>
-          <Typography variant="overline" color="text.secondary" fontWeight={700}>
-            Ασφάλιστρα
-          </Typography>
-          <Stack spacing={0.5} mt={1}>
-            <Row label="Μικτά" value={fmt(policy.premium)} bold />
-            <Row label="Καθαρά" value={policy.netPremium != null ? fmt(policy.netPremium) : "—"} />
-          </Stack>
-        </Box>
-
-        {/* Parametrization column */}
-        <Box>
-          <Typography variant="overline" color="text.secondary" fontWeight={700}>
-            Προμήθειες
-          </Typography>
-          {matrixLoading ? (
-            <Box sx={{ py: 2, display: "flex", justifyContent: "center" }}>
-              <CircularProgress size={18} />
-            </Box>
-          ) : !hasMatrix ? (
-            <Stack spacing={1} mt={1}>
-              <Typography variant="caption" color="text.secondary">
-                Δεν έχουν υπολογιστεί προμήθειες ακόμη.
-              </Typography>
-              <Button size="small" variant="outlined" onClick={onCompute}>
-                Υπολογισμός από παραμετροποίηση
-              </Button>
-            </Stack>
-          ) : (
-            <Stack spacing={0.5} mt={1}>
-              <Row label="Προμήθεια γραφείου" value={fmt(agencyTotal)} bold />
-              <Row
-                label={policy.producerName ? `Προμήθεια συνεργάτη · ${policy.producerName}` : "Προμήθεια συνεργάτη"}
-                value={fmt(producerTotal)}
-              />
-            </Stack>
-          )}
-        </Box>
-      </Stack>
-
-      {hasMatrix && (
-        <Stack direction="row" spacing={1} mt={2} justifyContent="flex-end">
-          <Button size="small" onClick={onCompute}>Επανυπολογισμός</Button>
-          {/* The full matrix now sits directly below on the same tab — no
-              need for a jump button. */}
-        </Stack>
-      )}
-    </Box>
-  );
+  const hasMatrix = Boolean(matrix?.rows.length);
+  const total = (agency: boolean) => matrix?.rows.filter(row => (row.hierarchyLevel === "Agency") === agency).reduce((sum, row) => sum + row.grossAmount, 0) ?? 0;
+  const pending = matrixLoading ? "Υπολογισμός…" : "Δεν έχει υπολογιστεί";
+  return <Box sx={{ ...profileFieldGridSx, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))" }}>
+    <ProfileEditableField label="Μικτά" field={session ? "premium" : undefined} session={session} value={session?.values.premium ?? String(policy.premium)} type="number" />
+    <ProfileEditableField label="Καθαρά" field={session ? "netPremium" : undefined} session={session} value={session?.values.netPremium ?? (policy.netPremium == null ? "" : String(policy.netPremium))} type="number" />
+    <ProfileEditableField label="Προμήθεια γραφείου" value={hasMatrix ? settlementAmount(total(true), policy.currency) : pending} mono />
+    <ProfileEditableField label="Προμήθεια συνεργάτη" value={hasMatrix ? settlementAmount(total(false), policy.currency) : pending} mono />
+  </Box>;
 }
-
-function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
-  return (
-    <Stack direction="row" justifyContent="space-between" alignItems="baseline">
-      <Typography variant="body2" color="text.secondary">{label}</Typography>
-      <Typography sx={{ fontWeight: bold ? 700 : 500 }}>{value}</Typography>
-    </Stack>
-  );
-}
-
 
 const PolicyFieldsContext = createContext<{ session: ProfileFieldSession; readOnly: boolean } | null>(null);
 function TextField(props: React.ComponentProps<typeof MuiTextField> & { profileKey?: string }) {
@@ -3220,22 +3005,26 @@ export function PolicyProfileFields({session, values, policy, companies, custome
   const types = ["Auto","Home","Health","Life","Business","Travel","Other"].map(value => ({value,label:policyTypeLabel(value)}));
   if (values.policyType && !types.some(option => option.value === values.policyType)) types.push({value:values.policyType,label:values.policyType});
   const statuses = Object.keys(POLICY_STATUS_LABELS).map(value => ({value,label:policyStatusLabel(value)}));
-  return <Box sx={profileFieldGridSx}>
+  return <Box sx={{ ...profileFieldGridSx, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))" }}>
     <ProfileEditableField label="Αριθμός συμβολαίου" value={policy.policyNumber} mono />
-    <ProfileEditableField label="Πελάτης / ασφαλισμένος" value={policy.customerDisplay} />
-    <ProfileEditableField label="ΑΦΜ πελάτη" value={policy.customerVat} mono />
+    {field("applicationNumber","Αριθμός αίτησης")}
     {field("insuranceCompanyId","Ασφαλιστική", {options:carrierOptions})}
     {field("policyType","Κλάδος",{options:types})}
     {field("status","Κατάσταση",{options:statuses})}
-    {field("startDate","Έναρξη",{type:"date"})}{field("endDate","Λήξη",{type:"date"})}
-    <ProfileEditableField label="Διάρκεια" value={contractDurationLabel(policy.startDate,policy.endDate)} />
-    {field("premium","Μεικτό ασφάλιστρο",{type:"number"})}{field("netPremium","Καθαρό ασφάλιστρο",{type:"number"})}
-    {field("currency","Νόμισμα")}
-    <ProfileEditableField label="Συνεργάτης" value={policy.producerName} />
-    {field("applicationNumber","Αριθμός αίτησης")}{field("issuedAt","Ημερομηνία έκδοσης",{type:"date"})}
-    {field("contractPartyCustomerId","Συμβαλλόμενος",{options:[{value:"",label:"Ίδιος με τον ασφαλιζόμενο"}, ...customers.map(row=>({value:row.id,label:row.companyName || [row.firstName,row.lastName].filter(Boolean).join(" ")}))]})}
     {field("previousInsuranceCompanyId","Προηγούμενη ασφαλιστική",{options:[{value:"",label:"Δεν έχει οριστεί"}, ...carrierOptions]})}
+    <ProfileEditableField label="Πελάτης / ασφαλισμένος" value={policy.customerDisplay} />
+    <ProfileEditableField label="ΑΦΜ πελάτη" value={policy.customerVat} mono />
+    {field("contractPartyCustomerId","Συμβαλλόμενος",{options:[{value:"",label:"Ίδιος με τον ασφαλιζόμενο"}, ...customers.map(row=>({value:row.id,label:row.companyName || [row.firstName,row.lastName].filter(Boolean).join(" ")}))]})}
+    <ProfileEditableField label="Συνεργάτης" value={policy.producerName} />
+    {field("issuedAt","Ημερομηνία έκδοσης",{type:"date"})}
+    {field("startDate","Έναρξη",{type:"date"})}
+    {field("endDate","Λήξη",{type:"date"})}
+    <ProfileEditableField label="Διάρκεια" value={contractDurationLabel(policy.startDate,policy.endDate)} />
     {field("vehicleRegistrationPlate","Πινακίδα",{mono:true})}
-    {field("driverVatNumber","ΑΦΜ οδηγού",{mono:true})}{field("reasonForCirculation","Λόγος κυκλοφορίας")}
+    {field("driverVatNumber","ΑΦΜ οδηγού",{mono:true})}
+    {field("reasonForCirculation","Λόγος κυκλοφορίας")}
+    {field("premium","Μεικτό ασφάλιστρο",{type:"number"})}
+    {field("netPremium","Καθαρό ασφάλιστρο",{type:"number"})}
+    {field("currency","Νόμισμα")}
   </Box>;
 }

@@ -65,5 +65,7 @@ test("customer filters adapt cleanly from phones to desktop", async () => {
   assert.match(dialog, /fullScreen=\{fullScreen\}/);
   assert.match(dialog, /maxHeight: fullScreen \? "100dvh" : "92dvh"/);
   assert.match(dialog, /position: "sticky", bottom: 0/);
+  assert.equal(dialog.includes("Δικαιώματα & συγκαταθέσεις"), false);
+  assert.match(page, /next\.communication = \[\]; next\.gdpr = \[\]/);
   assert.match(dialog, /gridTemplateColumns: \{ xs: "repeat\(2, minmax\(0, 1fr\)\)"/);
 });

@@ -18,7 +18,8 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
   const ids = html => [...html.matchAll(/data-profile-field="([^"]+)"/g)].map(match => match[1]);
   try {
     const { VehicleProfileFields } = await server.ssrLoadModule("/src/pages/CustomerVehiclesPage.tsx");
-    const { PolicyProfileFields } = await server.ssrLoadModule("/src/components/PolicyDetailDrawer.tsx");
+    const { PolicyProfileFields, PolicyPremiumFields } = await server.ssrLoadModule("/src/components/PolicyDetailDrawer.tsx");
+    const { vehicleOwnerHistory } = await server.ssrLoadModule("/src/components/profile/vehicleHistory.ts");
     const { ProducerProfileFields } = await server.ssrLoadModule("/src/components/ProducerDetailDrawer.tsx");
     const { ClaimProfileFields } = await server.ssrLoadModule("/src/components/ClaimDetailDrawer.tsx");
     const { mergeVehicleSpecs, VEHICLE_SPEC_FIELDS } = await server.ssrLoadModule("/src/components/profile/vehicleProfile.ts");
@@ -78,6 +79,41 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
       const {view,edit}=layout(PolicyProfileFields,{policy,values,session:session(values),companies:[],customers:[]});
       assert.equal(view.includes("Επεξεργασία Έναρξη"),true); assert.equal(edit.includes("Αποθήκευση Έναρξη"),true);
       assert.equal(edit.includes("Αποθήκευση Διάρκεια"),false); assert.equal(edit.includes("Αποθήκευση Αριθμός συμβολαίου"),false);
+    });
+    await t.test("compact financial fields retain copy/save controls and sum each commission level exactly once", () => {
+      const policy = { premium: 100, netPremium: 80, currency: "EUR", producerName: "Συνεργάτης" };
+      const values = { premium: "100", netPremium: "80" };
+      const matrix = { rows: [
+        { hierarchyLevel: "Agency", grossAmount: 16 },
+        { hierarchyLevel: "Producer", grossAmount: 4 },
+        { hierarchyLevel: "Manager", grossAmount: 2 }
+      ] };
+      const { view, edit } = layout(PolicyPremiumFields, { policy, matrix, matrixLoading: false, session: session(values) });
+      assert.deepEqual(ids(view), ["premium", "netPremium", "Προμήθεια γραφείου", "Προμήθεια συνεργάτη"]);
+      assert.match(view, /16,00 EUR/); assert.match(view, /6,00 EUR/);
+      assert.equal(view.includes("<table"), false);
+      assert.equal(view.includes("Φόρος"), false);
+      assert.equal(edit.includes("Αποθήκευση Μικτά"), true);
+      assert.equal(edit.includes("Αποθήκευση Προμήθεια γραφείου"), false);
+      assert.match(view, /minmax\(min\(100%, 300px\), 1fr\)/);
+      const empty = render(PolicyPremiumFields, { policy: { ...policy, netPremium: null }, matrixLoading: false });
+      assert.match(empty, /Δεν έχει υπολογιστεί/);
+      assert.equal(empty.includes("16,00 EUR"), false);
+      const loading = render(PolicyPremiumFields, { policy, matrixLoading: true });
+      assert.match(loading, /Υπολογισμός/);
+      const zero = render(PolicyPremiumFields, { policy, matrixLoading: false, matrix: { rows: [{ hierarchyLevel: "Agency", grossAmount: 0 }] } });
+      assert.match(zero, /0,00 EUR/);
+    });
+    await t.test("owner history derives dates from real policy records without merging different customer IDs", () => {
+      const policy = { id: "1", policyNumber: "POL-1", customerId: "a", customerDisplay: "Ίδιο όνομα", customerVat: "111111111", startDate: "2024-01-01", endDate: "2025-01-01" };
+      const rows = [policy, { ...policy, id: "2", policyNumber: "POL-2", startDate: "2025-01-01", endDate: "2026-01-01" },
+        { ...policy, id: "3", policyNumber: "POL-3", customerId: "b", customerVat: "222222222", startDate: "2026-01-01", endDate: "2027-01-01" }];
+      const history = vehicleOwnerHistory(rows);
+      assert.equal(history.length, 2); assert.equal(history[0].customerId, "b");
+      assert.equal(history[1].from, "2024-01-01"); assert.equal(history[1].to, "2026-01-01");
+      assert.deepEqual(history[1].policyNumbers, ["POL-2", "POL-1"]);
+      assert.equal(rows[0].id, "1");
+      assert.deepEqual(vehicleOwnerHistory([]), []);
     });
     await t.test("policy single-field PUT retains nonvisible cover/package and finance settings", () => {
       const current={insuranceCompanyId:"carrier",producerId:"producer",policyType:"Auto",startDate:"2026-01-01",endDate:"2026-12-31",premium:100,currency:"EUR",status:"Active",coverCode:"COVER",packageCode:"PACKAGE",specialCommissionPercent:15,paidDirectlyToCarrier:false,vehicleRegistrationPlate:"ABC1234",id:"NO"};

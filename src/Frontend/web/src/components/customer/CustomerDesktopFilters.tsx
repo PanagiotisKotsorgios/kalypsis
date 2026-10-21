@@ -134,20 +134,6 @@ export function CustomerDesktopFiltersDialog({ open, filters, cities, producers,
         </Box>
 
         <Box sx={sectionSx}>
-          <Typography fontWeight={800} color="#102C55" mb={0.75}>Δικαιώματα & συγκαταθέσεις</Typography>
-          {([
-            ["communication", "Επικοινωνία"], ["gdpr", "Συγκατάθεση GDPR"], ["marketing", "Marketing"],
-            ["portal", "Λογαριασμός πύλης"], ["needsForm", "Έντυπο αναγκών"],
-          ] as const).map(([key, label], index) => <Box key={key}>
-            {index > 0 && <Divider sx={{ my: 0.5 }} />}
-            <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
-              <Typography variant="body2" fontWeight={650}>{label}</Typography>
-              <YesNoChecks values={filters[key]} onChange={value => set(key, value)} />
-            </Stack>
-          </Box>)}
-        </Box>
-
-        <Box sx={sectionSx}>
           <Typography fontWeight={800} color="#102C55" mb={0.75}>Ημερομηνίες</Typography>
           <Typography variant="caption" color="text.secondary">Δημιουργήθηκε</Typography>
           <DateRange from={filters.createdFrom} to={filters.createdTo} onFrom={value => set("createdFrom", value)} onTo={value => set("createdTo", value)} />
