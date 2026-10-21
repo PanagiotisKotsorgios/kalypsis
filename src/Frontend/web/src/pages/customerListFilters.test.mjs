@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFile } from "node:fs/promises";
 import { activeCustomerFilterCount, customerAge, customerMatchesFilters, EMPTY_CUSTOMER_LIST_FILTERS } from "./customerListFilters.ts";
 
 const row = {
@@ -34,4 +35,20 @@ test("presence, consent, financial and detailed ranges are combined", () => {
 
 test("active count treats each desktop filter group as one filter", () => {
   assert.equal(activeCustomerFilterCount(filters({ cities: ["Αθήνα", "Πάτρα"], gdpr: ["yes"], ageMin: "18" })), 3);
+});
+
+test("customer page consolidates creation, import and saved filters under colored actions", async () => {
+  const source = await readFile(new URL("./CustomersPage.tsx", import.meta.url), "utf8");
+  assert.match(source, />\s*Ενέργειες\s*<\/Button>/);
+  assert.match(source, /primary="Αποθήκευση νέου φίλτρου"/);
+  assert.match(source, /saveRequestToken=\{saveFilterRequest\}/);
+  assert.match(source, /primary="Εισαγωγή Excel"/);
+  assert.match(source, /setCreateStatus\("Active"\)/);
+  assert.match(source, /setCreateStatus\("Prospect"\)/);
+  assert.match(source, /#0877c9/);
+  assert.match(source, /#a45b00/);
+  assert.match(source, /#167c45/);
+  assert.match(source, /#5b55a5/);
+  assert.equal(source.includes("<ExcelImportButton"), false);
+  assert.equal(source.includes("<SavedReportsButton compact"), false);
 });

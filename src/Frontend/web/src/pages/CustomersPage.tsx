@@ -12,8 +12,12 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   FormControlLabel,
   InputAdornment,
+  ListItemIcon,
+  ListItemText,
+  Menu,
   MenuItem,
   Stack,
   Switch,
@@ -29,7 +33,6 @@ import {
   Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import { ExcelImportButton } from "../components/ExcelImportButton";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import { IconButton, Tooltip } from "@mui/material";
@@ -47,6 +50,11 @@ import LocationCityIcon from "@mui/icons-material/LocationCity";
 import MarkunreadMailboxOutlinedIcon from "@mui/icons-material/MarkunreadMailboxOutlined";
 import NotesOutlinedIcon from "@mui/icons-material/NotesOutlined";
 import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import PersonAddAltOutlinedIcon from "@mui/icons-material/PersonAddAltOutlined";
+import TableViewOutlinedIcon from "@mui/icons-material/TableViewOutlined";
+import BookmarkAddIcon from "@mui/icons-material/BookmarkAdd";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
@@ -230,6 +238,8 @@ export function CustomersPage() {
   const [createdCustomer, setCreatedCustomer] = useState<{ id: string; label: string } | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<CustomerDto | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
+  const [saveFilterRequest, setSaveFilterRequest] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const customersQuery = useQuery({
@@ -400,19 +410,37 @@ export function CustomersPage() {
           <Typography variant="h4">{t("customers.title")}</Typography>
           <HelpHint id="page.customers" />
         </Stack>
-        <Stack direction={{ xs: "column", lg: "row" }} spacing={1} alignItems={{ lg: "center" }} useFlexGap flexWrap="wrap">
-          <ExcelImportButton size="large" onClick={() => setImportOpen(true)}>
-            Εισαγωγή
-          </ExcelImportButton>
-          {/* Export handled by the TableToolbar dropdown below — the old
-              header ExportButton was a duplicate CSV-only shortcut. */}
-          <Button variant="outlined" size="large" onClick={() => { setError(null); setCreateStatus("Prospect"); }}>
-            Πιθανός πελάτης
-          </Button>
-          <Button data-tour="customers-new" startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setCreateStatus("Active"); }}>
-            {t("customers.create")}
-          </Button>
-        </Stack>
+        <Button data-tour="customers-actions" variant="contained" size="large"
+          startIcon={<MoreHorizIcon />} endIcon={<KeyboardArrowDownIcon />}
+          onClick={event => setActionsAnchor(event.currentTarget)} aria-haspopup="menu"
+          aria-expanded={Boolean(actionsAnchor)} sx={{ minWidth: 142, whiteSpace: "nowrap" }}>
+          Ενέργειες
+        </Button>
+        <Menu anchorEl={actionsAnchor} open={Boolean(actionsAnchor)} onClose={() => setActionsAnchor(null)}
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }} transformOrigin={{ vertical: "top", horizontal: "right" }}
+          slotProps={{ paper: { sx: { minWidth: 285, maxWidth: "calc(100vw - 24px)" } } }}>
+          <MenuItem data-tour="customers-new" onClick={() => { setActionsAnchor(null); setError(null); setCreateStatus("Active"); }}
+            sx={{ color: "#0877c9", "&:hover": { bgcolor: "#e7f2fd", color: "#075fa0" } }}>
+            <ListItemIcon sx={{ color: "#0877c9" }}><AddIcon fontSize="small" /></ListItemIcon>
+            <ListItemText primary={t("customers.create")} secondary="Κανονικός ενεργός πελάτης" />
+          </MenuItem>
+          <MenuItem onClick={() => { setActionsAnchor(null); setError(null); setCreateStatus("Prospect"); }}
+            sx={{ color: "#a45b00", "&:hover": { bgcolor: "#fff3df", color: "#814700" } }}>
+            <ListItemIcon sx={{ color: "#a45b00" }}><PersonAddAltOutlinedIcon fontSize="small" /></ListItemIcon>
+            <ListItemText primary="Πιθανός πελάτης" secondary="Καταχώρηση υποψήφιου πελάτη" />
+          </MenuItem>
+          <Divider />
+          <MenuItem onClick={() => { setActionsAnchor(null); setImportOpen(true); }}
+            sx={{ color: "#167c45", "&:hover": { bgcolor: "#e7f5ec", color: "#116337" } }}>
+            <ListItemIcon sx={{ color: "#167c45" }}><TableViewOutlinedIcon fontSize="small" /></ListItemIcon>
+            <ListItemText primary="Εισαγωγή Excel" secondary="Μαζική εισαγωγή πελατών" />
+          </MenuItem>
+          <MenuItem onClick={() => { setActionsAnchor(null); setSaveFilterRequest(value => value + 1); }}
+            sx={{ color: "#5b55a5", "&:hover": { bgcolor: "#efedfb", color: "#474184" } }}>
+            <ListItemIcon sx={{ color: "#5b55a5" }}><BookmarkAddIcon fontSize="small" /></ListItemIcon>
+            <ListItemText primary="Αποθήκευση νέου φίλτρου" secondary="Προσθήκη στα αποθηκευμένα φίλτρα" />
+          </MenuItem>
+        </Menu>
       </Stack>
 
       <Card variant="outlined" sx={{ mb: 2, p: 1.25, bgcolor: "#EDF2F7", borderColor: "#C8D5E4" }}>
@@ -433,7 +461,8 @@ export function CustomersPage() {
             onClick={() => setFiltersOpen(true)} sx={{ minHeight: 40, whiteSpace: "nowrap" }}>
             Περισσότερα φίλτρα{activeCustomerFilterCount(filters) > 0 ? ` (${activeCustomerFilterCount(filters)})` : ""}
           </Button>
-          <SavedReportsButton compact entity="customers" currentFilters={savedCustomerFilters} onLoad={loadSavedCustomerFilters} />
+          <SavedReportsButton entity="customers" currentFilters={savedCustomerFilters} onLoad={loadSavedCustomerFilters}
+            saveRequestToken={saveFilterRequest} />
           {customerFilterCount > 0 && <Button size="small" variant="contained" color="error" startIcon={<FilterAltOffIcon />}
             onClick={clearFilters} sx={{ minHeight: 40, whiteSpace: "nowrap", color: "common.white" }}>
             Καθαρισμός
