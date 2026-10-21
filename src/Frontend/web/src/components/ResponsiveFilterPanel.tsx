@@ -19,6 +19,9 @@ export function ResponsiveFilterPanel({
   quickButtonPlacement = "panel",
   quickOpen: controlledQuickOpen,
   onQuickOpenChange,
+  compactButtonPlacement = "panel",
+  compactOpen: controlledCompactOpen,
+  onCompactOpenChange,
   compactAt = "md",
 }: {
   children: ReactNode;
@@ -31,6 +34,11 @@ export function ResponsiveFilterPanel({
   /** Optional controlled state so a page-level toolbar button can open the drawer. */
   quickOpen?: boolean;
   onQuickOpenChange?: (open: boolean) => void;
+  /** Render the compact full-filter trigger outside this component. */
+  compactButtonPlacement?: "panel" | "external";
+  /** Optional controlled state for the compact full-filter drawer. */
+  compactOpen?: boolean;
+  onCompactOpenChange?: (open: boolean) => void;
   /** Breakpoint at and below which the full filter form moves into a drawer. */
   compactAt?: "sm" | "md" | "lg" | "xl";
 }) {
@@ -38,8 +46,13 @@ export function ResponsiveFilterPanel({
   // Treat phones and narrow tablets as compact so dense filter forms never
   // push the actual table far below the fold.
   const isCompact = useMediaQuery(theme.breakpoints.down(compactAt));
-  const [open, setOpen] = useState(false);
+  const [internalCompactOpen, setInternalCompactOpen] = useState(false);
   const [internalQuickOpen, setInternalQuickOpen] = useState(false);
+  const compactOpen = controlledCompactOpen ?? internalCompactOpen;
+  const setCompactOpen = (next: boolean) => {
+    onCompactOpenChange?.(next);
+    if (controlledCompactOpen === undefined) setInternalCompactOpen(next);
+  };
   const quickOpen = controlledQuickOpen ?? internalQuickOpen;
   const setQuickOpen = (next: boolean) => {
     onQuickOpenChange?.(next);
@@ -70,50 +83,59 @@ export function ResponsiveFilterPanel({
 
   if (isCompact) {
     return (
-      <Box sx={{ mb: 2 }}>
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0 }}>
-          <Button
-            size="small"
-            variant={activeCount > 0 ? "contained" : "outlined"}
-            startIcon={<FilterListIcon />}
-            onClick={() => setOpen(true)}
-            sx={{ flexShrink: 0, whiteSpace: "nowrap" }}
-          >
-            {title}{activeCount > 0 ? ` (${activeCount})` : ""}
-          </Button>
-          {quickFilters && quickButtonPlacement === "panel" && (
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<FilterListIcon />}
-              onClick={() => setQuickOpen(true)}
-              sx={{ flexShrink: 0, whiteSpace: "nowrap" }}
-            >
-              Γρήγορα
-            </Button>
-          )}
-        </Stack>
+      <>
+        {compactButtonPlacement === "panel" && (
+          <Box sx={{ mb: 2 }}>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0 }}>
+              <Button
+                size="small"
+                variant={activeCount > 0 ? "contained" : "outlined"}
+                startIcon={<FilterListIcon />}
+                onClick={() => setCompactOpen(true)}
+                sx={{ flexShrink: 0, whiteSpace: "nowrap" }}
+              >
+                {title}{activeCount > 0 ? ` (${activeCount})` : ""}
+              </Button>
+              {quickFilters && quickButtonPlacement === "panel" && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<FilterListIcon />}
+                  onClick={() => setQuickOpen(true)}
+                  sx={{ flexShrink: 0, whiteSpace: "nowrap" }}
+                >
+                  Γρήγορα
+                </Button>
+              )}
+            </Stack>
+          </Box>
+        )}
         <Drawer
           anchor="bottom"
-          open={open}
-          onClose={() => setOpen(false)}
+          open={compactOpen}
+          onClose={() => setCompactOpen(false)}
           PaperProps={{ sx: { borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: "86vh" } }}
         >
           <Box sx={{ p: 2, overflowY: "auto" }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
               <Typography variant="h6" fontWeight={800}>{title}</Typography>
-              <IconButton size="small" onClick={() => setOpen(false)} aria-label="Κλείσιμο φίλτρων">
+              <IconButton size="small" onClick={() => setCompactOpen(false)} aria-label="Κλείσιμο φίλτρων">
                 <CloseIcon />
               </IconButton>
             </Stack>
             {children}
-            <Button fullWidth variant="contained" sx={{ mt: 1.5 }} onClick={() => setOpen(false)}>
+            <Button
+              fullWidth
+              variant="contained"
+              sx={{ mt: 1.5 }}
+              onClick={() => setCompactOpen(false)}
+            >
               Εφαρμογή φίλτρων
             </Button>
           </Box>
         </Drawer>
         {quickDrawer}
-      </Box>
+      </>
     );
   }
 

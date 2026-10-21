@@ -16,6 +16,7 @@ import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import ViewColumnIcon from "@mui/icons-material/ViewColumn";
 import TuneIcon from "@mui/icons-material/Tune";
 import BookmarkAddIcon from "@mui/icons-material/BookmarkAdd";
+import FilterListIcon from "@mui/icons-material/FilterList";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
@@ -98,6 +99,7 @@ export function ProductionListsPage() {
     status: "", groupBy: "carrier"
   });
   const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
+  const [compactFiltersOpen, setCompactFiltersOpen] = useState(false);
   const [saveFilterRequest, setSaveFilterRequest] = useState(0);
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
   const [filterSettingsOpen, setFilterSettingsOpen] = useState(false);
@@ -564,6 +566,22 @@ export function ProductionListsPage() {
           >
             Ενέργειες
           </Button>
+          <Button
+            size="small"
+            variant="contained"
+            startIcon={<FilterListIcon />}
+            onClick={() => setCompactFiltersOpen(true)}
+            sx={{
+              display: { xs: "inline-flex", xl: "none" },
+              minWidth: 190,
+              whiteSpace: "nowrap",
+              bgcolor: "#159b59",
+              color: "#fff",
+              "&:hover": { bgcolor: "#117e49", color: "#fff" },
+            }}
+          >
+            Φίλτρα λίστας παραγωγής
+          </Button>
           <Menu
             anchorEl={actionsAnchor}
             open={Boolean(actionsAnchor)}
@@ -669,6 +687,9 @@ export function ProductionListsPage() {
 
       <ResponsiveFilterPanel
         compactAt="xl"
+        compactButtonPlacement="external"
+        compactOpen={compactFiltersOpen}
+        onCompactOpenChange={setCompactFiltersOpen}
         activeCount={[
           f.insuranceCompanyId, f.producerId, f.policyType, f.vehicleUseCategory,
           f.coverCode, f.packageCode, f.status,
@@ -778,16 +799,15 @@ export function ProductionListsPage() {
             <MenuItem value="type">{t("productionList.byType")}</MenuItem>
             <MenuItem value="month">{t("productionList.byMonth")}</MenuItem>
           </SearchableTextField>}
-        </Box>
-        <Stack direction="row" justifyContent="flex-end" mt={1.5}>
           <Button size="small"
+            sx={{ minHeight: 40, whiteSpace: "nowrap" }}
             onClick={() => setF({
               from: monthStart, to: todayStr, dateField: "start",
               insuranceCompanyId: "", producerId: "",
               policyType: "", vehicleUseCategory: "", coverCode: "", packageCode: "",
               status: "", groupBy: "carrier"
             })} color="error" variant="contained">Καθαρισμός φίλτρων</Button>
-        </Stack>
+        </Box>
       </ResponsiveFilterPanel>
 
       {q.isLoading ? <CircularProgress /> : !q.data ? null : (

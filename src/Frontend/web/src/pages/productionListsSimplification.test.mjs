@@ -20,8 +20,18 @@ test("production list keeps a single green coverage action and removes redundant
 test("production filters collapse early and their visible fields are user configurable", async () => {
   const source = await readFile(new URL("./ProductionListsPage.tsx", import.meta.url), "utf8");
   const picker = await readFile(new URL("../components/FilterVisibilityPicker.tsx", import.meta.url), "utf8");
+  const responsivePanel = await readFile(new URL("../components/ResponsiveFilterPanel.tsx", import.meta.url), "utf8");
 
   assert.match(source, /compactAt="xl"/);
+  assert.match(source, /compactButtonPlacement="external"/);
+  assert.match(source, /compactOpen=\{compactFiltersOpen\}/);
+  assert.match(source, /onCompactOpenChange=\{setCompactFiltersOpen\}/);
+  assert.match(source, /onClick=\{\(\) => setCompactFiltersOpen\(true\)\}/);
+  assert.match(source, /bgcolor: "#159b59"/);
+  assert.match(source, /color: "#fff"/);
+  assert.equal(source.includes('justifyContent="flex-end" mt={1.5}'), false);
+  assert.match(responsivePanel, /compactButtonPlacement\?: "panel" \| "external"/);
+  assert.match(responsivePanel, /controlledCompactOpen \?\? internalCompactOpen/);
   assert.match(source, /useFilterVisibility\("production-lists", PRODUCTION_FILTERS\)/);
   assert.equal(source.includes("<QuickFilterBar"), false);
   assert.equal(source.includes("quickFiltersOpen"), false);
