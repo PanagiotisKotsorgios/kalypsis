@@ -82,10 +82,15 @@ test("checkbox multi-select keeps saved selections visible while catalogues load
   try {
     const {selectedMultiOptions, SearchableMultiSelect}=await server.ssrLoadModule("/src/components/SearchableMultiSelect.tsx");
     assert.deepEqual(selectedMultiOptions(["a","b","a"],[{value:"a",label:"Ασφαλιστική Α"}]),[{value:"a",label:"Ασφαλιστική Α"},{value:"b",label:"b"}]);
-    const html=renderToStaticMarkup(createElement(SearchableMultiSelect,{label:"Ασφαλιστικές",values:["a","b"],options:[{value:"a",label:"Ασφαλιστική Α"},{value:"b",label:"Ασφαλιστική Β"}],onChange(){}}));
+    const html=renderToStaticMarkup(createElement(SearchableMultiSelect,{label:"Ασφαλιστικές",values:["a","b"],options:[{value:"a",label:"Ασφαλιστική Α"},{value:"b",label:"Ασφαλιστική Β"}],showSelectAll:true,onChange(){}}));
     assert.match(html,/Ασφαλιστική Α/); assert.match(html,/\+1/); assert.match(html,/Καθαρισμός επιλογών/);
     const source=await readFile(new URL("../components/SearchableMultiSelect.tsx",import.meta.url),"utf8");
-    assert.match(source, /multiple disableCloseOnSelect/); assert.match(source, /checked=\{state.selected\}/); assert.match(source, /onChange\(next.map\(option => option.value\)\)/);
+    assert.match(source, /multiple disableCloseOnSelect/);
+    assert.match(source, /checked=\{isSelectAll \? values\.length === 0 : state\.selected\}/);
+    assert.match(source, /next\.filter\(option => option\.value !== SELECT_ALL_VALUE\)\.map\(option => option\.value\)/);
+    assert.match(source, /label: "Επιλογή όλων"/); assert.match(source, /details\?\.option\.value === SELECT_ALL_VALUE/); assert.match(source, /onChange\(\[\]\)/);
+    const pageSource=await readFile(new URL("./ProductionListsPage.tsx",import.meta.url),"utf8");
+    assert.equal((pageSource.match(/showSelectAll/g)??[]).length,8);
   } finally {await server.close();}
 });
 

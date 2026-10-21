@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import {
   Badge, Box, Button, Chip, ClickAwayListener, Divider, Fade, IconButton,
-  InputAdornment, Paper, Popper, Stack, TextField, Typography
+  InputAdornment, MenuItem, Paper, Popper, Stack, TextField, Typography
 } from "@mui/material";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import SearchIcon from "@mui/icons-material/Search";
@@ -9,6 +9,8 @@ import MarkEmailReadIcon from "@mui/icons-material/MarkEmailRead";
 import DoneAllIcon from "@mui/icons-material/DoneAll";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
+import FilterAltOutlinedIcon from "@mui/icons-material/FilterAltOutlined";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -64,6 +66,7 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [severity, setSeverity] = useState<SeverityFilter>("all");
+  const [category, setCategory] = useState("");
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -82,15 +85,18 @@ export function NotificationBell() {
     staleTime: 30_000
   });
   const all = listQ.data ?? [];
+  const categoryOptions = useMemo(() => [...new Set(all.map(n => n.category?.trim()).filter((value): value is string => !!value))]
+    .sort((a, b) => notificationCategoryLabel(a).localeCompare(notificationCategoryLabel(b), "el")), [all]);
 
   const filtered = useMemo(() => {
     const s = search.trim().toLowerCase();
     return all.filter(n => {
       if (severity === "unread" && n.isRead) return false;
       if (severity !== "all" && severity !== "unread" && notificationSeverity(n.category) !== severity) return false;
+      if (category && n.category !== category) return false;
       return !s || notificationSearchText(n).includes(s);
     });
-  }, [all, search, severity]);
+  }, [all, search, severity, category]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -156,14 +162,15 @@ export function NotificationBell() {
             <Paper
               elevation={0}
               sx={{
-                width: { xs: "calc(100vw - 32px)", sm: 470 },
+                width: { xs: "calc(100vw - 24px)", sm: 680, md: 760 },
                 maxHeight: "calc(100vh - 100px)",
                 display: "flex",
                 flexDirection: "column",
-                border: "1px solid #d9e1ea",
-                borderRadius: 3,
+                border: "1px solid #d5e0ec",
+                borderRadius: 3.5,
                 overflow: "hidden",
-                boxShadow: "0 24px 60px rgba(11,37,69,0.18), 0 4px 12px rgba(11,37,69,0.06)"
+                bgcolor: "#f8fbff",
+                boxShadow: "0 26px 68px rgba(11,37,69,0.22), 0 5px 14px rgba(11,37,69,0.07)"
               }}
             >
               <ClickAwayListener onClickAway={() => setOpen(false)}>
@@ -173,19 +180,29 @@ export function NotificationBell() {
                     alignItems="center"
                     justifyContent="space-between"
                     sx={{
-                      p: 2,
+                      p: { xs: 1.5, sm: 2.25 },
+                      gap: 1.5,
                       bgcolor: "#fff",
-                      borderBottom: "1px solid #e5e9ef"
+                      borderBottom: "1px solid #dfe7f0"
                     }}
                   >
-                    <Box>
-                      <Typography sx={{ fontSize: 16, fontWeight: 850, color: "#0b2545" }}>
-                        {t("notifications.title")}
-                      </Typography>
-                      <Typography sx={{ fontSize: 12, color: "#456079" }}>
-                        {count > 0 ? t("notifications.subtitle", { count }) : "Όλα ενημερωμένα"}
-                      </Typography>
-                    </Box>
+                    <Stack direction="row" alignItems="center" spacing={1.5} sx={{ minWidth: 0 }}>
+                      <Box sx={{
+                        width: { xs: 42, sm: 50 }, height: { xs: 42, sm: 50 }, borderRadius: 2.25,
+                        display: "grid", placeItems: "center", flexShrink: 0,
+                        bgcolor: "#e3efff", color: "#0b5cad",
+                      }}>
+                        <NotificationsIcon sx={{ fontSize: { xs: 24, sm: 29 } }} />
+                      </Box>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography sx={{ fontSize: { xs: 18, sm: 23 }, fontWeight: 900, color: "#081b3a", lineHeight: 1.15 }}>
+                          {t("notifications.title")}
+                        </Typography>
+                        <Typography sx={{ fontSize: { xs: 12, sm: 14 }, color: "#60728b", mt: 0.25 }}>
+                          {count > 0 ? `${count} μη αναγνωσμένες` : "Όλα ενημερωμένα"}
+                        </Typography>
+                      </Box>
+                    </Stack>
                     {count > 0 && (
                       <Button
                         size="small"
@@ -194,37 +211,48 @@ export function NotificationBell() {
                         onClick={() => markAll.mutate()}
                         disabled={markAll.isPending}
                         sx={{
-                          fontSize: 12.5,
+                          fontSize: { xs: 0, sm: 13 },
                           fontWeight: 800,
-                          borderColor: "#d9e1ea"
+                          minWidth: { xs: 38, sm: 230 }, height: 40, px: { xs: 1, sm: 1.5 },
+                          color: "#0b5cad", borderColor: "#9dc5ff", borderRadius: 2,
+                          "&:hover": { bgcolor: "#edf5ff", borderColor: "#4b97f3" },
+                          "& .MuiButton-startIcon": { mr: { xs: 0, sm: 1 } },
                         }}
                       >
-                        {t("notifications.markAll")}
+                        <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>{t("notifications.markAll")}</Box>
                       </Button>
                     )}
                   </Stack>
 
-                  <Box sx={{ p: 1.5, borderBottom: "1px solid #e5e9ef", bgcolor: "#fbfcfe" }}>
-                    <TextField
-                      size="small"
-                      fullWidth
-                      placeholder="Αναζήτηση σε ειδοποιήσεις…"
-                      value={search}
-                      onChange={(e) => {
-                        setSearch(e.target.value);
-                        resetPaging();
-                      }}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <SearchIcon sx={{ fontSize: 18, color: "#456079" }} />
-                          </InputAdornment>
-                        )
-                      }}
-                      sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2, fontSize: 14, bgcolor: "#fff" } }}
-                    />
+                  <Box sx={{ p: { xs: 1.25, sm: 1.75 }, borderBottom: "1px solid #dfe7f0", bgcolor: "#f8fbff" }}>
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                      <TextField
+                        size="small"
+                        fullWidth
+                        placeholder="Αναζήτηση σε ειδοποιήσεις…"
+                        value={search}
+                        onChange={(e) => {
+                          setSearch(e.target.value);
+                          resetPaging();
+                        }}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <SearchIcon sx={{ fontSize: 21, color: "#173e69" }} />
+                            </InputAdornment>
+                          )
+                        }}
+                        sx={{ flex: 1, "& .MuiOutlinedInput-root": { height: 44, borderRadius: 2, fontSize: 14, bgcolor: "#fff" } }}
+                      />
+                      <TextField select size="small" value={category} onChange={(event) => { setCategory(event.target.value); resetPaging(); }}
+                        aria-label="Κατηγορία ειδοποιήσεων" sx={{ width: { xs: "100%", sm: 220 }, "& .MuiOutlinedInput-root": { height: 44, borderRadius: 2, bgcolor: "#fff" } }}
+                        InputProps={{ startAdornment: <InputAdornment position="start"><FilterAltOutlinedIcon sx={{ fontSize: 20, color: "#173e69" }} /></InputAdornment> }}>
+                        <MenuItem value="">Όλες οι κατηγορίες</MenuItem>
+                        {categoryOptions.map(option => <MenuItem key={option} value={option}>{notificationCategoryLabel(option)}</MenuItem>)}
+                      </TextField>
+                    </Stack>
 
-                    <Stack direction="row" spacing={0.75} flexWrap="wrap" sx={{ mt: 1.25, gap: 0.5 }}>
+                    <Stack direction="row" spacing={0.75} flexWrap={{ xs: "nowrap", sm: "wrap" }} sx={{ mt: 1.25, gap: 0.5, overflowX: { xs: "auto", sm: "visible" }, pb: 0.25 }}>
                       {FILTERS.map(opt => {
                         const active = severity === opt.key;
                         const color = opt.key === "all" || opt.key === "unread"
@@ -240,10 +268,11 @@ export function NotificationBell() {
                               resetPaging();
                             }}
                             sx={{
-                              borderRadius: 1.5,
-                              fontSize: 11.5,
+                              borderRadius: 2,
+                              fontSize: 11.75,
                               fontWeight: 750,
-                              height: 24,
+                              height: 30,
+                              flexShrink: 0,
                               border: "1px solid",
                               borderColor: active ? color : "#d9e1ea",
                               bgcolor: active ? color : "#fff",
@@ -257,6 +286,18 @@ export function NotificationBell() {
                   </Box>
 
                   <Box sx={{ overflowY: "auto", flex: 1, minHeight: 220 }}>
+                    <Box sx={{
+                      display: { xs: "none", sm: "grid" },
+                      gridTemplateColumns: "46px minmax(0,1fr) 112px 150px 36px",
+                      alignItems: "center", columnGap: 1.25, px: 1.5, py: 1,
+                      bgcolor: "#173a60", color: "#fff", borderBottom: "1px solid #0d2c4d",
+                    }}>
+                      <Box />
+                      <Typography variant="caption" fontWeight={800}>Ειδοποίηση</Typography>
+                      <Typography variant="caption" fontWeight={800}>Ημερομηνία</Typography>
+                      <Typography variant="caption" fontWeight={800}>Κατάσταση</Typography>
+                      <Box />
+                    </Box>
                     {listQ.isLoading && (
                       <Box sx={{ p: 3, textAlign: "center", color: "#456079", fontSize: 13 }}>
                         Φόρτωση…
@@ -265,7 +306,7 @@ export function NotificationBell() {
 
                     {!listQ.isLoading && filtered.length === 0 && (
                       <Box sx={{ p: 4, textAlign: "center", color: "#456079", fontSize: 13 }}>
-                        {search || severity !== "all"
+                        {search || severity !== "all" || category
                           ? "Δεν βρέθηκαν ειδοποιήσεις με αυτά τα φίλτρα."
                           : t("notifications.empty")}
                       </Box>
@@ -281,13 +322,14 @@ export function NotificationBell() {
                           key={n.id}
                           sx={{
                             position: "relative",
-                            px: 2,
-                            py: 1.5,
+                            px: { xs: 1.25, sm: 1.5 },
+                            py: 1.25,
                             cursor: "pointer",
-                            borderLeft: "4px solid",
+                            borderLeft: "3px solid",
                             borderLeftColor: sevColor,
-                            borderBottom: "1px solid #eef2f6",
-                            bgcolor: n.isRead ? "#fff" : NOTIFICATION_SEVERITY_TINT[sev],
+                            borderBottom: "1px solid #dfe7f0",
+                            bgcolor: n.isRead ? "#fff" : "#f1f7ff",
+                            transition: "background-color 180ms ease",
                             "&:hover": { bgcolor: NOTIFICATION_SEVERITY_TINT[sev] }
                           }}
                           onClick={() => {
@@ -295,29 +337,18 @@ export function NotificationBell() {
                             if (!n.isRead) markRead.mutate(n.id);
                           }}
                         >
-                          <Stack direction="row" alignItems="flex-start" spacing={1}>
+                          <Box sx={{
+                            display: "grid",
+                            gridTemplateColumns: { xs: "42px minmax(0,1fr) 34px", sm: "46px minmax(0,1fr) 112px 150px 36px" },
+                            alignItems: "center", columnGap: { xs: 1, sm: 1.25 },
+                          }}>
+                            <Box sx={{
+                              width: 38, height: 38, borderRadius: 1.75, display: "grid", placeItems: "center",
+                              bgcolor: NOTIFICATION_SEVERITY_TINT[sev], color: sevColor, border: `1px solid ${sevColor}35`,
+                            }}>
+                              <ArticleOutlinedIcon fontSize="small" />
+                            </Box>
                             <Box sx={{ flex: 1, minWidth: 0 }}>
-                              <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 0.5 }}>
-                                <Chip
-                                  size="small"
-                                  label={notificationCategoryLabel(n.category)}
-                                  sx={{
-                                    height: 20,
-                                    fontSize: 10.5,
-                                    fontWeight: 800,
-                                    bgcolor: sevColor,
-                                    color: "#fff",
-                                    "& .MuiChip-label": { px: 0.9 }
-                                  }}
-                                />
-                                <Typography sx={{ fontSize: 11.5, color: "#456079" }}>
-                                  {shortDate(n.createdAt)}
-                                </Typography>
-                                {!n.isRead && (
-                                  <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: sevColor, ml: 0.5 }} />
-                                )}
-                              </Stack>
-
                               <Typography
                                 sx={{
                                   fontSize: 14,
@@ -353,6 +384,12 @@ export function NotificationBell() {
                                 {n.body}
                               </Typography>
 
+                              <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 0.6, display: { xs: "flex", sm: "none" } }}>
+                                <Typography sx={{ fontSize: 11.25, color: "#60728b" }}>{shortDate(n.createdAt)}</Typography>
+                                <Box sx={{ width: 5, height: 5, borderRadius: "50%", bgcolor: sevColor }} />
+                                <Typography sx={{ fontSize: 11.25, color: sevColor, fontWeight: 750 }}>{notificationCategoryLabel(n.category)}</Typography>
+                              </Stack>
+
                               {isExpanded && target && (
                                 <Button
                                   size="small"
@@ -367,21 +404,34 @@ export function NotificationBell() {
                                 </Button>
                               )}
                             </Box>
-
-                            {!n.isRead && (
-                              <IconButton
-                                size="small"
-                                title={t("notifications.markRead")}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  markRead.mutate(n.id);
-                                }}
-                                sx={{ color: "#456079" }}
-                              >
-                                <MarkEmailReadIcon fontSize="small" />
-                              </IconButton>
-                            )}
-                          </Stack>
+                            <Typography sx={{ display: { xs: "none", sm: "block" }, fontSize: 11.75, color: "#38536f", whiteSpace: "nowrap" }}>
+                              {shortDate(n.createdAt)}
+                            </Typography>
+                            <Chip size="small" label={notificationCategoryLabel(n.category)} icon={<Box component="span" sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: sevColor }} />}
+                              sx={{
+                                display: { xs: "none", sm: "inline-flex" }, maxWidth: 150, justifySelf: "start",
+                                height: 27, fontSize: 10.75, fontWeight: 800, color: sevColor,
+                                bgcolor: NOTIFICATION_SEVERITY_TINT[sev], border: `1px solid ${sevColor}26`,
+                                "& .MuiChip-label": { overflow: "hidden", textOverflow: "ellipsis" },
+                                "& .MuiChip-icon": { ml: 1, mr: -0.25 },
+                              }} />
+                            <IconButton
+                              size="small"
+                              title={n.isRead ? "Αναγνωσμένη" : t("notifications.markRead")}
+                              disabled={n.isRead}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!n.isRead) markRead.mutate(n.id);
+                              }}
+                              sx={{
+                                width: 32, height: 32, border: "1px solid #cfdae7", borderRadius: 1.25,
+                                color: n.isRead ? "#93a4b6" : "#173e69", bgcolor: "#fff",
+                                "&:hover": { bgcolor: "#eaf3ff" },
+                              }}
+                            >
+                              <MarkEmailReadIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
                         </Box>
                       );
                     })}

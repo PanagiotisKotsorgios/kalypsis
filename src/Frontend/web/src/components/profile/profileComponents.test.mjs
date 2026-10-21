@@ -18,8 +18,19 @@ test("authenticated top bars hide the language toggle and use a compact red logo
   assert.equal(layout.includes('data-tour="topbar-language"'), false);
   for (const source of [layout, maintenance, ermes]) {
     assert.match(source, /bgcolor: "#d32f2f", color: "#fff"/);
-    assert.match(source, /<LogoutIcon fontSize="small" \/>/);
+    assert.match(source, /startIcon=\{<LogoutIcon fontSize="small" \/>\}/);
+    assert.match(source, />\s*Έξοδος\s*<\/Button>/);
   }
+  assert.match(layout, /ml: \{ xs: 0\.75, sm: 1 \}/);
+});
+
+test("notification dropdown follows the compact notification-board design", async () => {
+  const source = await readFile(new URL("../NotificationBell.tsx", import.meta.url), "utf8");
+  for (const label of ["Ειδοποίηση", "Ημερομηνία", "Κατάσταση", "Όλες οι κατηγορίες"]) assert.equal(source.includes(label), true, label);
+  assert.match(source, /sm: 680, md: 760/);
+  assert.match(source, /bgcolor: "#173a60", color: "#fff"/);
+  assert.match(source, /ArticleOutlinedIcon/);
+  assert.match(source, /categoryOptions/);
 });
 
 test("production profiles reuse client fields, pencil/save actions and compact tabs; filters retain API payloads", async () => {

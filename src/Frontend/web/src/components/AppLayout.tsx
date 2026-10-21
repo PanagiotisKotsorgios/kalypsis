@@ -775,16 +775,17 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
           <Stack direction="row" spacing={{ xs: 0.25, md: 1.5 }} alignItems="center" flexShrink={0}>
             <SessionCountdown />
             <Box data-tour="topbar-bell"><NotificationBell /></Box>
-            <IconButton data-tour="topbar-logout" aria-label={t("auth.logout")} onClick={handleSignOut}
-              title={t("auth.logout")} size="small" sx={{
-                width: 38, height: 38, minWidth: 38, minHeight: 38, p: 0,
+            <Button data-tour="topbar-logout" aria-label="Έξοδος" onClick={handleSignOut}
+              title="Έξοδος" size="small" variant="contained" startIcon={<LogoutIcon fontSize="small" />} sx={{
+                height: 38, minWidth: 92, px: 1.35, ml: { xs: 0.75, sm: 1 },
                 borderRadius: 1.25, bgcolor: "#d32f2f", color: "#fff",
+                textTransform: "none", fontWeight: 850, whiteSpace: "nowrap",
                 boxShadow: "0 3px 9px rgba(211,47,47,.24)",
                 "&:hover": { bgcolor: "#b71c1c", color: "#fff" },
                 "&:focus-visible": { outline: "2px solid #ef9a9a", outlineOffset: 2 },
               }}>
-              <LogoutIcon fontSize="small" />
-            </IconButton>
+              Έξοδος
+            </Button>
           </Stack>
         </Toolbar>
       </AppBar>

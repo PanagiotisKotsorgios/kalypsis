@@ -703,6 +703,7 @@ export function ProductionListsPage() {
           {filterVisibility.visible("to") && <TextField type="date" size="small" InputLabelProps={{ shrink: true }} label={t("productionList.to")}
             value={f.to} onChange={e => setF({ ...f, to: e.target.value })} />}
           {filterVisibility.visible("carrier") && <SearchableMultiSelect label={t("productionList.carrier")}
+            showSelectAll
             values={f.insuranceCompanyIds} onChange={values => setF({ ...f, insuranceCompanyIds: productionCarrierSelection(f.insuranceCompanyIds, values, carriers.data ?? []) })}
             options={(carriers.data ?? []).map(carrier => ({
               value: carrier.id, label: carrier.name,
@@ -714,23 +715,30 @@ export function ProductionListsPage() {
             if (!brokers.length || !filterVisibility.visible("subcarrier")) return null;
             const subs = carrierData.filter(carrier => carrier.parentCompanyId && brokers.includes(carrier.parentCompanyId));
             return <SearchableMultiSelect label="Υποασφαλιστικές"
+              showSelectAll
               values={f.insuranceCompanyIds.filter(id => subs.some(carrier => carrier.id === id))}
               onChange={values => setF({ ...f, insuranceCompanyIds: replaceProductionSubcarriers(f.insuranceCompanyIds, values, carrierData) })}
               helperText="Κενή επιλογή: όλες οι υποασφαλιστικές του αντίστοιχου πρακτορείου."
               options={subs.map(carrier => ({ value: carrier.id, label: carrier.name, hint: carrierData.find(parent => parent.id === carrier.parentCompanyId)?.name }))} />;
           })()}
           {filterVisibility.visible("producer") && <SearchableMultiSelect label={t("productionList.producer")}
+            showSelectAll
             values={f.producerIds} onChange={values => setF({ ...f, producerIds: values })}
             options={(producers.data ?? []).map(producer => ({ value: producer.id, label: producer.name }))} />}
           {filterVisibility.visible("type") && <SearchableMultiSelect label={t("productionList.type")}
+            showSelectAll
             values={f.policyTypes} onChange={values => setF({ ...f, policyTypes: values })} options={branchOptions} />}
           {filterVisibility.visible("use") && <SearchableMultiSelect label="Χρήση οχήματος"
+            showSelectAll
             values={f.vehicleUseCategories} onChange={values => setF({ ...f, vehicleUseCategories: values })} options={useOptions} />}
           {filterVisibility.visible("coverage") && <SearchableMultiSelect label="Κάλυψη"
+            showSelectAll
             values={f.coverCodes} onChange={values => setF({ ...f, coverCodes: values })} options={coverageOptions} />}
           {filterVisibility.visible("package") && <SearchableMultiSelect label="Πακέτο"
+            showSelectAll
             values={f.packageCodes} onChange={values => setF({ ...f, packageCodes: values })} options={packageOptions} />}
           {filterVisibility.visible("status") && <SearchableMultiSelect label={t("productionList.status")}
+            showSelectAll
             values={f.statuses} onChange={values => setF({ ...f, statuses: values })}
             options={STATUSES.map(status => ({ value: status, label: t(`policies.statuses.${status}`, status) }))} />}
           {filterVisibility.visible("groupBy") && <SearchableTextField size="small" label={t("productionList.groupBy")} value={f.groupBy}

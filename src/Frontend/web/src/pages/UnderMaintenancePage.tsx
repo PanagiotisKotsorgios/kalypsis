@@ -1,4 +1,4 @@
-import { Box, Button, Card, CardContent, Container, IconButton, Stack, Typography } from "@mui/material";
+import { Box, Button, Card, CardContent, Container, Stack, Typography } from "@mui/material";
 import ConstructionOutlinedIcon from "@mui/icons-material/ConstructionOutlined";
 import LogoutIcon from "@mui/icons-material/Logout";
 import EmailIcon from "@mui/icons-material/Email";
@@ -47,14 +47,16 @@ export function UnderMaintenancePage({ title, message }: { title?: string | null
           </Typography>
           <Stack direction="row" alignItems="center" spacing={1}>
             <SessionCountdown />
-            <IconButton onClick={handleSignOut} title={t("auth.logout")} aria-label={t("auth.logout")} size="small" sx={{
-              width: 38, height: 38, borderRadius: 1.25, bgcolor: "#d32f2f", color: "#fff",
+            <Button onClick={handleSignOut} title="Έξοδος" aria-label="Έξοδος" size="small" variant="contained"
+              startIcon={<LogoutIcon fontSize="small" />} sx={{
+              height: 38, minWidth: 92, px: 1.35, borderRadius: 1.25, bgcolor: "#d32f2f", color: "#fff",
+              textTransform: "none", fontWeight: 850,
               boxShadow: "0 3px 9px rgba(211,47,47,.24)",
               "&:hover": { bgcolor: "#b71c1c", color: "#fff" },
               "&:focus-visible": { outline: "2px solid #ef9a9a", outlineOffset: 2 },
             }}>
-              <LogoutIcon fontSize="small" />
-            </IconButton>
+              Έξοδος
+            </Button>
           </Stack>
         </Stack>
       </Box>

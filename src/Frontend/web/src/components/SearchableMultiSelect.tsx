@@ -4,6 +4,8 @@ import type { SearchOption } from "./SearchableSelect";
 
 // Search the complete catalogue, while bounding the rendered checkbox list.
 const filterMultiOptions = createFilterOptions<SearchOption<string>>({ limit: 300, stringify: option => `${option.label} ${option.value} ${option.hint ?? ""}` });
+const SELECT_ALL_VALUE = "__kalypsis_select_all__";
+const SELECT_ALL_OPTION: SearchOption<string> = { value: SELECT_ALL_VALUE, label: "Επιλογή όλων", hint: "Χωρίς περιορισμό στο συγκεκριμένο πεδίο" };
 
 export function selectedMultiOptions(values: string[], options: SearchOption<string>[]) {
   const known = new Map(options.map(option => [option.value, option]));
@@ -11,17 +13,24 @@ export function selectedMultiOptions(values: string[], options: SearchOption<str
 }
 
 /** Checkbox multi-selection with search; stored values never depend on labels or loaded options. */
-export function SearchableMultiSelect({ label, values, options, onChange, helperText, disabled = false }: {
+export function SearchableMultiSelect({ label, values, options, onChange, helperText, disabled = false, showSelectAll = false }: {
   label: string; values: string[]; options: SearchOption<string>[]; onChange: (values: string[]) => void;
-  helperText?: string; disabled?: boolean;
+  helperText?: string; disabled?: boolean; showSelectAll?: boolean;
 }) {
   const selected = useMemo(() => selectedMultiOptions(values, options), [values, options]);
   const available = useMemo(() => [...new Map([...options, ...selected].map(option => [option.value, option])).values()], [options, selected]);
+  const displayedOptions = useMemo(() => showSelectAll ? [SELECT_ALL_OPTION, ...available] : available, [available, showSelectAll]);
   return <Autocomplete multiple disableCloseOnSelect openOnFocus size="small" fullWidth disabled={disabled}
-    options={available} value={selected} isOptionEqualToValue={(a, b) => a.value === b.value}
-    filterOptions={filterMultiOptions}
-    getOptionLabel={option => option.label} getOptionDisabled={option => !!option.disabled}
-    onChange={(_, next) => onChange(next.map(option => option.value))}
+    options={displayedOptions} value={selected} isOptionEqualToValue={(a, b) => a.value === b.value}
+    filterOptions={(candidateOptions, state) => {
+      const filtered = filterMultiOptions(candidateOptions.filter(option => option.value !== SELECT_ALL_VALUE), state);
+      return showSelectAll ? [SELECT_ALL_OPTION, ...filtered] : filtered;
+    }}
+    getOptionLabel={option => option.label} getOptionDisabled={option => option.value === SELECT_ALL_VALUE ? false : !!option.disabled}
+    onChange={(_, next, _reason, details) => {
+      if (details?.option.value === SELECT_ALL_VALUE) { onChange([]); return; }
+      onChange(next.filter(option => option.value !== SELECT_ALL_VALUE).map(option => option.value));
+    }}
     clearText="Καθαρισμός επιλογών" openText="Εμφάνιση επιλογών" closeText="Κλείσιμο επιλογών" noOptionsText="Δεν βρέθηκαν επιλογές"
     renderTags={(value, getTagProps) => <>
       {value.slice(0, 1).map((option, index) => {
@@ -32,7 +41,8 @@ export function SearchableMultiSelect({ label, values, options, onChange, helper
     </>}
     renderOption={(props, option, state) => {
       const { key, ...rest } = props;
-      return <li {...rest} key={key}><Checkbox checked={state.selected} tabIndex={-1} disableRipple size="small" sx={{ mr: .5, p: .5 }} />
+      const isSelectAll = option.value === SELECT_ALL_VALUE;
+      return <li {...rest} key={key}><Checkbox checked={isSelectAll ? values.length === 0 : state.selected} tabIndex={-1} disableRipple size="small" sx={{ mr: .5, p: .5 }} />
         <Stack sx={{ minWidth: 0 }}><Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>{option.label}</Typography>
           {option.hint && <Typography variant="caption" color="text.secondary">{option.hint}</Typography>}
         </Stack>
