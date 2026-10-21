@@ -22,6 +22,7 @@ test("vehicle and producer pages expose consolidated colored actions", async () 
   }
   assert.match(producers, /Στήλες εξαγωγής/);
   assert.match(producers, /Σύνθετα φίλτρα/);
+  assert.doesNotMatch(producers, /quickFiltersOpen|producerQuickFilters/);
 });
 
 test("policy lifecycle navigation is separate from record actions", async () => {
@@ -41,6 +42,8 @@ test("over-commission statements use one actions menu", async () => {
     assert.match(source, new RegExp(label, "i"));
   }
   assert.match(source, /Ρυθμίσεις υπερπρομηθειών/);
+  assert.match(source, />Υπερπρομήθειες<\/Typography>/);
+  assert.doesNotMatch(source, /Υπερπρομήθειες Παραγωγών/);
 });
 
 test("table toolbar accepts external actions without duplicate buttons", async () => {

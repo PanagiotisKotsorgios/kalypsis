@@ -388,7 +388,7 @@ export function OverCommissionStatementsPage() {
         <Box>
           <Stack direction="row" alignItems="center" spacing={1.5}>
             <ReceiptLongIcon color="primary" sx={{ fontSize: 32 }} />
-            <Typography variant="h4" sx={{ fontWeight: 800 }}>Υπερπρομήθειες Παραγωγών</Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800 }}>Υπερπρομήθειες</Typography>
           </Stack>
           <Typography color="text.secondary" sx={{ mt: 0.5 }}>
             Καταχώρηση της μηνιαίας υπερπρομήθειας ανά παραγωγό και ασφαλιστική εταιρεία — μία γραμμή για κάθε

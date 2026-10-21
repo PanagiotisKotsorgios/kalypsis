@@ -10,7 +10,6 @@ import {
 import { InputAdornment, Fade, Slide, Divider, alpha } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
-import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import TuneIcon from "@mui/icons-material/Tune";
 import DeleteIcon from "@mui/icons-material/Delete";
 import VpnKeyIcon from "@mui/icons-material/VpnKey";
@@ -175,7 +174,6 @@ export function ProducersPage() {
   const [hasPoliciesOnly, setHasPoliciesOnly] = useState(false);
   const [hierarchyFilter, setHierarchyFilter] = useState<HierarchyLevel | "">("");
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
-  const [quickFiltersOpen, setQuickFiltersOpen] = useState(false);
   const rawProducers = q.data ?? [];
   const allRows = rawProducers.filter(p => {
     if (statusFilter && p.status !== statusFilter) return false;
@@ -199,21 +197,6 @@ export function ProducersPage() {
     table.setQuery("");
     table.setPage(1);
   };
-  const producerFilterCount = [statusFilter, tierFilter, hasPoliciesOnly ? "policies" : "", hierarchyFilter, table.query].filter(Boolean).length;
-  const producerQuickFilters = (
-    <QuickFilterBar
-      activeCount={producerFilterCount}
-      onClear={clearProducerFilters}
-      options={[
-        { key: "all", label: "Όλοι", active: producerFilterCount === 0, onClick: clearProducerFilters },
-        { key: "active", label: "Ενεργοί", active: statusFilter === "Active", color: "success", onClick: () => { setStatusFilter("Active"); setQuickFiltersOpen(false); } },
-        { key: "prospects", label: "Πιθανοί", active: statusFilter === "Prospect", color: "warning", onClick: () => { setStatusFilter("Prospect"); setQuickFiltersOpen(false); } },
-        { key: "withPolicies", label: "Με συμβόλαια", active: hasPoliciesOnly, onClick: () => { setHasPoliciesOnly(true); setQuickFiltersOpen(false); } },
-        { key: "managers", label: "Υπεύθυνοι ομάδας", active: hierarchyFilter === "Manager", onClick: () => { setHierarchyFilter("Manager"); setQuickFiltersOpen(false); } },
-      ]}
-    />
-  );
-
   const importProducers = async (importRows: Record<string, string>[]): Promise<BulkImportResult> => {
     let imported = 0;
     const errors: string[] = [];
@@ -339,9 +322,8 @@ export function ProducersPage() {
             display: "grid",
             gridTemplateColumns: {
               xs: "1fr",
-              sm: "repeat(4, minmax(0, 1fr))",
-              md: "minmax(220px, 1.4fr) auto auto auto",
-              lg: "minmax(240px, 1.4fr) auto auto auto",
+              sm: "minmax(0, 1fr) auto",
+              md: "minmax(280px, 1fr) auto",
             },
             gap: 0.75,
             alignItems: "center",
@@ -353,15 +335,9 @@ export function ProducersPage() {
               placeholder="Κωδικός, όνομα, email ή τηλέφωνο…"
               value={table.query}
               onChange={(e) => table.setQuery(e.target.value)}
-              sx={{ minWidth: 0, gridColumn: { xs: "auto", sm: "span 2", md: "auto", lg: "auto" } }}
+              sx={{ minWidth: 0 }}
               InputProps={{ endAdornment: <FilterHelp title="Αναζήτηση σε κωδικό, όνομα, email ή τηλέφωνο συνεργάτη." /> }}
             />
-            <Button size="small" variant={producerFilterCount > 0 ? "contained" : "outlined"} startIcon={<TuneIcon />} onClick={() => setAdvancedFiltersOpen(true)} sx={{ whiteSpace: "nowrap", bgcolor: "#e3f2fd", color: "#1565c0", borderColor: "#90caf9", "&:hover": { bgcolor: "#bbdefb", borderColor: "#64b5f6", color: "#0d47a1" } }}>
-              Σύνθετα φίλτρα{producerFilterCount > 0 ? ` (${producerFilterCount})` : ""}
-            </Button>
-            <Button size="small" variant="outlined" startIcon={<FilterAltIcon />} onClick={() => setQuickFiltersOpen(true)} sx={{ whiteSpace: "nowrap", bgcolor: "#e3f2fd", color: "#1565c0", borderColor: "#90caf9", "&:hover": { bgcolor: "#bbdefb", borderColor: "#64b5f6", color: "#0d47a1" } }}>
-              Γρήγορα φίλτρα
-            </Button>
             <SavedReportsButton entity="producers" currentFilters={{ query: table.query, statusFilter, tierFilter, hasPoliciesOnly, hierarchyFilter }}
               onLoad={next => { table.setQuery(next.query ?? ""); setStatusFilter(next.statusFilter ?? ""); setTierFilter(next.tierFilter ?? ""); setHasPoliciesOnly(Boolean(next.hasPoliciesOnly)); setHierarchyFilter(next.hierarchyFilter ?? ""); }}
               saveRequestToken={saveFilterRequest} />
@@ -391,11 +367,6 @@ export function ProducersPage() {
             </Box>
           </DialogContent>
           <DialogActions><Button color="error" variant="contained" onClick={clearProducerFilters}>Καθαρισμός φίλτρων</Button><Button variant="contained" onClick={() => setAdvancedFiltersOpen(false)}>Εφαρμογή</Button></DialogActions>
-        </Dialog>
-        <Dialog open={quickFiltersOpen} onClose={() => setQuickFiltersOpen(false)} fullWidth maxWidth="sm">
-          <DialogTitle>Γρήγορα φίλτρα</DialogTitle>
-          <DialogContent dividers>{producerQuickFilters}</DialogContent>
-          <DialogActions><Button variant="contained" onClick={() => setQuickFiltersOpen(false)}>Κλείσιμο</Button></DialogActions>
         </Dialog>
       </>
       {false && (
