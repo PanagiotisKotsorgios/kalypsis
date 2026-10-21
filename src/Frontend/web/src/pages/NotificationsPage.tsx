@@ -8,14 +8,25 @@ import {
   CardContent,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   IconButton,
   InputAdornment,
   MenuItem,
   Pagination,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   TextField,
   Tooltip,
-  Typography
+  Typography,
+  useMediaQuery
 } from "@mui/material";
 import DoneAllIcon from "@mui/icons-material/DoneAll";
 import MarkEmailReadIcon from "@mui/icons-material/MarkEmailRead";
@@ -24,6 +35,8 @@ import NotificationsIcon from "@mui/icons-material/Notifications";
 import SearchIcon from "@mui/icons-material/Search";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import ClearAllIcon from "@mui/icons-material/ClearAll";
+import FilterAltOutlinedIcon from "@mui/icons-material/FilterAltOutlined";
+import CloseIcon from "@mui/icons-material/Close";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
@@ -92,6 +105,8 @@ export function NotificationsPage() {
   const [page, setPage] = useState(1);
   const [message, setMessage] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const showInlineFilters = useMediaQuery("(min-width:1500px)");
 
   const invalidate = () => {
     void qc.invalidateQueries({ queryKey: ["notifications"] });
@@ -175,6 +190,48 @@ export function NotificationsPage() {
   const pageRows = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   const resetPage = () => setPage(1);
+  const resetFilters = () => {
+    setSearch("");
+    setStatus("all");
+    setCategory("all");
+    setPeriod("all");
+    setSort("newest");
+    resetPage();
+  };
+
+  const activeFilterCount = [search.trim(), status !== "all", category !== "all", period !== "all", sort !== "newest"]
+    .filter(Boolean).length;
+
+  const filterFields = (stacked = false) => <Stack direction={stacked ? "column" : "row"} spacing={1} alignItems="stretch" sx={{ width: "100%" }}>
+    <TextField size="small" value={search} onChange={(e) => { setSearch(e.target.value); resetPage(); }} placeholder="Αναζήτηση…"
+      sx={{ flex: 1, minWidth: stacked ? 0 : 220 }}
+      InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" sx={{ color: TEXT_MUTED }} /></InputAdornment>, endAdornment: <FilterHelp title="Αναζήτηση σε τίτλο, κείμενο ή τύπο ειδοποίησης." /> }} />
+    <FilterFieldWrap tip="Φιλτράρετε τις ειδοποιήσεις ανά κατάσταση: όλες, μη αναγνωσμένες ή αναγνωσμένες.">
+      <SearchableTextField select size="small" label="Κατάσταση" value={status} onChange={(e) => { setStatus(e.target.value as StatusFilter); resetPage(); }} sx={{ minWidth: stacked ? 0 : 160, width: "100%" }}>
+        <MenuItem value="all">Όλες</MenuItem><MenuItem value="unread">Μη αναγνωσμένες</MenuItem><MenuItem value="read">Αναγνωσμένες</MenuItem>
+      </SearchableTextField>
+    </FilterFieldWrap>
+    <FilterFieldWrap tip="Φιλτράρετε ανά τύπο ειδοποίησης.">
+      <SearchableTextField select size="small" label="Τύπος" value={category} onChange={(e) => { setCategory(e.target.value); resetPage(); }} sx={{ minWidth: stacked ? 0 : 180, width: "100%" }}>
+        <MenuItem value="all">Όλοι οι τύποι</MenuItem>{categories.map(c => <MenuItem key={c.value} value={c.value}>{c.label}</MenuItem>)}
+      </SearchableTextField>
+    </FilterFieldWrap>
+    <FilterFieldWrap tip="Χρονικό παράθυρο εμφάνισης.">
+      <SearchableTextField select size="small" label="Περίοδος" value={period} onChange={(e) => { setPeriod(e.target.value as PeriodFilter); resetPage(); }} sx={{ minWidth: stacked ? 0 : 145, width: "100%" }}>
+        <MenuItem value="all">Όλες</MenuItem><MenuItem value="today">Σήμερα</MenuItem><MenuItem value="7d">Τελευταίες 7 ημέρες</MenuItem><MenuItem value="30d">Τελευταίες 30 ημέρες</MenuItem>
+      </SearchableTextField>
+    </FilterFieldWrap>
+    <FilterFieldWrap tip="Σειρά εμφάνισης.">
+      <SearchableTextField select size="small" label="Σειρά" value={sort} onChange={(e) => { setSort(e.target.value as SortOrder); resetPage(); }} sx={{ minWidth: stacked ? 0 : 145, width: "100%" }}>
+        <MenuItem value="newest">Νεότερες πρώτα</MenuItem><MenuItem value="oldest">Παλαιότερες πρώτα</MenuItem>
+      </SearchableTextField>
+    </FilterFieldWrap>
+    <FilterFieldWrap tip="Πόσες ειδοποιήσεις εμφανίζονται ανά σελίδα.">
+      <SearchableTextField select size="small" label="Ανά σελίδα" value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); resetPage(); }} sx={{ minWidth: stacked ? 0 : 120, width: "100%" }}>
+        {[10, 20, 50].map(size => <MenuItem key={size} value={size}>{size}</MenuItem>)}
+      </SearchableTextField>
+    </FilterFieldWrap>
+  </Stack>;
 
   return (
     <Box>
@@ -252,61 +309,14 @@ export function NotificationsPage() {
 
       <Card sx={{ mb: 2, border: `1px solid ${BORDER}`, boxShadow: "0 10px 30px rgba(11,37,69,0.06)" }}>
         <CardContent sx={{ px: 1.5, py: 1.25 }}>
-          <Stack direction={{ xs: "column", lg: "row" }} spacing={1} alignItems={{ xs: "stretch", lg: "center" }} flexWrap="wrap" useFlexGap>
-            <TextField
-              size="small"
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); resetPage(); }}
-              placeholder="Αναζήτηση…"
-              sx={{ flex: 1, minWidth: 220 }}
-              InputProps={{
-                startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" sx={{ color: TEXT_MUTED }} /></InputAdornment>,
-                endAdornment: <FilterHelp title="Αναζήτηση σε τίτλο, κείμενο ή τύπο ειδοποίησης." />
-              }}
-            />
-            <FilterFieldWrap tip="Φιλτράρετε τις ειδοποιήσεις ανά κατάσταση: όλες, μη αναγνωσμένες ή αναγνωσμένες.">
-              <SearchableTextField select size="small" label="Κατάσταση" value={status}
-                onChange={(e) => { setStatus(e.target.value as StatusFilter); resetPage(); }}
-                sx={{ minWidth: 160, width: "100%" }}>
-                <MenuItem value="all">Όλες</MenuItem>
-                <MenuItem value="unread">Μη αναγνωσμένες</MenuItem>
-                <MenuItem value="read">Αναγνωσμένες</MenuItem>
-              </SearchableTextField>
-            </FilterFieldWrap>
-            <FilterFieldWrap tip="Φιλτράρετε ανά τύπο ειδοποίησης (Ανανέωση, Ζημιά, Πληρωμή κ.λπ.).">
-              <SearchableTextField select size="small" label="Τύπος" value={category}
-                onChange={(e) => { setCategory(e.target.value); resetPage(); }}
-                sx={{ minWidth: 180, width: "100%" }}>
-                <MenuItem value="all">Όλοι οι τύποι</MenuItem>
-                {categories.map(c => <MenuItem key={c.value} value={c.value}>{c.label}</MenuItem>)}
-              </SearchableTextField>
-            </FilterFieldWrap>
-            <FilterFieldWrap tip="Χρονικό παράθυρο εμφάνισης: σήμερα, τελευταίες 7 ή 30 ημέρες.">
-              <SearchableTextField select size="small" label="Περίοδος" value={period}
-                onChange={(e) => { setPeriod(e.target.value as PeriodFilter); resetPage(); }}
-                sx={{ minWidth: 140, width: "100%" }}>
-                <MenuItem value="all">Όλες</MenuItem>
-                <MenuItem value="today">Σήμερα</MenuItem>
-                <MenuItem value="7d">Τελευταίες 7 ημέρες</MenuItem>
-                <MenuItem value="30d">Τελευταίες 30 ημέρες</MenuItem>
-              </SearchableTextField>
-            </FilterFieldWrap>
-            <FilterFieldWrap tip="Σειρά εμφάνισης: πρώτα οι νεότερες ή πρώτα οι παλαιότερες.">
-              <SearchableTextField select size="small" label="Σειρά" value={sort}
-                onChange={(e) => { setSort(e.target.value as SortOrder); resetPage(); }}
-                sx={{ minWidth: 135, width: "100%" }}>
-                <MenuItem value="newest">Νεότερες πρώτα</MenuItem>
-                <MenuItem value="oldest">Παλαιότερες πρώτα</MenuItem>
-              </SearchableTextField>
-            </FilterFieldWrap>
-            <FilterFieldWrap tip="Πόσες ειδοποιήσεις εμφανίζονται ανά σελίδα.">
-              <SearchableTextField select size="small" label="Ανά σελίδα" value={pageSize}
-                onChange={(e) => { setPageSize(Number(e.target.value)); resetPage(); }}
-                sx={{ minWidth: 120, width: "100%" }}>
-                {[10, 20, 50].map(size => <MenuItem key={size} value={size}>{size}</MenuItem>)}
-              </SearchableTextField>
-            </FilterFieldWrap>
-          </Stack>
+          {showInlineFilters ? filterFields() : <Stack direction="row" justifyContent="flex-end">
+            <Button variant="contained" startIcon={<FilterAltOutlinedIcon />} onClick={() => setFiltersOpen(true)} sx={{
+              bgcolor: "#159b59", color: "#fff", fontWeight: 850, px: 2,
+              "&:hover": { bgcolor: "#117f49", color: "#fff" }
+            }}>
+              Φίλτρα{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+            </Button>
+          </Stack>}
 
           {(search || status !== "all" || category !== "all" || period !== "all") && (
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mt: 1.5 }}>
@@ -316,18 +326,25 @@ export function NotificationsPage() {
               <Button
                 size="small"
                 onClick={() => {
-                  setSearch("");
-                  setStatus("all");
-                  setCategory("all");
-                  setPeriod("all");
-                  setSort("newest");
-                  resetPage();
+                  resetFilters();
                 }}
                color="error" variant="contained">Καθαρισμός φίλτρων</Button>
             </Stack>
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={filtersOpen} onClose={() => setFiltersOpen(false)} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: 3, bgcolor: "#edf3f9" } }}>
+        <DialogTitle sx={{ color: NAVY, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "space-between", pb: 1 }}>
+          Φίλτρα ειδοποιήσεων
+          <IconButton onClick={() => setFiltersOpen(false)} aria-label="Κλείσιμο φίλτρων" size="small"><CloseIcon /></IconButton>
+        </DialogTitle>
+        <DialogContent dividers sx={{ pt: 2, bgcolor: "#f8fafc" }}>{filterFields(true)}</DialogContent>
+        <DialogActions sx={{ px: 2.5, py: 1.5 }}>
+          <Button color="error" variant="contained" onClick={resetFilters}>Καθαρισμός</Button>
+          <Button variant="contained" onClick={() => setFiltersOpen(false)} sx={{ bgcolor: "#159b59", color: "#fff", fontWeight: 850, "&:hover": { bgcolor: "#117f49" } }}>Εφαρμογή</Button>
+        </DialogActions>
+      </Dialog>
 
       {listQuery.isLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box>
@@ -346,128 +363,86 @@ export function NotificationsPage() {
           </CardContent>
         </Card>
       ) : (
-        <Stack spacing={1.25}>
-          {pageRows.map((n) => {
-            const sev = notificationSeverity(n.category);
-            const color = NOTIFICATION_SEVERITY_COLOR[sev];
-            const target = notificationActionTarget(n.link);
-            return (
-              <Card
-                key={n.id}
-                sx={{
-                  border: `1px solid ${n.isRead ? BORDER : color}`,
-                  borderLeft: "5px solid",
-                  borderLeftColor: color,
-                  bgcolor: n.isRead ? "background.paper" : NOTIFICATION_SEVERITY_TINT[sev],
-                  boxShadow: n.isRead ? "0 8px 22px rgba(11,37,69,0.05)" : "0 14px 34px rgba(11,37,69,0.10)",
-                  transition: "transform 120ms ease, box-shadow 120ms ease",
-                  "&:hover": { transform: "translateY(-1px)", boxShadow: "0 16px 38px rgba(11,37,69,0.12)" }
-                }}
-              >
-                <CardContent sx={{ p: { xs: 1.75, md: 2.25 } }}>
-                  <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ xs: "stretch", md: "flex-start" }}>
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mb: 1 }}>
-                        <Chip
-                          size="small"
-                          label={notificationCategoryLabel(n.category)}
-                          sx={{
-                            bgcolor: color,
-                            color: "#fff",
-                            fontWeight: 850,
-                            letterSpacing: 0.1
-                          }}
-                        />
-                        <Typography variant="caption" sx={{ color: TEXT_MUTED, fontWeight: 650 }}>
-                          {formatDate(n.createdAt)}
+        <Card sx={{ border: `1px solid ${BORDER}`, bgcolor: "#f8fafc", boxShadow: "0 10px 28px rgba(11,37,69,0.07)", overflow: "hidden" }}>
+          <TableContainer sx={{ overflowX: "auto" }}>
+            <Table size="small" sx={{ minWidth: 880, tableLayout: "fixed" }} aria-label="Πίνακας ειδοποιήσεων">
+              <TableHead>
+                <TableRow sx={{ bgcolor: "#12395f" }}>
+                  <TableCell sx={{ width: "45%", color: "#fff", fontWeight: 850, py: 1.1 }}>Ειδοποίηση</TableCell>
+                  <TableCell sx={{ width: "17%", color: "#fff", fontWeight: 850 }}>Κατηγορία</TableCell>
+                  <TableCell sx={{ width: "16%", color: "#fff", fontWeight: 850 }}>Ημερομηνία</TableCell>
+                  <TableCell sx={{ width: "12%", color: "#fff", fontWeight: 850 }}>Κατάσταση</TableCell>
+                  <TableCell align="right" sx={{ width: "10%", color: "#fff", fontWeight: 850 }}>Ενέργειες</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {pageRows.map((n, index) => {
+                  const sev = notificationSeverity(n.category);
+                  const color = NOTIFICATION_SEVERITY_COLOR[sev];
+                  const target = notificationActionTarget(n.link);
+                  return (
+                    <TableRow key={n.id} hover sx={{
+                      bgcolor: n.isRead ? (index % 2 === 0 ? "#f8fafc" : "#eef2f6") : "#e7f1fc",
+                      borderLeft: `4px solid ${n.isRead ? "#b9c9da" : "#087ceb"}`,
+                      "&:hover": { bgcolor: "#dceafb" },
+                      "& td": { borderColor: "#dce5ef", py: 0.85, px: 1.25, verticalAlign: "middle" }
+                    }}>
+                      <TableCell>
+                        <Typography sx={{ color: NAVY, fontSize: 13.25, fontWeight: n.isRead ? 750 : 900, lineHeight: 1.3 }} noWrap title={n.title}>
+                          {n.title}
                         </Typography>
-                        <Chip
-                          size="small"
-                          variant={n.isRead ? "outlined" : "filled"}
-                          label={n.isRead ? "Αναγνωσμένη" : "Νέα"}
-                          sx={{
-                            height: 22,
-                            fontWeight: 800,
-                            bgcolor: n.isRead ? "transparent" : NAVY,
-                            color: n.isRead ? TEXT_MUTED : "#fff",
-                            borderColor: n.isRead ? BORDER : NAVY
-                          }}
-                        />
-                      </Stack>
-
-                      <Typography sx={{ fontWeight: n.isRead ? 750 : 900, color: NAVY, mb: 0.55, fontSize: 17 }}>
-                        {n.title}
-                      </Typography>
-                      <Typography sx={{ color: TEXT_MUTED, whiteSpace: "pre-wrap", lineHeight: 1.65 }}>
-                        {n.body}
-                      </Typography>
-                    </Box>
-
-                    <Stack direction={{ xs: "row", md: "column" }} spacing={0.75} alignItems={{ xs: "center", md: "flex-end" }} justifyContent="flex-start">
-                      {target && (
-                        <Button
-                          component={RouterLink}
-                          to={target}
-                          size="small"
-                          variant="contained"
-                          startIcon={<OpenInNewIcon />}
-                          onClick={() => !n.isRead && markRead.mutate(n.id)}
-                          sx={{ fontWeight: 850, bgcolor: NAVY, "&:hover": { bgcolor: "#061a36" } }}
-                        >
-                          Άνοιγμα
-                        </Button>
-                      )}
-                      {!n.isRead && (
-                        <Tooltip title={t("notifications.markRead")}>
-                          <IconButton
-                            size="small"
-                            onClick={() => markRead.mutate(n.id)}
-                            disabled={markRead.isPending}
-                            sx={{ color: NAVY, border: `1px solid ${BORDER}` }}
-                          >
-                            <MarkEmailReadIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                      <Tooltip title="Διαγραφή ειδοποίησης">
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => {
-                            if (window.confirm("Να διαγραφεί αυτή η ειδοποίηση;")) deleteOne.mutate(n.id);
-                          }}
-                          disabled={deleteOne.isPending}
-                          sx={{ border: `1px solid ${BORDER}`, bgcolor: "#fff" }}
-                        >
-                          <DeleteOutlineIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Stack>
-                  </Stack>
-                </CardContent>
-              </Card>
-            );
-          })}
-
-          <Card sx={{ border: `1px solid ${BORDER}`, boxShadow: "none" }}>
-            <CardContent sx={{ py: 1.5 }}>
-              <Stack direction={{ xs: "column", md: "row" }} alignItems="center" justifyContent="space-between" gap={1.5}>
-                <Typography variant="body2" color="text.secondary">
-                  Εμφάνιση {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, filtered.length)} από {filtered.length}
-                </Typography>
-                <Pagination
-                  count={totalPages}
-                  page={safePage}
-                  onChange={(_, value) => setPage(value)}
-                  color="primary"
-                  shape="rounded"
-                  showFirstButton
-                  showLastButton
-                />
-              </Stack>
-            </CardContent>
-          </Card>
-        </Stack>
+                        <Typography sx={{ color: TEXT_MUTED, fontSize: 11.75, lineHeight: 1.35, mt: 0.25 }} noWrap title={n.body}>
+                          {n.body}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip size="small" label={notificationCategoryLabel(n.category)} sx={{
+                          maxWidth: "100%", height: 24, bgcolor: NOTIFICATION_SEVERITY_TINT[sev], color,
+                          border: `1px solid ${color}42`, fontWeight: 850, fontSize: 10.5,
+                          "& .MuiChip-label": { overflow: "hidden", textOverflow: "ellipsis" }
+                        }} />
+                      </TableCell>
+                      <TableCell sx={{ color: TEXT_MUTED, fontSize: 11.75, whiteSpace: "nowrap" }}>{formatDate(n.createdAt)}</TableCell>
+                      <TableCell>
+                        <Chip size="small" label={n.isRead ? "Αναγνωσμένη" : "Νέα"} sx={{
+                          height: 23, fontWeight: 850, fontSize: 10.5,
+                          bgcolor: n.isRead ? "#e7edf4" : "#087ceb", color: n.isRead ? "#49637f" : "#fff"
+                        }} />
+                      </TableCell>
+                      <TableCell align="right">
+                        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                          {target && <Tooltip title="Άνοιγμα">
+                            <IconButton component={RouterLink} to={target} size="small" onClick={() => !n.isRead && markRead.mutate(n.id)} sx={{ width: 30, height: 30, bgcolor: "#e1effd", color: "#075fae", "&:hover": { bgcolor: "#cbe3fb" } }}>
+                              <OpenInNewIcon sx={{ fontSize: 17 }} />
+                            </IconButton>
+                          </Tooltip>}
+                          {!n.isRead && <Tooltip title={t("notifications.markRead")}>
+                            <IconButton size="small" onClick={() => markRead.mutate(n.id)} disabled={markRead.isPending} sx={{ width: 30, height: 30, bgcolor: "#e3f4ea", color: "#147a46", "&:hover": { bgcolor: "#ccebd9" } }}>
+                              <MarkEmailReadIcon sx={{ fontSize: 17 }} />
+                            </IconButton>
+                          </Tooltip>}
+                          <Tooltip title="Διαγραφή ειδοποίησης">
+                            <IconButton size="small" onClick={() => { if (window.confirm("Να διαγραφεί αυτή η ειδοποίηση;")) deleteOne.mutate(n.id); }} disabled={deleteOne.isPending}
+                              sx={{ width: 30, height: 30, bgcolor: "#fde7e5", color: "#b42318", "&:hover": { bgcolor: "#f8cfcb" } }}>
+                              <DeleteOutlineIcon sx={{ fontSize: 17 }} />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <Stack direction={{ xs: "column", sm: "row" }} alignItems="center" justifyContent="space-between" gap={1.25}
+            sx={{ px: 1.5, py: 1.15, borderTop: `1px solid ${BORDER}`, bgcolor: "#edf3f9" }}>
+            <Typography variant="body2" sx={{ color: TEXT_MUTED, fontWeight: 650 }}>
+              Εμφάνιση {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, filtered.length)} από {filtered.length}
+            </Typography>
+            <Pagination count={totalPages} page={safePage} onChange={(_, value) => setPage(value)} color="primary" shape="rounded" showFirstButton showLastButton size="small" />
+          </Stack>
+        </Card>
       )}
     </Box>
   );

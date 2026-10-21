@@ -36,7 +36,7 @@ interface NotificationDto {
   createdAt: string;
 }
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 7;
 
 type SeverityFilter = "all" | "success" | "warning" | "error" | "info" | "unread";
 
@@ -48,6 +48,15 @@ const FILTERS: { key: SeverityFilter; label: string }[] = [
   { key: "success", label: "Επιτυχίες" },
   { key: "info", label: "Ενημερώσεις" }
 ];
+
+const FILTER_TONES: Record<SeverityFilter, { soft: string; text: string; active: string }> = {
+  all: { soft: "#e6f0fb", text: "#0b4f8a", active: "#0b3a6e" },
+  unread: { soft: "#dcecff", text: "#075fae", active: "#087ceb" },
+  warning: { soft: "#fff0cf", text: "#8a5800", active: "#9a6200" },
+  error: { soft: "#fde7e5", text: "#a52820", active: "#b42318" },
+  success: { soft: "#e3f4ea", text: "#126d40", active: "#147a46" },
+  info: { soft: "#e5effb", text: "#174f88", active: "#1d4e89" }
+};
 
 function shortDate(value: string) {
   return new Date(value).toLocaleString("el-GR", {
@@ -162,7 +171,7 @@ export function NotificationBell() {
             <Paper
               elevation={0}
               sx={{
-                width: { xs: "calc(100vw - 24px)", sm: 680, md: 760 },
+                width: { xs: "calc(100vw - 20px)", sm: 560, md: 610 },
                 maxHeight: "calc(100vh - 100px)",
                 display: "flex",
                 flexDirection: "column",
@@ -180,25 +189,25 @@ export function NotificationBell() {
                     alignItems="center"
                     justifyContent="space-between"
                     sx={{
-                      p: { xs: 1.5, sm: 2.25 },
-                      gap: 1.5,
+                      p: { xs: 1.25, sm: 1.5 },
+                      gap: 1,
                       bgcolor: "#fff",
                       borderBottom: "1px solid #dfe7f0"
                     }}
                   >
                     <Stack direction="row" alignItems="center" spacing={1.5} sx={{ minWidth: 0 }}>
                       <Box sx={{
-                        width: { xs: 42, sm: 50 }, height: { xs: 42, sm: 50 }, borderRadius: 2.25,
+                        width: 40, height: 40, borderRadius: 1.75,
                         display: "grid", placeItems: "center", flexShrink: 0,
                         bgcolor: "#e3efff", color: "#0b5cad",
                       }}>
-                        <NotificationsIcon sx={{ fontSize: { xs: 24, sm: 29 } }} />
+                        <NotificationsIcon sx={{ fontSize: 23 }} />
                       </Box>
                       <Box sx={{ minWidth: 0 }}>
-                        <Typography sx={{ fontSize: { xs: 18, sm: 23 }, fontWeight: 900, color: "#081b3a", lineHeight: 1.15 }}>
+                        <Typography sx={{ fontSize: { xs: 17, sm: 19 }, fontWeight: 900, color: "#081b3a", lineHeight: 1.15 }}>
                           {t("notifications.title")}
                         </Typography>
-                        <Typography sx={{ fontSize: { xs: 12, sm: 14 }, color: "#60728b", mt: 0.25 }}>
+                        <Typography sx={{ fontSize: 11.75, color: "#60728b", mt: 0.15 }}>
                           {count > 0 ? `${count} μη αναγνωσμένες` : "Όλα ενημερωμένα"}
                         </Typography>
                       </Box>
@@ -213,7 +222,7 @@ export function NotificationBell() {
                         sx={{
                           fontSize: { xs: 0, sm: 13 },
                           fontWeight: 800,
-                          minWidth: { xs: 38, sm: 230 }, height: 40, px: { xs: 1, sm: 1.5 },
+                          minWidth: { xs: 36, sm: 190 }, height: 36, px: { xs: 0.75, sm: 1.25 },
                           color: "#0b5cad", borderColor: "#9dc5ff", borderRadius: 2,
                           "&:hover": { bgcolor: "#edf5ff", borderColor: "#4b97f3" },
                           "& .MuiButton-startIcon": { mr: { xs: 0, sm: 1 } },
@@ -224,7 +233,7 @@ export function NotificationBell() {
                     )}
                   </Stack>
 
-                  <Box sx={{ p: { xs: 1.25, sm: 1.75 }, borderBottom: "1px solid #dfe7f0", bgcolor: "#f8fbff" }}>
+                  <Box sx={{ p: { xs: 1, sm: 1.25 }, borderBottom: "1px solid #dfe7f0", bgcolor: "#edf5fd" }}>
                     <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                       <TextField
                         size="small"
@@ -242,10 +251,10 @@ export function NotificationBell() {
                             </InputAdornment>
                           )
                         }}
-                        sx={{ flex: 1, "& .MuiOutlinedInput-root": { height: 44, borderRadius: 2, fontSize: 14, bgcolor: "#fff" } }}
+                        sx={{ flex: 1, "& .MuiOutlinedInput-root": { height: 38, borderRadius: 1.75, fontSize: 13, bgcolor: "#fff" } }}
                       />
                       <TextField select size="small" value={category} onChange={(event) => { setCategory(event.target.value); resetPaging(); }}
-                        aria-label="Κατηγορία ειδοποιήσεων" sx={{ width: { xs: "100%", sm: 220 }, "& .MuiOutlinedInput-root": { height: 44, borderRadius: 2, bgcolor: "#fff" } }}
+                        aria-label="Κατηγορία ειδοποιήσεων" sx={{ width: { xs: "100%", sm: 185 }, "& .MuiOutlinedInput-root": { height: 38, borderRadius: 1.75, fontSize: 13, bgcolor: "#fff" } }}
                         InputProps={{ startAdornment: <InputAdornment position="start"><FilterAltOutlinedIcon sx={{ fontSize: 20, color: "#173e69" }} /></InputAdornment> }}>
                         <MenuItem value="">Όλες οι κατηγορίες</MenuItem>
                         {categoryOptions.map(option => <MenuItem key={option} value={option}>{notificationCategoryLabel(option)}</MenuItem>)}
@@ -255,9 +264,7 @@ export function NotificationBell() {
                     <Stack direction="row" spacing={0.75} flexWrap={{ xs: "nowrap", sm: "wrap" }} sx={{ mt: 1.25, gap: 0.5, overflowX: { xs: "auto", sm: "visible" }, pb: 0.25 }}>
                       {FILTERS.map(opt => {
                         const active = severity === opt.key;
-                        const color = opt.key === "all" || opt.key === "unread"
-                          ? "#0b2545"
-                          : NOTIFICATION_SEVERITY_COLOR[opt.key];
+                        const tone = FILTER_TONES[opt.key];
                         return (
                           <Chip
                             key={opt.key}
@@ -269,15 +276,15 @@ export function NotificationBell() {
                             }}
                             sx={{
                               borderRadius: 2,
-                              fontSize: 11.75,
+                              fontSize: 11.25,
                               fontWeight: 750,
-                              height: 30,
+                              height: 27,
                               flexShrink: 0,
                               border: "1px solid",
-                              borderColor: active ? color : "#d9e1ea",
-                              bgcolor: active ? color : "#fff",
-                              color: active ? "#fff" : "#0b2545",
-                              "&:hover": { bgcolor: active ? color : "rgba(29,78,137,0.06)" }
+                              borderColor: active ? tone.active : `${tone.text}45`,
+                              bgcolor: active ? tone.active : tone.soft,
+                              color: active ? "#fff" : tone.text,
+                              "&:hover": { bgcolor: active ? tone.active : tone.soft, color: active ? "#fff" : tone.text, filter: active ? "brightness(.88)" : "brightness(.96)" }
                             }}
                           />
                         );
@@ -288,8 +295,8 @@ export function NotificationBell() {
                   <Box sx={{ overflowY: "auto", flex: 1, minHeight: 220 }}>
                     <Box sx={{
                       display: { xs: "none", sm: "grid" },
-                      gridTemplateColumns: "46px minmax(0,1fr) 112px 150px 36px",
-                      alignItems: "center", columnGap: 1.25, px: 1.5, py: 1,
+                      gridTemplateColumns: "38px minmax(0,1fr) 92px 118px 32px",
+                      alignItems: "center", columnGap: 1, px: 1.25, py: 0.75,
                       bgcolor: "#173a60", color: "#fff", borderBottom: "1px solid #0d2c4d",
                     }}>
                       <Box />
@@ -323,14 +330,14 @@ export function NotificationBell() {
                           sx={{
                             position: "relative",
                             px: { xs: 1.25, sm: 1.5 },
-                            py: 1.25,
+                            py: 0.85,
                             cursor: "pointer",
                             borderLeft: "3px solid",
                             borderLeftColor: sevColor,
                             borderBottom: "1px solid #dfe7f0",
                             bgcolor: n.isRead ? "#fff" : "#f1f7ff",
                             transition: "background-color 180ms ease",
-                            "&:hover": { bgcolor: NOTIFICATION_SEVERITY_TINT[sev] }
+                            "&:hover": { bgcolor: "#e7f1fc" }
                           }}
                           onClick={() => {
                             setExpandedId(prev => prev === n.id ? null : n.id);
@@ -339,19 +346,19 @@ export function NotificationBell() {
                         >
                           <Box sx={{
                             display: "grid",
-                            gridTemplateColumns: { xs: "42px minmax(0,1fr) 34px", sm: "46px minmax(0,1fr) 112px 150px 36px" },
-                            alignItems: "center", columnGap: { xs: 1, sm: 1.25 },
+                            gridTemplateColumns: { xs: "36px minmax(0,1fr) 30px", sm: "38px minmax(0,1fr) 92px 118px 32px" },
+                            alignItems: "center", columnGap: 1,
                           }}>
                             <Box sx={{
-                              width: 38, height: 38, borderRadius: 1.75, display: "grid", placeItems: "center",
-                              bgcolor: NOTIFICATION_SEVERITY_TINT[sev], color: sevColor, border: `1px solid ${sevColor}35`,
+                              width: 32, height: 32, borderRadius: 1.4, display: "grid", placeItems: "center",
+                              bgcolor: "#e6f0fb", color: "#0b5cad", border: "1px solid #c8dcf1",
                             }}>
                               <ArticleOutlinedIcon fontSize="small" />
                             </Box>
                             <Box sx={{ flex: 1, minWidth: 0 }}>
                               <Typography
                                 sx={{
-                                  fontSize: 14,
+                                  fontSize: 12.75,
                                   fontWeight: n.isRead ? 650 : 850,
                                   color: "#0b2545",
                                   lineHeight: 1.35,
@@ -368,14 +375,14 @@ export function NotificationBell() {
 
                               <Typography
                                 sx={{
-                                  fontSize: 12.75,
+                                  fontSize: 11.5,
                                   color: "#456079",
                                   mt: 0.35,
                                   lineHeight: 1.5,
                                   whiteSpace: isExpanded ? "pre-wrap" : "normal",
                                   ...(isExpanded ? {} : {
                                     display: "-webkit-box",
-                                    WebkitLineClamp: 2,
+                                    WebkitLineClamp: 1,
                                     WebkitBoxOrient: "vertical",
                                     overflow: "hidden"
                                   })
@@ -404,13 +411,13 @@ export function NotificationBell() {
                                 </Button>
                               )}
                             </Box>
-                            <Typography sx={{ display: { xs: "none", sm: "block" }, fontSize: 11.75, color: "#38536f", whiteSpace: "nowrap" }}>
+                            <Typography sx={{ display: { xs: "none", sm: "block" }, fontSize: 10.75, color: "#38536f", whiteSpace: "nowrap" }}>
                               {shortDate(n.createdAt)}
                             </Typography>
                             <Chip size="small" label={notificationCategoryLabel(n.category)} icon={<Box component="span" sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: sevColor }} />}
                               sx={{
-                                display: { xs: "none", sm: "inline-flex" }, maxWidth: 150, justifySelf: "start",
-                                height: 27, fontSize: 10.75, fontWeight: 800, color: sevColor,
+                                display: { xs: "none", sm: "inline-flex" }, maxWidth: 118, justifySelf: "start",
+                                height: 24, fontSize: 9.75, fontWeight: 800, color: sevColor,
                                 bgcolor: NOTIFICATION_SEVERITY_TINT[sev], border: `1px solid ${sevColor}26`,
                                 "& .MuiChip-label": { overflow: "hidden", textOverflow: "ellipsis" },
                                 "& .MuiChip-icon": { ml: 1, mr: -0.25 },

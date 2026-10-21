@@ -772,12 +772,12 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
           )}
           {!useWorkspaceUi && <Box sx={{ flex: 1 }} />}
 
-          <Stack direction="row" spacing={{ xs: 0.25, md: 1.5 }} alignItems="center" flexShrink={0}>
+          <Stack direction="row" spacing={{ xs: 1, md: 1.75 }} alignItems="center" flexShrink={0}>
             <SessionCountdown />
             <Box data-tour="topbar-bell"><NotificationBell /></Box>
             <Button data-tour="topbar-logout" aria-label="Έξοδος" onClick={handleSignOut}
               title="Έξοδος" size="small" variant="contained" startIcon={<LogoutIcon fontSize="small" />} sx={{
-                height: 38, minWidth: 92, px: 1.35, ml: { xs: 0.75, sm: 1 },
+                height: 38, minWidth: 92, px: 1.35, ml: { xs: 1, sm: 1.5 },
                 borderRadius: 1.25, bgcolor: "#d32f2f", color: "#fff",
                 textTransform: "none", fontWeight: 850, whiteSpace: "nowrap",
                 boxShadow: "0 3px 9px rgba(211,47,47,.24)",

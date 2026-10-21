@@ -21,16 +21,28 @@ test("authenticated top bars hide the language toggle and use a compact red logo
     assert.match(source, /startIcon=\{<LogoutIcon fontSize="small" \/>\}/);
     assert.match(source, />\s*Έξοδος\s*<\/Button>/);
   }
-  assert.match(layout, /ml: \{ xs: 0\.75, sm: 1 \}/);
+  assert.match(layout, /spacing=\{\{ xs: 1, md: 1\.75 \}\}/);
+  assert.match(layout, /ml: \{ xs: 1, sm: 1\.5 \}/);
 });
 
 test("notification dropdown follows the compact notification-board design", async () => {
   const source = await readFile(new URL("../NotificationBell.tsx", import.meta.url), "utf8");
   for (const label of ["Ειδοποίηση", "Ημερομηνία", "Κατάσταση", "Όλες οι κατηγορίες"]) assert.equal(source.includes(label), true, label);
-  assert.match(source, /sm: 680, md: 760/);
+  assert.match(source, /sm: 560, md: 610/);
   assert.match(source, /bgcolor: "#173a60", color: "#fff"/);
   assert.match(source, /ArticleOutlinedIcon/);
   assert.match(source, /categoryOptions/);
+  assert.match(source, /FILTER_TONES/);
+  assert.match(source, /bgcolor: active \? tone\.active : tone\.soft/);
+});
+
+test("notifications page uses a compact responsive Kalypsis table and modal filters", async () => {
+  const source = await readFile(new URL("../../pages/NotificationsPage.tsx", import.meta.url), "utf8");
+  assert.match(source, /aria-label="Πίνακας ειδοποιήσεων"/);
+  for (const label of ["Ειδοποίηση", "Κατηγορία", "Ημερομηνία", "Κατάσταση", "Ενέργειες"]) assert.equal(source.includes(label), true, label);
+  assert.match(source, /showInlineFilters = useMediaQuery/);
+  assert.match(source, /Φίλτρα ειδοποιήσεων/);
+  assert.match(source, /bgcolor: "#159b59", color: "#fff"/);
 });
 
 test("production profiles reuse client fields, pencil/save actions and compact tabs; filters retain API payloads", async () => {
