@@ -291,8 +291,9 @@ const restoredBackOfficeItems: NavItem[] = [
   // The four company-bridge tools are intentionally exposed through one
   // Production hub. Their concrete routes remain available as deep links.
   { to: "/carrier-bridges-hub", labelKey: "nav.carrierBridges", icon: <HubIcon />, package: "BackOffice", group: "production" },
-  { to: "/financials?tab=receipts", labelKey: "nav.receipts", icon: <ReceiptLongIcon />, package: "BackOffice", group: "financials" },
-  { to: "/financials?tab=payments", labelKey: "nav.payments", icon: <PaymentsIcon />, package: "BackOffice", group: "financials" },
+  // Receipts and payments live as first-class tabs/buttons in the unified
+  // Financials workspace. Keep their deep-link routes, but do not duplicate
+  // them in the Financials sidebar dropdown.
   { to: "/advance-payments", labelKey: "nav.advance", icon: <AccountBalanceIcon />, package: "BackOffice", group: "financials" },
 ];
 

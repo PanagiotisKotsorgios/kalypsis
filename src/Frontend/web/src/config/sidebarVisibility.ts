@@ -118,8 +118,6 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
     groupKey: "financials",
     items: [
       { path: "/financials", label: "Οικονομικά" },
-      { path: "/financials?tab=receipts", label: "Εισπράξεις" },
-      { path: "/financials?tab=payments", label: "Πληρωμές" },
       { path: "/advance-payments", label: "Προκαταβολές" },
       { path: "/bulk-receipts", label: "Εισαγωγή πολλαπλών εισπράξεων", available: false, detail: "Υπό ανάπτυξη — παραμένει κρυφό από τα γραφεία." },
       { path: "/auto-receipt-matching", label: "Αυτόματη είσπραξη ισόποσων", available: false, detail: "Υπό ανάπτυξη — παραμένει κρυφό από τα γραφεία." },
