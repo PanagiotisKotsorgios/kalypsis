@@ -5,7 +5,6 @@ import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
 } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -21,6 +20,8 @@ import { ColumnPreferencesButton } from "../components/ColumnPreferencesButton";
 import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import { QuickFilterBar } from "../components/QuickFilterBar";
 import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
+import { SavedReportsButton } from "../components/SavedReportsButton";
+import { UnifiedActionsMenu } from "../components/UnifiedActionsMenu";
 
 const METHODS = ["Cash","Card","BankTransfer","Cheque","PromissoryNote","Other"] as const;
 type Method = typeof METHODS[number];
@@ -75,6 +76,9 @@ export function PaymentsPage() {
   const [toDate,   setToDate]   = useState("");
   const [amountMin, setAmountMin] = useState("");
   const [amountMax, setAmountMax] = useState("");
+  const [saveFilterRequest, setSaveFilterRequest] = useState(0);
+  const [exportAction, setExportAction] = useState<{ token: number; action: "xlsx" | "csv" | "pdf" | "print" }>({ token: 0, action: "xlsx" });
+  const [columnsRequest, setColumnsRequest] = useState(0);
 
   const q = useQuery({ queryKey: ["payments"], queryFn: async () => (await api.get<PaymentDto[]>("/payments")).data });
   const obligations = useQuery({
@@ -175,8 +179,11 @@ export function PaymentsPage() {
               {money(total)} · −{money(netted)} · {money(cashOutTotal)}
             </Typography>
           </Box>
-          <DataExportButton entity="payments" search={search} />
-          <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>{t("payments.create")}</Button>
+          <DataExportButton entity="payments" search={search} actionRequest={exportAction} hideButton />
+          <UnifiedActionsMenu createLabel={t("payments.create")} onCreate={() => setCreateOpen(true)}
+            onSaveFilter={() => setSaveFilterRequest(value => value + 1)}
+            onExport={action => setExportAction(value => ({ token: value.token + 1, action }))}
+            onColumns={() => setColumnsRequest(value => value + 1)} disabledExports={!filteredRows.length} />
         </Stack>
       </Stack>
 
@@ -255,6 +262,9 @@ export function PaymentsPage() {
           <Button size="small" onClick={() => {
             clearPaymentFilters();
           }} color="error" variant="contained">Καθαρισμός</Button>
+          <SavedReportsButton entity="payments" currentFilters={{ search, methodFilter, benFilter, fromDate, toDate, amountMin, amountMax }}
+            onLoad={filters => { setSearch(filters.search ?? ""); setMethodFilter(filters.methodFilter ?? ""); setBenFilter(filters.benFilter ?? ""); setFromDate(filters.fromDate ?? ""); setToDate(filters.toDate ?? ""); setAmountMin(filters.amountMin ?? ""); setAmountMax(filters.amountMax ?? ""); }}
+            saveRequestToken={saveFilterRequest} />
         </Stack>
       </ResponsiveFilterPanel>
 
@@ -280,6 +290,8 @@ export function PaymentsPage() {
                   toggleVisibility={paymentCols.toggleVisibility}
                   moveColumn={paymentCols.moveColumn}
                   reset={paymentCols.reset}
+                  openRequestToken={columnsRequest}
+                  hideButton
                 />
               </TableCell>
             </TableRow></TableHead>

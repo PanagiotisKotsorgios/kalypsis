@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Button,
   ButtonGroup,
@@ -50,6 +50,10 @@ interface DataExportButtonProps<T = unknown> {
   /** Print header. Defaults to `entity`. */
   printTitle?: string;
   printSubtitle?: string;
+  /** Increment the token to invoke an export/print action from a parent menu. */
+  actionRequest?: { token: number; action: AnyAction };
+  /** Keep the export engine mounted while hiding its standalone buttons. */
+  hideButton?: boolean;
 }
 
 const FORMAT_META: Record<ExportFormat, { label: string; icon: JSX.Element; mime: string; ext: string }> = {
@@ -85,6 +89,8 @@ export function DataExportButton<T = unknown>({
   printColumns,
   printTitle,
   printSubtitle,
+  actionRequest,
+  hideButton = false,
 }: DataExportButtonProps<T>) {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -164,6 +170,17 @@ export function DataExportButton<T = unknown>({
       setOpen(false);
     }
   };
+
+  useEffect(() => {
+    if (!actionRequest?.token) return;
+    if (actionRequest.action === "print") handlePrint();
+    else void download(actionRequest.action);
+    // The token is an explicit command boundary; export dependencies are read
+    // from the current render when that command changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actionRequest?.token]);
+
+  if (hideButton) return null;
 
   return (
     <>

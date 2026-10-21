@@ -4,13 +4,10 @@ import {
   Alert, Box, Button, Card, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Typography
 } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import PaymentsIcon from "@mui/icons-material/Payments";
-import DownloadIcon from "@mui/icons-material/Download";
 import SearchIcon from "@mui/icons-material/Search";
 import FilterAltOffIcon from "@mui/icons-material/FilterAltOff";
-import PrintIcon from "@mui/icons-material/Print";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
@@ -19,6 +16,8 @@ import { money } from "../utils/format";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { exportRowsCsv } from "../utils/exportCsv";
+import { SavedReportsButton } from "../components/SavedReportsButton";
+import { UnifiedActionsMenu } from "../components/UnifiedActionsMenu";
 
 interface IndemnityDto {
   id: string; claimId: string; claimNumber: string;
@@ -44,6 +43,7 @@ export function ClaimIndemnitiesPage() {
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [saveFilterRequest, setSaveFilterRequest] = useState(0);
 
   const q = useQuery({ queryKey: ["indemnities"], queryFn: async () => (await api.get<IndemnityDto[]>("/indemnities")).data });
   const del = useMutation({
@@ -139,7 +139,10 @@ export function ClaimIndemnitiesPage() {
             <Typography variant="caption" color="text.secondary">{t("indemnities.totalsLabel")}</Typography>
             <Typography variant="body1" fontWeight={800}>{money(total)}</Typography>
           </Box>
-          <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>{t("indemnities.create")}</Button>
+          <UnifiedActionsMenu createLabel={t("indemnities.create")} onCreate={() => setCreateOpen(true)}
+            onSaveFilter={() => setSaveFilterRequest(value => value + 1)} disabledExports={!filteredRows.length}
+            exportFormats={["csv", "xlsx", "print"]}
+            onExport={action => { if (action === "csv") exportCsv(); else if (action === "xlsx") void exportXlsx(); else if (action === "print") window.print(); }} />
         </Stack>
       </Stack>
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
@@ -155,16 +158,14 @@ export function ClaimIndemnitiesPage() {
           </TextField>
           <TextField type="date" size="small" label="Από" InputLabelProps={{ shrink: true }} value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
           <TextField type="date" size="small" label="Έως" InputLabelProps={{ shrink: true }} value={dateTo} onChange={e => setDateTo(e.target.value)} />
+          <SavedReportsButton entity="claim-indemnities" currentFilters={{ search, payeeTypeFilter, methodFilter, dateFrom, dateTo }}
+            onLoad={filters => { setSearch(filters.search ?? ""); setPayeeTypeFilter(filters.payeeTypeFilter ?? "all"); setMethodFilter(filters.methodFilter ?? "all"); setDateFrom(filters.dateFrom ?? ""); setDateTo(filters.dateTo ?? ""); }}
+            saveRequestToken={saveFilterRequest} />
           <Button size="small" color="error" variant="contained" startIcon={<FilterAltOffIcon />} onClick={clearFilters}>Καθαρισμός φίλτρων</Button>
         </Stack>
       </Card>
       <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" useFlexGap spacing={1} sx={{ mb: 1 }}>
         <Typography variant="body2" color="text.secondary">Εμφανίζονται {filteredRows.length} από {rows.length} αποζημιώσεις</Typography>
-        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-          <Button size="small" variant="outlined" startIcon={<DownloadIcon />} onClick={exportCsv} disabled={!filteredRows.length}>Εξαγωγή CSV</Button>
-          <Button size="small" variant="outlined" startIcon={<DownloadIcon />} onClick={() => void exportXlsx()} disabled={!filteredRows.length}>Εξαγωγή XLSX</Button>
-          <Button size="small" variant="outlined" startIcon={<PrintIcon />} onClick={() => window.print()} disabled={!filteredRows.length}>Εκτύπωση</Button>
-        </Stack>
       </Stack>
       {q.isLoading ? <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box> : (
         <Card variant="outlined" sx={{ overflowX: "auto" }}>

@@ -5,7 +5,6 @@ import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
 } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/EditOutlined";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
@@ -26,6 +25,7 @@ import { useColumnPreferences } from "../hooks/useColumnPreferences";
 import { ColumnPreferencesButton } from "../components/ColumnPreferencesButton";
 import { SavedReportsButton } from "../components/SavedReportsButton";
 import { InlineValueField } from "../components/InlineValueField";
+import { UnifiedActionsMenu } from "../components/UnifiedActionsMenu";
 
 const METHODS = ["Cash","Card","BankTransfer","Cheque","PromissoryNote","Other"] as const;
 type Method = typeof METHODS[number];
@@ -91,6 +91,9 @@ export function ReceiptsPage() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [customerFilter, setCustomerFilter] = useState("");
+  const [saveFilterRequest, setSaveFilterRequest] = useState(0);
+  const [exportAction, setExportAction] = useState<{ token: number; action: "xlsx" | "csv" | "pdf" | "print" }>({ token: 0, action: "xlsx" });
+  const [columnsRequest, setColumnsRequest] = useState(0);
 
   const q = useQuery({
     queryKey: ["receipts"],
@@ -195,8 +198,11 @@ export function ReceiptsPage() {
             <Typography variant="caption" color="text.secondary">{t("receipts.totalShown")}</Typography>
             <Typography variant="h5" fontWeight={800}>{money(total)}</Typography>
           </Box>
-          <DataExportButton entity="receipts" search={search} />
-          <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setEditingReceipt(null); setCreateOpen(true); }}>{t("receipts.create")}</Button>
+          <DataExportButton entity="receipts" search={search} actionRequest={exportAction} hideButton />
+          <UnifiedActionsMenu createLabel={t("receipts.create")} onCreate={() => { setEditingReceipt(null); setCreateOpen(true); }}
+            onSaveFilter={() => setSaveFilterRequest(value => value + 1)}
+            onExport={action => setExportAction(value => ({ token: value.token + 1, action }))}
+            onColumns={() => setColumnsRequest(value => value + 1)} disabledExports={!table.filtered.length} />
         </Stack>
       </Stack>
 
@@ -232,10 +238,10 @@ export function ReceiptsPage() {
             setSearch(""); setMethodFilter(""); setFromDate(""); setToDate(""); setCustomerFilter("");
           }} color="error" variant="contained">Καθαρισμός</Button>
           <SavedReportsButton
-            inline
             entity="receipts"
             currentFilters={savedReceiptFilters}
             onLoad={loadSavedReceiptFilters}
+            saveRequestToken={saveFilterRequest}
           />
         </Stack>
       </Card>
@@ -263,6 +269,8 @@ export function ReceiptsPage() {
                   toggleVisibility={receiptCols.toggleVisibility}
                   moveColumn={receiptCols.moveColumn}
                   reset={receiptCols.reset}
+                  openRequestToken={columnsRequest}
+                  hideButton
                 />
               </TableCell>
             </TableRow></TableHead>

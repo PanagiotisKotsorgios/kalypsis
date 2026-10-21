@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Box, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, IconButton,
   ListItemText, Stack, Tooltip, Typography
@@ -19,24 +19,30 @@ import type { ColumnConfig } from "../hooks/useColumnPreferences";
  * hide them (typically a primary-id column).
  */
 export function ColumnPreferencesButton({
-  orderedColumns, hiddenSet, toggleVisibility, moveColumn, reset,
+  orderedColumns, hiddenSet, toggleVisibility, moveColumn, reset, openRequestToken = 0, hideButton = false,
 }: {
   orderedColumns: ColumnConfig[];
   hiddenSet: Set<string>;
   toggleVisibility: (key: string) => void;
   moveColumn: (from: string, to: string) => void;
   reset: () => void;
+  openRequestToken?: number;
+  hideButton?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [dragKey, setDragKey] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (openRequestToken > 0) setOpen(true);
+  }, [openRequestToken]);
+
   return (
     <>
-      <Tooltip title="Στήλες πίνακα">
+      {!hideButton && <Tooltip title="Στήλες πίνακα">
         <IconButton size="small" onClick={() => setOpen(true)} aria-label="Στήλες πίνακα">
           <ViewColumnIcon fontSize="small" />
         </IconButton>
-      </Tooltip>
+      </Tooltip>}
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontWeight: 800 }}>Στήλες πίνακα</DialogTitle>
         <DialogContent>

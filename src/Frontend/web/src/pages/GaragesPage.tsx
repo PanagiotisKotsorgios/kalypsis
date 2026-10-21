@@ -3,19 +3,18 @@ import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   IconButton, MenuItem, Stack, Switch, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Typography
 } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import BuildIcon from "@mui/icons-material/Build";
-import DownloadIcon from "@mui/icons-material/Download";
 import SearchIcon from "@mui/icons-material/Search";
 import FilterAltOffIcon from "@mui/icons-material/FilterAltOff";
-import PrintIcon from "@mui/icons-material/Print";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { exportRowsCsv } from "../utils/exportCsv";
+import { SavedReportsButton } from "../components/SavedReportsButton";
+import { UnifiedActionsMenu } from "../components/UnifiedActionsMenu";
 
 interface GarageDto {
   id: string; code: string; name: string; afm: string | null;
@@ -36,6 +35,7 @@ export function GaragesPage() {
   const [cityFilter, setCityFilter] = useState("all");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [saveFilterRequest, setSaveFilterRequest] = useState(0);
 
   const q = useQuery({ queryKey: ["garages"], queryFn: async () => (await api.get<GarageDto[]>("/garages")).data });
   const rows = q.data ?? [];
@@ -91,7 +91,10 @@ export function GaragesPage() {
             <Typography color="text.secondary">{t("garages.subtitle")}</Typography>
           </Box>
         </Stack>
-        <Button size="large" variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>{t("garages.create")}</Button>
+        <UnifiedActionsMenu createLabel={t("garages.create")} onCreate={() => setCreateOpen(true)}
+          onSaveFilter={() => setSaveFilterRequest(value => value + 1)} disabledExports={!filteredRows.length}
+          exportFormats={["csv", "xlsx", "print"]}
+          onExport={action => { if (action === "csv") exportCsv(); else if (action === "xlsx") void exportXlsx(); else if (action === "print") window.print(); }} />
       </Stack>
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
       <Card variant="outlined" sx={{ p: 1.25, mb: 1.5, bgcolor: "#f4f7fb" }}>
@@ -100,16 +103,14 @@ export function GaragesPage() {
           <TextField select size="small" label="Έγκριση" value={approvalFilter} onChange={e => setApprovalFilter(e.target.value)} sx={{ minWidth: 140 }}><MenuItem value="all">Όλα</MenuItem><MenuItem value="approved">Εγκεκριμένα</MenuItem><MenuItem value="unapproved">Μη εγκεκριμένα</MenuItem></TextField>
           <TextField select size="small" label="Κατάσταση" value={activeFilter} onChange={e => setActiveFilter(e.target.value)} sx={{ minWidth: 135 }}><MenuItem value="all">Όλες</MenuItem><MenuItem value="active">Ενεργά</MenuItem><MenuItem value="inactive">Ανενεργά</MenuItem></TextField>
           <TextField select size="small" label="Πόλη" value={cityFilter} onChange={e => setCityFilter(e.target.value)} sx={{ minWidth: 145 }}><MenuItem value="all">Όλες</MenuItem>{cities.map(city => <MenuItem key={city} value={city}>{city}</MenuItem>)}</TextField>
+          <SavedReportsButton entity="garages" currentFilters={{ search, approvalFilter, activeFilter, cityFilter }}
+            onLoad={filters => { setSearch(filters.search ?? ""); setApprovalFilter(filters.approvalFilter ?? "all"); setActiveFilter(filters.activeFilter ?? "all"); setCityFilter(filters.cityFilter ?? "all"); }}
+            saveRequestToken={saveFilterRequest} />
           <Button size="small" color="error" variant="contained" startIcon={<FilterAltOffIcon />} onClick={clearFilters}>Καθαρισμός</Button>
         </Stack>
       </Card>
       <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" useFlexGap spacing={1} sx={{ mb: 1 }}>
         <Typography variant="body2" color="text.secondary">Εμφανίζονται {filteredRows.length} από {rows.length} συνεργεία</Typography>
-        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-          <Button size="small" variant="outlined" startIcon={<DownloadIcon />} onClick={exportCsv} disabled={!filteredRows.length}>Εξαγωγή CSV</Button>
-          <Button size="small" variant="outlined" startIcon={<DownloadIcon />} onClick={() => void exportXlsx()} disabled={!filteredRows.length}>Εξαγωγή XLSX</Button>
-          <Button size="small" variant="outlined" startIcon={<PrintIcon />} onClick={() => window.print()} disabled={!filteredRows.length}>Εκτύπωση</Button>
-        </Stack>
       </Stack>
       {q.isLoading ? <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box> : (
         <Card variant="outlined" sx={{ overflowX: "auto" }}>

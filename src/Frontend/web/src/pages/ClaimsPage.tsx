@@ -25,11 +25,9 @@ import {
   TextField,
   Typography
 } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import TuneIcon from "@mui/icons-material/Tune";
-import { ExcelImportButton } from "../components/ExcelImportButton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { money, date } from "../utils/format";
@@ -45,6 +43,8 @@ import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
 import { QuickFilterBar } from "../components/QuickFilterBar";
 import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
 import { BulkImportDialog, type BulkImportColumn, type BulkImportResult } from "../components/BulkImportDialog";
+import { SavedReportsButton } from "../components/SavedReportsButton";
+import { UnifiedActionsMenu, type UnifiedExportAction } from "../components/UnifiedActionsMenu";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
 type ClaimStatus = "Reported" | "UnderReview" | "Approved" | "Rejected" | "Paid" | "Closed";
@@ -154,6 +154,8 @@ export function ClaimsPage() {
   const [dateWindow, setDateWindow] = useState<"" | "7" | "30" | "90">("");
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
   const [quickFiltersOpen, setQuickFiltersOpen] = useState(false);
+  const [saveFilterRequest, setSaveFilterRequest] = useState(0);
+  const [toolbarAction, setToolbarAction] = useState<{ token: number; action: UnifiedExportAction }>({ token: 0, action: "csv" });
 
   const importClaims = async (rows: Record<string, string>[]): Promise<BulkImportResult> => {
     let imported = 0;
@@ -309,16 +311,13 @@ export function ClaimsPage() {
             {isCustomer ? t("claims.customerLead") : t("claims.agencyLead")}
           </Typography>
         </Box>
-        {canEdit && (
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            <ExcelImportButton size="large" onClick={() => setImportOpen(true)}>
-              Μαζική εισαγωγή
-            </ExcelImportButton>
-            <Button data-tour="claims-new" startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setCreateOpen(true); }}>
-              {t("claims.create")}
-            </Button>
-          </Stack>
-        )}
+        <UnifiedActionsMenu createLabel={t("claims.create")}
+          onCreate={canEdit ? () => { setError(null); setCreateOpen(true); } : undefined}
+          onImport={canEdit ? () => setImportOpen(true) : undefined}
+          onSaveFilter={!isCustomer ? () => setSaveFilterRequest(value => value + 1) : undefined}
+          onExport={action => setToolbarAction(value => ({ token: value.token + 1, action }))}
+          onColumns={() => setToolbarAction(value => ({ token: value.token + 1, action: "columns" }))}
+          onFilters={!isCustomer ? () => setAdvancedFiltersOpen(true) : undefined} />
       </Stack>
 
       {!isCustomer && (
@@ -353,6 +352,9 @@ export function ClaimsPage() {
               <Button size="small" variant="outlined" startIcon={<FilterAltIcon />} onClick={() => setQuickFiltersOpen(true)} sx={{ whiteSpace: "nowrap", bgcolor: "#e3f2fd", color: "#1565c0", borderColor: "#90caf9", "&:hover": { bgcolor: "#bbdefb", borderColor: "#64b5f6", color: "#0d47a1" } }}>
                 Γρήγορα φίλτρα
               </Button>
+              <SavedReportsButton entity="claims" currentFilters={{ customerFilter, statusFilter, carrierFilter, subCarrierFilter, typeFilter, useFilter, coverFilter, packageFilter, fromDate, toDate, dateWindow }}
+                onLoad={filters => { setCustomerFilter(filters.customerFilter ?? ""); setStatusFilter(filters.statusFilter ?? ""); setCarrierFilter(filters.carrierFilter ?? ""); setSubCarrierFilter(filters.subCarrierFilter ?? []); setTypeFilter(filters.typeFilter ?? ""); setUseFilter(filters.useFilter ?? ""); setCoverFilter(filters.coverFilter ?? ""); setPackageFilter(filters.packageFilter ?? ""); setFromDate(filters.fromDate ?? ""); setToDate(filters.toDate ?? ""); setDateWindow(filters.dateWindow ?? ""); }}
+                saveRequestToken={saveFilterRequest} />
             </Box>
           </Card>
           <Dialog open={advancedFiltersOpen} onClose={() => setAdvancedFiltersOpen(false)} fullWidth maxWidth="md">
@@ -492,6 +494,8 @@ export function ClaimsPage() {
           serverEntity="claims"
           serverParams={{ search: table.query }}
           hideSearch
+          actionRequest={toolbarAction}
+          hideActionButtons
           exportColumns={[
             { key: "claimNumber", label: "Αρ. Ζημιάς" },
             { key: "policyNumber", label: "Αρ. Συμβ." },
