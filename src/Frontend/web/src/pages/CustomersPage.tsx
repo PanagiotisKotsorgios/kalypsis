@@ -410,15 +410,15 @@ export function CustomersPage() {
 
   return (
     <Box>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} gap={2} flexWrap="wrap">
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={{ xs: 1.5, md: 3 }} gap={1.25} flexWrap="wrap">
         <Stack direction="row" alignItems="center" spacing={0.5}>
-          <Typography variant="h4">{t("customers.title")}</Typography>
+          <Typography variant="h4" sx={{ fontSize: { xs: "1.55rem", sm: "2rem" }, fontWeight: 800 }}>{t("customers.title")}</Typography>
           <HelpHint id="page.customers" />
         </Stack>
         <Button data-tour="customers-actions" variant="contained" size="large"
           startIcon={<MoreHorizIcon />} endIcon={<KeyboardArrowDownIcon />}
           onClick={event => setActionsAnchor(event.currentTarget)} aria-haspopup="menu"
-          aria-expanded={Boolean(actionsAnchor)} sx={{ minWidth: 142, whiteSpace: "nowrap" }}>
+          aria-expanded={Boolean(actionsAnchor)} sx={{ minWidth: 142, whiteSpace: "nowrap", width: { xs: "100%", sm: "auto" } }}>
           Ενέργειες
         </Button>
         <Menu anchorEl={actionsAnchor} open={Boolean(actionsAnchor)} onClose={() => setActionsAnchor(null)}
@@ -470,31 +470,53 @@ export function CustomersPage() {
         </Menu>
       </Stack>
 
-      <Card variant="outlined" sx={{ mb: 2, p: 1.25, bgcolor: "#EDF2F7", borderColor: "#C8D5E4" }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }} useFlexGap flexWrap="wrap">
+      <Card variant="outlined" sx={{ mb: { xs: 1.25, md: 2 }, p: { xs: 1, sm: 1.25 }, bgcolor: "#EDF2F7", borderColor: "#C8D5E4", overflow: "visible" }}>
+        <Box sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(180px, 2fr) repeat(3, minmax(110px, 1fr)) auto auto auto" },
+          gap: { xs: 0.75, md: 1 }, alignItems: "center", minWidth: 0,
+        }}>
           <TextField size="small" label="Αναζήτηση πελατών" value={search}
             onChange={(e) => { setSearch(e.target.value); table.setQuery(e.target.value); table.setPage(1); }}
             placeholder="Όνομα, ΑΦΜ, email, τηλέφωνο, κωδικός ή πόλη"
             InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
-            sx={{ minWidth: { xs: "100%", md: 260 }, flex: "2 1 300px" }} />
-          <CustomerMultiSelect label="Είδος" values={filters.types} options={[
-            { value: "Individual", label: "Φυσικά πρόσωπα" }, { value: "Company", label: "Νομικά πρόσωπα" }, { value: "Prospect", label: "Πιθανοί πελάτες" },
-          ]} onChange={types => { setFilters({ ...filters, types: types as CustomerListFilters["types"] }); table.setPage(1); }} minWidth={155} />
-          <CustomerMultiSelect label="Πόλη" values={filters.cities} options={cityOptions}
-            onChange={cities => { setFilters({ ...filters, cities }); table.setPage(1); }} minWidth={155} />
-          <CustomerMultiSelect label="Συνεργάτης" values={filters.producerIds} options={producerOptions}
-            onChange={producerIds => { setFilters({ ...filters, producerIds }); table.setPage(1); }} minWidth={175} />
-          <Button variant={activeCustomerFilterCount(filters) > 0 ? "contained" : "outlined"} startIcon={<FilterListIcon />}
-            onClick={() => setFiltersOpen(true)} sx={{ minHeight: 40, whiteSpace: "nowrap" }}>
-            Περισσότερα φίλτρα{activeCustomerFilterCount(filters) > 0 ? ` (${activeCustomerFilterCount(filters)})` : ""}
-          </Button>
-          <SavedReportsButton entity="customers" currentFilters={savedCustomerFilters} onLoad={loadSavedCustomerFilters}
-            saveRequestToken={saveFilterRequest} />
-          {customerFilterCount > 0 && <Button size="small" variant="contained" color="error" startIcon={<FilterAltOffIcon />}
-            onClick={clearFilters} sx={{ minHeight: 40, whiteSpace: "nowrap", color: "common.white" }}>
-            Καθαρισμός
-          </Button>}
-        </Stack>
+            sx={{ minWidth: 0, width: "100%", "& .MuiInputBase-input": { minWidth: 0 } }} />
+
+          <Box sx={{ display: { xs: "flex", lg: "none" }, gap: 0.75, flexWrap: "wrap", minWidth: 0 }}>
+            <Button variant={customerFilterCount > 0 ? "contained" : "outlined"} startIcon={<FilterListIcon />}
+              onClick={() => setFiltersOpen(true)} sx={{ minHeight: 40, flex: "1 1 150px", whiteSpace: "nowrap" }}>
+              Φίλτρα{customerFilterCount > 0 ? ` (${customerFilterCount})` : ""}
+            </Button>
+            <Box sx={{ flex: "1 1 150px", minWidth: 0, display: "flex", "& > *": { flex: 1, minWidth: 0 } }}>
+              <SavedReportsButton entity="customers" currentFilters={savedCustomerFilters} onLoad={loadSavedCustomerFilters}
+                saveRequestToken={saveFilterRequest} />
+            </Box>
+            {customerFilterCount > 0 && <Button size="small" variant="contained" color="error" startIcon={<FilterAltOffIcon />}
+              onClick={clearFilters} sx={{ minHeight: 40, flex: "1 1 150px", whiteSpace: "nowrap", color: "common.white" }}>
+              Καθαρισμός
+            </Button>}
+          </Box>
+
+          <Box sx={{ display: { xs: "none", lg: "contents" } }}>
+            <CustomerMultiSelect label="Είδος" values={filters.types} options={[
+              { value: "Individual", label: "Φυσικά πρόσωπα" }, { value: "Company", label: "Νομικά πρόσωπα" }, { value: "Prospect", label: "Πιθανοί πελάτες" },
+            ]} onChange={types => { setFilters({ ...filters, types: types as CustomerListFilters["types"] }); table.setPage(1); }} minWidth={115} />
+            <CustomerMultiSelect label="Πόλη" values={filters.cities} options={cityOptions}
+              onChange={cities => { setFilters({ ...filters, cities }); table.setPage(1); }} minWidth={115} />
+            <CustomerMultiSelect label="Συνεργάτης" values={filters.producerIds} options={producerOptions}
+              onChange={producerIds => { setFilters({ ...filters, producerIds }); table.setPage(1); }} minWidth={130} />
+            <Button variant={activeCustomerFilterCount(filters) > 0 ? "contained" : "outlined"} startIcon={<FilterListIcon />}
+              onClick={() => setFiltersOpen(true)} sx={{ minHeight: 40, whiteSpace: "nowrap" }}>
+              Περισσότερα{activeCustomerFilterCount(filters) > 0 ? ` (${activeCustomerFilterCount(filters)})` : ""}
+            </Button>
+            <SavedReportsButton entity="customers" currentFilters={savedCustomerFilters} onLoad={loadSavedCustomerFilters}
+              saveRequestToken={saveFilterRequest} />
+            {customerFilterCount > 0 ? <Button size="small" variant="contained" color="error" startIcon={<FilterAltOffIcon />}
+              onClick={clearFilters} sx={{ minHeight: 40, whiteSpace: "nowrap", color: "common.white" }}>
+              Καθαρισμός
+            </Button> : <Box />}
+          </Box>
+        </Box>
       </Card>
 
       <CustomerDesktopFiltersDialog open={filtersOpen} filters={filters} cities={cityOptions} producers={producerOptions}

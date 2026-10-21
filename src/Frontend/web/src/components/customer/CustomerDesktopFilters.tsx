@@ -1,6 +1,6 @@
 import {
   Autocomplete, Box, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
-  Divider, FormControlLabel, FormGroup, Stack, TextField, Typography,
+  Divider, FormControlLabel, FormGroup, Stack, TextField, Typography, useMediaQuery, useTheme,
 } from "@mui/material";
 import FilterAltOffIcon from "@mui/icons-material/FilterAltOff";
 import FilterListIcon from "@mui/icons-material/FilterList";
@@ -36,7 +36,7 @@ function Checks<T extends string>({ values, options, onChange }: {
   options: { value: T; label: string }[];
   onChange: (values: T[]) => void;
 }) {
-  return <FormGroup row sx={{ gap: 0.25, "& .MuiFormControlLabel-root": { mr: 1.5 } }}>
+  return <FormGroup sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(auto-fit, minmax(120px, max-content))" }, gap: 0.25, "& .MuiFormControlLabel-root": { mr: 0.75, minWidth: 0 }, "& .MuiFormControlLabel-label": { minWidth: 0 } }}>
     {options.map(option => <FormControlLabel key={option.value}
       control={<Checkbox size="small" checked={values.includes(option.value)}
         onChange={event => onChange(updateArray(values, option.value, event.target.checked))} />}
@@ -65,7 +65,7 @@ export function CustomerMultiSelect({ label, values, options, onChange, minWidth
       ? <Chip size="small" label={selected[0].label} />
       : <Chip size="small" label={`${selected.length} επιλογές`} />}
     renderInput={params => <TextField {...params} label={label} placeholder={values.length === 0 ? "Όλα" : undefined} />}
-    sx={{ minWidth, flex: "1 1 190px", maxWidth: { md: 310 }, "& .MuiAutocomplete-inputRoot": { flexWrap: "nowrap" } }} />;
+    sx={{ minWidth: { xs: 0, sm: minWidth }, width: { xs: "100%", sm: "auto" }, flex: "1 1 190px", maxWidth: { md: 310 }, "& .MuiAutocomplete-inputRoot": { flexWrap: "nowrap", minWidth: 0 }, "& .MuiAutocomplete-input": { minWidth: "0 !important" } }} />;
 }
 
 function YesNoChecks({ values, onChange }: { values: YesNoFilter[]; onChange: (values: YesNoFilter[]) => void }) {
@@ -87,22 +87,24 @@ function NumberRange({ minimum, maximum, onMinimum, onMaximum }: { minimum: stri
 }
 
 export function CustomerDesktopFiltersDialog({ open, filters, cities, producers, activeCount, onChange, onClear, onClose }: Props) {
+  const theme = useTheme();
+  const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
   const set = <K extends keyof CustomerListFilters>(key: K, value: CustomerListFilters[K]) => onChange({ ...filters, [key]: value });
   const presence = [
     ["hasEmail", "Email"], ["hasPhone", "Τηλέφωνο"], ["hasVat", "ΑΦΜ"],
     ["hasPolicy", "Συμβόλαιο"], ["hasProducer", "Συνεργάτης"],
   ] as const;
 
-  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg" PaperProps={{ sx: { bgcolor: "#EDF3F9", maxHeight: "92dvh" } }}>
-    <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1.25, color: "#102C55", pb: 1.25 }}>
+  return <Dialog open={open} onClose={onClose} fullScreen={fullScreen} fullWidth maxWidth="lg" PaperProps={{ sx: { bgcolor: "#EDF3F9", maxHeight: fullScreen ? "100dvh" : "92dvh", m: fullScreen ? 0 : undefined } }}>
+    <DialogTitle sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: { xs: 0.75, sm: 1.25 }, color: "#102C55", px: { xs: 1.25, sm: 3 }, py: { xs: 1, sm: 2 }, position: "sticky", top: 0, zIndex: 2, bgcolor: "#EDF3F9" }}>
       <TuneIcon color="primary" />
       <Box sx={{ flex: 1 }}>
         <Typography variant="h6" fontWeight={800}>Φίλτρα πελατών</Typography>
-        <Typography variant="body2" color="text.secondary">Τα ίδια αναλυτικά φίλτρα με το KALYPSIS Desktop</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ display: { xs: "none", sm: "block" } }}>Τα ίδια αναλυτικά φίλτρα με το KALYPSIS Desktop</Typography>
       </Box>
       {activeCount > 0 && <Chip color="primary" label={`${activeCount} ενεργά`} />}
     </DialogTitle>
-    <DialogContent dividers sx={{ p: { xs: 1.25, md: 2 }, borderColor: "#C8D5E4" }}>
+    <DialogContent dividers sx={{ p: { xs: 1, sm: 1.5, md: 2 }, borderColor: "#C8D5E4", overscrollBehavior: "contain" }}>
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0,1fr))" }, gap: 1.25 }}>
         <Box sx={sectionSx}>
           <Typography fontWeight={800} color="#102C55" mb={0.5}>Βασικά</Typography>
@@ -175,11 +177,11 @@ export function CustomerDesktopFiltersDialog({ open, filters, cities, producers,
         </Box>
       </Box>
     </DialogContent>
-    <DialogActions sx={{ px: 2, py: 1.25, bgcolor: "#E4EBF3" }}>
-      <Button color="error" startIcon={<FilterAltOffIcon />} onClick={onClear}>Καθαρισμός όλων</Button>
-      <Box sx={{ flex: 1 }} />
-      <Button onClick={onClose}>Κλείσιμο</Button>
-      <Button variant="contained" startIcon={<FilterListIcon />} onClick={onClose}>Εφαρμογή φίλτρων</Button>
+    <DialogActions sx={{ px: { xs: 1, sm: 2 }, py: 1.25, bgcolor: "#E4EBF3", gap: 0.75, flexWrap: "wrap", position: "sticky", bottom: 0, zIndex: 2 }}>
+      <Button color="error" variant="contained" startIcon={<FilterAltOffIcon />} onClick={onClear} sx={{ order: { xs: 3, sm: 1 }, flex: { xs: "1 1 100%", sm: "0 0 auto" } }}>Καθαρισμός όλων</Button>
+      <Box sx={{ flex: 1, display: { xs: "none", sm: "block" } }} />
+      <Button onClick={onClose} sx={{ order: 2, flex: { xs: "1 1 40%", sm: "0 0 auto" } }}>Κλείσιμο</Button>
+      <Button variant="contained" startIcon={<FilterListIcon />} onClick={onClose} sx={{ order: 2, flex: { xs: "1 1 55%", sm: "0 0 auto" } }}>Εφαρμογή</Button>
     </DialogActions>
   </Dialog>;
 }

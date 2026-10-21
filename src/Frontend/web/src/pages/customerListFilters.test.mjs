@@ -52,3 +52,18 @@ test("customer page consolidates creation, import and saved filters under colore
   assert.equal(source.includes("<ExcelImportButton"), false);
   assert.equal(source.includes("<SavedReportsButton compact"), false);
 });
+
+test("customer filters adapt cleanly from phones to desktop", async () => {
+  const [page, dialog] = await Promise.all([
+    readFile(new URL("./CustomersPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/customer/CustomerDesktopFilters.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(page, /display: \{ xs: "flex", lg: "none" \}/);
+  assert.match(page, /display: \{ xs: "none", lg: "contents" \}/);
+  assert.match(page, /Φίλτρα\{customerFilterCount/);
+  assert.match(page, /gridTemplateColumns: \{ xs: "minmax\(0, 1fr\)", lg:/);
+  assert.match(dialog, /fullScreen=\{fullScreen\}/);
+  assert.match(dialog, /maxHeight: fullScreen \? "100dvh" : "92dvh"/);
+  assert.match(dialog, /position: "sticky", bottom: 0/);
+  assert.match(dialog, /gridTemplateColumns: \{ xs: "repeat\(2, minmax\(0, 1fr\)\)"/);
+});
