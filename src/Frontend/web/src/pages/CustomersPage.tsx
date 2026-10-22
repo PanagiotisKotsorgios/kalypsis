@@ -460,10 +460,6 @@ export function CustomersPage() {
         <SavedReportsButton entity="customers" currentFilters={savedCustomerFilters} onLoad={loadSavedCustomerFilters}
           onClear={clearFilters} clearRequestToken={clearSavedFilterRequest}
           saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />
-        <Button variant={activeCustomerFilterCount(filters) > 0 ? "contained" : "outlined"} startIcon={<FilterListIcon />}
-          onClick={() => setFiltersOpen(true)} sx={{ minHeight: 40, whiteSpace: "nowrap" }}>
-          Περισσότερα{activeCustomerFilterCount(filters) > 0 ? ` (${activeCustomerFilterCount(filters)})` : ""}
-        </Button>
         <Button data-tour="customers-actions" variant="contained" size="large"
           startIcon={<MoreHorizIcon />} endIcon={<KeyboardArrowDownIcon />}
           onClick={event => setActionsAnchor(event.currentTarget)} aria-haspopup="menu"
