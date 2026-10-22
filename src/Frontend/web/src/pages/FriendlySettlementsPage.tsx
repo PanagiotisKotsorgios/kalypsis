@@ -274,8 +274,6 @@ function CreateDialog({ open, onClose, onSaved }: { open: boolean; onClose: () =
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField type="number" label={t("friendly.agreedAmount")} value={form.agreedAmount}
               onChange={e => setForm({ ...form, agreedAmount: e.target.value })} fullWidth />
-            <TextField type="number" label="ΦΠΑ" value={form.vatAmount}
-              onChange={e => setForm({ ...form, vatAmount: e.target.value })} fullWidth />
             <TextField type="number" label={t("friendly.fees")} value={form.feeAmount}
               onChange={e => setForm({ ...form, feeAmount: e.target.value })} fullWidth />
             <TextField type="number" label={t("friendly.interest")} value={form.interestAmount}

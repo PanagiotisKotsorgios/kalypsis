@@ -306,9 +306,6 @@ function CreditNoteDialog({ open, onClose, onSaved }: { open: boolean; onClose: 
             <TextField type="number" label="Ποσό *" required value={form.amount}
               onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })}
               inputProps={{ step: "0.01" }} sx={{ flex: 1 }} />
-            <TextField type="number" label="ΦΠΑ (προαιρετικά)" value={form.vatAmount}
-              onChange={(e) => setForm({ ...form, vatAmount: e.target.value })}
-              inputProps={{ step: "0.01" }} sx={{ width: 160 }} />
             <TextField label="Νόμισμα" value={form.currency}
               onChange={(e) => setForm({ ...form, currency: e.target.value.toUpperCase().slice(0, 3) })}
               sx={{ width: 100 }} />

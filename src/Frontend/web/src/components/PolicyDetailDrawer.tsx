@@ -1,7 +1,9 @@
 import { DetailProfileTabs } from "./profile/DetailProfileTabs";
 import { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback, useProfileFieldEditor, type ProfileFieldSession } from "./profile/ProfileFieldEditor";
 import { POLICY_CORE_KEYS, policyCorePayload, policyPreservedAmounts } from "./profile/policyProfile";
-import { PolicyBeneficiaries, PolicyRiskFields, PolicyTaxFields, policyPaymentStatus } from "./profile/PolicyRiskProfileFields";
+import { policyPaymentStatus } from "./profile/policyPaymentStatus";
+import { policyCoverageTableSx, policyCoverageRowSx, policyCoverageContainerSx } from "./profile/policyCoverageAppearance";
+import { PolicyCoverageTable } from "./PolicyCoverageTable";
 import { PolicyFieldColumns } from "./profile/PolicyFieldColumns";
 import { PolicyClaimsDialog } from "./PolicyClaimsDialog";
 import { linkedVehicleSpecs } from "./profile/vehicleProfile";
@@ -26,7 +28,8 @@ import { PropagateChangesDialog, type PropagatableChanges } from "./PropagateCha
 import { SearchableSelect as OriginalSearchableSelect } from "./SearchableSelect";
 import { VehicleDetailDialog } from "../pages/CustomerVehiclesPage";
 import { contractDurationLabel } from "../utils/contractDuration";
-import EditIcon from "@mui/icons-material/Edit";
+import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
+import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
 import { greenCardVehicleDefaults } from "./profile/greenCardVehicleDefaults";
 import { CatalogueItemDialog } from "./CompanyCatalogueDialog";
@@ -213,7 +216,6 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   const [vehiclePickerOpen, setVehiclePickerOpen] = useState(false);
   const [vehicleSearch, setVehicleSearch] = useState("");
   const [commissionDetailsOpen, setCommissionDetailsOpen] = useState(false);
-  const [communicationsOpen, setCommunicationsOpen] = useState(false);
   const [claimsOpen, setClaimsOpen] = useState(false);
   const [settlementMode, setSettlementMode] = useState<PolicySettlementMode | null>(null);
   const modalPresentation = presentation === "modal";
@@ -230,7 +232,6 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   useEffect(() => {
     if (open) {
       setCommissionDetailsOpen(false);
-      setCommunicationsOpen(false);
       setClaimsOpen(false);
       setModalTab(0);
       setTab(0);
@@ -364,12 +365,6 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
     queryKey: ["policy-receipts", policyId],
     enabled: open && (tab === 7 || (modalPresentation && modalTab === 3)) && !!policyId,
     queryFn: async () => (await api.get<any[]>("/receipts")).data.filter((r: any) => r.policyId === policyId)
-  });
-  const communications = useQuery({
-    queryKey: ["policy-communications", policyId],
-    // Communications lazy-load moved to the merged Δραστηριότητα tab (index 11).
-    enabled: open && (tab === 11 || (modalPresentation && modalTab === 5)) && !!policyId,
-    queryFn: async () => (await api.get<PolicyCommunicationRow[]>(`/policies/${policyId}/communications`)).data
   });
   const commissionMatrix = useQuery({
     queryKey: ["policy-commission-matrix", policyId],
@@ -734,11 +729,6 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
 
               {showContract && <Stack spacing={1}>
                 <PolicyContractFields policy={p} session={readOnly ? undefined : session} values={session.values} uses={catalogue.uses} packages={catalogue.packages} />
-                {!readOnly && riskQuery.isLoading && <CircularProgress size={22} />}
-                {!readOnly && riskQuery.data && !riskQuery.isError && <>
-                  <PolicySummarySection title="Στοιχεία ασφαλιζόμενου κινδύνου"><PolicyRiskFields policyType={p.policyType} values={session.values} session={session} /></PolicySummarySection>
-                  <PolicyBeneficiaries values={session.values} session={session} />
-                </>}
                 <PolicySummarySection title="Καλύψεις"><PolicyCoversTab policyId={p.id} readOnly={readOnly} /></PolicySummarySection>
               </Stack>}
 
@@ -750,7 +740,6 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                 <Stack spacing={1}>
                   <PolicySummarySection title={`Ασφάλιστρα & ανάλυση · ${p.currency}`}>
                     <PolicyPremiumFields policy={p} matrix={commissionMatrix.data} matrixLoading={commissionMatrix.isLoading} session={session} />
-                    {riskQuery.data && !riskQuery.isError && <Box sx={{ mt: .75 }}><PolicyTaxFields values={session.values} session={session} /></Box>}
                     <Stack direction="row" gap={.75} flexWrap="wrap" sx={{ mt: .75 }}>
                       <Button size="small" variant="outlined" startIcon={<AccountBalanceWalletOutlinedIcon />} onClick={() => setCommissionDetailsOpen(true)}>Κατανομή & ειδικά ποσοστά</Button>
                       <Button size="small" variant="contained" color="success" sx={{ color: "#fff" }} disabled={commissionMatrix.isFetching} onClick={() => void commissionMatrix.refetch()}>Επανυπολογισμός προμηθειών</Button>
@@ -875,15 +864,6 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
               {tab === 9 && !modalPresentation && <PolicyCoversTab policyId={p.id} readOnly={readOnly} />}
               {tab === 10 && !modalPresentation && <PolicyInstallmentsTab policyId={p.id} />}
               {tab === 11 && !modalPresentation && <PolicyLifecyclePanel key={p.id} policyId={p.id} />}
-              {(showHistory || (tab === 11 && !modalPresentation)) && <Box sx={{ mt: 1 }}>
-                <Button variant="contained" color="success" sx={{ color: "#fff" }} onClick={() => setCommunicationsOpen(true)}>Επικοινωνίες συμβολαίου</Button>
-                <Dialog open={communicationsOpen} onClose={() => setCommunicationsOpen(false)} fullWidth maxWidth="md">
-                  <DialogTitle>Επικοινωνίες συμβολαίου</DialogTitle>
-                  <DialogContent dividers><PolicyCommunicationsTab policyId={p.id} loading={communications.isLoading} rows={communications.data ?? []}
-                    readOnly={readOnly} onSaved={() => void qc.invalidateQueries({ queryKey: ["policy-communications", p.id] })} /></DialogContent>
-                  <DialogActions><Button color="error" variant="contained" onClick={() => setCommunicationsOpen(false)}>Κλείσιμο</Button></DialogActions>
-                </Dialog>
-              </Box>}
             </>
           )}
         </Box>
@@ -1210,7 +1190,7 @@ function CoversBreakdown({ p }: { p: PolicyDetail }) {
             sx={{ height: 20, fontSize: 11, fontWeight: 700 }} />
         )}
       </Stack>
-      <Table size="small">
+      <Box sx={policyCoverageContainerSx}><Table stickyHeader size="small" sx={policyCoverageTableSx}>
         <TableHead>
           <TableRow>
             <TableCell>Κωδικός</TableCell>
@@ -1221,8 +1201,8 @@ function CoversBreakdown({ p }: { p: PolicyDetail }) {
           </TableRow>
         </TableHead>
         <TableBody>
-          {p.covers.map(c => (
-            <TableRow key={c.id}>
+          {p.covers.map((c, index) => (
+            <TableRow key={c.id} hover sx={policyCoverageRowSx(index)}>
               <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{c.coverCode}</TableCell>
               <TableCell>{c.coverName ?? "—"}</TableCell>
               <TableCell align="right">{c.grossPremium.toFixed(2)}</TableCell>
@@ -1238,14 +1218,14 @@ function CoversBreakdown({ p }: { p: PolicyDetail }) {
               )}
             </TableRow>
           ))}
-          <TableRow>
+          <TableRow sx={{ bgcolor: "#E9EEF4" }}>
             <TableCell colSpan={2} sx={{ fontWeight: 700 }}>Σύνολο από καλύψεις</TableCell>
             <TableCell align="right" sx={{ fontWeight: 700 }}>{p.coversGrossTotal.toFixed(2)} {p.currency}</TableCell>
             {anyProducerRate && <TableCell />}
             {anyAgencyRate   && <TableCell />}
           </TableRow>
         </TableBody>
-      </Table>
+      </Table></Box>
       {(anyProducerRate || anyAgencyRate) && (
         <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
           «—» στα ποσοστά σημαίνει ότι η κάλυψη κληρονομεί το ποσοστό από τον κανόνα προμηθειών.
@@ -2088,18 +2068,15 @@ function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string
   const cancelEdit = () => { if (add.isPending || update.isPending) return; setCoverDialogOpen(false); setEditingId(null); setForm(EMPTY_COVER_FORM); };
 
   const rows = q.data ?? [];
-  const totalGross = rows.reduce((s, c) => s + c.grossPremium, 0);
-  const totalNet   = rows.reduce((s, c) => s + c.netPremium, 0);
 
   const [bulkOpen, setBulkOpen] = useState(false);
   return (
-    <Stack spacing={2}>
-      <Stack direction="row" alignItems="center" spacing={1}>
+    <Stack spacing={.75} sx={{ minWidth: 0 }}>
+      <Stack direction="row" alignItems="center" spacing={.75} useFlexGap flexWrap="wrap">
         <Typography variant="overline" color="text.secondary" fontWeight={700}>Καλύψεις</Typography>
-        <Chip size="small" label={`${rows.length}`} sx={{ height: 20, fontSize: 11 }} />
         <Box sx={{ flex: 1 }} />
-        {!readOnly && <Button size="small" variant="contained" color="success" sx={{ color: "#fff" }} disabled={!detail.data} onClick={() => { add.reset(); update.reset(); setEditingId(null); setForm(EMPTY_COVER_FORM); setCoverDialogOpen(true); }}>Προσθήκη νέας κάλυψης</Button>}
-        {!readOnly && <Button size="small" variant="text" onClick={() => setBulkOpen(true)}>
+        {!readOnly && <Button size="small" startIcon={<AddOutlinedIcon />} variant="contained" color="success" sx={{ color: "#fff" }} disabled={!detail.data} onClick={() => { add.reset(); update.reset(); setEditingId(null); setForm(EMPTY_COVER_FORM); setCoverDialogOpen(true); }}>Προσθήκη νέας κάλυψης</Button>}
+        {!readOnly && <Button size="small" startIcon={<UploadFileOutlinedIcon />} variant="contained" sx={{ bgcolor: "#456B91", color: "#fff", "&:hover": { bgcolor: "#345575" } }} onClick={() => setBulkOpen(true)}>
           Μαζική εισαγωγή CSV
         </Button>}
       </Stack>
@@ -2110,64 +2087,9 @@ function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string
         onImported={() => { setBulkOpen(false); invalidate(); }}
       />
       {q.isLoading ? <CircularProgress size={20} /> : (
-        <Box sx={{ overflowX: "auto" }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Κωδικός</TableCell>
-                <TableCell>Όνομα</TableCell>
-                <TableCell align="right">Μικτά</TableCell>
-                <TableCell align="right">Καθαρά</TableCell>
-                <TableCell align="right">Κεφάλαιο</TableCell>
-                {showDeductible && <TableCell>Απαλλαγή ({detail.data?.currency ?? "EUR"})</TableCell>}
-                <TableCell align="right">Προμ. συν. %</TableCell>
-                <TableCell align="right">Προμ. γρ. %</TableCell>
-                <TableCell width={80} />
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {rows.length === 0 && (
-                <TableRow><TableCell colSpan={showDeductible ? 9 : 8} align="center" sx={{ color: "error.dark", fontWeight: 650, py: 2 }}>
-                  Δεν υπάρχουν καταχωρημένες καλύψεις.
-                </TableCell></TableRow>
-              )}
-              {rows.map((c) => (
-                <TableRow key={c.id} hover selected={editingId === c.id}>
-                  <TableCell sx={{ fontFamily: "monospace", fontWeight: 700, color: c.coverCode?.trim() ? "success.dark" : "error.dark" }}>{c.coverCode || "Δεν έχει καταχωρηθεί"}</TableCell>
-                  <TableCell sx={{ color: c.coverName?.trim() ? "success.dark" : "error.dark" }}>{c.coverName || "Δεν έχει καταχωρηθεί"}</TableCell>
-                  <TableCell align="right" sx={{ color: c.grossPremium > 0 ? "success.dark" : "error.dark" }}>{c.grossPremium.toFixed(2)}</TableCell>
-                  <TableCell align="right" sx={{ color: c.netPremium > 0 ? "success.dark" : "error.dark" }}>{c.netPremium.toFixed(2)}</TableCell>
-                  <TableCell align="right" sx={{ color: c.coverageAmount === null ? "error.dark" : "success.dark" }}>{c.coverageAmount === null ? "Δεν έχει καταχωρηθεί" : c.coverageAmount.toFixed(2)}</TableCell>
-                  {showDeductible && <TableCell sx={{ minWidth: 210 }}>{profile.riskReady ? <ProfileEditableField label="Απαλλαγή" field={`risk:coverDeductible:${c.id}`} session={profile.session} value={profile.session.values[`risk:coverDeductible:${c.id}`]} type="number" /> : "Δεν φορτώθηκε"}</TableCell>}
-                  <TableCell align="right" sx={{ color: c.commissionPercent === null ? "error.dark" : "success.dark" }}>
-                    {c.commissionPercent === null ? "—" : `${c.commissionPercent.toFixed(2)}%`}
-                  </TableCell>
-                  <TableCell align="right" sx={{ color: c.agencyCommissionPercent === null ? "error.dark" : "success.dark" }}>
-                    {c.agencyCommissionPercent === null ? "—" : `${c.agencyCommissionPercent.toFixed(2)}%`}
-                  </TableCell>
-                  <TableCell align="right">
-                    {!readOnly && <>
-                      <IconButton size="small" onClick={() => startEdit(c)} disabled={editing && editingId !== c.id}>
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton size="small" color="error" onClick={() => { if (confirm(`Διαγραφή της κάλυψης ${c.coverCode};`)) del.mutate(c.id); }}>
-                        <CloseIcon fontSize="small" />
-                      </IconButton>
-                    </>}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {rows.length > 0 && (
-                <TableRow>
-                  <TableCell colSpan={2} sx={{ fontWeight: 700 }}>Σύνολο</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>{totalGross.toFixed(2)}</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>{totalNet.toFixed(2)}</TableCell>
-                  <TableCell colSpan={showDeductible ? 5 : 4} />
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </Box>
+        <PolicyCoverageTable rows={rows} currency={detail.data?.currency ?? "EUR"} readOnly={readOnly} editingId={editingId} busy={add.isPending || update.isPending || del.isPending}
+          onEdit={startEdit} onDelete={row => { if (confirm(`Διαγραφή της κάλυψης ${row.coverCode};`)) del.mutate(row.id); }}
+          renderDeductible={showDeductible ? row => profile.riskReady ? <ProfileEditableField label="Απαλλαγή" field={`risk:coverDeductible:${row.id}`} session={profile.session} value={profile.session.values[`risk:coverDeductible:${row.id}`]} type="number" /> : "Δεν φορτώθηκε" : undefined} />
       )}
       {del.isError && <Alert severity="error">{extractErrorMessage(del.error)}</Alert>}
       {(q.isError || detail.isError) && <Alert severity="error" action={<Button onClick={() => { void q.refetch(); void detail.refetch(); }}>Επανάληψη</Button>}>{extractErrorMessage(q.error || detail.error)}</Alert>}
@@ -2420,162 +2342,6 @@ function PolicyInstallmentsTab({ policyId, readOnly = false }: { policyId: strin
             ))}
           </TableBody>
         </Table>
-      )}
-    </Stack>
-  );
-}
-
-/* ============================================================================
-   Per-policy communication log — ALIS parity item #12. Each entry captures
-   a phone / email / meeting / SMS / note tied to this policy so brokers can
-   track «γιατί άλλαξε αυτό το συμβόλαιο» without digging through the
-   customer-level timeline.
-   ============================================================================ */
-
-interface PolicyCommunicationRow {
-  id: string;
-  customerId: string;
-  kind: string;              // Note / Phone / Email / Meeting / Sms / WalkIn
-  direction: string;         // Internal / Inbound / Outbound
-  outcome: string;           // None / Resolved / FollowUpRequired / NoAnswer / Cancelled
-  occurredAt: string;
-  durationSeconds: number | null;
-  subject: string;
-  body: string | null;
-  relatedPolicyNumber: string | null;
-  relatedPolicyId: string | null;
-}
-
-const COMM_KIND_LABEL: Record<string, string> = {
-  Note: "Σημείωση", Phone: "Τηλέφωνο", Email: "Email",
-  Meeting: "Συνάντηση", Sms: "SMS", WalkIn: "Επίσκεψη"
-};
-const COMM_DIRECTION_LABEL: Record<string, string> = {
-  Internal: "Εσωτερικά", Inbound: "Εισερχόμενο", Outbound: "Εξερχόμενο"
-};
-const COMM_OUTCOME_LABEL: Record<string, string> = {
-  None: "—", Resolved: "Ολοκληρώθηκε", FollowUpRequired: "Χρειάζεται επανάληψη",
-  NoAnswer: "Χωρίς απάντηση", Cancelled: "Ακυρώθηκε"
-};
-
-function PolicyCommunicationsTab({ policyId, loading, rows, readOnly = false, onSaved }: {
-  policyId: string;
-  loading: boolean;
-  rows: PolicyCommunicationRow[];
-  readOnly?: boolean;
-  onSaved: () => void;
-}) {
-  const [creating, setCreating] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    kind: "Note",
-    direction: "Internal",
-    outcome: "None",
-    subject: "",
-    body: ""
-  });
-  useEffect(() => {
-    if (readOnly) setCreating(false);
-  }, [readOnly]);
-  const save = useMutation({
-    mutationFn: async () => (await api.post(`/policies/${policyId}/communications`, {
-      kind: form.kind,
-      direction: form.direction,
-      outcome: form.outcome,
-      subject: form.subject.trim(),
-      body: form.body.trim() || null,
-      occurredAt: new Date().toISOString(),
-      durationSeconds: null,
-      relatedPolicyId: null // server forces this to the policy id anyway
-    })).data,
-    onSuccess: () => {
-      setCreating(false);
-      setForm({ kind: "Note", direction: "Internal", outcome: "None", subject: "", body: "" });
-      onSaved();
-    },
-    onError: (e) => setErr(extractErrorMessage(e))
-  });
-
-  return (
-    <Stack spacing={2}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center">
-        <Typography variant="body2" color="text.secondary">
-          Καταγραφές επικοινωνίας για αυτό το συμβόλαιο. Οι εγγραφές εμφανίζονται και στο ενοποιημένο timeline του πελάτη.
-        </Typography>
-        <Button size="small" variant="contained" onClick={() => setCreating(true)} disabled={readOnly || creating}>
-          Νέα καταγραφή
-        </Button>
-      </Stack>
-
-      {err && <Alert severity="error" onClose={() => setErr(null)}>{err}</Alert>}
-
-      {creating && !readOnly && (
-        <Box sx={{ p: 2, border: "1px solid", borderColor: "divider", borderRadius: 1.5 }}>
-          <Stack spacing={1.5}>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-              <TextField select size="small" fullWidth label="Είδος"
-                value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value })}>
-                {Object.entries(COMM_KIND_LABEL).map(([k, v]) =>
-                  <MenuItem key={k} value={k}>{v}</MenuItem>)}
-              </TextField>
-              <TextField select size="small" fullWidth label="Κατεύθυνση"
-                value={form.direction} onChange={e => setForm({ ...form, direction: e.target.value })}>
-                {Object.entries(COMM_DIRECTION_LABEL).map(([k, v]) =>
-                  <MenuItem key={k} value={k}>{v}</MenuItem>)}
-              </TextField>
-              <TextField select size="small" fullWidth label="Αποτέλεσμα"
-                value={form.outcome} onChange={e => setForm({ ...form, outcome: e.target.value })}>
-                {Object.entries(COMM_OUTCOME_LABEL).map(([k, v]) =>
-                  <MenuItem key={k} value={k}>{v}</MenuItem>)}
-              </TextField>
-            </Stack>
-            <TextField size="small" fullWidth required label="Θέμα"
-              value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })}
-              placeholder="π.χ. «Ενημέρωση για λήξη — κ. Παπαδοπούλου»" />
-            <TextField size="small" fullWidth multiline rows={3} label="Λεπτομέρειες"
-              value={form.body} onChange={e => setForm({ ...form, body: e.target.value })} />
-            <Stack direction="row" spacing={1} justifyContent="flex-end">
-              <Button onClick={() => setCreating(false)} color="error" variant="contained">Ακύρωση</Button>
-              <Button variant="contained" onClick={() => save.mutate(undefined)}
-                disabled={readOnly || save.isPending || !form.subject.trim()}>
-                {save.isPending ? <CircularProgress size={18} /> : "Καταχώρηση"}
-              </Button>
-            </Stack>
-          </Stack>
-        </Box>
-      )}
-
-      {loading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}><CircularProgress /></Box>
-      ) : rows.length === 0 ? (
-        <Typography color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
-          Δεν υπάρχει καμία καταγραφή επικοινωνίας για αυτό το συμβόλαιο ακόμα.
-        </Typography>
-      ) : (
-        <Stack spacing={1}>
-          {rows.map(r => (
-            <Box key={r.id} sx={{ p: 1.75, border: "1px solid", borderColor: "divider", borderRadius: 1.5 }}>
-              <Stack direction="row" spacing={1} alignItems="center" mb={0.5}>
-                <Chip size="small" label={COMM_KIND_LABEL[r.kind] ?? r.kind} />
-                <Chip size="small" variant="outlined" label={COMM_DIRECTION_LABEL[r.direction] ?? r.direction} />
-                {r.outcome !== "None" && (
-                  <Chip size="small" variant="outlined" color="info"
-                    label={COMM_OUTCOME_LABEL[r.outcome] ?? r.outcome} />
-                )}
-                <Box sx={{ flex: 1 }} />
-                <Typography variant="caption" color="text.secondary">
-                  {new Date(r.occurredAt).toLocaleString("el-GR")}
-                </Typography>
-              </Stack>
-              <Typography fontWeight={700}>{r.subject}</Typography>
-              {r.body && (
-                <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "pre-wrap", mt: 0.5 }}>
-                  {r.body}
-                </Typography>
-              )}
-            </Box>
-          ))}
-        </Stack>
       )}
     </Stack>
   );
