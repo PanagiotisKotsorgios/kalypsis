@@ -5,7 +5,7 @@ import type { SearchOption } from "./SearchableSelect";
 // Search the complete catalogue, while bounding the rendered checkbox list.
 const filterMultiOptions = createFilterOptions<SearchOption<string>>({ limit: 300, stringify: option => `${option.label} ${option.value} ${option.hint ?? ""}` });
 const SELECT_ALL_VALUE = "__kalypsis_select_all__";
-const SELECT_ALL_OPTION: SearchOption<string> = { value: SELECT_ALL_VALUE, label: "Επιλογή όλων", hint: "Χωρίς περιορισμό στο συγκεκριμένο πεδίο" };
+const SELECT_ALL_OPTION: SearchOption<string> = { value: SELECT_ALL_VALUE, label: "Επιλογή όλων" };
 
 export function selectedMultiOptions(values: string[], options: SearchOption<string>[]) {
   const known = new Map(options.map(option => [option.value, option]));

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Alert, Box, Typography } from "@mui/material";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 /** Public notice shown on unauthenticated/pre-login pages. */
 export function InfrastructureNoticeBanner() {
@@ -16,26 +16,25 @@ export function InfrastructureNoticeBanner() {
   return (
     <Box component="aside" role="status" aria-label="Ενημέρωση τεχνικής υποστήριξης">
       <Alert
-        severity="warning"
-        icon={<WarningAmberIcon fontSize="inherit" />}
+        severity="info"
+        icon={<InfoOutlinedIcon fontSize="inherit" />}
         onClose={dismiss}
         closeText="Κλείσιμο ενημέρωσης"
         sx={{
           borderRadius: 0,
-          background: "#b71c1c",
-          color: "#fff",
-          borderTop: "4px solid #7f0000",
-          borderBottom: "4px solid #7f0000",
-          boxShadow: "0 2px 12px rgba(127, 0, 0, 0.32)",
+          background: "#EAF3FC",
+          color: "#102D55",
+          borderBottom: "1px solid #B8D4EF",
+          boxShadow: "0 2px 10px rgba(16, 45, 85, 0.08)",
           fontSize: { xs: "0.9rem", sm: "1rem" },
-          "& .MuiAlert-icon": { color: "#fff" },
-          "& .MuiAlert-action": { color: "#fff", alignItems: "center", pt: 0 },
+          "& .MuiAlert-icon": { color: "#087CEB" },
+          "& .MuiAlert-action": { color: "#102D55", alignItems: "center", pt: 0 },
           "& .MuiAlert-action .MuiIconButton-root": {
-            color: "#fff",
-            border: "1px solid rgba(255,255,255,0.55)",
+            color: "#102D55",
+            border: "1px solid #B8D4EF",
             borderRadius: "50%",
             p: 0.5,
-            "&:hover": { bgcolor: "rgba(255,255,255,0.16)" },
+            "&:hover": { bgcolor: "#D8EAFB" },
           },
           "& .MuiAlert-message": { width: "100%", fontWeight: 700, lineHeight: 1.45 },
           px: { xs: 1.5, sm: 3 },
@@ -46,8 +45,8 @@ export function InfrastructureNoticeBanner() {
           component="span"
           sx={{
             display: "inline-block",
-            bgcolor: "#ffd600",
-            color: "#3b1f00",
+            bgcolor: "#D8EAFB",
+            color: "#102D55",
             borderRadius: 0.75,
             px: 1,
             py: 0.2,
@@ -60,7 +59,7 @@ export function InfrastructureNoticeBanner() {
           ΕΝΗΜΕΡΩΣΗ ΠΡΟΣ ΧΡΗΣΤΕΣ
         </Typography>
         <Typography component="span" sx={{ fontWeight: 600 }}>
-          Η εξυπηρέτηση και η τεχνική υποστήριξη θα πραγματοποιούνται προσωρινά, λόγω τεχνικών αναβαθμίσεων στις υποδομές μας, από τις 15:30 έως τις 20:30. Ευχαριστούμε θερμά για την κατανόηση και την υπομονή σας.
+          Η εξυπηρέτηση και η τεχνική υποστήριξη θα επανέλθουν στο κανονικό μας ωράριο στις 26/10/2026. Σας ευχαριστούμε θερμά για την κατανόηση και την υπομονή σας.
         </Typography>
       </Alert>
     </Box>

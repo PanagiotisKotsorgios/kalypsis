@@ -1009,7 +1009,7 @@ export default function App() {
                         "Στατιστικά ανά ομάδα",
                       ]} />
                   } />
-                  <Route path="period-locks" element={<Navigate to="/app/agency-and-profile?tab=period-locks" replace />} />
+                  <Route path="period-locks" element={<Navigate to="/app/agency-and-profile" replace />} />
                   <Route path="bulk-receipts" element={
                     <UnderConstructionPage
                       title="Εισαγωγή Πολλαπλών Εισπράξεων"
