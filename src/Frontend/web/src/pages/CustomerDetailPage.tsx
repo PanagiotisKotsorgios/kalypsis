@@ -61,7 +61,7 @@ import { drivingFields, persistCustomerEdits, type CustomerDrafts } from "../com
 import { customerDraftErrors, customerFieldError, fieldMaxLength } from "../components/customer/customerValidation";
 import { customerAge } from "../components/customer/customerAge";
 import { DetailProfileTabs } from "../components/profile/DetailProfileTabs";
-import { CustomerCompactTable, CustomerNeedsTable, FamilyMembersTable } from "../components/customer/CustomerFamilyTables";
+import { CustomerNeedsTable, FamilyMembersTable } from "../components/customer/CustomerFamilyTables";
 import { NEED_KINDS, NEED_LABEL, RELATIONSHIP_TYPES, RELATION_LABEL, type CustomerNeed, type FamilyMember } from "../components/customer/customerFamilyData";
 
 interface CustomerDto {
@@ -1628,9 +1628,9 @@ function ContactsTab({ customerId, customerType }: { customerId: string; custome
   );
 }
 
-/* ---------- Family, assets and insurance opportunities ---------- */
+/* ---------- Family and recorded assets / insurance needs ---------- */
 
-function FamilyNeedsTab({ customerId }: { customerId: string }) {
+export function FamilyNeedsTab({ customerId }: { customerId: string }) {
   const q = useQuery({
     queryKey: ["customer-family", customerId],
     queryFn: async () => (await api.get<FamilyProfile>(`/customers/${customerId}/family`)).data
@@ -1642,7 +1642,6 @@ function FamilyNeedsTab({ customerId }: { customerId: string }) {
     <Stack spacing={0.75}>
       <CustomerNeedsCard customerId={customerId} needs={q.data.needs} />
       <FamilyMembersCard customerId={customerId} members={q.data.family} />
-      <OpportunitiesCard opportunities={q.data.opportunities} />
     </Stack>
   );
 }
@@ -1802,22 +1801,6 @@ function FamilyMembersCard({ customerId, members }: { customerId: string; member
   </Card>;
 }
 
-function OpportunitiesCard({ opportunities }: { opportunities: FamilyProfile["opportunities"] }) {
-  const rows = useMemo(() => opportunities.map((opportunity, index) => ({ ...opportunity, rowKey: `${opportunity.customerId}-${opportunity.needKind}-${index}` })), [opportunities]);
-  return <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 }, bgcolor: "rgba(248,250,252,0.92)", borderColor: opportunities.length ? "warning.light" : "divider" }}>
-    <Box sx={{ px: 0.75, py: 0.5, mb: 0.75, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}><Typography variant="subtitle2" fontWeight={800}>Προτεινόμενες καλύψεις</Typography><Typography variant="caption" color="text.secondary">Παράγονται από την καταχωρημένη περιουσία/ανάγκη όταν δεν υπάρχει ενεργό συμβόλαιο του αντίστοιχου κλάδου.</Typography></Box>
-    {opportunities.length === 0 ? <Alert severity="success">Δεν υπάρχουν ανοικτές προτάσεις με βάση τα σημερινά στοιχεία.</Alert> : <CustomerCompactTable rows={rows} rowKey={row => row.rowKey} label="Προτεινόμενες καλύψεις" minWidth={800}
-      searchPlaceholder="Πελάτης, ανάγκη ή αιτιολογία…" searchText={row => `${row.customerName} ${NEED_LABEL[row.needKind] ?? row.needKind} ${row.needTitle} ${row.reason}`}
-      columns={[
-        { key: "customer", title: "Πελάτης", cell: row => row.customerName },
-        { key: "relationship", title: "Σχέση", cell: row => row.relationship ? RELATION_LABEL[row.relationship] ?? row.relationship : "—" },
-        { key: "type", title: "Τύπος", cell: row => NEED_LABEL[row.needKind] ?? row.needKind },
-        { key: "need", title: "Ανάγκη", cell: row => row.needTitle },
-        { key: "reason", title: "Αιτιολογία", cell: row => <Typography variant="body2" title={row.reason} noWrap sx={{ maxWidth: 300, fontSize: 12.5 }}>{row.reason}</Typography> },
-        { key: "priority", title: "Προτεραιότητα", cell: row => `${row.priority}/5` },
-      ]} />}
-  </Card>;
-}
 
 /* ---------- GDPR actions (export + anonymize) ---------- */
 

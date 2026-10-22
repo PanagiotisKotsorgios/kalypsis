@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createServer } from "vite";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { readFile } from "node:fs/promises";
 import { filterCustomerNeeds, filterFamilyMembers, matchesFamilySearch } from "./customerFamilyData.ts";
 
 const needs = [
@@ -14,6 +16,30 @@ const members = [
   { relationshipId: "rel1", customerId: "cust1", displayName: "Μαρία Παπαδοπούλου", customerType: "Individual", relationshipType: "Spouse", notes: "Σχέση", policies: [{ id: "p1", policyNumber: "ABC-123", policyType: "Auto", status: "Active", startDate: "2026-01-01", endDate: "2027-01-01", premium: 123, currency: "EUR" }], needs },
   { relationshipId: "rel2", customerId: "cust2", displayName: "Νίκος Παπαδόπουλος", customerType: "Individual", relationshipType: "Child", notes: null, policies: [], needs: [needs[1]] },
 ];
+
+test("family popup keeps editable needs and related customers, but never renders the redundant recommendation card", async () => {
+  globalThis.sessionStorage ??= { getItem: () => null, setItem() {}, removeItem() {} };
+  globalThis.localStorage ??= { getItem: () => null, setItem() {}, removeItem() {} };
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, ssr: { noExternal: [/@mui\//] }, appType: "custom" });
+  const client = new QueryClient({defaultOptions:{queries:{retry:false,staleTime:Infinity}}});
+  try {
+    const { FamilyNeedsTab } = await server.ssrLoadModule("/src/pages/CustomerDetailPage.tsx");
+    for(const opportunities of [[],[{customerId:"cust1",customerName:"Recommendation should not render",needKind:"Home",needTitle:"Hidden proposal",reason:"Proposal reason",priority:5}]]) {
+      const data={profile:{id:"family-test",displayName:"Πελάτης"},needs,family:members,opportunities};
+      const before=structuredClone(data);
+      client.setQueryData(["customer-family","family-test"],data);
+      const html=renderToStaticMarkup(createElement(QueryClientProvider,{client},createElement(FamilyNeedsTab,{customerId:"family-test"})));
+      assert.equal((html.match(/<table\b/g)??[]).length,2);
+      for(const text of ["Περιουσία και ανάγκες ασφάλισης","Οικογένεια και συνδεδεμένοι πελάτες","Νέα ανάγκη","Έχει σπίτι","Έχει όχημα","Υγεία","Σύνδεση μέλους","Κατοικία Αθήνας","Επεξεργασία Κατοικία Αθήνας","Μαρία Παπαδοπούλου"]) assert.ok(html.includes(text),text);
+      for(const removed of ["Προτεινόμενες καλύψεις","Παράγονται από την καταχωρημένη","Δεν υπάρχουν ανοικτές προτάσεις","Hidden proposal","Recommendation should not render"]) assert.ok(!html.includes(removed),removed);
+      assert.deepEqual(client.getQueryData(["customer-family","family-test"]),before);
+    }
+    const source=await readFile(new URL("../../pages/CustomerDetailPage.tsx",import.meta.url),"utf8");
+    assert.ok(!source.includes("OpportunitiesCard"));
+    const growth=await readFile(new URL("../../pages/ProductionGrowthPage.tsx",import.meta.url),"utf8");
+    assert.ok(growth.includes('"/production-growth"')); assert.ok(growth.includes("Λίστες αύξησης παραγωγής"));
+  } finally {client.clear();await server.close();}
+});
 
 test("asset filters combine type and insurance state without changing source records", () => {
   const before = structuredClone(needs);
