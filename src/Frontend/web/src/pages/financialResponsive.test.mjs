@@ -8,6 +8,15 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createServer } from "vite";
 import { advanceAllocationPreview } from "./advancePaymentModel.ts";
 
+test("advances stay in the sidebar without a duplicate financial-movements shortcut", async () => {
+  const movements = await readFile(new URL("./FinancialMovementsPage.tsx", import.meta.url), "utf8");
+  const app = await readFile(new URL("../App.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(movements, /advance-payments|SavingsOutlinedIcon/);
+  assert.match(movements, /\/app\/reconciliation/);
+  assert.match(app, /to: "\/advance-payments", labelKey: "nav.advance"/);
+  assert.match(app, /path="advance-payments" element=\{<AdvancePaymentsPage/);
+});
+
 test("partial allocations validate cents and retain the unused amount", () => {
   assert.deepEqual(advanceAllocationPreview(250, "50"), {valid:true, amount:50, remaining:200});
   assert.deepEqual(advanceAllocationPreview(.3, ".1"), {valid:true, amount:.1, remaining:.2});

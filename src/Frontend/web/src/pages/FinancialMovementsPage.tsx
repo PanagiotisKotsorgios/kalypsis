@@ -4,7 +4,6 @@ import {
   Alert, Box, Button, Card, CardContent, Chip, CircularProgress, MenuItem, Stack, Table, TableBody, TableCell,
   TableHead, TablePagination, TableRow, TextField, Tooltip as MuiTooltip, Typography
 } from "@mui/material";
-import SavingsOutlinedIcon from "@mui/icons-material/SavingsOutlined";
 import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -23,7 +22,6 @@ const FINANCIAL_TOOLS = [
   // αρχεία are removed from the hub grid. Their /app routes stay live for
   // deep-links, but the hub only surfaces the tools tenants actually reach
   // through this screen day-to-day.
-  { to: "/app/advance-payments", label: "Προκαταβολές", detail: "Εισερχόμενες και εξερχόμενες προκαταβολές και κατανομές", icon: <SavingsOutlinedIcon /> },
   { to: "/app/reconciliation", label: "Συμφωνία κινήσεων", detail: "Έλεγχος εισπράξεων και εκκρεμοτήτων", icon: <CompareArrowsIcon /> },
   // «Εξαγωγές λογιστικής» tile removed with the /app/accounting page.
 ];
