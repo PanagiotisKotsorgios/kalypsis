@@ -26,7 +26,7 @@ export function PublicFooter() {
     }}>
       <Container maxWidth="lg" sx={{ px: { xs: 3, md: 6 }, py: { xs: 2.5, md: 3 } }}>
         <Stack direction={{ xs: "column", md: "row" }} useFlexGap gap={2} alignItems={{ xs: "flex-start", md: "center" }} sx={{ pb: 2.5, mb: 2.5, borderBottom: `1px solid ${RULE}` }}>
-          <Stack direction="row" gap={1.25} alignItems="center" sx={{ flex: 1 }}><GitHubIcon sx={{ color: NAVY }} /><Box><Typography sx={{ color: NAVY, fontWeight: 800, fontSize: 15 }}>KALYPSIS CLI</Typography><Typography sx={{ color: NAVY_SOFT, fontSize: 12 }}>{english ? "Windows command-line project · In preparation" : "Έργο γραμμής εντολών για Windows · Υπό προετοιμασία"}</Typography></Box></Stack>
+          <Stack direction="row" gap={1.25} alignItems="center" sx={{ flex: 1 }}><GitHubIcon sx={{ color: NAVY }} /><Box><Typography sx={{ color: NAVY, fontWeight: 800, fontSize: 15 }}>KALYPSIS CLI</Typography><Typography sx={{ color: NAVY_SOFT, fontSize: 12 }}>{english ? "Public project · Free repository access for everyone" : "Δημόσιο έργο · Δωρεάν πρόσβαση στο αποθετήριο για όλους"}</Typography></Box></Stack>
           <Stack direction="row" useFlexGap flexWrap="wrap" gap={1} alignItems="center">
             <CliProjectLink />
             <Button component="a" href={CLI_REPOSITORY} target="_blank" rel="noopener noreferrer" variant="outlined" startIcon={<TerminalIcon />} sx={{ color: NAVY, borderColor: "#B8CBDF", textTransform: "none" }}>{english ? "About the Windows CLI" : "Το CLI για Windows"}</Button>

@@ -61,6 +61,7 @@ test("public pricing, contract form, disclosure and bilingual CLI links render w
     const {LandingNavbar} = await server.ssrLoadModule("/src/components/LandingNavbar.tsx");
     const {PublicNav} = await server.ssrLoadModule("/src/components/PublicNav.tsx");
     const {LandingPage} = await server.ssrLoadModule("/src/pages/LandingPage.tsx");
+    const {PublicWorkflowSection} = await server.ssrLoadModule("/src/components/PublicWorkflowSection.tsx");
     client.setQueryData(["public-pricing"], {version:1,plans:[{code:"test",name:"Πλάνο δοκιμής",description:"Δοκιμή",tagline:"",pricePerYear:100,includedOffices:1,includedUsers:1,includedPackages:1,extraOfficePerYear:20,extraUserPerYear:10,packages:["core"],isFeatured:true,isActive:true,sortOrder:1,buttonText:"Επιλογή",buttonUrl:"/register"}],addons:[],services:[],features:[{key:"core",label:"Πελάτες",sortOrder:1,isActive:true}],settings:{currency:"EUR",pricesIncludeVat:false,vatRate:24,publicTitle:"Τιμές",publicSubtitle:"",vatLabel:"ΦΠΑ"}});
     const render = (child,width,mountDrawers=false) => renderToStaticMarkup(h(QueryClientProvider,{client},h(I18nextProvider,{i18n},h(ThemeProvider,{theme:createTheme({components:{MuiDialog:{defaultProps:{disablePortal:true}},...(mountDrawers ? {MuiModal:{defaultProps:{keepMounted:true,disablePortal:true}},MuiDrawer:{defaultProps:{ModalProps:{keepMounted:true,disablePortal:true}}}} : {}),MuiUseMediaQuery:{defaultProps:{ssrMatchMedia:()=>({matches:width<600})}}}})},h(MemoryRouter,null,child)))));
     await context.test("contract modal has all screenshot fields, optional region/message, consent and accessible controls at six widths", () => {
@@ -86,6 +87,8 @@ test("public pricing, contract form, disclosure and bilingual CLI links render w
         await i18n.changeLanguage(language);
         const html = render(h(PublicFooter),360);
         assert.ok(html.includes(contributor)); assert.ok(html.includes(`${CLI_REPOSITORY}/blob/main/${file}`));
+        assert.ok(html.includes(language === "el" ? "Δωρεάν πρόσβαση στο αποθετήριο για όλους" : "Free repository access for everyone"));
+        assert.ok(!html.includes("Υπό προετοιμασία")); assert.ok(!html.includes("In preparation"));
         assert.ok(render(h(CliProjectLink),360).includes(`href="${CLI_REPOSITORY}"`));
       }
       assert.ok(cliContributionUrl(false).endsWith("CONTRIBUTING.el.md"));
@@ -104,6 +107,26 @@ test("public pricing, contract form, disclosure and bilingual CLI links render w
           assert.ok(group.includes('target="_blank"')); assert.ok(group.includes('rel="noopener noreferrer"'));
         }
       }
+    });
+    await context.test("the reference workflow is real bilingual content with four readable ordered steps and a working contact link", async () => {
+      for (const language of ["el","en"]) {
+        await i18n.changeLanguage(language);
+        for (const width of [320,360,600,900,1280,1920]) {
+          const html = render(h(PublicWorkflowSection),width);
+          assert.equal((html.match(/<li\b/g)??[]).length,4);
+          assert.equal((html.match(/<h3\b/g)??[]).length,4);
+          assert.ok(html.includes('<ol ')); assert.ok(html.includes('aria-labelledby="public-workflow-title"'));
+          assert.ok(html.includes('href="/contact"')); assert.ok(!html.includes('<img'));
+          assert.ok(html.includes(language === "el" ? "Όλα σε ένα περιβάλλον, χωρίς πολύπλοκες διαδικασίες" : "One workspace, without complicated processes"));
+          assert.ok(html.includes(language === "el" ? "Αυτοματοποιείτε τα επαναλαμβανόμενα" : "Automate recurring work"));
+          for (const token of ["#087CEB","#305EC6","#12877F","#795DD8","prefers-reduced-motion","minmax(0, 1fr)","1200px"]) assert.ok(html.includes(token),token);
+        }
+      }
+      const source = await read("./PublicWorkflowSection.tsx");
+      assert.ok(!source.includes("linear-gradient")); assert.ok(!source.includes("boxShadow"));
+      assert.ok((await read("../pages/LandingPage.tsx")).includes("<PublicWorkflowSection />"));
+      const tooltip = await read("./CliProjectLink.tsx");
+      for (const obsolete of ["υπό προετοιμασία","not available yet","planned Windows"]) assert.ok(!tooltip.includes(obsolete));
     });
   } finally {client.clear();await server.close();}
 });
