@@ -1,4 +1,5 @@
 import { ClaimListFilters, ClaimListTableFrame } from "../components/ClaimListLayout";
+import { ClaimSupportDetailDialog } from "../components/ClaimSupportDetailDialog";
 import { RecordCountChip } from "../components/TableToolbar";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -6,6 +7,7 @@ import {
   IconButton, MenuItem, Stack, Switch, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Typography
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import DeleteIcon from "@mui/icons-material/Delete";
 import BuildIcon from "@mui/icons-material/Build";
 import SearchIcon from "@mui/icons-material/Search";
@@ -30,7 +32,9 @@ export function GaragesPage() {
   const qc = useQueryClient();
   const [err, setErr] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [editing, setEditing] = useState<GarageDto | null>(null);
+  const [detail, setDetail] = useState<GarageDto | null>(null);
+  const [detailEditing, setDetailEditing] = useState(false);
+  const openGarageCard = (record: GarageDto, edit = false) => { setDetailEditing(edit); setDetail(record); };
   const [search, setSearch] = useState("");
   const [approvalFilter, setApprovalFilter] = useState("all");
   const [activeFilter, setActiveFilter] = useState("all");
@@ -129,7 +133,7 @@ export function GaragesPage() {
                 <TableRow><TableCell colSpan={8} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("garages.empty")}</TableCell></TableRow>
               )}
               {pageRows.map(g => (
-                <TableRow key={g.id} hover>
+                <TableRow key={g.id} hover sx={{ cursor: "pointer" }} onClick={event => { if (!(event.target as HTMLElement).closest("button, a")) openGarageCard(g); }}>
                   <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{g.code}</TableCell>
                   <TableCell>{g.name}</TableCell>
                   <TableCell>{g.city ?? "—"}</TableCell>
@@ -138,7 +142,8 @@ export function GaragesPage() {
                   <TableCell><Chip size="small" color={g.isApproved ? "success" : "default"} label={g.isApproved ? "✓" : "—"} /></TableCell>
                   <TableCell><Chip size="small" color={g.isActive ? "success" : "default"} label={g.isActive ? t("common.active") : t("common.inactive")} /></TableCell>
                   <TableCell align="right">
-                    <IconButton size="small" onClick={() => setEditing(g)}><EditIcon fontSize="small" /></IconButton>
+                    <IconButton size="small" onClick={() => openGarageCard(g)} aria-label="Προβολή συνεργείου"><VisibilityIcon fontSize="small" /></IconButton>
+                    <IconButton size="small" onClick={() => openGarageCard(g, true)} aria-label="Επεξεργασία συνεργείου"><EditIcon fontSize="small" /></IconButton>
                     <IconButton size="small" color="error" onClick={() => { if (confirm(t("common.confirmDelete"))) del.mutate(g.id); }}>
                       <DeleteIcon fontSize="small" />
                     </IconButton>
@@ -151,8 +156,7 @@ export function GaragesPage() {
       )}
       <FormDialog open={createOpen} onClose={() => setCreateOpen(false)} item={null}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["garages"] }); setCreateOpen(false); }} />
-      <FormDialog open={!!editing} onClose={() => setEditing(null)} item={editing}
-        onSaved={() => { void qc.invalidateQueries({ queryKey: ["garages"] }); setEditing(null); }} />
+      {detail && <ClaimSupportDetailDialog key={`${detail.id}:${detailEditing ? "edit" : "view"}`} kind="garages" record={detail} initialEditing={detailEditing} canEdit onClose={() => setDetail(null)} />}
     </Box>
   );
 }

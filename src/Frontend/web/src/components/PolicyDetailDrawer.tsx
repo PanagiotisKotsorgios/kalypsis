@@ -125,6 +125,7 @@ interface Props {
   readOnly?: boolean;
   /** Use a centered modal when the policy is opened from another modal (for example a company profile). */
   presentation?: "drawer" | "modal";
+  initialEditing?: boolean;
 }
 
 type PolicySettlementMode = "receipt" | "carrierPayment" | "producerPayment";
@@ -203,7 +204,7 @@ const COLLECTION_METHODS_LABEL: Record<string, string> = {
   Other: "Άλλο",
 };
 
-export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, presentation = "drawer" }: Props) {
+export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, presentation = "drawer", initialEditing = false }: Props) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [tab, setTab] = useState(0);
@@ -514,6 +515,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   }, [open]);
 
   const session = useProfileFieldEditor({
+    initialEditing: initialEditing && !readOnly,
     sessionKey: open ? policyId ?? "" : "", values: {
       ...Object.fromEntries(Object.keys(form).map(key => [key, String(q.data?.[key as keyof PolicyDetail] ?? "")])),
       ...Object.fromEntries(POLICY_CORE_KEYS.map(key => [key, String(q.data?.[key as keyof PolicyDetail] ?? "")])),

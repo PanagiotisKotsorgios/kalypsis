@@ -49,10 +49,11 @@ const GRADE_LABEL: Record<string, string> = {
   A: "Άριστος", B: "Πολύ καλός", C: "Μέτριος", D: "Φτωχός", F: "Προβληματικός"
 };
 
-export function ProducerDetailDrawer({ producerId, open, onClose, onEdit }: {
-  producerId: string | null; open: boolean; onClose: () => void; onEdit?: () => void;
+export function ProducerDetailDrawer({ producerId, open, onClose, onEdit, canEdit: explicitCanEdit, initialEditing = false }: {
+  producerId: string | null; open: boolean; onClose: () => void; onEdit?: () => void; canEdit?: boolean; initialEditing?: boolean;
 }) {
   const { t } = useTranslation();
+  const canEdit = explicitCanEdit ?? !!onEdit;
   const q = useQuery({
     queryKey: ["producer-detail", producerId],
     enabled: open && !!producerId,
@@ -70,16 +71,17 @@ export function ProducerDetailDrawer({ producerId, open, onClose, onEdit }: {
   useEffect(() => { if (open) { setTab(0); setStatisticsOpen(false); } }, [open, producerId]);
 
   const qc = useQueryClient();
-  const producerOptions = useQuery({ queryKey: ["producers"], enabled: open && !!onEdit,
+  const producerOptions = useQuery({ queryKey: ["producers"], enabled: open && canEdit,
     queryFn: async () => (await api.get<{ id: string; name: string }[]>("/producers")).data });
   const session = useProfileFieldEditor({
+    initialEditing: initialEditing && canEdit,
     sessionKey: open ? producerId ?? "" : "", values: {
       ...Object.fromEntries(PRODUCER_FIELDS.map(([key]) => [key, String(p?.[key] ?? "")])),
       ...Object.fromEntries((contactFields.data ?? []).map(row => ["contact:" + row.id, row.value])),
     }, onClose,
     refresh: () => { void qc.invalidateQueries({ queryKey: ["producer-detail", producerId] }); void qc.invalidateQueries({ queryKey: ["producers"] }); void qc.invalidateQueries({ queryKey: ["producer-contact-fields", producerId] }); void qc.invalidateQueries({ queryKey: ["producer-statistics", producerId] }); },
     write: async (changes, accept) => {
-      if (!onEdit || !p) throw new Error("Δεν επιτρέπεται η επεξεργασία συνεργάτη.");
+      if (!canEdit || !p) throw new Error("Δεν επιτρέπεται η επεξεργασία συνεργάτη.");
       if (!Object.keys(changes).length) return;
       const core = Object.fromEntries(Object.entries(changes).filter(([key]) => !key.startsWith("contact:")));
       if (Object.keys(core).length) {
@@ -130,7 +132,7 @@ export function ProducerDetailDrawer({ producerId, open, onClose, onEdit }: {
           <ProfileEditorFeedback session={session} />
 
           <Stack spacing={1.25}>
-            {tab === 0 && <ProducerProfileFields session={onEdit ? session : undefined} values={session.values} parents={(producerOptions.data ?? []).filter(row => row.id !== producerId)} />}
+            {tab === 0 && <ProducerProfileFields session={canEdit ? session : undefined} values={session.values} parents={(producerOptions.data ?? []).filter(row => row.id !== producerId)} />}
             {tab === 1 && <Stack spacing={1.25}>
               {p.byCarrier.length > 0 && <Card variant="outlined" sx={{ p: 1.25 }}><Typography fontWeight={800} mb={.75}>{t("producerDetail.byCarrier")}</Typography><Table size="small"><TableHead><TableRow><TableCell>{t("producerDetail.carrier")}</TableCell><TableCell align="right">{t("producerDetail.policies")}</TableCell><TableCell align="right">{t("producerDetail.premium")}</TableCell></TableRow></TableHead><TableBody>{p.byCarrier.map(c => <TableRow key={c.carrierName}><TableCell>{c.carrierName}</TableCell><TableCell align="right">{c.policyCount}</TableCell><TableCell align="right" sx={{ fontWeight: 700 }}>{c.totalPremium.toFixed(2)} €</TableCell></TableRow>)}</TableBody></Table></Card>}
               {p.byPolicyType.length > 0 && <Card variant="outlined" sx={{ p: 1.25 }}><Typography fontWeight={800} mb={.75}>{t("producerDetail.byType")}</Typography><Table size="small"><TableHead><TableRow><TableCell>{t("producerDetail.type")}</TableCell><TableCell align="right">{t("producerDetail.policies")}</TableCell><TableCell align="right">{t("producerDetail.premium")}</TableCell></TableRow></TableHead><TableBody>{p.byPolicyType.map(item => <TableRow key={item.policyType}><TableCell>{item.policyType}</TableCell><TableCell align="right">{item.policyCount}</TableCell><TableCell align="right" sx={{ fontWeight: 700 }}>{item.totalPremium.toFixed(2)} €</TableCell></TableRow>)}</TableBody></Table></Card>}
@@ -139,14 +141,14 @@ export function ProducerDetailDrawer({ producerId, open, onClose, onEdit }: {
             {tab === 2 && <Stack gap={1.25}>
               <ProducerBalancesPanel key={p.id} producerId={p.id} />
             </Stack>}
-            {tab === 3 && <ProducerContactFields key={p.id} producerId={p.id} values={session.values} session={onEdit ? session : undefined}
+            {tab === 3 && <ProducerContactFields key={p.id} producerId={p.id} values={session.values} session={canEdit ? session : undefined}
               fields={contactFields.data ?? []} loading={contactFields.isLoading} error={contactFields.isError ? extractErrorMessage(contactFields.error) : undefined} retry={() => void contactFields.refetch()} />}
           </Stack>
         </>}
       </DialogContent>
       <DialogActions sx={{ px: 1.25, py: .6, gap: .75, flexWrap: "wrap" }}>
         <Button size="small" variant="contained" startIcon={<BarChartIcon />} disabled={!p} onClick={() => setStatisticsOpen(true)} sx={{ bgcolor: "#087ceb", color: "#fff", "&:hover": { bgcolor: "#0767c4" } }}>Στατιστικά</Button>
-        {onEdit ? <ProfileEditorActions session={session} label="συνεργάτη" /> : <Button color="error" variant="contained" onClick={session.requestClose}>Κλείσιμο</Button>}
+        {canEdit ? <ProfileEditorActions session={session} label="συνεργάτη" /> : <Button color="error" variant="contained" onClick={session.requestClose}>Κλείσιμο</Button>}
       </DialogActions>
       {p && <ProducerStatisticsDialog key={p.id} producerId={p.id} name={p.name} open={open && statisticsOpen} onClose={() => setStatisticsOpen(false)} />}
     </Dialog>

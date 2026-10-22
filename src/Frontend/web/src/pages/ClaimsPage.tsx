@@ -134,8 +134,9 @@ export function ClaimsPage() {
   const [statusFilter, setStatusFilter] = useState<ClaimStatus | "">("");
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [editing, setEditing] = useState<ClaimDto | null>(null);
   const [detail, setDetail] = useState<ClaimDto | null>(null);
+  const [detailEditing, setDetailEditing] = useState(false);
+  const openClaimCard = (claim: ClaimDto, edit = false) => { setDetailEditing(edit && canEdit); setDetail(claim); };
   const [error, setError] = useState<string | null>(null);
   const [customerFilter, setCustomerFilter] = useState("");
   const [carrierFilter,  setCarrierFilter]  = useState(""); // carrier ID now
@@ -272,7 +273,7 @@ export function ClaimsPage() {
     key === "incidentDate" ? "date" : (key === "claimed" || key === "approved") ? "number" : "string";
   const rowMenu = useRowContextMenu<ClaimDto>({
     entityLabel: "ζημιάς",
-    onEdit: (c) => setEditing(c),
+    onEdit: canEdit ? (c) => openClaimCard(c, true) : undefined,
   });
 
   const claimAdvancedFilters = <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, pt: .5 }}>
@@ -416,7 +417,7 @@ export function ClaimsPage() {
                     data-tour={idx === 0 ? "claims-row" : undefined}
                     onClick={(e) => {
                       if ((e.target as HTMLElement).closest("button, a, .MuiIconButton-root")) return;
-                      setDetail(c);
+                      openClaimCard(c);
                     }}
                     onContextMenu={(e) => rowMenu.open(e, c)}>
                     <TableCell><Chip data-tour={idx === 0 ? "claims-status" : undefined} label={c.claimNumber} variant="outlined" size="small" /></TableCell>
@@ -439,7 +440,7 @@ export function ClaimsPage() {
                     </TableCell>
                     {canEdit && (
                       <TableCell align="right">
-                        <IconButton size="small" onClick={() => setEditing(c)} title={t("common.edit")}>
+                        <IconButton size="small" onClick={() => openClaimCard(c, true)} title={t("common.edit")}>
                           <EditIcon fontSize="small" />
                         </IconButton>
                       </TableCell>
@@ -475,15 +476,12 @@ export function ClaimsPage() {
             onClose={() => setCreateOpen(false)}
             onSaved={() => { void qc.invalidateQueries({ queryKey: ["claims"] }); setCreateOpen(false); }}
           />
-          <EditClaimDialog
-            claim={editing}
-            onClose={() => setEditing(null)}
-            onSaved={() => { void qc.invalidateQueries({ queryKey: ["claims"] }); setEditing(null); }}
-          />
         </>
       )}
       <ClaimDetailDrawer
+        key={`${detail?.id ?? "closed"}:${detailEditing ? "edit" : "view"}`}
         claim={detail as any}
+        initialEditing={detailEditing && canEdit}
         open={!!detail}
         canEdit={canEdit}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["claims"] }); }}
@@ -584,144 +582,6 @@ function CreateClaimDialog({ open, onClose, onSaved }: {
         <Button onClick={onClose}>{t("common.cancel")}</Button>
         <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending || !form.policyId}>
           {save.isPending ? <CircularProgress size={18} /> : t("common.create")}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-}
-
-/* ====================== Edit dialog (status + amounts + notes) ====================== */
-
-function EditClaimDialog({ claim, onClose, onSaved }: {
-  claim: ClaimDto | null;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const { t } = useTranslation();
-  const [form, setForm] = useState({
-    incidentDate: "",
-    reportedDate: "",
-    claimedAmount: 0,
-    approvedAmount: 0,
-    description: "",
-    status: "Reported" as ClaimStatus
-  });
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (claim) {
-      setForm({
-        incidentDate: claim.incidentDate,
-        reportedDate: claim.reportedDate,
-        claimedAmount: claim.claimedAmount ?? 0,
-        approvedAmount: claim.approvedAmount ?? 0,
-        description: claim.description ?? "",
-        status: claim.status
-      });
-    }
-  }, [claim?.id]);
-
-  const updateMutation = useMutation({
-    mutationFn: async () =>
-      (await api.put<ClaimDto>(`/claims/${claim!.id}`, {
-        incidentDate: form.incidentDate,
-        reportedDate: form.reportedDate,
-        claimedAmount: form.claimedAmount > 0 ? form.claimedAmount : null,
-        approvedAmount: form.approvedAmount > 0 ? form.approvedAmount : null,
-        description: form.description.trim() || null
-      })).data,
-    onError: (err) => setError(extractErrorMessage(err))
-  });
-
-  const statusMutation = useMutation({
-    mutationFn: async () =>
-      (await api.post<ClaimDto>(`/claims/${claim!.id}/status`, {
-        status: form.status,
-        approvedAmount: form.approvedAmount > 0 ? form.approvedAmount : null
-      })).data,
-    onError: (err) => setError(extractErrorMessage(err))
-  });
-
-  const handleSave = async () => {
-    setError(null);
-    try {
-      await updateMutation.mutateAsync();
-      if (form.status !== claim?.status) {
-        await statusMutation.mutateAsync();
-      }
-      onSaved();
-    } catch {
-      // errors surfaced via onError above
-    }
-  };
-
-  return (
-    <Dialog open={!!claim} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>
-        <Stack direction="row" alignItems="center" spacing={2}>
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>{t("claims.form.editTitle")}</Typography>
-          {claim && <Chip label={claim.claimNumber} variant="outlined" size="small" />}
-        </Stack>
-      </DialogTitle>
-      <DialogContent>
-        {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
-        {claim && (
-          <Typography color="text.secondary" sx={{ mb: 2 }}>
-            {claim.policyNumber} · {t(`policies.types.${claim.policyType}`)} · {claim.customerDisplay}
-          </Typography>
-        )}
-        <Stack spacing={2.5} mt={1}>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField
-              type="date" label={t("claims.form.incidentDate")}
-              InputLabelProps={{ shrink: true }} value={form.incidentDate}
-              onChange={(e) => setForm({ ...form, incidentDate: e.target.value })}
-              fullWidth required
-            />
-            <TextField
-              type="date" label={t("claims.form.reportedDate")}
-              InputLabelProps={{ shrink: true }} value={form.reportedDate}
-              onChange={(e) => setForm({ ...form, reportedDate: e.target.value })}
-              fullWidth required
-            />
-          </Stack>
-
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField
-              type="number" label={t("claims.form.claimedAmount")} value={form.claimedAmount}
-              onChange={(e) => setForm({ ...form, claimedAmount: Number(e.target.value) })}
-              InputProps={{ endAdornment: <InputAdornment position="end">€</InputAdornment> }}
-              fullWidth
-            />
-            <TextField
-              type="number" label={t("claims.form.approvedAmount")} value={form.approvedAmount}
-              onChange={(e) => setForm({ ...form, approvedAmount: Number(e.target.value) })}
-              InputProps={{ endAdornment: <InputAdornment position="end">€</InputAdornment> }}
-              fullWidth
-            />
-          </Stack>
-
-          <SearchableTextField
-            select label={t("claims.col.status")} value={form.status}
-            onChange={(e) => setForm({ ...form, status: e.target.value as ClaimStatus })}
-            fullWidth
-          >
-            {(["Reported","UnderReview","Approved","Rejected","Paid","Closed"] as const).map(s =>
-              <MenuItem key={s} value={s}>{t(`claims.statuses.${s}`)}</MenuItem>
-            )}
-          </SearchableTextField>
-
-          <TextField
-            label={t("claims.form.description")} value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-            fullWidth multiline rows={4}
-          />
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>{t("common.cancel")}</Button>
-        <Button variant="contained" onClick={handleSave} disabled={updateMutation.isPending || statusMutation.isPending}>
-          {(updateMutation.isPending || statusMutation.isPending) ? <CircularProgress size={18} /> : t("common.save")}
         </Button>
       </DialogActions>
     </Dialog>

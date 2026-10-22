@@ -1,4 +1,7 @@
 import { ClaimListFilters, ClaimListTableFrame } from "../components/ClaimListLayout";
+import { ClaimSupportDetailDialog } from "../components/ClaimSupportDetailDialog";
+import EditIcon from "@mui/icons-material/Edit";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import { RecordCountChip } from "../components/TableToolbar";
 import { useEffect, useMemo, useState } from "react";
 import AddIcon from "@mui/icons-material/Add";
@@ -57,6 +60,9 @@ export function FriendlySettlementsPage() {
   const [err, setErr] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [victimsOf, setVictimsOf] = useState<SettlementDto | null>(null);
+  const [detail, setDetail] = useState<SettlementDto | null>(null);
+  const [detailEditing, setDetailEditing] = useState(false);
+  const openSettlementCard = (record: SettlementDto, edit = false) => { setDetailEditing(edit); setDetail(record); };
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [insurerFilter, setInsurerFilter] = useState("all");
@@ -160,7 +166,7 @@ export function FriendlySettlementsPage() {
                 <TableRow><TableCell colSpan={8} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("friendly.empty")}</TableCell></TableRow>
               )}
               {pageRows.map(s => (
-                <TableRow key={s.id} hover>
+                <TableRow key={s.id} hover sx={{ cursor: "pointer" }} onClick={event => { if (!(event.target as HTMLElement).closest("button, a")) openSettlementCard(s); }}>
                   <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{s.settlementFileNumber}</TableCell>
                   <TableCell>{s.claimNumber}</TableCell>
                   <TableCell>{s.declarationDate}</TableCell>
@@ -169,6 +175,8 @@ export function FriendlySettlementsPage() {
                   <TableCell align="center">{s.victimCount}</TableCell>
                   <TableCell><Chip size="small" color={STATUS_COLOR[s.status] ?? "default"} label={settlementStatusLabel(s.status)} /></TableCell>
                   <TableCell align="right">
+                    <IconButton size="small" color="primary" onClick={() => openSettlementCard(s)} aria-label="Προβολή διακανονισμού"><VisibilityIcon fontSize="small" /></IconButton>
+                    <IconButton size="small" color="success" onClick={() => openSettlementCard(s, true)} aria-label="Επεξεργασία διακανονισμού"><EditIcon fontSize="small" /></IconButton>
                     <IconButton size="small" color="primary" onClick={() => setVictimsOf(s)}><PeopleIcon fontSize="small" /></IconButton>
                   </TableCell>
                 </TableRow>
@@ -180,6 +188,7 @@ export function FriendlySettlementsPage() {
       <CreateDialog open={createOpen} onClose={() => setCreateOpen(false)}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["friendly-settlements"] }); setCreateOpen(false); }} />
       <VictimsDialog settlement={victimsOf} onClose={() => setVictimsOf(null)} />
+      {detail && <ClaimSupportDetailDialog key={`${detail.id}:${detailEditing ? "edit" : "view"}`} kind="friendly-settlements" record={detail} initialEditing={detailEditing} canEdit onClose={() => setDetail(null)} />}
     </Box>
   );
 }

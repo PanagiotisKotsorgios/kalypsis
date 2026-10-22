@@ -157,8 +157,9 @@ export function ProducersPage() {
   const compactFilters = useMediaQuery(theme.breakpoints.down("xl"));
   const qc = useQueryClient();
   const [createStatus, setCreateStatus] = useState<ProducerStatus | null>(null);
-  const [editing, setEditing] = useState<ProducerDto | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailEditing, setDetailEditing] = useState(false);
+  const openProducerCard = (id: string, edit = false) => { setDetailEditing(edit); setDetailId(id); };
   const [customersFor, setCustomersFor] = useState<ProducerDto | null>(null);
   const [reassignFor, setReassignFor] = useState<ProducerDto | null>(null);
   const [credentialFor, setCredentialFor] = useState<ProducerDto | null>(null);
@@ -281,7 +282,7 @@ export function ProducersPage() {
   });
   const rowMenu = useRowContextMenu<ProducerDto>({
     entityLabel: "συνεργάτη",
-    onEdit: (p) => setEditing(p),
+    onEdit: (p) => openProducerCard(p.id, true),
     onDelete: (p) => del.mutate(p.id),
   });
 
@@ -441,7 +442,7 @@ export function ProducersPage() {
                     data-tour={idx === 0 ? "producers-row" : undefined}
                     onClick={(e) => {
                       if ((e.target as HTMLElement).closest("button, a, .MuiIconButton-root")) return;
-                      setDetailId(p.id);
+                      openProducerCard(p.id);
                     }}
                     onContextMenu={(e) => rowMenu.open(e, p)}>
                     <TableCell><Chip label={p.code} size="small" variant="outlined" /></TableCell>
@@ -479,7 +480,7 @@ export function ProducersPage() {
                           onClick={(e) => { e.stopPropagation(); setGoalPlanFor(p); }}>
                           <SettingsSuggestIcon fontSize="small" />
                         </IconButton>
-                        <IconButton size="small" onClick={() => setEditing(p)}><EditIcon fontSize="small" /></IconButton>
+                        <IconButton size="small" onClick={() => openProducerCard(p.id, true)} title="Επεξεργασία συνεργάτη"><EditIcon fontSize="small" /></IconButton>
                         <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); setDeleteTarget(p); }}>
                           <DeleteIcon fontSize="small" />
                         </IconButton>
@@ -527,10 +528,6 @@ export function ProducersPage() {
           if (credentials) setIssuedCreds(credentials);
         }}
       />
-      <ProducerDialog
-        open={!!editing} onClose={() => setEditing(null)} producer={editing}
-        onSaved={() => { void qc.invalidateQueries({ queryKey: ["producers"] }); setEditing(null); }}
-      />
 
       <ProducerPasswordDialog
         producer={credentialFor}
@@ -554,13 +551,12 @@ export function ProducersPage() {
       />
 
       <ProducerDetailDrawer
+        key={`${detailId ?? "closed"}:${detailEditing ? "edit" : "view"}`}
         producerId={detailId}
+        initialEditing={detailEditing}
+        canEdit
         open={!!detailId}
         onClose={() => setDetailId(null)}
-        onEdit={() => {
-          const item = rawProducers.find(candidate => candidate.id === detailId);
-          if (item) { setDetailId(null); setEditing(item); }
-        }}
       />
 
       <ProducerCustomersDialog

@@ -227,6 +227,7 @@ export function ClaimDetailDrawer({
   open,
   onClose,
   canEdit = false,
+  initialEditing = false,
   onEdit: _onEdit,
   onSaved,
 }: {
@@ -234,6 +235,7 @@ export function ClaimDetailDrawer({
   open: boolean;
   onClose: () => void;
   canEdit?: boolean;
+  initialEditing?: boolean;
   onEdit?: (claim: ClaimRow) => void;
   onSaved?: () => void;
 }) {
@@ -310,6 +312,7 @@ export function ClaimDetailDrawer({
 
   const qc = useQueryClient();
   const session = useProfileFieldEditor({
+    initialEditing: initialEditing && canEdit,
     sessionKey: open ? claim?.id ?? "" : "", values: Object.fromEntries(CLAIM_FIELDS.map(([key]) => [key, String(snapshot?.[key] ?? "")])), onClose,
     refresh: () => { void qc.invalidateQueries({ queryKey: ["claim-profile", claim?.id] }); void qc.invalidateQueries({ queryKey: ["claims"] }); onSaved?.(); },
     write: async (changes, accept) => {
@@ -442,7 +445,7 @@ export function ClaimDetailDrawer({
       >
         <DetailProfileTabs value={tab} onChange={setTab} items={PROFILE_TABS} />
         <ProfileEditorFeedback session={session} />
-        {profileQ.isLoading && (
+        {profileQ.isLoading && tab > 1 && (
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />
           </Box>
@@ -453,7 +456,7 @@ export function ClaimDetailDrawer({
             στοιχεία της ζημιάς παραμένουν διαθέσιμα.
           </Alert>
         )}
-        {!profileQ.isLoading && (
+        {(!profileQ.isLoading || tab <= 1) && (
           <>
             {tab === 0 && (
               <SummaryTab

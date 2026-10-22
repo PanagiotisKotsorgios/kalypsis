@@ -18,7 +18,8 @@
     "test:unified-actions": "node --experimental-strip-types --test src/pages/unifiedActionsMenus.test.mjs",
     "test:customer-filters": "node --experimental-strip-types --test src/pages/customerListFilters.test.mjs src/pages/customerTableAppearance.test.mjs",
     "test:financial-claim-actions": "node --experimental-strip-types --test src/pages/financialAndClaimsActions.test.mjs",
-    "test:claim-layout": "node --experimental-strip-types --test src/pages/claimsResponsive.test.mjs"
+    "test:claim-layout": "node --experimental-strip-types --test src/pages/claimsResponsive.test.mjs",
+    "test:edit-card-routing": "node --experimental-strip-types --test src/components/profile/editCardRouting.test.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

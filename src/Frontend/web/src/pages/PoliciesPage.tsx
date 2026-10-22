@@ -284,8 +284,9 @@ export function PoliciesPage() {
   });
 
   const [createStatus, setCreateStatus] = useState<PolicyStatus | null>(null);
-  const [editingPolicy, setEditingPolicy] = useState<PolicyDto | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailEditing, setDetailEditing] = useState(false);
+  const openPolicyCard = (id: string, edit = false) => { setDetailEditing(edit && canEdit); setDetailId(id); };
   const [renewing, setRenewing] = useState<PolicyDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -304,7 +305,7 @@ export function PoliciesPage() {
   // the detail drawer so it feels like «click policy → see full policy».
   useEffect(() => {
     const id = searchParams.get("focus");
-    if (id && !detailId) setDetailId(id);
+    if (id && !detailId) openPolicyCard(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams.get("focus")]);
 
@@ -398,7 +399,7 @@ export function PoliciesPage() {
   // re-triggered by the same param on a re-render.
   useEffect(() => {
     if (!documentPolicyId) return;
-    setDetailId(documentPolicyId);
+    openPolicyCard(documentPolicyId);
     const next = new URLSearchParams(searchParams);
     next.delete("documentPolicyId");
     setSearchParams(next, { replace: true });
@@ -527,7 +528,7 @@ export function PoliciesPage() {
   });
   const rowMenu = useRowContextMenu<PolicyDto>({
     entityLabel: "συμβολαίου",
-    onEdit: (p) => { window.location.href = `/app/policies/${p.id}`; },
+    onEdit: canEdit ? (p) => openPolicyCard(p.id, true) : undefined,
     onDelete: (p) => {
       if (canEdit) setPendingAction({ kind: "delete", policy: p });
     },
@@ -784,7 +785,7 @@ export function PoliciesPage() {
                       selected={selectedIds.has(p.id)}
                       onClick={(e) => {
                         if ((e.target as HTMLElement).closest("button, a, .MuiIconButton-root, .MuiCheckbox-root")) return;
-                        setDetailId(p.id);
+                        openPolicyCard(p.id);
                       }}
                       onContextMenu={(e) => rowMenu.open(e, p)}>
                       {canEdit && (
@@ -841,7 +842,7 @@ export function PoliciesPage() {
                       {canEdit && (
                         <TableCell align="right">
                           <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                            <IconButton size="small" onClick={() => setEditingPolicy(p)} title={t("common.edit")}>
+                            <IconButton size="small" onClick={() => openPolicyCard(p.id, true)} title={t("common.edit")}>
                               <EditIcon fontSize="small" />
                             </IconButton>
                             <IconButton
@@ -897,7 +898,9 @@ export function PoliciesPage() {
           detailId but the drawer wasn't even mounted — click did nothing.
           Now it lives at the top level so every role can preview a policy. */}
       <PolicyDetailDrawer
+        key={`${detailId ?? "closed"}:${detailEditing ? "edit" : "view"}`}
         policyId={detailId}
+        initialEditing={detailEditing && canEdit}
         open={!!detailId}
         onClose={() => setDetailId(null)}
         presentation="modal"
@@ -920,12 +923,6 @@ export function PoliciesPage() {
             onClose={() => setCreateStatus(null)}
             policy={null}
             onSaved={() => { void qc.invalidateQueries({ queryKey: ["policies"] }); setCreateStatus(null); }}
-          />
-          <PolicyFormDialog
-            open={!!editingPolicy}
-            onClose={() => setEditingPolicy(null)}
-            policy={editingPolicy}
-            onSaved={() => { void qc.invalidateQueries({ queryKey: ["policies"] }); setEditingPolicy(null); }}
           />
           <RenewDialog
             policy={renewing}
