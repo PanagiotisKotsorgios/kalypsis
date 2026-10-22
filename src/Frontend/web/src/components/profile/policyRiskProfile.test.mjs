@@ -16,7 +16,8 @@ test("policy payment states distinguish zero, partial and recorded payments", ()
 
 test("policy card removes obsolete sections without discarding stored data or lifecycle history", async () => {
   const source = await readFile(new URL("../PolicyDetailDrawer.tsx", import.meta.url), "utf8");
-  for (const removed of ["PolicyRiskFields", "PolicyTaxFields", "PolicyBeneficiaries", "Στοιχεία ασφαλιζόμενου κινδύνου", "Δικαιούχοι αποζημίωσης", "Επικοινωνίες συμβολαίου", "policy-communications"]) assert.ok(!source.includes(removed), removed);
+  for (const removed of ["PolicyRiskFields", "PolicyTaxFields", "PolicyBeneficiaries", "Στοιχεία ασφαλιζόμενου κινδύνου", "Δικαιούχοι αποζημίωσης", "Επικοινωνίες συμβολαίου", "policy-communications", "Αναλυτικές καλύψεις", "CoversBreakdown"]) assert.ok(!source.includes(removed), removed);
+  assert.ok(source.includes('<PolicySummarySection title="Καλύψεις"><PolicyCoversTab'), "coverages remain in their dedicated section");
   for (const retained of ["risk-profile", "<PolicyClaimsDialog", "<PolicyLifecyclePanel", "policyPaymentStatus(p.premium", "accept(Object.keys(risk).map", "...policyPreservedAmounts(", "<PolicyCoverageTable", "renderDeductible="]) assert.ok(source.includes(retained), retained);
   for (const page of ["CreditNotesPage", "FriendlySettlementsPage"]) {
     const contents = await readFile(new URL(`../../pages/${page}.tsx`, import.meta.url), "utf8");
@@ -36,7 +37,9 @@ test("coverage table is compact, striped, internally scrollable and preserves re
       { id: "2", coverCode: "THEFT", coverName: "Κλοπή & ολική καταστροφή", grossPremium: 20, netPremium: 16, coverageAmount: null, commissionPercent: 10, agencyCommissionPercent: 12 }];
     const events = [], props = { rows, currency: "EUR", editingId: "2", onEdit: row => events.push(["edit", row.id]), onDelete: row => events.push(["delete", row.id]) };
     const html = renderToStaticMarkup(createElement(PolicyCoverageTable, props));
-    for (const text of ["#F0F2F5", "#F8FAFC", "#E9EEF4", "#DFE5ED", "overflow:auto", "max-height:380px", "MuiTableCell-stickyHeader", "Πυρός", "Κλοπή &amp; ολική καταστροφή", "10,50", "30,50", "24,00", "0,00%", "20.000,00", "Επεξεργασία κάλυψης FIRE", "Διαγραφή κάλυψης THEFT"]) assert.ok(html.includes(text), text);
+    for (const text of ["#F0F2F5", "#F8FAFC", "#E9EEF4", "#DFE5ED", "overflow:auto", "max-height:380px", "MuiTableCell-stickyHeader", "Πυρός", "Κλοπή &amp; ολική καταστροφή", "20.000,00", "Επεξεργασία κάλυψης FIRE", "Διαγραφή κάλυψης THEFT"]) assert.ok(html.includes(text), text);
+    for (const text of ["Μικτά", "Καθαρά", "Προμ. συν.", "Προμ. γρ.", "10,50", "30,50", "24,00", "0,00%", "<tfoot"]) assert.ok(!html.includes(text), `Removed financial column/value: ${text}`);
+    assert.equal((html.match(/<thead[^]*?<\/thead>/)?.[0].match(/<th\b/g) ?? []).length, 4);
     assert.equal((html.match(/<tbody[^]*?<\/tbody>/)?.[0].match(/<tr\b/g) ?? []).length, 2);
     const nodes = [];
     const walk = node => Children.forEach(node, child => { if (isValidElement(child)) { nodes.push(child); walk(child.props.children); } });
@@ -49,7 +52,8 @@ test("coverage table is compact, striped, internally scrollable and preserves re
     const empty = renderToStaticMarkup(createElement(PolicyCoverageTable, { ...props, rows: [] }));
     assert.ok(empty.includes("Δεν υπάρχουν καταχωρημένες καλύψεις.")); assert.ok(!empty.includes("<tfoot"));
     const deductible = renderToStaticMarkup(createElement(PolicyCoverageTable, { ...props, renderDeductible: row => `Απαλλαγή ${row.id}` }));
-    assert.ok(deductible.includes("Απαλλαγή 1")); assert.ok(deductible.includes("min-width:960px"));
+    assert.ok(deductible.includes("Απαλλαγή 1")); assert.ok(deductible.includes("min-width:560px"));
+    assert.equal((deductible.match(/<thead[^]*?<\/thead>/)?.[0].match(/<th\b/g) ?? []).length, 5);
     const manyRows = Array.from({ length: 60 }, (_, index) => ({ ...rows[index % 2], id: String(index), coverCode: `COVER-${index}` }));
     const longTable = renderToStaticMarkup(createElement(PolicyCoverageTable, { ...props, rows: manyRows }));
     assert.equal((longTable.match(/<tbody[^]*?<\/tbody>/)?.[0].match(/<tr\b/g) ?? []).length, 60);

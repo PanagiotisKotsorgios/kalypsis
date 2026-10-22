@@ -148,7 +148,8 @@ public class ListPoliciesQueryHandler : IRequestHandler<ListPoliciesQuery, IRead
             p.IssuedAt,
             p.VehicleRegistrationPlate,
             p.PaidDirectlyToCarrier,
-            p.DeliveredAt.HasValue);
+            p.DeliveredAt.HasValue,
+            p.NetPremium);
     }
 }
 
@@ -648,6 +649,7 @@ public class RenewPolicyCommandValidator : AbstractValidator<RenewPolicyCommand>
     public RenewPolicyCommandValidator()
     {
         RuleFor(x => x.Body.Premium).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.Body.NetPremium).GreaterThanOrEqualTo(0).When(x => x.Body.NetPremium.HasValue);
         RuleFor(x => x.Body.EndDate).GreaterThan(x => x.Body.StartDate);
     }
 }
@@ -692,6 +694,7 @@ public class RenewPolicyCommandHandler : IRequestHandler<RenewPolicyCommand, Pol
             EndDate = b.EndDate,
             NextRenewalDate = b.EndDate,
             Premium = b.Premium,
+            NetPremium = b.NetPremium ?? src.NetPremium,
             Currency = src.Currency,
             CreatedByUserId = _current.UserId,
             RenewedFromPolicyId = src.Id,

@@ -30,7 +30,8 @@ public record PolicyDto(
     // A manually created contract is considered delivered by default. The
     // form exposes this as the "Παραδόθηκε" checkbox so an operator can
     // explicitly clear it when the document is still pending.
-    bool Delivered = true);
+    bool Delivered = true,
+    decimal? NetPremium = null);
 
 public record CreatePolicyBody(
     Guid CustomerId,
@@ -106,7 +107,9 @@ public record RenewPolicyBody(
     string? PackageCode = null,
     string? ApplicationNumber = null,
     string? VehicleRegistrationPlate = null,
-    decimal? SpecialCommissionPercent = null);
+    decimal? SpecialCommissionPercent = null,
+    // Omitted by older clients: preserve the source's recorded net premium.
+    decimal? NetPremium = null);
 
 public record CancelPolicyBody(string? Reason);
 

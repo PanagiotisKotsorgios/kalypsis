@@ -2,7 +2,6 @@ import { DetailProfileTabs } from "./profile/DetailProfileTabs";
 import { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback, useProfileFieldEditor, type ProfileFieldSession } from "./profile/ProfileFieldEditor";
 import { POLICY_CORE_KEYS, policyCorePayload, policyPreservedAmounts } from "./profile/policyProfile";
 import { policyPaymentStatus } from "./profile/policyPaymentStatus";
-import { policyCoverageTableSx, policyCoverageRowSx, policyCoverageContainerSx } from "./profile/policyCoverageAppearance";
 import { PolicyCoverageTable } from "./PolicyCoverageTable";
 import { PolicyFieldColumns } from "./profile/PolicyFieldColumns";
 import { PolicyClaimsDialog } from "./PolicyClaimsDialog";
@@ -759,7 +758,6 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                     ]} />
                   </PolicySummarySection>
                   <PolicySettlementPanel policy={p} readOnly={readOnly} onSettle={setSettlementMode} />
-                  {p.covers.length > 0 && <PolicySummarySection title="Αναλυτικές καλύψεις"><CoversBreakdown p={p} /></PolicySummarySection>}
                   <Dialog open={commissionDetailsOpen} onClose={() => setCommissionDetailsOpen(false)} fullWidth maxWidth="lg" sx={{ zIndex: 1800 }}>
                     <DialogTitle>Κατανομή προμηθειών & ειδικά ποσοστά</DialogTitle>
                     <DialogContent dividers sx={{ overflowX: "auto" }}>
@@ -1165,75 +1163,6 @@ function ChangeProducerDialog({ open, onClose, policyId, policyNumber, currentPr
         </Button>
       </DialogActions>
     </Dialog>
-  );
-}
-
-/**
- * Coverage breakdown for the Financials tab. Shows every PolicyCover row
- * with its gross premium and (when set) its per-cover commission %, then a
- * totals row. When the stated policy premium doesn't match the sum of
- * covers, a red drift warning appears so the operator knows to reconcile
- * before commissions run.
- */
-function CoversBreakdown({ p }: { p: PolicyDetail }) {
-  const drift = Math.abs(p.premium - p.coversGrossTotal);
-  const hasDrift = drift > 0.01;
-  const anyProducerRate = p.covers.some(c => c.commissionPercent !== null);
-  const anyAgencyRate   = p.covers.some(c => c.agencyCommissionPercent !== null);
-  return (
-    <Box>
-      <Stack direction="row" alignItems="center" spacing={1} mb={1}>
-        <Typography variant="overline" color="text.secondary" fontWeight={700}>
-          Καλύψεις ({p.covers.length})
-        </Typography>
-        {hasDrift && (
-          <Chip size="small" color="error" variant="outlined"
-            label={`Διαφορά με ασφάλιστρο: ${drift.toFixed(2)} ${p.currency}`}
-            sx={{ height: 20, fontSize: 11, fontWeight: 700 }} />
-        )}
-      </Stack>
-      <Box sx={policyCoverageContainerSx}><Table stickyHeader size="small" sx={policyCoverageTableSx}>
-        <TableHead>
-          <TableRow>
-            <TableCell>Κωδικός</TableCell>
-            <TableCell>Όνομα</TableCell>
-            <TableCell align="right">Μεικτό</TableCell>
-            {anyProducerRate && <TableCell align="right">Προμ. συν. %</TableCell>}
-            {anyAgencyRate   && <TableCell align="right">Προμ. γρ. %</TableCell>}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {p.covers.map((c, index) => (
-            <TableRow key={c.id} hover sx={policyCoverageRowSx(index)}>
-              <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{c.coverCode}</TableCell>
-              <TableCell>{c.coverName ?? "—"}</TableCell>
-              <TableCell align="right">{c.grossPremium.toFixed(2)}</TableCell>
-              {anyProducerRate && (
-                <TableCell align="right" sx={{ color: c.commissionPercent === null ? "text.disabled" : undefined }}>
-                  {c.commissionPercent === null ? "—" : `${c.commissionPercent.toFixed(2)}%`}
-                </TableCell>
-              )}
-              {anyAgencyRate && (
-                <TableCell align="right" sx={{ color: c.agencyCommissionPercent === null ? "text.disabled" : undefined }}>
-                  {c.agencyCommissionPercent === null ? "—" : `${c.agencyCommissionPercent.toFixed(2)}%`}
-                </TableCell>
-              )}
-            </TableRow>
-          ))}
-          <TableRow sx={{ bgcolor: "#E9EEF4" }}>
-            <TableCell colSpan={2} sx={{ fontWeight: 700 }}>Σύνολο από καλύψεις</TableCell>
-            <TableCell align="right" sx={{ fontWeight: 700 }}>{p.coversGrossTotal.toFixed(2)} {p.currency}</TableCell>
-            {anyProducerRate && <TableCell />}
-            {anyAgencyRate   && <TableCell />}
-          </TableRow>
-        </TableBody>
-      </Table></Box>
-      {(anyProducerRate || anyAgencyRate) && (
-        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-          «—» στα ποσοστά σημαίνει ότι η κάλυψη κληρονομεί το ποσοστό από τον κανόνα προμηθειών.
-        </Typography>
-      )}
-    </Box>
   );
 }
 
@@ -2032,9 +1961,7 @@ function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string
   const [editingId, setEditingId] = useState<string | null>(null);
   const editing = editingId !== null;
 
-  // Invalidate BOTH the covers list AND the policy detail. The drawer's
-  // Financials tab renders a breakdown table + drift chip pulled from
-  // detail, so we need both to refetch or the two views diverge.
+  // Keep cover rows and policy-level premium/commission data in sync.
   const invalidate = () => {
     void qc.invalidateQueries({ queryKey: ["policy-covers", policyId] });
     void qc.invalidateQueries({ queryKey: ["policy-detail", policyId] });

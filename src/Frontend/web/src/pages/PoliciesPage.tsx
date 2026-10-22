@@ -73,6 +73,7 @@ import { contractDurationLabel } from "../utils/contractDuration";
 import { useAuth } from "../auth/AuthContext";
 import { api, extractErrorMessage } from "../api/client";
 import { PolicyDetailDrawer } from "../components/PolicyDetailDrawer";
+import { PolicyRenewalPremiumFields, renewalPremiumDefaults, renewalPremiumPayload } from "../components/PolicyRenewalPremiumFields";
 import { useTableState } from "../components/useTableState";
 import { TableToolbar, NumberedPager, RecordCountChip } from "../components/TableToolbar";
 import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
@@ -109,7 +110,7 @@ interface PolicyDto {
   issuedAt?: string | null;
   premium: number;
   vehicleRegistrationPlate?: string | null;
-  netPremium: string;
+  netPremium?: number | null;
   specialCommissionPercent: string;
   currency: string;
   createdAt: string;
@@ -1500,7 +1501,7 @@ function RenewDialog({
   const { t } = useTranslation();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [premium, setPremium] = useState(0);
+  const [renewalPremiums, setRenewalPremiums] = useState(() => renewalPremiumDefaults(policy));
   // Optional overrides for the new policy — leaving any of these blank
   // keeps the source policy's value. Covers the common «I need to tweak
   // the coverage/producer/plate before ανανέωση» flow so the operator
@@ -1531,7 +1532,8 @@ function RenewDialog({
       const nextEnd = new Date(new Date(policy.endDate).getTime() + 365 * 86_400_000).toISOString().slice(0, 10);
       setStartDate(nextStart);
       setEndDate(nextEnd);
-      setPremium(policy.premium);
+      setRenewalPremiums(renewalPremiumDefaults(policy));
+      setError(null);
       // Overrides start blank — «leave alone» is the safe default.
       setProducerIdOverride("");
       setVehicleUse("");
@@ -1542,11 +1544,11 @@ function RenewDialog({
       setSpecialCommissionPercent("");
       setShowExtras(false);
     }
-  }, [policy?.id, policy?.endDate, policy?.premium]);
+  }, [policy?.id, policy?.endDate, policy?.premium, policy?.netPremium]);
 
   const mutation = useMutation({
     mutationFn: async () => (await api.post<PolicyDto>(`/policies/${policy!.id}/renew`, {
-      startDate, endDate, premium,
+      startDate, endDate, ...renewalPremiumPayload(renewalPremiums),
       producerId: producerIdOverride || null,
       vehicleUseCategory: vehicleUse || null,
       coverCode: coverCode.trim() || null,
@@ -1577,17 +1579,7 @@ function RenewDialog({
           <TextField type="date" label={t("policies.form.endDate")} InputLabelProps={{ shrink: true }}
             value={endDate} onChange={(e) => setEndDate(e.target.value)} fullWidth required
             InputProps={{ endAdornment: <FilterHelp title="Νέα ημερομηνία λήξης — συνήθως ένα έτος μετά τη νέα έναρξη." /> }} />
-          <TextField type="number" label={t("policies.form.premium")}
-            value={premium} onChange={(e) => setPremium(Number(e.target.value))}
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  {policy?.currency ?? "EUR"}
-                  <FilterHelp title="Ασφάλιστρο ανανεωμένου συμβολαίου. Προσυμπληρώνεται με το προηγούμενο — μπορείτε να το αλλάξετε." />
-                </InputAdornment>
-              )
-            }}
-            fullWidth required />
+          <PolicyRenewalPremiumFields value={renewalPremiums} onChange={setRenewalPremiums} currency={policy?.currency ?? "EUR"} />
 
           <Button size="small" variant="text" onClick={() => setShowExtras(x => !x)}
             sx={{ alignSelf: "flex-start" }}>
