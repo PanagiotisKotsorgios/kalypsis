@@ -26,7 +26,7 @@ test("producer workspace keeps contact editing, red debts and filtered live stat
       const monthly = Array.from({ length: 12 }, (_, i) => ({ month: `2026-${String(12 - i).padStart(2, "0")}-01`, currency: "EUR", earned: 10, paid: 5, entryCount: 2 }));
       client.setQueryData(["producer-balances", "P1"], { producerId: "P1", currencies: [{ currency: "EUR", earned: 120, paid: 60, toProducer: 60, fromProducer: 0 }], monthly, entries: [] });
       const html = render(ProducerBalancesPanel, { producerId: "P1" });
-      for (const text of ["ανά μήνα", "Προμήθειες συμβολαίων μήνα", "Καταβολές μέσα στον μήνα", "έναρξη μέσα σε αυτόν", "μήνα πληρωμής", "Δεκέμβριος 2026", "120,00 EUR", "60,00 EUR", "Συνολικές προμήθειες", "Συνολικά καταβλήθηκαν"]) assert.ok(html.includes(text), text);
+      for (const text of ["ανά μήνα", "Προμήθειες συμβολαίων μήνα", "Καταβολές μέσα στον μήνα", "Υπόλοιπο κινήσεων μήνα", "Δεκέμβριος 2026", "120,00 EUR", "60,00 EUR", "Συνολικές προμήθειες", "Συνολικά καταβλήθηκαν"]) assert.ok(html.includes(text), text);
       assert.ok(!html.includes("Εκ μεταφοράς")); assert.ok(!html.includes("Υπόλοιπο τέλους μήνα"));
       assert.ok(html.indexOf("Σύνολα όλου του καταχωρημένου ιστορικού") > html.indexOf("</table>"));
       assert.ok(html.includes('aria-label="Κινήσεις Δεκέμβριος 2026 EUR"'));
@@ -35,7 +35,7 @@ test("producer workspace keeps contact editing, red debts and filtered live stat
       assert.equal((body.match(/<tr\b/g) ?? []).length, 10); assert.ok(html.includes("background-color:#f0f2f5"));
       const footer = html.match(/<tfoot\b[^>]*>[\s\S]*?<\/tfoot>/)?.[0] ?? "";
       assert.ok(footer.includes("120,00 EUR")); assert.ok(footer.includes("60,00 EUR"));
-      assert.ok(html.includes("όχι μόνο την τρέχουσα σελίδα"));
+      for (const text of ["Τα σύνολα αθροίζουν", "Συνολικό υπόλοιπο =", "Οφειλές καταχωρημένων προμηθειών", "Το πιστωτικό από υπερπληρωμή", "Ανεξάρτητες προκαταβολές", "Κάθε μήνας δείχνει", "Οι καταβολές εμφανίζονται", "Υπόλοιπο κινήσεων μήνα ="]) assert.ok(!html.includes(text), text);
     });
     await context.test("monthly movement differences are red/white only when positive, never cumulative and tolerate older cached responses", () => {
       assert.equal(producerMonthMovementBalance({ earned: .3, paid: .1 }), .2);

@@ -88,7 +88,6 @@ export function ProducerBalancesPanel({ producerId }: { producerId: string }) {
         <MenuItem value="">Όλα</MenuItem>{q.data?.currencies.map(row => <MenuItem key={row.currency} value={row.currency}>{row.currency}</MenuItem>)}
       </TextField>}
     </Stack>
-    <Typography variant="caption" color="text.secondary">Κάθε μήνας δείχνει μόνο τις προμήθειες των συμβολαίων με έναρξη μέσα σε αυτόν. Οι καταβολές εμφανίζονται στον μήνα πληρωμής και μπορεί να αφορούν άλλους μήνες. Υπόλοιπο κινήσεων μήνα = προμήθειες − καταβολές του ίδιου μήνα, χωρίς μεταφορές.</Typography>
     <Box sx={{ overflowX: "auto", border: "1px solid #d5e0ec", borderRadius: 1.5 }}>
       <Table size="small" aria-label="Μηνιαίες προμήθειες συνεργάτη" sx={{ ...tableSx, minWidth: 740, "& td": { py: .45, px: 1, lineHeight: 1.3 }, "& th": { ...tableSx["& th"], py: .7, px: 1, lineHeight: 1.3 } }}>
         <TableHead><TableRow><TableCell>Μήνας</TableCell><TableCell align="right">Προμήθειες συμβολαίων μήνα</TableCell><TableCell align="right">Καταβολές μέσα στον μήνα</TableCell><TableCell align="right">Υπόλοιπο κινήσεων μήνα</TableCell><TableCell>Ανάλυση</TableCell></TableRow></TableHead>
@@ -112,8 +111,6 @@ export function ProducerBalancesPanel({ producerId }: { producerId: string }) {
     <TablePagination component="div" count={rows.length} page={visiblePage} onPageChange={(_, next) => setPage(next)} rowsPerPage={10} rowsPerPageOptions={[10]} getItemAriaLabel={type => type === "next" ? "Επόμενη σελίδα μηνών" : "Προηγούμενη σελίδα μηνών"} labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count} μήνες / νομίσματα`} />
     <Typography fontWeight={800}>Σύνολα όλου του καταχωρημένου ιστορικού</Typography>
     <ProducerBalanceSummary currencies={totals} />
-    <Typography variant="caption" color="text.secondary">Τα σύνολα αθροίζουν όλους τους μήνες, όχι μόνο την τρέχουσα σελίδα. Συνολικό υπόλοιπο = συνολικές προμήθειες − συνολικές καταβολές, ξεχωριστά ανά νόμισμα.</Typography>
-    <Typography variant="caption" color="text.secondary">Οφειλές καταχωρημένων προμηθειών μετά τις πληρωμές. Το πιστωτικό από υπερπληρωμή είναι διαθέσιμο για συμψηφισμό. Ανεξάρτητες προκαταβολές και λοιποί διακανονισμοί δεν συμψηφίζονται αυτόματα εδώ.</Typography>
     <Dialog open={!!selectedMonth} onClose={() => setSelectedMonth(null)} fullWidth maxWidth="md" scroll="paper">
       <DialogTitle>Αναλυτικές οικονομικές κινήσεις · {selectedMonth && `${monthLabel(selectedMonth.month)} · ${selectedMonth.currency}`}</DialogTitle>
       <DialogContent dividers sx={{ bgcolor: "#edf3f9", minWidth: 0 }}>
