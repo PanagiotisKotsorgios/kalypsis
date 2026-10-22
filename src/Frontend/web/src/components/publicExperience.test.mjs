@@ -75,14 +75,27 @@ test("public technology credits, reference-style comparison and notice render fr
       assert.ok(source.includes("prefers-reduced-motion"));
       assert.ok(source.includes('rel="noopener noreferrer"'));
     });
-    await context.test("compact cards, grouped matrix, detailed view, pricing and Greek credits remain accessible", () => {
+    await context.test("only the existing grouped table and pricing link remain, without promotional headings, package cards or extra actions", () => {
       for (const width of [320,360,600,900,1280,1920]) {
-        const html = render(h(PublicPackageComparison,{packages,features,onPackageDetails(){}}),width);
-        assert.equal((html.match(/aria-pressed=/g)??[]).length, 5);
-        assert.equal((html.match(/aria-pressed="true"/g)??[]).length, 1);
-        assert.equal((html.match(/rowspan="2"/g)??[]).length, 5);
-        assert.ok(html.includes('href="/pricing"'));
-        for (const label of ["Συγκρίνετε τις δυνατότητες","Αναλυτική προβολή","Σύγκριση Δυνατοτήτων","Δείτε το πακέτο"]) assert.ok(html.includes(label),`${width}: ${label}`);
+        for (const isEn of [false,true]) {
+          const html = render(h(PublicPackageComparison,{packages,features,isEn}),width);
+          assert.equal((html.match(/<table\b/g)??[]).length,1);
+          assert.equal((html.match(/<tr\b/g)??[]).length,11);
+          assert.equal((html.match(/rowspan="2"/g)??[]).length,5);
+          assert.equal((html.match(/<a\b/g)??[]).length,1);
+          assert.ok(html.includes('href="/pricing"'));
+          assert.ok(html.includes(isEn ? "See prices" : "Δείτε τις τιμές"));
+          assert.ok(html.includes('role="region" tabindex="0"'));
+          assert.ok(html.includes('overflow-x:auto'));
+          assert.equal((html.match(/<h[123]\b/g)??[]).length,0);
+          assert.ok(!html.includes('aria-pressed='));
+          for (const removed of ["ΠΑΚΕΤΑ & ΔΥΝΑΤΟΤΗΤΕΣ","Συγκρίνετε τις δυνατότητες","Μια συνοπτική εικόνα","Αναλυτική προβολή","Δείτε το πακέτο","radial-gradient","linear-gradient"]) assert.ok(!html.includes(removed),`${width}: ${removed}`);
+          for (const pkg of packages) assert.ok(html.includes(pkg.name.replaceAll("&", "&amp;")));
+          const included = isEn ? 'aria-label="Included"' : 'aria-label="Περιλαμβάνεται"';
+          const excluded = isEn ? 'aria-label="Not included"' : 'aria-label="Δεν περιλαμβάνεται"';
+          assert.equal(html.split(included).length-1,20);
+          assert.equal(html.split(excluded).length-1,30);
+        }
         const technologies = render(h(PublicTechnologiesSection),width);
         assert.equal((technologies.match(/<img/g)??[]).length,8);
         assert.equal((technologies.match(/Πηγαίος κώδικας<\/a>/g)??[]).length,7);
@@ -92,12 +105,13 @@ test("public technology credits, reference-style comparison and notice render fr
         for (const token of ["#E8F5ED","#FFE16A","#151515","26/10/2026"]) assert.ok(notice.includes(token));
       }
     });
-    await context.test("the compact comparison retains access to the full existing feature catalogue and package dialogs", async () => {
+    await context.test("comparison data still comes from the existing catalogue, with unused package modals and selection state removed", async () => {
       const source = await read("./PublicPackageComparison.tsx");
       const page = await read("../pages/LandingPage.tsx");
-      for (const expected of ["features.map((_,index)=>index)","setDetailed(true)","matrix(true)","onPackageDetails(active)","setActive(index)","prefers-reduced-motion"]) assert.ok(source.includes(expected));
+      for (const expected of ["groups.flatMap", "features[index]", "feature.values.map", 'to="/pricing"']) assert.ok(source.includes(expected));
+      for (const removed of ["useState", "<Dialog", "onPackageDetails", "setActive", "setDetailed"]) assert.ok(!source.includes(removed));
       assert.ok(page.includes("features={PUBLIC_PACKAGE_FEATURES}"));
-      assert.ok(page.includes("<PackageDetailDialog pkg={selectedPackage}"));
+      assert.ok(!page.includes("PackageDetailDialog"));
       assert.ok(page.includes("<PublicTechnologiesSection />"));
     });
   } finally { await server.close(); }
