@@ -5,7 +5,7 @@ import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
-  FormControlLabel, Switch, Snackbar
+  FormControlLabel, Switch, Checkbox, Snackbar, useMediaQuery, useTheme
 } from "@mui/material";
 import { InputAdornment, Fade, Slide, Divider, alpha } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
@@ -29,6 +29,7 @@ import GridOnIcon from "@mui/icons-material/GridOn";
 import PrintIcon from "@mui/icons-material/Print";
 import ViewColumnIcon from "@mui/icons-material/ViewColumn";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import FilterListIcon from "@mui/icons-material/FilterList";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
@@ -45,8 +46,6 @@ import { TableToolbar, NumberedPager, RecordCountChip } from "../components/Tabl
 import { SearchableTextField } from "../components/SearchableTextField";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { money } from "../utils/format";
-import { QuickFilterBar } from "../components/QuickFilterBar";
-import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
 import { BulkImportDialog, type BulkImportResult } from "../components/BulkImportDialog";
 import { SavedReportsButton } from "../components/SavedReportsButton";
 
@@ -112,6 +111,33 @@ const TIER_LABEL: Record<ProducerTier, string> = {
   A: "Κατ. Α", B: "Κατ. Β", C: "Κατ. Γ", D: "Κατ. Δ", E: "Κατ. Ε", None: "—"
 };
 
+export function producerListRowSx(status: string, index: number) {
+  return { cursor: "pointer", bgcolor: status === "Prospect" ? "#fff0d9" : index % 2 === 0 ? "#f8fafc" : "#f0f2f5",
+    "&:hover": { bgcolor: status === "Prospect" ? "#ffe3b5" : "#e5edf7" },
+    "&.Mui-selected": { bgcolor: "#dcebfa" }, "&.Mui-selected:hover": { bgcolor: "#c9e1f7" } };
+}
+
+export function producerListExportColumns(t: (key: string) => string) {
+  return [
+    { key: "code", label: t("producers.col.code"), map: (row: ProducerDto) => row.code },
+    { key: "name", label: t("producers.col.name"), map: (row: ProducerDto) => row.name },
+    { key: "tier", label: "Κατηγορία", map: (row: ProducerDto) => TIER_LABEL[row.tier] ?? row.tier ?? "—" },
+    { key: "email", label: t("producers.col.email"), map: (row: ProducerDto) => row.email ?? "—" },
+    { key: "phone", label: t("producers.col.phone"), map: (row: ProducerDto) => row.phone ?? "—" },
+    { key: "policyCount", label: t("producers.col.policies"), map: (row: ProducerDto) => row.policyCount },
+    { key: "status", label: t("producers.col.status"), map: (row: ProducerDto) => row.status === "Prospect" ? "Πιθανός συνεργάτης" : t(`producers.statuses.${row.status}`) },
+  ];
+}
+
+export function filterProducerListRows(rows: ProducerDto[], filters: {
+  statusFilter: ProducerStatus | ""; tierFilter: ProducerTier | ""; hasPoliciesOnly: boolean; hierarchyFilter: HierarchyLevel | "";
+}) {
+  return rows.filter(row => (!filters.statusFilter || row.status === filters.statusFilter)
+    && (!filters.tierFilter || row.tier === filters.tierFilter)
+    && (!filters.hasPoliciesOnly || row.policyCount !== 0)
+    && (!filters.hierarchyFilter || row.hierarchyLevel === filters.hierarchyFilter));
+}
+
 const PRODUCER_IMPORT_COLUMNS = [
   { key: "code", label: "Κωδικός συνεργάτη", required: true, example: "P-0001" },
   { key: "name", label: "Ονοματεπώνυμο / Επωνυμία", required: true, example: "Μαρία Παπαδοπούλου" },
@@ -127,6 +153,8 @@ const PRODUCER_IMPORT_COLUMNS = [
 
 export function ProducersPage() {
   const { t } = useTranslation();
+  const theme = useTheme();
+  const compactFilters = useMediaQuery(theme.breakpoints.down("xl"));
   const qc = useQueryClient();
   const [createStatus, setCreateStatus] = useState<ProducerStatus | null>(null);
   const [editing, setEditing] = useState<ProducerDto | null>(null);
@@ -175,20 +203,17 @@ export function ProducersPage() {
   const [hasPoliciesOnly, setHasPoliciesOnly] = useState(false);
   const [hierarchyFilter, setHierarchyFilter] = useState<HierarchyLevel | "">("");
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
+  useEffect(() => { if (!compactFilters) setAdvancedFiltersOpen(false); }, [compactFilters]);
   const rawProducers = q.data ?? [];
-  const allRows = rawProducers.filter(p => {
-    if (statusFilter && p.status !== statusFilter) return false;
-    if (tierFilter && p.tier !== tierFilter) return false;
-    if (hasPoliciesOnly && p.policyCount === 0) return false;
-    if (hierarchyFilter && p.hierarchyLevel !== hierarchyFilter) return false;
-    return true;
-  });
+  const allRows = filterProducerListRows(rawProducers, { statusFilter, tierFilter, hasPoliciesOnly, hierarchyFilter });
   const table = useTableState<ProducerDto>({
     rows: allRows,
     searchableText: (p) => `${p.code} ${p.name} ${p.email ?? ""} ${p.phone ?? ""} ${p.status}`,
     pageSize: 25
   });
   const rows = table.paged;
+  useEffect(() => { table.setPage(1); }, [statusFilter, tierFilter, hasPoliciesOnly, hierarchyFilter]);
+  const activeFilterCount = [statusFilter, tierFilter, hasPoliciesOnly ? "policies" : "", hierarchyFilter, table.query].filter(Boolean).length;
 
   const clearProducerFilters = () => {
     setClearSavedFilterRequest(value => value + 1);
@@ -260,6 +285,31 @@ export function ProducersPage() {
     onDelete: (p) => del.mutate(p.id),
   });
 
+  const renderProducerFilters = (inDialog: boolean) => <Box sx={{ display: "grid", gap: 1, pt: .5, alignItems: "center",
+    gridTemplateColumns: inDialog ? { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))" }
+      : "minmax(240px, 1.4fr) minmax(160px, .8fr) minmax(140px, .7fr) minmax(210px, 1fr) auto",
+  }}>
+    <TextField size="small" fullWidth label="Αναζήτηση συνεργάτη" placeholder="Κωδικός, όνομα, email ή τηλέφωνο…"
+      value={table.query} onChange={event => table.setQuery(event.target.value)} sx={{ minWidth: 0, gridColumn: inDialog ? "1 / -1" : undefined }}
+      InputProps={{ endAdornment: <FilterHelp title="Αναζήτηση σε κωδικό, όνομα, email ή τηλέφωνο συνεργάτη." /> }} />
+    <SearchableTextField size="small" fullWidth label={t("producers.col.status")} value={statusFilter} onChange={event => setStatusFilter(event.target.value as ProducerStatus | "")} sx={{ minWidth: 0 }}>
+      <MenuItem value="">Όλες</MenuItem>{(["Prospect", "Active", "Suspended", "Terminated"] as const).map(status => <MenuItem key={status} value={status}>{status === "Prospect" ? "Πιθανός συνεργάτης" : t(`producers.statuses.${status}`)}</MenuItem>)}
+    </SearchableTextField>
+    <SearchableTextField size="small" fullWidth label="Κατηγορία" value={tierFilter} onChange={event => setTierFilter(event.target.value as ProducerTier | "")} sx={{ minWidth: 0 }}>
+      <MenuItem value="">Όλες</MenuItem>{(["A", "B", "C", "D", "E"] as const).map(tier => <MenuItem key={tier} value={tier}>{TIER_LABEL[tier]}</MenuItem>)}<MenuItem value="None">Χωρίς κατηγορία</MenuItem>
+    </SearchableTextField>
+    <SearchableTextField size="small" fullWidth label="Επίπεδο ιεραρχίας" value={hierarchyFilter} onChange={event => setHierarchyFilter(event.target.value as HierarchyLevel | "")} sx={{ minWidth: 0 }}>
+      <MenuItem value="">Όλα</MenuItem>{(Object.keys(HIERARCHY_LABEL) as HierarchyLevel[]).map(level => <MenuItem key={level} value={level}>{HIERARCHY_LABEL[level]}</MenuItem>)}
+    </SearchableTextField>
+    <FormControlLabel sx={{ m: 0, minWidth: 0, gridColumn: inDialog ? "1 / -1" : undefined }} control={<Checkbox size="small" checked={hasPoliciesOnly} onChange={event => setHasPoliciesOnly(event.target.checked)} />} label="Μόνο με συμβόλαια" />
+  </Box>;
+  const producerExportColumns = producerListExportColumns(t);
+  const producerExportSubtitle = [table.query && `Αναζήτηση: ${table.query}`,
+    statusFilter && `Κατάσταση: ${statusFilter === "Prospect" ? "Πιθανός συνεργάτης" : t(`producers.statuses.${statusFilter}`)}`,
+    tierFilter && `Κατηγορία: ${tierFilter === "None" ? "Χωρίς κατηγορία" : TIER_LABEL[tierFilter]}`,
+    hierarchyFilter && `Ιεραρχία: ${HIERARCHY_LABEL[hierarchyFilter]}`, hasPoliciesOnly && "Μόνο με συμβόλαια",
+  ].filter(Boolean).join(" · ");
+
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
@@ -272,6 +322,13 @@ export function ProducersPage() {
           <Typography color="text.secondary">{t("producers.subtitle")}</Typography>
         </Box>
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          <SavedReportsButton entity="producers" currentFilters={{ query: table.query, statusFilter, tierFilter, hasPoliciesOnly, hierarchyFilter }}
+            onLoad={next => { table.setQuery(next.query ?? ""); setStatusFilter(next.statusFilter ?? ""); setTierFilter(next.tierFilter ?? ""); setHasPoliciesOnly(Boolean(next.hasPoliciesOnly)); setHierarchyFilter(next.hierarchyFilter ?? ""); }}
+            onClear={clearProducerFilters} clearRequestToken={clearSavedFilterRequest} saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />
+          {compactFilters && <Button variant="contained" startIcon={<FilterListIcon />} onClick={() => setAdvancedFiltersOpen(true)} aria-haspopup="dialog" aria-expanded={advancedFiltersOpen}
+            sx={{ bgcolor: "#159b59", color: "#fff", whiteSpace: "nowrap", flexShrink: 0, "&:hover": { bgcolor: "#107b46", color: "#fff" } }}>
+            Φίλτρα{activeFilterCount ? ` (${activeFilterCount})` : ""}
+          </Button>}
           <Button
             component={RouterLink}
             to="/app/partner-networks"
@@ -305,10 +362,10 @@ export function ProducersPage() {
               <ListItemIcon sx={{ color: "#0b5cad" }}><BookmarkAddIcon fontSize="small" /></ListItemIcon><ListItemText primary="Αποθήκευση νέου φίλτρου" />
             </MenuItem>
             <Divider />
-            <MenuItem onClick={() => { setActionsAnchor(null); setToolbarAction(value => ({ token: value.token + 1, action: "csv" })); }} sx={{ color: "#087f73", "&:hover": { bgcolor: "#e5f6f3" } }}><ListItemIcon sx={{ color: "#087f73" }}><TableChartIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή CSV" /></MenuItem>
-            <MenuItem onClick={() => { setActionsAnchor(null); setToolbarAction(value => ({ token: value.token + 1, action: "xlsx" })); }} sx={{ color: "#167c45", "&:hover": { bgcolor: "#e7f5ec" } }}><ListItemIcon sx={{ color: "#167c45" }}><GridOnIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή Excel" /></MenuItem>
-            <MenuItem onClick={() => { setActionsAnchor(null); setToolbarAction(value => ({ token: value.token + 1, action: "pdf" })); }} sx={{ color: "#c73545", "&:hover": { bgcolor: "#fdecef" } }}><ListItemIcon sx={{ color: "#c73545" }}><PictureAsPdfIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή PDF" /></MenuItem>
-            <MenuItem onClick={() => { setActionsAnchor(null); setToolbarAction(value => ({ token: value.token + 1, action: "print" })); }} sx={{ color: "#456b91", "&:hover": { bgcolor: "#edf2f7" } }}><ListItemIcon sx={{ color: "#456b91" }}><PrintIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εκτύπωση" /></MenuItem>
+            <MenuItem disabled={q.isLoading || q.isError} onClick={() => { setActionsAnchor(null); setToolbarAction(value => ({ token: value.token + 1, action: "csv" })); }} sx={{ color: "#087f73", "&:hover": { bgcolor: "#e5f6f3" } }}><ListItemIcon sx={{ color: "#087f73" }}><TableChartIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή CSV" /></MenuItem>
+            <MenuItem disabled={q.isLoading || q.isError} onClick={() => { setActionsAnchor(null); setToolbarAction(value => ({ token: value.token + 1, action: "xlsx" })); }} sx={{ color: "#167c45", "&:hover": { bgcolor: "#e7f5ec" } }}><ListItemIcon sx={{ color: "#167c45" }}><GridOnIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή Excel" /></MenuItem>
+            <MenuItem disabled={q.isLoading || q.isError} onClick={() => { setActionsAnchor(null); setToolbarAction(value => ({ token: value.token + 1, action: "pdf" })); }} sx={{ color: "#c73545", "&:hover": { bgcolor: "#fdecef" } }}><ListItemIcon sx={{ color: "#c73545" }}><PictureAsPdfIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή PDF" /></MenuItem>
+            <MenuItem disabled={q.isLoading || q.isError} onClick={() => { setActionsAnchor(null); setToolbarAction(value => ({ token: value.token + 1, action: "print" })); }} sx={{ color: "#456b91", "&:hover": { bgcolor: "#edf2f7" } }}><ListItemIcon sx={{ color: "#456b91" }}><PrintIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εκτύπωση" /></MenuItem>
             <Divider />
             <MenuItem onClick={() => { setActionsAnchor(null); setToolbarAction(value => ({ token: value.token + 1, action: "columns" })); }} sx={{ color: "#5b55a5", "&:hover": { bgcolor: "#efedfb" } }}><ListItemIcon sx={{ color: "#5b55a5" }}><ViewColumnIcon fontSize="small" /></ListItemIcon><ListItemText primary="Στήλες εξαγωγής" /></MenuItem>
             <MenuItem onClick={() => { setActionsAnchor(null); setAdvancedFiltersOpen(true); }} sx={{ color: "#a45b00", "&:hover": { bgcolor: "#fff3df" } }}><ListItemIcon sx={{ color: "#a45b00" }}><TuneIcon fontSize="small" /></ListItemIcon><ListItemText primary="Σύνθετα φίλτρα" /></MenuItem>
@@ -318,116 +375,12 @@ export function ProducersPage() {
 
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
 
-      <>
-        <Card variant="outlined" sx={{ p: 1, mb: 2 }}>
-          <Box sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "minmax(0, 1fr) auto",
-              md: "minmax(280px, 1fr) auto",
-            },
-            gap: 0.75,
-            alignItems: "center",
-          }}>
-            <TextField
-              size="small"
-              fullWidth
-              label="Αναζήτηση συνεργάτη"
-              placeholder="Κωδικός, όνομα, email ή τηλέφωνο…"
-              value={table.query}
-              onChange={(e) => table.setQuery(e.target.value)}
-              sx={{ minWidth: 0 }}
-              InputProps={{ endAdornment: <FilterHelp title="Αναζήτηση σε κωδικό, όνομα, email ή τηλέφωνο συνεργάτη." /> }}
-            />
-            <SavedReportsButton entity="producers" currentFilters={{ query: table.query, statusFilter, tierFilter, hasPoliciesOnly, hierarchyFilter }}
-              onLoad={next => { table.setQuery(next.query ?? ""); setStatusFilter(next.statusFilter ?? ""); setTierFilter(next.tierFilter ?? ""); setHasPoliciesOnly(Boolean(next.hasPoliciesOnly)); setHierarchyFilter(next.hierarchyFilter ?? ""); }}
-              onClear={clearProducerFilters} clearRequestToken={clearSavedFilterRequest}
-              saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />
-          </Box>
-        </Card>
-        <Dialog open={advancedFiltersOpen} onClose={() => setAdvancedFiltersOpen(false)} fullWidth maxWidth="sm">
-          <DialogTitle>Σύνθετα φίλτρα συνεργατών</DialogTitle>
-          <DialogContent dividers>
-            <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, pt: .5 }}>
-              <SearchableTextField size="small" label={t("producers.col.status")} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ProducerStatus | "")}>
-                <MenuItem value="">Όλες</MenuItem>
-                {(["Prospect", "Active", "Suspended", "Terminated"] as const).map(s => <MenuItem key={s} value={s}>{s === "Prospect" ? "Πιθανός συνεργάτης" : t(`producers.statuses.${s}`)}</MenuItem>)}
-              </SearchableTextField>
-              <SearchableTextField size="small" label="Κατηγορία" value={tierFilter} onChange={(e) => setTierFilter(e.target.value as ProducerTier | "")}>
-                <MenuItem value="">Όλες</MenuItem>
-                {(["A", "B", "C", "D", "E"] as const).map(tier => <MenuItem key={tier} value={tier}>{TIER_LABEL[tier as ProducerTier]}</MenuItem>)}
-                <MenuItem value="None">Χωρίς κατηγορία</MenuItem>
-              </SearchableTextField>
-              <SearchableTextField size="small" label="Επίπεδο ιεραρχίας" value={hierarchyFilter} onChange={(e) => setHierarchyFilter(e.target.value as HierarchyLevel | "")}>
-                <MenuItem value="">Όλα</MenuItem>
-                {(Object.keys(HIERARCHY_LABEL) as HierarchyLevel[]).map(level => <MenuItem key={level} value={level}>{HIERARCHY_LABEL[level]}</MenuItem>)}
-              </SearchableTextField>
-              <Stack direction="row" alignItems="center" spacing={1} sx={{ minHeight: 40 }}>
-                <input type="checkbox" id="advanced-has-policies-only" checked={hasPoliciesOnly} onChange={(e) => setHasPoliciesOnly(e.target.checked)} />
-                <Box component="label" htmlFor="advanced-has-policies-only" sx={{ fontSize: 14, cursor: "pointer" }}>Μόνο με συμβόλαια</Box>
-              </Stack>
-            </Box>
-          </DialogContent>
-          <DialogActions><Button color="error" variant="contained" onClick={clearProducerFilters}>Καθαρισμός φίλτρων</Button><Button variant="contained" onClick={() => setAdvancedFiltersOpen(false)}>Εφαρμογή</Button></DialogActions>
-        </Dialog>
-      </>
-      {false && (
-      <ResponsiveFilterPanel
-        activeCount={[statusFilter, tierFilter, hasPoliciesOnly ? "policies" : "", hierarchyFilter, table.query].filter(Boolean).length}
-        title="Φίλτρα συνεργατών"
-        quickFilters={<QuickFilterBar
-          activeCount={[statusFilter, tierFilter, hasPoliciesOnly ? "policies" : "", hierarchyFilter, table.query].filter(Boolean).length}
-          onClear={() => { setStatusFilter(""); setTierFilter(""); setHasPoliciesOnly(false); setHierarchyFilter(""); table.setQuery(""); table.setPage(1); }}
-          options={[
-            { key: "all", label: "Όλοι", active: !statusFilter && !tierFilter && !hasPoliciesOnly && !hierarchyFilter, onClick: () => { setStatusFilter(""); setTierFilter(""); setHasPoliciesOnly(false); setHierarchyFilter(""); } },
-            { key: "active", label: "Ενεργοί", active: statusFilter === "Active", color: "success", onClick: () => setStatusFilter("Active") },
-            { key: "prospects", label: "Πιθανοί", active: statusFilter === "Prospect", color: "warning", onClick: () => setStatusFilter("Prospect") },
-            { key: "withPolicies", label: "Με συμβόλαια", active: hasPoliciesOnly, onClick: () => setHasPoliciesOnly(true) },
-            { key: "managers", label: "Υπεύθυνοι ομάδας", active: hierarchyFilter === "Manager", onClick: () => setHierarchyFilter("Manager") },
-          ]}
-        />}
-      >
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }} flexWrap="wrap" useFlexGap>
-          <FilterFieldWrap tip="Φιλτράρετε τους συνεργάτες ανά κατάσταση (Ενεργός, Ανενεργός, Τερματισμένος).">
-            <SearchableTextField size="small" label={t("producers.col.status")}
-              value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ProducerStatus | "")}
-              sx={{ minWidth: 170, width: "100%" }}>
-              <MenuItem value="">Όλες</MenuItem>
-              {(["Prospect","Active","Suspended","Terminated"] as const).map(s =>
-                <MenuItem key={s} value={s}>{s === "Prospect" ? "Πιθανός συνεργάτης" : t(`producers.statuses.${s}`)}</MenuItem>)}
-            </SearchableTextField>
-          </FilterFieldWrap>
-          <FilterFieldWrap tip="Φιλτράρετε ανά κατηγορία προμηθειών Α/Β/Γ/Δ/Ε ή «Χωρίς κατηγορία».">
-            <SearchableTextField size="small" label="Κατηγορία"
-              value={tierFilter} onChange={(e) => setTierFilter(e.target.value as ProducerTier | "")}
-              sx={{ minWidth: 150, width: "100%" }}>
-              <MenuItem value="">Όλες</MenuItem>
-              {(["A","B","C","D","E"] as const).map(t =>
-                <MenuItem key={t} value={t}>{TIER_LABEL[t as ProducerTier]}</MenuItem>)}
-              <MenuItem value="None">Χωρίς κατηγορία</MenuItem>
-            </SearchableTextField>
-          </FilterFieldWrap>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <input type="checkbox" id="has-policies-only" checked={hasPoliciesOnly}
-              onChange={(e) => setHasPoliciesOnly(e.target.checked)} />
-            <Box component="label" htmlFor="has-policies-only" sx={{ fontSize: 14, cursor: "pointer" }}>
-              Μόνο με συμβόλαια
-            </Box>
-          </Stack>
-          <SearchableTextField size="small" label="Επίπεδο ιεραρχίας"
-            value={hierarchyFilter} onChange={(e) => setHierarchyFilter(e.target.value as HierarchyLevel | "")}
-            sx={{ minWidth: 180, width: "100%" }}>
-            <MenuItem value="">Όλα</MenuItem>
-            {(Object.keys(HIERARCHY_LABEL) as HierarchyLevel[]).map(level => (
-              <MenuItem key={level} value={level}>{HIERARCHY_LABEL[level]}</MenuItem>
-            ))}
-          </SearchableTextField>
-          <Box sx={{ flex: 1 }} />
-          <Button size="small" onClick={() => { setStatusFilter(""); setTierFilter(""); setHasPoliciesOnly(false); setHierarchyFilter(""); table.setQuery(""); table.setPage(1); }} color="error" variant="contained">Καθαρισμός</Button>
-        </Stack>
-      </ResponsiveFilterPanel>
-      )}
+      {!compactFilters && <Card variant="outlined" sx={{ p: 1, mb: 1, bgcolor: "#edf2f7", borderColor: "#d5e0ec" }}>{renderProducerFilters(false)}</Card>}
+      <Dialog open={advancedFiltersOpen} onClose={() => setAdvancedFiltersOpen(false)} fullWidth maxWidth="md">
+        <DialogTitle>Φίλτρα συνεργατών</DialogTitle>
+        <DialogContent dividers>{renderProducerFilters(true)}</DialogContent>
+        <DialogActions><Button color="error" variant="contained" onClick={clearProducerFilters}>Καθαρισμός φίλτρων</Button><Button variant="contained" onClick={() => setAdvancedFiltersOpen(false)}>Εφαρμογή</Button></DialogActions>
+      </Dialog>
 
       <Box sx={{ mb: 0 }}>
         <TableToolbar<ProducerDto>
@@ -436,28 +389,25 @@ export function ProducersPage() {
           pageSize={table.pageSize} onPageSize={table.setPageSize}
           exportRows={table.filtered}
           exportFileName={`producers-${new Date().toISOString().slice(0, 10)}`}
-          serverEntity="producers"
-          serverParams={{ search: table.query }}
+          snapshotExport
+          printTitle="Συνεργάτες" printSubtitle={producerExportSubtitle} columnSelectionId="producers"
+          visibleColumnKeys={producerExportColumns.map(column => column.key)}
           hideSearch
           actionRequest={toolbarAction}
           hideActionButtons
           hideCount
           hidePageSize
-          exportColumns={[
-            { key: "code", label: "Κωδικός" },
-            { key: "name", label: "Όνομα" },
-            { key: "tier", label: "Κατηγορία" },
-            { key: "email", label: "Email" },
-            { key: "phone", label: "Τηλέφωνο" },
-            { key: "policyCount", label: "Συμβόλαια" },
-            { key: "status", label: "Κατάσταση" }
-          ]}
+          exportColumns={producerExportColumns}
         />
       </Box>
+      {q.isError && <Alert severity="error" sx={{ mb: 1 }} action={<Button onClick={() => void q.refetch()}>Επανάληψη</Button>}>{extractErrorMessage(q.error)}</Alert>}
       {q.isLoading ? <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box> : (
-        <Card>
-          <TableContainer>
-            <Table>
+        <Card variant="outlined" sx={{ bgcolor: "#f8fafc", borderColor: "#d5e0ec", overflow: "hidden", boxShadow: "none" }}>
+          <TableContainer sx={{ maxHeight: "70vh", overflow: "auto" }}>
+            <Table size="small" stickyHeader aria-label="Μητρώο συνεργατών" sx={{ minWidth: 1100,
+              "& th": { bgcolor: "#e9eef4", color: "#102d55", fontWeight: 800 },
+              "& td, & th": { borderColor: "#dfe5ed", px: 1, py: .75, fontSize: 13 },
+            }}>
               <TableHead>
                 <TableRow>
                   <TableCell sx={{ userSelect: "none" }}
@@ -486,11 +436,7 @@ export function ProducersPage() {
               </TableHead>
               <TableBody>
                 {rows.map((p, idx) => (
-                  <TableRow key={p.id} hover sx={p.status === "Prospect" ? {
-                    cursor: "pointer",
-                    bgcolor: "rgba(245, 158, 11, 0.12)",
-                    "&:hover": { bgcolor: "rgba(245, 158, 11, 0.20)" }
-                  } : { cursor: "pointer" }}
+                  <TableRow key={p.id} hover sx={producerListRowSx(p.status, idx)}
                     data-tour={idx === 0 ? "producers-row" : undefined}
                     onClick={(e) => {
                       if ((e.target as HTMLElement).closest("button, a, .MuiIconButton-root")) return;
@@ -541,14 +487,14 @@ export function ProducersPage() {
                   </TableRow>
                 ))}
                 {rows.length === 0 && (
-                  <TableRow><TableCell colSpan={7}>
+                  <TableRow><TableCell colSpan={8}>
                     <Typography textAlign="center" color="text.secondary" py={4}>{t("producers.empty")}</Typography>
                   </TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
           </TableContainer>
-          <Box sx={{ display: "flex", justifyContent: "center", px: 2, py: 1 }}>
+          <Box sx={{ display: "flex", justifyContent: "center", px: 2, py: 1, bgcolor: "#edf2f7", borderTop: "1px solid #d5e0ec" }}>
             <NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage} totalRows={table.filtered.length} pageSize={table.pageSize} onPageSize={table.setPageSize} />
           </Box>
         </Card>
