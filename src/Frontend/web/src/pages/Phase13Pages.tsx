@@ -94,7 +94,7 @@ export function AdvancePaymentsPage() {
               <Typography variant="h4" sx={{ fontWeight: 800 }}>{t("advance.title")}</Typography>
               <HelpHint id="page.advance" />
             </Stack>
-            <Typography color="text.secondary">Εισερχόμενες και εξερχόμενες προκαταβολές, κατανομές και διαθέσιμα υπόλοιπα.</Typography>
+            <Typography color="text.secondary">Εισερχόμενες και εξερχόμενες προκαταβολές, με σύνδεση κατά την καταχώρηση.</Typography>
           </Box>
         </Stack>
         <Button variant="contained" size="large" startIcon={<AddIcon />} onClick={() => setOpen(true)}
@@ -138,9 +138,9 @@ export function AdvancePaymentsPage() {
       {(q.data ?? []).some(row => !row.direction) && <Alert severity="warning" sx={{ mb: 1.5 }}>Οι παλιές προκαταβολές δεν έχουν κατεύθυνση. Χαρακτηρίστε τις από το μολύβι στη γραμμή τους· τα ποσά και οι υπάρχουσες κατανομές διατηρούνται.</Alert>}
       {q.data?.length === 500 && <Alert severity="info" sx={{ mb: 1.5 }}>Η λίστα εμφανίζει έως 500 πρόσφατες εγγραφές ανά επιλογή φίλτρων.</Alert>}
       {balances.length > 0 && <Box sx={{ mb: 1.5 }}>
-        <Typography variant="caption" color="text.secondary">Σύνολα τρέχουσας λίστας ανά νόμισμα · τα αρχικά ποσά περιλαμβάνουν και τις επιστραφείσες εγγραφές, όχι όμως τα διαθέσιμα.</Typography>
-        <Stack gap={1} mt={.5}>{balances.map(balance => <Box key={balance.currency} sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "repeat(4, 1fr)" } }}>
-          {[["Εισερχόμενες", balance.incoming, "success.dark"], ["Εξερχόμενες", balance.outgoing, "error.dark"], ["Ακατανέμητες εισερχόμενες", balance.incomingAvailable, "success.dark"], ["Ακατανέμητες εξερχόμενες", balance.outgoingAvailable, "primary.dark"]].map(([label, value, color]) => <Box key={String(label)} sx={{ p: 1, border: "1px solid #D5E0EC", borderRadius: 1.5, bgcolor: "#EDF2F7" }}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography fontWeight={800} color={String(color)}>{money(Number(value), balance.currency)}</Typography></Box>)}
+        <Typography variant="caption" color="text.secondary">Σύνολα τρέχουσας λίστας ανά νόμισμα · περιλαμβάνουν και τις επιστραφείσες εγγραφές.</Typography>
+        <Stack gap={1} mt={.5}>{balances.map(balance => <Box key={balance.currency} sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0,1fr))" } }}>
+          {[["Εισερχόμενες", balance.incoming, "success.dark"], ["Εξερχόμενες", balance.outgoing, "error.dark"]].map(([label, value, color]) => <Box key={String(label)} sx={{ p: 1, border: "1px solid #D5E0EC", borderRadius: 1.5, bgcolor: "#EDF2F7" }}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography fontWeight={800} color={String(color)}>{money(Number(value), balance.currency)}</Typography></Box>)}
         </Box>)}</Stack>
       </Box>}
       {q.isError && <Alert severity="error" sx={{ mb: 1.5 }} action={<Button onClick={() => void q.refetch()}>Επανάληψη</Button>}>{extractErrorMessage(q.error)}</Alert>}
@@ -175,7 +175,7 @@ export function AdvancePaymentsPage() {
                   <TableCell align="right">
                     <Button size="small" variant="contained" color={a.status === "FullyAllocated" ? "success" : "primary"}
                       startIcon={<LinkIcon />} onClick={() => setAllocationAdvance(a)}>
-                      {a.allocations?.length ? `Κατανομές (${a.allocations.length})` : "Κατανομή"}
+                      {a.allocations?.length === 1 ? (a.allocations[0].reference || a.allocations[0].policyNumber) : a.allocations?.length ? `Συνδέσεις (${a.allocations.length})` : "Σύνδεση"}
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -195,7 +195,7 @@ export function AdvancePaymentsPage() {
           />
         </Card>
       )}
-      <CreateAdvanceDialog open={open} onClose={() => setOpen(false)} onSaved={() => { invalidate(); setOpen(false); }} />
+      <CreateAdvanceDialog open={open} onClose={() => setOpen(false)} onSaved={() => { invalidate(); setOpen(false); setNotice("Η προκαταβολή αποθηκεύτηκε επιτυχώς."); }} />
       <AdvanceDirectionDialog advance={directionAdvance} onClose={() => setDirectionAdvance(null)} onSaved={() => { invalidate(); setDirectionAdvance(null); }} />
       <AllocateAdvanceDialog advance={allocationAdvance} onClose={() => setAllocationAdvance(null)}
         onSaved={updated => { invalidate(); setAllocationAdvance(updated); setNotice("Η κατανομή αποθηκεύτηκε επιτυχώς."); }} />
@@ -228,13 +228,31 @@ function AdvanceDirectionDialog({ advance, onClose, onSaved }: { advance: Advanc
   </Dialog>;
 }
 
-function CreateAdvanceDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => void; onSaved: () => void }) {
+export function CreateAdvanceDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => void; onSaved: () => void }) {
   const { t } = useTranslation();
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({ number: "", receivedOn: today, partyType: "Customer", direction: "",
     customerId: "", producerId: "", insuranceCompanyId: "",
     amount: 0, currency: "EUR", paymentMethod: "BankTransfer", reference: "", notes: "" });
   const [err, setErr] = useState<string | null>(null);
+  const [link, setLink] = useState({ targetType: "", targetId: "" });
+  const supportsRuns = form.direction === "Outgoing" && form.partyType === "Producer";
+  const selectedPartyId = form.partyType === "Customer" ? form.customerId : form.partyType === "Producer" ? form.producerId : form.insuranceCompanyId;
+  const linkPolicies = useQuery<AdvancePolicy[]>({
+    queryKey: ["advance-create-policies", form.partyType, selectedPartyId, form.currency],
+    enabled: open && !!selectedPartyId && /^[A-Z]{3}$/.test(form.currency),
+    queryFn: async () => {
+      const rows = (await api.get<AdvancePolicy[]>("/policies", { params: form.partyType === "Customer" ? { customerId: form.customerId } : form.partyType === "Carrier" ? { insuranceCompanyId: form.insuranceCompanyId } : {} })).data;
+      return rows.filter(policy => policy.currency.toUpperCase() === form.currency.toUpperCase() && (form.partyType === "Customer" ? policy.customerId === form.customerId : form.partyType === "Producer" ? policy.producerId === form.producerId : policy.insuranceCompanyId === form.insuranceCompanyId));
+    }
+  });
+  const linkRuns = useQuery<{ id: string; reference: string; commissionAmount: number; currency: string }[]>({
+    queryKey: ["advance-create-commission-runs", form.producerId, form.currency],
+    enabled: open && supportsRuns && !!form.producerId && /^[A-Z]{3}$/.test(form.currency),
+    queryFn: async () => (await api.get("/advance-payments/commission-runs", { params: { producerId: form.producerId, currency: form.currency } })).data
+  });
+  useEffect(() => { setLink({ targetType: "", targetId: "" }); }, [open, form.partyType, selectedPartyId, form.currency, form.direction]);
+  const validLink = !link.targetType || (link.targetType === "Policy" ? linkPolicies.data?.some(policy => policy.id === link.targetId) : supportsRuns && linkRuns.data?.some(run => run.id === link.targetId));
   const customers = useQuery({ queryKey: ["customers-for-advance"], enabled: open && form.partyType === "Customer",
     queryFn: async () => (await api.get("/customers")).data });
   const producers = useQuery({ queryKey: ["producers-for-advance"], enabled: open && form.partyType === "Producer",
@@ -249,7 +267,8 @@ function CreateAdvanceDialog({ open, onClose, onSaved }: { open: boolean; onClos
       producerId: form.partyType === "Producer" ? (form.producerId || null) : null,
       insuranceCompanyId: form.partyType === "Carrier" ? (form.insuranceCompanyId || null) : null,
       amount: Number(form.amount), currency: form.currency.toUpperCase(),
-      paymentMethod: form.paymentMethod, reference: form.reference || null, notes: form.notes || null
+      paymentMethod: form.paymentMethod, reference: form.reference || null, notes: form.notes || null,
+      targetId: link.targetType ? link.targetId : null, targetType: link.targetType || null
     })).data,
     onSuccess: onSaved, onError: e => setErr(extractErrorMessage(e))
   });
@@ -258,7 +277,7 @@ function CreateAdvanceDialog({ open, onClose, onSaved }: { open: boolean; onClos
       <DialogTitle>{t("advance.createTitle")}</DialogTitle>
       <DialogContent>
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
-        <Stack spacing={2} mt={1}>
+        <Stack spacing={2} mt={1} sx={save.isPending ? { pointerEvents: "none", opacity: .7 } : undefined}>
           <TextField select label="Κατεύθυνση προκαταβολής" required value={form.direction} onChange={event => setForm({ ...form, direction: event.target.value })} fullWidth>
             <MenuItem value="" disabled>Επιλέξτε κατεύθυνση</MenuItem><MenuItem value="Incoming">Εισερχόμενη — λάβαμε χρήματα</MenuItem><MenuItem value="Outgoing">Εξερχόμενη — δώσαμε χρήματα</MenuItem>
           </TextField>
@@ -271,9 +290,6 @@ function CreateAdvanceDialog({ open, onClose, onSaved }: { open: boolean; onClos
           })} fullWidth>
             {["Customer", "Producer", "Carrier"].map(p => <MenuItem key={p} value={p}>{t(`payeeType.${p}`, p)}</MenuItem>)}
           </SearchableTextField>
-          <Alert severity="info" icon={<LinkIcon />}>
-            {form.direction === "Incoming" ? "Καταγράφετε χρήματα που έλαβε το γραφείο από τον επιλεγμένο αντισυμβαλλόμενο." : form.direction === "Outgoing" ? "Καταγράφετε χρήματα που έδωσε το γραφείο στον επιλεγμένο αντισυμβαλλόμενο." : "Η κατεύθυνση επιλέγεται ξεχωριστά από τον τύπο αντισυμβαλλόμενου."} Η σύνδεση με συμβόλαιο ή εκκαθάριση μπορεί να γίνει αργότερα. Η κατανομή δεν δημιουργεί δεύτερη χρηματική κίνηση.
-          </Alert>
           {form.partyType === "Customer" && (
             <SearchableSelect
               label={t("advance.customer")}
@@ -309,6 +325,17 @@ function CreateAdvanceDialog({ open, onClose, onSaved }: { open: boolean; onClos
               {["Cash", "BankTransfer", "Cheque", "Card", "Other"].map(m => <MenuItem key={m} value={m}>{t(`paymentMethod.${m}`, m)}</MenuItem>)}
             </SearchableTextField>
           </Stack>
+          <SearchableSelect label="Συμβόλαιο / εκκαθάριση (προαιρετικά)" value={link.targetType ? `${link.targetType}:${link.targetId}` : ""}
+            onChange={value => { const [targetType = "", targetId = ""] = value.split(":"); setLink({ targetType, targetId }); }}
+            disabled={!selectedPartyId || !form.direction || save.isPending} emptyLabel="Χωρίς σύνδεση"
+            placeholder="Αναζήτηση συμβολαίου ή εκκαθάρισης…"
+            helperText={linkPolicies.isFetching || linkRuns.isFetching ? "Φόρτωση διαθέσιμων συνδέσεων…" : undefined}
+            options={[
+              ...(linkPolicies.data ?? []).map(policy => ({ value: `Policy:${policy.id}`, label: `${policy.policyNumber} · ${policy.customerDisplay}`, hint: policy.insuranceCompanyName, group: "Συμβόλαια" })),
+              ...(supportsRuns ? linkRuns.data ?? [] : []).map(run => ({ value: `CommissionRun:${run.id}`, label: run.reference, hint: money(run.commissionAmount, run.currency), group: "Εκκαθαρίσεις συνεργάτη" }))
+            ]} />
+          {link.targetType && <Typography variant="caption" color="text.secondary">Το ποσό της προκαταβολής συνδέεται αυτόματα κατά την αποθήκευση. Δεν απαιτείται ολόκληρο το ποσό της οφειλής και δεν δηλώνεται αυτόματα εξόφληση.</Typography>}
+          {(linkPolicies.isError || linkRuns.isError) && <Alert severity="error">{extractErrorMessage(linkPolicies.error || linkRuns.error)}</Alert>}
           {(customers.isError || producers.isError || carriers.isError) && <Alert severity="error">{extractErrorMessage(customers.error || producers.error || carriers.error)}</Alert>}
           <TextField label={t("advance.reference")} value={form.reference} inputProps={{ maxLength: 80 }} onChange={e => setForm({ ...form, reference: e.target.value })} fullWidth />
           <TextField label={t("common.notes")} value={form.notes} inputProps={{ maxLength: 2000 }} onChange={e => setForm({ ...form, notes: e.target.value })} fullWidth multiline rows={2} />
@@ -316,7 +343,7 @@ function CreateAdvanceDialog({ open, onClose, onSaved }: { open: boolean; onClos
       </DialogContent>
       <DialogActions>
         <Button color="error" onClick={onClose} disabled={save.isPending}>{t("common.cancel")}</Button>
-        <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending || !form.direction || !form.number.trim() || !form.receivedOn || !/^[A-Z]{3}$/.test(form.currency) || !advanceAllocationPreview(9999999999.99, String(form.amount)).valid
+        <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending || !validLink || !form.direction || !form.number.trim() || !form.receivedOn || !/^[A-Z]{3}$/.test(form.currency) || !advanceAllocationPreview(9999999999.99, String(form.amount)).valid
           || (form.partyType === "Customer" && !form.customerId)
           || (form.partyType === "Producer" && !form.producerId)
           || (form.partyType === "Carrier" && !form.insuranceCompanyId)}>
@@ -376,7 +403,7 @@ function AllocateAdvanceDialog({ advance, onClose, onSaved }: {
 
   return (
     <Dialog open={Boolean(advance)} onClose={() => { if (!allocate.isPending) onClose(); }} fullWidth maxWidth="md">
-      <DialogTitle>Σύνδεση και κατανομή προκαταβολής <AdvanceDirectionChip direction={advance?.direction} /></DialogTitle>
+      <DialogTitle>Συνδέσεις προκαταβολής <AdvanceDirectionChip direction={advance?.direction} /></DialogTitle>
       <DialogContent dividers>
         {advance && <Stack spacing={2}>
           {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}

@@ -36,6 +36,49 @@ public static class AdvancePaymentRules
             throw new AppException("advance_changed", "Η προκαταβολή άλλαξε από άλλη ενέργεια. Ανανεώστε τη λίστα και δοκιμάστε ξανά.", 409);
         }
     }
+
+    // Shared by creation and later linking, so the one-step form cannot bypass
+    // the same tenant, counterparty, currency and finalised-run checks.
+    public static async Task ValidateTarget(IAppDbContext db, AdvancePayment advance, Guid targetId, string targetType, CancellationToken ct)
+    {
+        if (targetType is not ("Policy" or "CommissionRun"))
+            throw AppException.Validation("Επιλέξτε συμβόλαιο ή οριστικοποιημένη εκκαθάριση.");
+        if (targetType == "CommissionRun")
+        {
+            var targets = await CommissionRuns(db, advance, ct);
+            if (!targets.Any(target => target.Id == targetId))
+                throw AppException.Validation("Η εκκαθάριση δεν αφορά εξερχόμενη προκαταβολή του ίδιου συνεργάτη και νομίσματος.");
+            return;
+        }
+        var policy = await db.Policies.FirstOrDefaultAsync(x => x.Id == targetId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Policy");
+        var a = advance;
+        var belongsToParty = a.PartyType switch
+        {
+            "Customer" => a.CustomerId.HasValue && policy.CustomerId == a.CustomerId.Value,
+            "Producer" => a.ProducerId.HasValue && policy.ProducerId == a.ProducerId.Value,
+            "Carrier" => a.InsuranceCompanyId.HasValue && policy.InsuranceCompanyId == a.InsuranceCompanyId.Value,
+            _ => false
+        };
+        if (!belongsToParty)
+            throw new AppException("advance_policy_party_mismatch", "Το συμβόλαιο δεν ανήκει στον αντισυμβαλλόμενο της προκαταβολής.", 400);
+        if (!string.Equals(policy.Currency, a.Currency, StringComparison.OrdinalIgnoreCase))
+            throw new AppException("advance_currency_mismatch", "Το νόμισμα του συμβολαίου διαφέρει από το νόμισμα της προκαταβολής.", 400);
+    }
+
+    public static async Task<IReadOnlyList<AdvanceCommissionRunDto>> CommissionRuns(IAppDbContext db, AdvancePayment advance, CancellationToken ct)
+    {
+        if (advance.Direction != "Outgoing" || advance.PartyType != "Producer" || advance.ProducerId == null)
+            return Array.Empty<AdvanceCommissionRunDto>();
+        var rows = await db.CommissionRunLines
+            .Where(l => l.DeletedAt == null && l.ProducerId == advance.ProducerId && l.Currency == advance.Currency
+                && l.CommissionRun.Currency == advance.Currency && l.CommissionRun.DeletedAt == null && l.CommissionRun.Status == CommissionRunStatus.Finalised)
+            .GroupBy(l => new { l.CommissionRunId, l.CommissionRun.Year, l.CommissionRun.Month, l.CommissionRun.Title, l.Currency })
+            .Select(group => new { group.Key, Amount = group.Sum(l => l.CommissionAmount) })
+            .OrderByDescending(row => row.Key.Year).ThenByDescending(row => row.Key.Month).ToListAsync(ct);
+        return rows.Where(row => row.Amount > 0).Select(row => new AdvanceCommissionRunDto(row.Key.CommissionRunId,
+            $"Εκκαθάριση {row.Key.Month:00}/{row.Key.Year} · {row.Key.Title}", row.Amount, row.Key.Currency)).ToList();
+    }
 }
 
 public record SetAdvanceDirectionCommand(Guid Id, string Direction) : MediatR.IRequest<MediatR.Unit>;
@@ -56,6 +99,22 @@ public sealed class SetAdvanceDirectionHandler(IAppDbContext db) : MediatR.IRequ
 }
 
 public record AdvanceCommissionRunDto(Guid Id, string Reference, decimal CommissionAmount, string Currency);
+public record PreviewAdvanceCommissionRunsQuery(Guid ProducerId, string Currency) : MediatR.IRequest<IReadOnlyList<AdvanceCommissionRunDto>>;
+public sealed class PreviewAdvanceCommissionRunsHandler(IAppDbContext db) : MediatR.IRequestHandler<PreviewAdvanceCommissionRunsQuery, IReadOnlyList<AdvanceCommissionRunDto>>
+{
+    public async Task<IReadOnlyList<AdvanceCommissionRunDto>> Handle(PreviewAdvanceCommissionRunsQuery request, CancellationToken ct)
+    {
+        var currency = request.Currency?.Trim().ToUpperInvariant();
+        if (currency?.Length != 3 || !currency.All(char.IsAsciiLetter))
+            throw AppException.Validation("Επιλέξτε έγκυρο νόμισμα.");
+        await AdvancePaymentRules.PartyExists(db, "Producer", null, request.ProducerId, null, ct);
+        return await AdvancePaymentRules.CommissionRuns(db, new AdvancePayment
+        {
+            Direction = "Outgoing", PartyType = "Producer", ProducerId = request.ProducerId, Currency = currency
+        }, ct);
+    }
+}
+
 public record GetAdvanceCommissionRunsQuery(Guid AdvanceId) : MediatR.IRequest<IReadOnlyList<AdvanceCommissionRunDto>>;
 public sealed class GetAdvanceCommissionRunsHandler(IAppDbContext db) : MediatR.IRequestHandler<GetAdvanceCommissionRunsQuery, IReadOnlyList<AdvanceCommissionRunDto>>
 {
@@ -63,15 +122,6 @@ public sealed class GetAdvanceCommissionRunsHandler(IAppDbContext db) : MediatR.
     {
         var advance = await db.AdvancePayments.FirstOrDefaultAsync(a => a.Id == request.AdvanceId && a.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Προκαταβολή");
-        if (advance.Direction != "Outgoing" || advance.PartyType != "Producer" || advance.ProducerId == null)
-            return Array.Empty<AdvanceCommissionRunDto>();
-        var rows = await db.CommissionRunLines
-            .Where(l => l.DeletedAt == null && l.ProducerId == advance.ProducerId && l.Currency == advance.Currency
-                && l.CommissionRun.Currency == advance.Currency && l.CommissionRun.DeletedAt == null && l.CommissionRun.Status == CommissionRunStatus.Finalised)
-            .GroupBy(l => new { l.CommissionRunId, l.CommissionRun.Year, l.CommissionRun.Month, l.CommissionRun.Title, l.Currency })
-            .Select(group => new { group.Key, Amount = group.Sum(l => l.CommissionAmount) })
-            .OrderByDescending(row => row.Key.Year).ThenByDescending(row => row.Key.Month).ToListAsync(ct);
-        return rows.Where(row => row.Amount > 0).Select(row => new AdvanceCommissionRunDto(row.Key.CommissionRunId,
-            $"Εκκαθάριση {row.Key.Month:00}/{row.Key.Year} · {row.Key.Title}", row.Amount, row.Key.Currency)).ToList();
+        return await AdvancePaymentRules.CommissionRuns(db, advance, ct);
     }
 }

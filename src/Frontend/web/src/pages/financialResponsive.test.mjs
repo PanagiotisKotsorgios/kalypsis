@@ -101,5 +101,25 @@ test("financial screens render compact modal filters and consistent receipts", a
       }
       assert.ok(render(h(CashAccountSelector,{accounts,value:"",onChange(){}}),360).includes("Όλα τα ταμεία"));
     });
+    await context.test("advance creation offers one optional searchable reference and the unused summary cards are gone",async()=>{
+      const module=await server.ssrLoadModule("/src/pages/Phase13Pages.tsx");
+      for(const width of [320,768,1920]){
+        const html=render(h(module.CreateAdvanceDialog,{open:true,onClose(){},onSaved(){}}),width,true);
+        assert.ok(html.includes("Συμβόλαιο / εκκαθάριση (προαιρετικά)"));
+        assert.ok(html.includes("Χωρίς σύνδεση"));
+        assert.ok(!html.includes("Ποσό κατανομής"));
+      }
+      client.setQueryData(["advance-payments","",""],[{id:"A",number:"AD-TEST",receivedOn:"2026-10-22",partyType:"Customer",customerName:"Πελάτης",amount:20,allocatedAmount:0,currency:"EUR",paymentMethod:"Cash",status:"Open",direction:"Incoming",allocations:[]}]);
+      const html=render(h(module.AdvancePaymentsPage),1920);
+      assert.ok(html.includes("AD-TEST"));
+      assert.ok(!html.includes("Ακατανέμητες εισερχόμενες"));
+      assert.ok(!html.includes("Ακατανέμητες εξερχόμενες"));
+      const source=await readFile(new URL("./Phase13Pages.tsx",import.meta.url),"utf8");
+      const creation=source.split("export function CreateAdvanceDialog")[1].split("function AllocateAdvanceDialog")[0];
+      assert.equal((creation.match(/api\.post\(/g)??[]).length,1);
+      assert.match(creation,/targetId: link.targetType \? link.targetId : null/);
+      assert.match(creation,/targetType: link.targetType \|\| null/);
+      assert.ok(!creation.includes("/allocate"));
+    });
   } finally {client.clear();await server.close();}
 });

@@ -235,6 +235,10 @@ public class AdvancePaymentsController : ControllerBase
     [HttpGet("{id:guid}/commission-runs")]
     public async Task<ActionResult<IReadOnlyList<AdvanceCommissionRunDto>>> CommissionRuns(Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new GetAdvanceCommissionRunsQuery(id), ct));
+
+    [HttpGet("commission-runs")]
+    public async Task<ActionResult<IReadOnlyList<AdvanceCommissionRunDto>>> PreviewCommissionRuns([FromQuery] Guid producerId, [FromQuery] string currency, CancellationToken ct)
+        => Ok(await _mediator.Send(new PreviewAdvanceCommissionRunsQuery(producerId, currency), ct));
 }
 
 [ApiController]

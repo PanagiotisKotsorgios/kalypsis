@@ -194,6 +194,85 @@ public sealed class AdvancePaymentDirectionTests
         Assert.Empty(db.Payments); Assert.Empty(db.FinancialMovements);
     }
 
+    [Theory]
+    [InlineData("Incoming", "Customer")]
+    [InlineData("Outgoing", "Customer")]
+    [InlineData("Incoming", "Producer")]
+    [InlineData("Outgoing", "Producer")]
+    [InlineData("Incoming", "Carrier")]
+    [InlineData("Outgoing", "Carrier")]
+    public async Task Creation_links_a_partial_advance_to_its_policy_in_one_save(string direction, string party)
+    {
+        var current = TestScaffold.AgencyStaff(Guid.NewGuid()); using var db = TestScaffold.NewDb(current, TestScaffold.Clock);
+        var seed = Seed(db, current.TenantId!.Value); seed.Policy.Premium = 1000; await db.SaveChangesAsync();
+        var body = Body(seed.Customer.Id, direction, 20.50m) with { PartyType = party, ProducerId = seed.Producer.Id,
+            InsuranceCompanyId = seed.Company.Id, TargetId = seed.Policy.Id, TargetType = "Policy" };
+        var created = await new CreateAdvancePaymentHandler(db).Handle(new(body), default);
+        Assert.Equal(20.50m, created.Amount); Assert.Equal(created.Amount, created.AllocatedAmount);
+        Assert.Equal("FullyAllocated", created.Status);
+        var link = Assert.Single(created.Allocations);
+        Assert.Equal(seed.Policy.Id, link.PolicyId); Assert.Equal(20.50m, link.Amount); Assert.Equal(body.ReceivedOn, link.LinkedOn);
+        Assert.Single(db.AdvancePayments); Assert.Single(db.ReconciliationLinks);
+        Assert.Equal(1000, seed.Policy.Premium);
+        Assert.Empty(db.Receipts); Assert.Empty(db.Payments); Assert.Empty(db.FinancialMovements);
+    }
+
+    [Theory]
+    [InlineData("wrong-customer")]
+    [InlineData("wrong-producer")]
+    [InlineData("wrong-company")]
+    [InlineData("currency")]
+    [InlineData("deleted")]
+    [InlineData("missing")]
+    [InlineData("type")]
+    [InlineData("missing-target")]
+    public async Task Invalid_creation_link_saves_neither_advance_nor_reference(string reason)
+    {
+        var current = TestScaffold.AgencyStaff(Guid.NewGuid()); using var db = TestScaffold.NewDb(current, TestScaffold.Clock);
+        var seed = Seed(db, current.TenantId!.Value);
+        if (reason == "wrong-customer") seed.Policy.CustomerId = Guid.NewGuid();
+        if (reason == "wrong-producer") seed.Policy.ProducerId = Guid.NewGuid();
+        if (reason == "wrong-company") seed.Policy.InsuranceCompanyId = Guid.NewGuid();
+        if (reason == "currency") seed.Policy.Currency = "USD";
+        if (reason == "deleted") seed.Policy.DeletedAt = TestScaffold.Clock.UtcNow;
+        await db.SaveChangesAsync();
+        var body = Body(seed.Customer.Id, amount: 20) with { TargetId = reason == "missing" ? Guid.NewGuid() : reason == "missing-target" ? null : seed.Policy.Id,
+            TargetType = reason == "type" ? "Unsupported" : "Policy",
+            PartyType = reason == "wrong-producer" ? "Producer" : reason == "wrong-company" ? "Carrier" : "Customer",
+            ProducerId = seed.Producer.Id, InsuranceCompanyId = seed.Company.Id };
+        await Assert.ThrowsAsync<AppException>(() => new CreateAdvancePaymentHandler(db).Handle(new(body), default));
+        Assert.Empty(db.AdvancePayments); Assert.Empty(db.ReconciliationLinks);
+        Assert.DoesNotContain(db.ChangeTracker.Entries(), entry => entry.State == EntityState.Added);
+    }
+
+    [Fact]
+    public async Task Commission_run_preview_and_creation_use_the_same_counterparty_currency_and_status_checks()
+    {
+        var current = TestScaffold.AgencyStaff(Guid.NewGuid()); var name = Guid.NewGuid().ToString();
+        using var db = TestScaffold.NewDb(current, TestScaffold.Clock, name);
+        var seed = Seed(db, current.TenantId!.Value);
+        var run = new CommissionRun { Id = Guid.NewGuid(), TenantId = current.TenantId.Value, Year = 2026, Month = 10, Title = "October", Status = CommissionRunStatus.Finalised, Currency = "EUR" };
+        db.CommissionRuns.Add(run);
+        db.CommissionRunLines.Add(new CommissionRunLine { Id = Guid.NewGuid(), TenantId = current.TenantId.Value, CommissionRunId = run.Id,
+            ProducerId = seed.Producer.Id, PolicyId = seed.Policy.Id, InsuranceCompanyId = seed.Company.Id, CommissionAmount = 100, Currency = "EUR" });
+        await db.SaveChangesAsync();
+        var preview = new PreviewAdvanceCommissionRunsHandler(db);
+        Assert.Equal(run.Id, Assert.Single(await preview.Handle(new(seed.Producer.Id, "eur"), default)).Id);
+        Assert.Empty(await preview.Handle(new(seed.Producer.Id, "USD"), default));
+        await Assert.ThrowsAsync<AppException>(() => preview.Handle(new(Guid.NewGuid(), "EUR"), default));
+        using var other = TestScaffold.NewDb(TestScaffold.AgencyStaff(Guid.NewGuid()), TestScaffold.Clock, name);
+        await Assert.ThrowsAsync<AppException>(() => new PreviewAdvanceCommissionRunsHandler(other).Handle(new(seed.Producer.Id, "EUR"), default));
+        var body = Body(seed.Customer.Id, "Outgoing", 20) with { PartyType = "Producer", ProducerId = seed.Producer.Id, TargetId = run.Id, TargetType = "CommissionRun" };
+        await Assert.ThrowsAsync<AppException>(() => new CreateAdvancePaymentHandler(db).Handle(new(body with { Direction = "Incoming" }), default));
+        Assert.Empty(db.AdvancePayments);
+        var created = await new CreateAdvancePaymentHandler(db).Handle(new(body), default);
+        Assert.Equal("CommissionRun", Assert.Single(created.Allocations).TargetType); Assert.Equal(20, created.AllocatedAmount);
+        Assert.Empty(db.Payments); Assert.Empty(db.FinancialMovements);
+        run.Status = CommissionRunStatus.Draft; await db.SaveChangesAsync();
+        await Assert.ThrowsAsync<AppException>(() => new CreateAdvancePaymentHandler(db).Handle(new(body with { Number = "DRAFT" }), default));
+        Assert.Single(db.AdvancePayments);
+    }
+
     [Fact]
     public async Task Concurrent_allocation_of_the_same_advance_is_rejected_instead_of_spending_it_twice()
     {

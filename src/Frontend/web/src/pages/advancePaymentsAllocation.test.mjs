@@ -8,7 +8,8 @@ import { createServer } from "vite";
 
 test("advance payments expose party-aware allocations and available balances", async () => {
   const page = await readFile(new URL("./Phase13Pages.tsx", import.meta.url), "utf8");
-  const handler = await readFile(new URL("../../../../Backend/Kalypsis.Application/Features/Phase13/Phase13Handlers.cs", import.meta.url), "utf8");
+  const handler = (await readFile(new URL("../../../../Backend/Kalypsis.Application/Features/Phase13/Phase13Handlers.cs", import.meta.url), "utf8"))
+    + (await readFile(new URL("../../../../Backend/Kalypsis.Application/Features/Phase13/AdvancePaymentRules.cs", import.meta.url), "utf8"));
 
   assert.match(page, /function AllocateAdvanceDialog/);
   assert.match(page, /advance-payments\/\$\{advance!\.id\}\/allocate/);
