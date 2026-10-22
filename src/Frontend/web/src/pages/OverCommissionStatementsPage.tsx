@@ -290,10 +290,6 @@ export function OverCommissionStatementsPage() {
             <Chip label={`${rows.length} γραμμές · ${statementOfficeTotal(rows)} στην έδρα`}
               sx={{ bgcolor: "#159B59", color: "#fff", fontWeight: 800, maxWidth: "100%", height: "auto", minHeight: 26, "& .MuiChip-label": { whiteSpace: "normal", py: .5 } }} />
           </Stack>
-          <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-            Καταχώρηση της μηνιαίας υπερπρομήθειας ανά παραγωγό και ασφαλιστική εταιρεία — μία γραμμή για κάθε
-            γραμμή του πινακίου (ERGO, Ατλαντική, Grand Cover, κτλ.).
-          </Typography>
         </Box>
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ minWidth: 0, maxWidth: "100%" }}>
           <SavedReportsButton entity="over-commission-statements"
