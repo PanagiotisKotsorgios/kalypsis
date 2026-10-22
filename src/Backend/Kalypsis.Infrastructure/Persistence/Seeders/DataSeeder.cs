@@ -193,6 +193,11 @@ public static class DataSeeder
         try { await EnsureSchemaSafetyAsync(db, logger, cancellationToken); }
         catch (Exception ex) { logger.LogError(ex, "EnsureSchemaSafetyAsync failed — continuing boot."); }
 
+        // Mandatory, independent of optional safety-net DDL. A narrow legacy
+        // encrypted column must be repaired before seeds or user writes run.
+        // Uses EF mappings (Garages, not garages) so Linux/MySQL casing is correct.
+        await EncryptedColumnSchemaRepair.EnsureAsync(db, logger, cancellationToken);
+
         // Seed the editable public pricing catalogue once. v2+ catalogue values
         // are never overwritten, so a redeploy cannot silently change commercial
         // settings or historical subscription calculations; only the legacy v1
@@ -3196,35 +3201,6 @@ public static class DataSeeder
                 KEY `IX_ermes_blocks_Tenant_Owner` (`TenantId`, `OwnerUserId`)
             ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
 
-        // ==== Widen encrypted columns to varchar(500) ==========================
-        // See AppDbContext.OnModelCreating — every column below is now encrypted
-        // via ASP.NET DataProtection at the EF layer, and the ciphertext balloons
-        // any plaintext to ~150-200 chars. Idempotent (no-op when already wide).
-        var encColumnsSmall = new (string Table, string Column)[]
-        {
-            // Customer PII (ταυτότητα / ΑΜΚΑ / διαβατήριο / δίπλωμα)
-            ("customers", "Amka"),
-            ("customers", "IdNumber"),
-            ("customers", "PassportNumber"),
-            ("customers", "DriverLicenseNumber"),
-            // Financial identifiers (IBAN)
-            ("bank_connections", "Iban"),
-            ("bank_statement_lines", "CounterpartyIban"),
-            ("banks", "AccountIban"),
-            ("garages", "Iban"),
-            // Small integration secrets (client secrets, IMAP passwords, SIDs)
-            ("carrier_connections", "ClientSecretEncrypted"),
-            ("mailbox_connections", "ImapPasswordEncrypted"),
-            ("telephony_connections", "AccountSidEncrypted"),
-            ("telephony_connections", "AuthTokenEncrypted"),
-            ("BackofficeBridgeConnections", "SecretEncrypted"),
-        };
-        foreach (var (table, column) in encColumnsSmall)
-            await EnsureColumnAtLeastAsync(db, logger, dbName, table, column, minLength: 500, ct);
-
-        // OAuth access/refresh tokens can be 1-2 KB before encryption balloons them.
-        await EnsureColumnAtLeastAsync(db, logger, dbName, "mailbox_connections", "AccessTokenEncrypted", minLength: 3000, ct);
-        await EnsureColumnAtLeastAsync(db, logger, dbName, "mailbox_connections", "RefreshTokenEncrypted", minLength: 3000, ct);
     }
 
     private static async Task EnsureMissingOfficeScopeColumnsAsync(
@@ -3248,34 +3224,6 @@ public static class DataSeeder
                   "WHERE TABLE_SCHEMA = {0} AND TABLE_NAME = {1} AND COLUMN_NAME = {2}";
         var count = await db.Database.SqlQueryRaw<long>(sql, dbName, table, column).ToListAsync(ct);
         return count.FirstOrDefault() > 0;
-    }
-
-    /// <summary>
-    /// Widens a varchar column if its current length is smaller than <paramref name="minLength"/>.
-    /// Idempotent: no-op when the column is already at least as wide, silent if the
-    /// table/column does not exist. Used by the encryption rollout so that
-    /// previously-narrow columns (e.g. AMKA varchar(11)) can accommodate the
-    /// DataProtection envelope (~150-200 chars).
-    /// </summary>
-    private static async Task EnsureColumnAtLeastAsync(AppDbContext db, ILogger logger, string dbName,
-        string table, string column, int minLength, CancellationToken ct)
-    {
-        try
-        {
-            var sql = "SELECT CHARACTER_MAXIMUM_LENGTH FROM information_schema.COLUMNS " +
-                      "WHERE TABLE_SCHEMA = {0} AND TABLE_NAME = {1} AND COLUMN_NAME = {2}";
-            var current = await db.Database.SqlQueryRaw<long?>(sql, dbName, table, column).ToListAsync(ct);
-            var currentLen = current.FirstOrDefault();
-            if (currentLen is null) return; // column not present — nothing to widen
-            if (currentLen >= minLength) return;
-            var alter = $"ALTER TABLE `{table}` MODIFY COLUMN `{column}` varchar({minLength}) NULL";
-            await db.Database.ExecuteSqlRawAsync(alter, ct);
-            logger.LogWarning("Schema safety: widened {Table}.{Column} to varchar({Len})", table, column, minLength);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Schema safety: widening {Table}.{Column} failed, continuing.", table, column);
-        }
     }
 
     /// <summary>
