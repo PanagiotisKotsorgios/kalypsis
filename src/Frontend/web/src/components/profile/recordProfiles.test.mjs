@@ -144,6 +144,35 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
       assert.equal(view.includes("Επεξεργασία Έναρξη"),true); assert.equal(edit.includes("Αποθήκευση Έναρξη"),true);
       assert.equal(edit.includes("Αποθήκευση Διάρκεια"),false); assert.equal(edit.includes("Αποθήκευση Αριθμός συμβολαίου"),false);
     });
+    await t.test("policy General, contract details and premiums read top-to-bottom at all breakpoints without losing view/edit controls", async () => {
+      const { policyFieldColumns } = await server.ssrLoadModule("/src/components/profile/PolicyFieldColumns.tsx");
+      const policy = { policyNumber: "POL1", customerDisplay: "Πελάτης", customerVat: "012345678", insuranceCompanyId: "carrier", insuranceCompanyName: "Ασφαλιστική", producerName: "Συνεργάτης", startDate: "2026-01-01", endDate: "2026-12-31", premium: 100, netPremium: 80, currency: "EUR" };
+      const values = { ...policy, status: "Active", policyType: "Auto", premium: "100", netPremium: "80", currency: "EUR" };
+      const generalGroups = [["Αριθμός συμβολαίου", "applicationNumber", "insuranceCompanyId", "previousInsuranceCompanyId", "policyType", "status", "issuedAt", "startDate", "endDate", "Διάρκεια"],
+        ["Πελάτης / ασφαλισμένος", "ΑΦΜ πελάτη", "Email ασφαλισμένου", "Τηλέφωνο ασφαλισμένου", "contractPartyCustomerId", "ΑΦΜ συμβαλλομένου", "Email συμβαλλομένου", "Τηλέφωνο συμβαλλομένου"],
+        ["Συνεργάτης", "Κωδικός συνεργάτη", "Προμήθεια συνεργάτη (%)", "vehicleRegistrationPlate", "driverVatNumber", "reasonForCirculation", "premium", "netPremium", "currency"]];
+      const cases = [[PolicyProfileFields, { policy, values, companies: [], customers: [] }, generalGroups],
+        [PolicyContractFields, { policy, values }, [["vehicleUseCategory", "packageCode", "Επόμενη ανανέωση (αυτόματα)", "renewalInstructions"], ["deliveredAt", "deliveredTo", "deliveryMethod", "Σημειώσεις συμβολαίου"]]],
+        [PolicyPremiumFields, { policy, matrixLoading: false }, [["premium", "netPremium"], ["Προμήθεια γραφείου", "Προμήθεια συνεργάτη"]]]];
+      for (const width of [320, 360, 768, 1024, 1280, 1920]) {
+        const count = width >= 1200 ? 3 : width >= 900 ? 2 : 1;
+        const theme = createTheme({ components: { MuiUseMediaQuery: { defaultProps: { ssrMatchMedia: query => {
+          const min = query.match(/min-width:\s*([\d.]+)px/); return { matches: !min || width >= Number(min[1]) };
+        } } } } });
+        for (const [Component, props, groups] of cases) {
+          const expectedColumns = policyFieldColumns(groups, count);
+          for (const editAll of [false, true]) {
+            const html = renderToStaticMarkup(createElement(ThemeProvider, { theme }, createElement(Component, { ...props, session: { ...session(values), editAll } })));
+            assert.deepEqual(ids(html), groups.flat());
+            assert.ok(html.includes(`data-policy-columns="${expectedColumns.length}"`));
+            assert.deepEqual(html.split(/data-policy-column="\d+"/).slice(1).map(ids), expectedColumns);
+            assert.equal(new Set(ids(html)).size, groups.flat().length);
+            assert.ok(html.includes(editAll ? "Αποθήκευση " : "Αντιγραφή "));
+          }
+          assert.equal(ids(render(Component, props)).length, groups.flat().length, "read-only permissions preserve every field");
+        }
+      }
+    });
     await t.test("policy contract details exclude General duplicates, hide JSON and keep editable catalogue values", () => {
       const policy = { endDate: "2027-01-01", nextRenewalDate: null, currency: "EUR", deductible: 100, policyNotes: "Όροι" };
       const values = { vehicleUseCategory: "Private", packageCode: "BASIC", coverCode: "FIRE,GLASS", deliveredAt: "2026-01-01", deliveredTo: "Πελάτης" };
@@ -186,7 +215,7 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
       assert.equal(view.includes("Φόρος"), false);
       assert.equal(edit.includes("Αποθήκευση Μικτά"), true);
       assert.equal(edit.includes("Αποθήκευση Προμήθεια γραφείου"), false);
-      assert.match(view, /minmax\(min\(100%, 300px\), 1fr\)/);
+      assert.match(view, /data-policy-layout="premiums"/);
       const empty = render(PolicyPremiumFields, { policy: { ...policy, netPremium: null }, matrixLoading: false });
       assert.match(empty, /Δεν έχει υπολογιστεί/);
       assert.equal(empty.includes("16,00 EUR"), false);

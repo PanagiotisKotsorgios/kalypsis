@@ -8,7 +8,7 @@ namespace Kalypsis.Application.Features.Producers;
 
 public record ProducerBalanceCurrency(string Currency, decimal Earned, decimal Paid, decimal ToProducer, decimal FromProducer);
 public record ProducerBalanceEntry(string Id, DateOnly Date, string Kind, string Reference, string? PolicyNumber, decimal Earned, decimal Paid, string Currency);
-public record ProducerBalanceMonth(DateOnly Month, string Currency, decimal Earned, decimal Paid, int EntryCount);
+public record ProducerBalanceMonth(DateOnly Month, string Currency, decimal Earned, decimal Paid, int EntryCount, decimal Balance);
 public record ProducerBalancesDto(Guid ProducerId, IReadOnlyList<ProducerBalanceCurrency> Currencies, IReadOnlyList<ProducerBalanceEntry> Entries, IReadOnlyList<ProducerBalanceMonth> Monthly);
 public record GetProducerBalancesQuery(Guid ProducerId) : IRequest<ProducerBalancesDto>;
 
@@ -39,7 +39,7 @@ public sealed class GetProducerBalancesHandler(IAppDbContext db, ICurrentUser cu
         // payment-date movements. Do not roll prior months into earned commissions.
         var monthly = entries.GroupBy(row => new { row.Currency, Month = new DateOnly(row.Date.Year, row.Date.Month, 1) })
             .Select(group => new ProducerBalanceMonth(group.Key.Month, group.Key.Currency,
-                group.Sum(row => row.Earned), group.Sum(row => row.Paid), group.Count()))
+                group.Sum(row => row.Earned), group.Sum(row => row.Paid), group.Count(), group.Sum(row => row.Earned) - group.Sum(row => row.Paid)))
             .OrderByDescending(row => row.Month).ThenBy(row => row.Currency).ToList();
         // Reconcile all months, not just a displayed page. Payments may settle a
         // different production month, so do not sum positive per-month differences.

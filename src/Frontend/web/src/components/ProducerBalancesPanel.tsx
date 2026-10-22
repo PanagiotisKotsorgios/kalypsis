@@ -8,7 +8,7 @@ import { ProfileEditableField, profileFieldGridSx } from "./profile/ProfileField
 
 interface Balance { currency: string; earned: number; paid: number; toProducer: number; fromProducer: number }
 interface Entry { id: string; date: string; kind: string; reference: string; policyNumber?: string | null; earned: number; paid: number; currency: string }
-interface BalanceMonth { month: string; currency: string; earned: number; paid: number; entryCount: number }
+interface BalanceMonth { month: string; currency: string; earned: number; paid: number; entryCount: number; balance?: number }
 interface ProducerBalances { producerId: string; currencies: Balance[]; entries: Entry[]; monthly: BalanceMonth[] }
 const amount = (value: number, currency: string) => value.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " " + currency;
 const monthLabel = (value: string) => new Date(value.slice(0, 7) + "-01T00:00:00Z").toLocaleDateString("el-GR", { month: "long", year: "numeric", timeZone: "UTC" });
@@ -56,6 +56,20 @@ export function producerMonthEntries(entries: Entry[], month: BalanceMonth) {
   return entries.filter(row => row.currency === month.currency && row.date.slice(0, 7) === month.month.slice(0, 7));
 }
 
+export function producerMonthMovementBalance(month: Pick<BalanceMonth, "earned" | "paid" | "balance">) {
+  // Prefer server decimal arithmetic; tolerate cached responses from before this field existed.
+  const value = month.balance ?? Number((month.earned - month.paid).toFixed(2));
+  return value === 0 ? 0 : value;
+}
+
+export function ProducerMonthBalance({ value, currency }: { value: number; currency: string }) {
+  return <Box component="span" data-month-balance={value > 0 ? "positive" : value < 0 ? "negative" : "zero"}
+    sx={{ display: "inline-flex", alignItems: "center", minHeight: 24, px: .75, py: .15, borderRadius: .75, whiteSpace: "nowrap", fontWeight: 800,
+      bgcolor: value > 0 ? "#D00000" : value < 0 ? "#E5EFFB" : "#E4F2E8", color: value > 0 ? "#fff" : value < 0 ? "#0B5CAD" : "#246B40" }}>
+    {amount(value, currency)}
+  </Box>;
+}
+
 export function ProducerBalancesPanel({ producerId }: { producerId: string }) {
   const [currency, setCurrency] = useState("");
   const [page, setPage] = useState(0);
@@ -74,21 +88,23 @@ export function ProducerBalancesPanel({ producerId }: { producerId: string }) {
         <MenuItem value="">Όλα</MenuItem>{q.data?.currencies.map(row => <MenuItem key={row.currency} value={row.currency}>{row.currency}</MenuItem>)}
       </TextField>}
     </Stack>
-    <Typography variant="caption" color="text.secondary">Κάθε μήνας δείχνει μόνο τις προμήθειες των συμβολαίων με έναρξη μέσα σε αυτόν. Οι καταβολές εμφανίζονται στον μήνα πληρωμής και μπορεί να αφορούν άλλους μήνες.</Typography>
+    <Typography variant="caption" color="text.secondary">Κάθε μήνας δείχνει μόνο τις προμήθειες των συμβολαίων με έναρξη μέσα σε αυτόν. Οι καταβολές εμφανίζονται στον μήνα πληρωμής και μπορεί να αφορούν άλλους μήνες. Υπόλοιπο κινήσεων μήνα = προμήθειες − καταβολές του ίδιου μήνα, χωρίς μεταφορές.</Typography>
     <Box sx={{ overflowX: "auto", border: "1px solid #d5e0ec", borderRadius: 1.5 }}>
-      <Table size="small" aria-label="Μηνιαίες προμήθειες συνεργάτη" sx={{ ...tableSx, minWidth: 590, "& td": { py: .45, px: 1, lineHeight: 1.3 }, "& th": { ...tableSx["& th"], py: .7, px: 1, lineHeight: 1.3 } }}>
-        <TableHead><TableRow><TableCell>Μήνας</TableCell><TableCell align="right">Προμήθειες συμβολαίων μήνα</TableCell><TableCell align="right">Καταβολές μέσα στον μήνα</TableCell><TableCell>Ανάλυση</TableCell></TableRow></TableHead>
+      <Table size="small" aria-label="Μηνιαίες προμήθειες συνεργάτη" sx={{ ...tableSx, minWidth: 740, "& td": { py: .45, px: 1, lineHeight: 1.3 }, "& th": { ...tableSx["& th"], py: .7, px: 1, lineHeight: 1.3 } }}>
+        <TableHead><TableRow><TableCell>Μήνας</TableCell><TableCell align="right">Προμήθειες συμβολαίων μήνα</TableCell><TableCell align="right">Καταβολές μέσα στον μήνα</TableCell><TableCell align="right">Υπόλοιπο κινήσεων μήνα</TableCell><TableCell>Ανάλυση</TableCell></TableRow></TableHead>
         <TableBody>{rows.slice(visiblePage * 10, visiblePage * 10 + 10).map((row, index) => <TableRow key={row.month + row.currency} sx={{ bgcolor: index % 2 ? "#f0f2f5" : "#f8fafc" }}>
           <TableCell sx={{ whiteSpace: "nowrap", fontWeight: 700 }}>{monthLabel(row.month)}</TableCell>
           <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>{amount(row.earned, row.currency)}</TableCell>
           <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>{amount(row.paid, row.currency)}</TableCell>
+          <TableCell align="right"><ProducerMonthBalance value={producerMonthMovementBalance(row)} currency={row.currency} /></TableCell>
           <TableCell><Button size="small" variant="contained" startIcon={<ReceiptLongIcon />} onClick={() => setSelectedMonth(row)} aria-label={`Κινήσεις ${monthLabel(row.month)} ${row.currency}`}
             sx={{ whiteSpace: "nowrap", minHeight: 28, py: .25, bgcolor: "#159B59", color: "#fff", "&:hover": { bgcolor: "#107B46", color: "#fff" } }}>{row.entryCount} {row.entryCount === 1 ? "κίνηση" : "κινήσεις"}</Button></TableCell>
         </TableRow>)}</TableBody>
         <TableFooter>{totals.map(total => <TableRow key={total.currency} sx={{ bgcolor: "#e8f5e9", "& td": { fontWeight: 800, color: "#102c55", borderTop: "2px solid #b4d7bf", fontSize: 13 } }}>
           <TableCell>Σύνολα {total.currency} · όλοι οι μήνες</TableCell>
           <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>{amount(total.earned, total.currency)}</TableCell>
-          <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>{amount(total.paid, total.currency)}</TableCell><TableCell />
+          <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>{amount(total.paid, total.currency)}</TableCell>
+          <TableCell align="right"><ProducerMonthBalance value={total.toProducer - total.fromProducer} currency={total.currency} /></TableCell><TableCell />
         </TableRow>)}</TableFooter>
       </Table>
     </Box>

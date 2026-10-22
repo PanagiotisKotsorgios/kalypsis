@@ -13,7 +13,7 @@ test("producer workspace keeps contact editing, red debts and filtered live stat
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const render = (Component, props) => renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(Component, props)));
   try {
-    const { ProducerDebtField, ProducerBalancesPanel, ProducerBalanceEntriesTable, producerMonthEntries } = await server.ssrLoadModule("/src/components/ProducerBalancesPanel.tsx");
+    const { ProducerDebtField, ProducerBalancesPanel, ProducerBalanceEntriesTable, producerMonthEntries, ProducerMonthBalance, producerMonthMovementBalance } = await server.ssrLoadModule("/src/components/ProducerBalancesPanel.tsx");
     const { ProducerContactFields, PRODUCER_CONTACT_FIELDS, producerContactError } = await server.ssrLoadModule("/src/components/ProducerContactFields.tsx");
     const { ProducerStatisticsDashboard, producerStatisticsParams, producerStatisticsCharts, producerStatisticsRefreshMs } = await server.ssrLoadModule("/src/components/ProducerStatisticsDialog.tsx");
     await context.test("positive debt has red value/copy controls with white foreground; zero is not falsely highlighted as debt", () => {
@@ -37,6 +37,18 @@ test("producer workspace keeps contact editing, red debts and filtered live stat
       assert.ok(footer.includes("120,00 EUR")); assert.ok(footer.includes("60,00 EUR"));
       assert.ok(html.includes("όχι μόνο την τρέχουσα σελίδα"));
     });
+    await context.test("monthly movement differences are red/white only when positive, never cumulative and tolerate older cached responses", () => {
+      assert.equal(producerMonthMovementBalance({ earned: .3, paid: .1 }), .2);
+      assert.equal(producerMonthMovementBalance({ earned: 46.50, paid: 0, balance: 46.50 }), 46.50);
+      assert.equal(producerMonthMovementBalance({ earned: 80.85, paid: 80.85, balance: 0 }), 0);
+      assert.equal(producerMonthMovementBalance({ earned: 0, paid: 20, balance: -20 }), -20);
+      const positive = render(ProducerMonthBalance, { value: 46.50, currency: "EUR" });
+      assert.ok(positive.includes('data-month-balance="positive"')); assert.ok(positive.includes("#D00000")); assert.ok(positive.includes("color:#fff")); assert.ok(positive.includes("46,50 EUR"));
+      for (const value of [0, -20]) {
+        const html = render(ProducerMonthBalance, { value, currency: "EUR" });
+        assert.ok(!html.includes("#D00000")); assert.ok(html.includes(value < 0 ? 'data-month-balance="negative"' : 'data-month-balance="zero"'));
+      }
+    });
     await context.test("May/June/July remain 68.30/63.22/46.50 while the separate total debt is 178.02, not a sum of cumulative balances", () => {
       const monthly = [{ month: "2026-07-01", earned: 46.50, paid: 0 }, { month: "2026-06-01", earned: 63.22, paid: 0 },
         { month: "2026-05-01", earned: 68.30, paid: 0 }, { month: "2025-11-01", earned: 80.85, paid: 80.85 }].map(row => ({ ...row, currency: "EUR", entryCount: row.paid ? 2 : 1 }));
@@ -45,7 +57,9 @@ test("producer workspace keeps contact editing, red debts and filtered live stat
       const body = html.match(/<tbody\b[^>]*>[\s\S]*?<\/tbody>/)?.[0] ?? "";
       for (const value of ["46,50 EUR", "63,22 EUR", "68,30 EUR", "80,85 EUR"]) assert.ok(body.includes(value), value);
       assert.ok(!body.includes("178,02 EUR")); assert.ok(!body.includes("131,52 EUR"));
-      assert.equal((body.match(/<td\b/g) ?? []).length, 16, "four independent rows, four columns each");
+      assert.equal((body.match(/<td\b/g) ?? []).length, 20, "four independent rows, five columns each");
+      assert.equal((body.match(/data-month-balance="positive"/g) ?? []).length, 3);
+      assert.equal((body.match(/data-month-balance="zero"/g) ?? []).length, 1);
       const summary = html.slice(html.indexOf("Σύνολα όλου του καταχωρημένου ιστορικού"));
       for (const value of ["258,87 EUR", "80,85 EUR", "178,02 EUR"]) assert.ok(summary.includes(value), value);
     });

@@ -192,6 +192,7 @@ public sealed class PolicyLifecycleAndBalancesTests
         Assert.Equal(new[] { new DateOnly(2025, 12, 1), new DateOnly(2026, 1, 1), new DateOnly(2026, 2, 1), new DateOnly(2026, 3, 1), new DateOnly(2026, 5, 1) }, eur.Select(row => row.Month));
         Assert.Equal(new[] { 0m, 120.30m, 50m, 0m, 69.99m }, eur.Select(row => row.Earned));
         Assert.Equal(new[] { 20m, 40.30m, 80m, 50m, 0m }, eur.Select(row => row.Paid));
+        Assert.Equal(new[] { -20m, 80m, -30m, -50m, 69.99m }, eur.Select(row => row.Balance));
         Assert.Equal(120.30m, eur[1].Earned); Assert.Equal(40.30m, eur[1].Paid); Assert.Equal(3, eur[1].EntryCount);
         var usd = Assert.Single(result.Monthly, row => row.Currency == "USD"); Assert.Equal(10, usd.Earned); Assert.Equal(15, usd.Paid);
         foreach (var total in result.Currencies)
@@ -199,6 +200,7 @@ public sealed class PolicyLifecycleAndBalancesTests
             var months = result.Monthly.Where(row => row.Currency == total.Currency).OrderBy(row => row.Month).ToArray();
             Assert.Equal(total.Earned, months.Sum(row => row.Earned)); Assert.Equal(total.Paid, months.Sum(row => row.Paid));
             Assert.Equal(total.ToProducer - total.FromProducer, months.Sum(row => row.Earned) - months.Sum(row => row.Paid));
+            Assert.Equal(total.ToProducer - total.FromProducer, months.Sum(row => row.Balance));
             Assert.Equal(result.Entries.Count(row => row.Currency == total.Currency), months.Sum(row => row.EntryCount));
         }
         Assert.Equal(new DateOnly(2026, 5, 1), result.Monthly[0].Month);
@@ -228,6 +230,7 @@ public sealed class PolicyLifecycleAndBalancesTests
         var result = await new GetProducerBalancesHandler(db, current).Handle(new(producer.Id), default);
         Assert.Equal(new[] { 46.50m, 63.22m, 68.30m, 80.85m }, result.Monthly.Select(row => row.Earned));
         Assert.Equal(new[] { 0m, 0m, 0m, 80.85m }, result.Monthly.Select(row => row.Paid));
+        Assert.Equal(new[] { 46.50m, 63.22m, 68.30m, 0m }, result.Monthly.Select(row => row.Balance));
         var total = Assert.Single(result.Currencies);
         Assert.Equal(258.87m, total.Earned); Assert.Equal(80.85m, total.Paid); Assert.Equal(178.02m, total.ToProducer); Assert.Equal(0m, total.FromProducer);
         Assert.Equal(result.Monthly.Sum(row => row.Earned) - result.Monthly.Sum(row => row.Paid), total.ToProducer);

@@ -1,7 +1,8 @@
 import { DetailProfileTabs } from "./profile/DetailProfileTabs";
-import { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback, profileFieldGridSx, useProfileFieldEditor, type ProfileFieldSession } from "./profile/ProfileFieldEditor";
+import { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback, useProfileFieldEditor, type ProfileFieldSession } from "./profile/ProfileFieldEditor";
 import { POLICY_CORE_KEYS, policyCorePayload, policyPreservedAmounts } from "./profile/policyProfile";
 import { PolicyBeneficiaries, PolicyRiskFields, PolicyTaxFields, policyPaymentStatus } from "./profile/PolicyRiskProfileFields";
+import { PolicyFieldColumns } from "./profile/PolicyFieldColumns";
 import { PolicyClaimsDialog } from "./PolicyClaimsDialog";
 import { linkedVehicleSpecs } from "./profile/vehicleProfile";
 import { createContext, useContext, Children, isValidElement, useEffect, useMemo, useState } from "react";
@@ -723,12 +724,12 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                   {!readOnly && <Button size="small" variant="outlined" onClick={() => setChangeProducerOpen(true)}>Αλλαγή συνεργάτη</Button>}
                   {!readOnly && <Button size="small" variant="outlined" onClick={() => setClaimsOpen(true)}>Ζημιές & αποζημιώσεις ({p.claimCount})</Button>}
                 </Stack>
-                <Box sx={profileFieldGridSx}>
-                  <ProfileEditableField label="Ημερομηνία καταχώρησης" value={new Date(p.createdAt).toLocaleString("el-GR")} />
-                  <ProfileEditableField label="Ενημερώθηκε" value={p.updatedAt ? new Date(p.updatedAt).toLocaleString("el-GR") : ""} />
-                  <ProfileEditableField label="Δημιουργήθηκε από" value={p.createdByName} />
-                  <ProfileEditableField label="Προηγούμενο συμβόλαιο" value={p.renewedFromPolicyNumber} />
-                </Box>
+                <PolicyFieldColumns section="metadata" groups={[
+                  [<ProfileEditableField key="createdAt" label="Ημερομηνία καταχώρησης" value={new Date(p.createdAt).toLocaleString("el-GR")} />,
+                    <ProfileEditableField key="updatedAt" label="Ενημερώθηκε" value={p.updatedAt ? new Date(p.updatedAt).toLocaleString("el-GR") : ""} />],
+                  [<ProfileEditableField key="createdBy" label="Δημιουργήθηκε από" value={p.createdByName} />,
+                    <ProfileEditableField key="previous" label="Προηγούμενο συμβόλαιο" value={p.renewedFromPolicyNumber} />],
+                ]} />
               </Stack>}
 
               {showContract && <Stack spacing={1}>
@@ -756,15 +757,15 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                     </Stack>
                   </PolicySummarySection>
                   <PolicySummarySection title="Είσπραξη & ρυθμίσεις">
-                    <Box sx={{ ...profileFieldGridSx, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))" }}>
-                      <PolicySummaryLine label={t("policyDetail.totalReceived")} value={settlementAmount(p.totalReceived, p.currency)} mono />
-                      <PolicyOutstandingField amount={p.outstanding} currency={p.currency} />
-                      <ProfileEditableField label="Κατάσταση πληρωμής" value={policyPaymentStatus(p.premium, p.totalReceived, p.paidDirectlyToCarrier)} />
-                      <TextField profileKey="paymentFrequency" select label={t("policyDetail.paymentFrequency")} value={form.paymentFrequency}>{FREQUENCIES.map(f => <MenuItem key={f} value={f}>{FREQUENCY_LABELS[f] ?? f}</MenuItem>)}</TextField>
-                      <TextField profileKey="paymentCollectionMethod" select label="Τρόπος είσπραξης" value={form.paymentCollectionMethod}><MenuItem value="">Δεν έχει οριστεί</MenuItem>{COLLECTION_METHODS.map(m => <MenuItem key={m} value={m}>{COLLECTION_METHODS_LABEL[m]}</MenuItem>)}</TextField>
-                      <PolicyBooleanField profileKey="paidDirectlyToCarrier" label="Πληρωμή απευθείας στην ασφαλιστική" />
-                      <TextField profileKey="specialCommissionPercent" type="number" label={t("policyDetail.specialCommission")} value={form.specialCommissionPercent} />
-                    </Box>
+                    <PolicyFieldColumns section="collection" groups={[
+                      [<PolicySummaryLine key="received" label={t("policyDetail.totalReceived")} value={settlementAmount(p.totalReceived, p.currency)} mono />,
+                        <PolicyOutstandingField key="outstanding" amount={p.outstanding} currency={p.currency} />,
+                        <ProfileEditableField key="status" label="Κατάσταση πληρωμής" value={policyPaymentStatus(p.premium, p.totalReceived, p.paidDirectlyToCarrier)} />],
+                      [<TextField key="frequency" profileKey="paymentFrequency" select label={t("policyDetail.paymentFrequency")} value={form.paymentFrequency}>{FREQUENCIES.map(f => <MenuItem key={f} value={f}>{FREQUENCY_LABELS[f] ?? f}</MenuItem>)}</TextField>,
+                        <TextField key="method" profileKey="paymentCollectionMethod" select label="Τρόπος είσπραξης" value={form.paymentCollectionMethod}><MenuItem value="">Δεν έχει οριστεί</MenuItem>{COLLECTION_METHODS.map(m => <MenuItem key={m} value={m}>{COLLECTION_METHODS_LABEL[m]}</MenuItem>)}</TextField>,
+                        <PolicyBooleanField key="direct" profileKey="paidDirectlyToCarrier" label="Πληρωμή απευθείας στην ασφαλιστική" />,
+                        <TextField key="special" profileKey="specialCommissionPercent" type="number" label={t("policyDetail.specialCommission")} value={form.specialCommissionPercent} />],
+                    ]} />
                   </PolicySummarySection>
                   <PolicySettlementPanel policy={p} readOnly={readOnly} onSettle={setSettlementMode} />
                   {p.covers.length > 0 && <PolicySummarySection title="Αναλυτικές καλύψεις"><CoversBreakdown p={p} /></PolicySummarySection>}
@@ -1328,7 +1329,7 @@ function PolicySettlementPanel({ policy, readOnly, onSettle }: {
         {rows.map(row => (
           <Box key={row.title} sx={{ p: .9, borderRadius: 1, bgcolor: "background.paper", border: "1px solid", borderColor: "divider" }}>
             <Typography variant="caption" fontWeight={800} display="block" color={`${row.color}.dark`}>{row.title}</Typography>
-            <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap sx={{ mt: .45 }}>
+            <Stack spacing={.5} sx={{ mt: .45 }}>
               <Typography variant="body2"><strong>Υποχρέωση:</strong> {settlementAmount(row.due, policy.currency)}</Typography>
               <Typography variant="body2" color="success.dark"><strong>Πληρωμένο:</strong> {settlementAmount(row.paid, policy.currency)}</Typography>
               <Typography variant="body2" color={row.outstanding > 0 ? "#fff" : "success.dark"} sx={row.outstanding > 0 ? { bgcolor: "#D00000", px: .65, py: .15, borderRadius: .65, fontWeight: 750 } : undefined}><strong>Υπόλοιπο:</strong> {settlementAmount(row.outstanding, policy.currency)}</Typography>
@@ -2860,16 +2861,15 @@ export function PolicyContractFields({ policy, values, session, uses = [], packa
     if (current && !rows.some(row => row.value === current)) rows.push({ value: current, label: current });
     return rows;
   };
-  return <Box sx={{ ...profileFieldGridSx, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))" }}>
-    {field("vehicleUseCategory", "Χρήση", { options: options(uses, values.vehicleUseCategory) })}
-    {field("packageCode", "Πακέτο", { options: options(packages, values.packageCode) })}
-    <ProfileEditableField label="Επόμενη ανανέωση (αυτόματα)" value={policy.nextRenewalDate || policy.endDate} type="date" />
-    {field("deliveredAt", "Ημερομηνία παράδοσης", { type: "date" })}
-    {field("deliveredTo", "Παραδόθηκε σε")}
-    {field("deliveryMethod", "Τρόπος παράδοσης", { options: options(DELIVERY_METHODS.map(value => ({ value, label: DELIVERY_METHOD_LABELS[value] ?? value })), values.deliveryMethod) })}
-    {field("renewalInstructions", "Οδηγίες ανανέωσης", { multiline: true })}
-    <ProfileEditableField label="Σημειώσεις συμβολαίου" value={policy.policyNotes} multiline />
-  </Box>;
+  return <PolicyFieldColumns section="contract" groups={[
+    [field("vehicleUseCategory", "Χρήση", { options: options(uses, values.vehicleUseCategory) }),
+      field("packageCode", "Πακέτο", { options: options(packages, values.packageCode) }),
+      <ProfileEditableField key="nextRenewal" label="Επόμενη ανανέωση (αυτόματα)" value={policy.nextRenewalDate || policy.endDate} type="date" />,
+      field("renewalInstructions", "Οδηγίες ανανέωσης", { multiline: true })],
+    [field("deliveredAt", "Ημερομηνία παράδοσης", { type: "date" }), field("deliveredTo", "Παραδόθηκε σε"),
+      field("deliveryMethod", "Τρόπος παράδοσης", { options: options(DELIVERY_METHODS.map(value => ({ value, label: DELIVERY_METHOD_LABELS[value] ?? value })), values.deliveryMethod) }),
+      <ProfileEditableField key="notes" label="Σημειώσεις συμβολαίου" value={policy.policyNotes} multiline />],
+  ]} />;
 }
 
 /** Compact premiums and calculated commissions; unavailable totals are never fabricated. */
@@ -2882,12 +2882,12 @@ export function PolicyPremiumFields({ policy, matrix, matrixLoading, session }: 
   const hasMatrix = Boolean(matrix?.rows.length);
   const total = (agency: boolean) => matrix?.rows.filter(row => (row.hierarchyLevel === "Agency") === agency).reduce((sum, row) => sum + row.grossAmount, 0) ?? 0;
   const pending = matrixLoading ? "Υπολογισμός…" : "Δεν έχει υπολογιστεί";
-  return <Box sx={{ ...profileFieldGridSx, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))" }}>
-    <ProfileEditableField label="Μικτά" field={session ? "premium" : undefined} session={session} value={session?.values.premium ?? String(policy.premium)} type="number" />
-    <ProfileEditableField label="Καθαρά" field={session ? "netPremium" : undefined} session={session} value={session?.values.netPremium ?? (policy.netPremium == null ? "" : String(policy.netPremium))} type="number" />
-    <ProfileEditableField label="Προμήθεια γραφείου" value={hasMatrix ? settlementAmount(total(true), policy.currency) : pending} mono />
-    <ProfileEditableField label="Προμήθεια συνεργάτη" value={hasMatrix ? settlementAmount(total(false), policy.currency) : pending} mono />
-  </Box>;
+  return <PolicyFieldColumns section="premiums" groups={[
+    [<ProfileEditableField key="gross" label="Μικτά" field={session ? "premium" : undefined} session={session} value={session?.values.premium ?? String(policy.premium)} type="number" />,
+      <ProfileEditableField key="net" label="Καθαρά" field={session ? "netPremium" : undefined} session={session} value={session?.values.netPremium ?? (policy.netPremium == null ? "" : String(policy.netPremium))} type="number" />],
+    [<ProfileEditableField key="office" label="Προμήθεια γραφείου" value={hasMatrix ? settlementAmount(total(true), policy.currency) : pending} mono />,
+      <ProfileEditableField key="producer" label="Προμήθεια συνεργάτη" value={hasMatrix ? settlementAmount(total(false), policy.currency) : pending} mono />],
+  ]} />;
 }
 
 const PolicyFieldsContext = createContext<{ session: ProfileFieldSession; readOnly: boolean; riskReady: boolean } | null>(null);
@@ -2924,33 +2924,25 @@ export function PolicyProfileFields({session, values, policy, companies, custome
   const types = ["Auto","Home","Health","Life","Business","Travel","Other"].map(value => ({value,label:policyTypeLabel(value)}));
   if (values.policyType && !types.some(option => option.value === values.policyType)) types.push({value:values.policyType,label:values.policyType});
   const statuses = Object.keys(POLICY_STATUS_LABELS).map(value => ({value,label:policyStatusLabel(value)}));
-  return <Box sx={{ ...profileFieldGridSx, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))" }}>
-    <ProfileEditableField label="Αριθμός συμβολαίου" value={policy.policyNumber} mono />
-    {field("applicationNumber","Αριθμός αίτησης")}
-    {field("insuranceCompanyId","Ασφαλιστική", {options:carrierOptions})}
-    {field("policyType","Κλάδος",{options:types})}
-    {field("status","Κατάσταση",{options:statuses})}
-    {field("previousInsuranceCompanyId","Προηγούμενη ασφαλιστική",{options:[{value:"",label:"Δεν έχει οριστεί"}, ...carrierOptions]})}
-    <ProfileEditableField label="Πελάτης / ασφαλισμένος" value={policy.customerDisplay} />
-    <ProfileEditableField label="ΑΦΜ πελάτη" value={policy.customerVat} mono />
-    <ProfileEditableField label="Email ασφαλισμένου" value={policy.customerEmail} />
-    <ProfileEditableField label="Τηλέφωνο ασφαλισμένου" value={policy.customerPhone} />
-    {field("contractPartyCustomerId","Συμβαλλόμενος",{options:[{value:"",label:"Ίδιος με τον ασφαλιζόμενο"}, ...customers.map(row=>({value:row.id,label:row.companyName || [row.firstName,row.lastName].filter(Boolean).join(" ")}))]})}
-    <ProfileEditableField label="ΑΦΜ συμβαλλομένου" value={policy.contractPartyVat ?? (!policy.contractPartyCustomerId ? policy.customerVat : null)} mono />
-    <ProfileEditableField label="Email συμβαλλομένου" value={policy.contractPartyEmail ?? (!policy.contractPartyCustomerId ? policy.customerEmail : null)} />
-    <ProfileEditableField label="Τηλέφωνο συμβαλλομένου" value={policy.contractPartyPhone ?? (!policy.contractPartyCustomerId ? policy.customerPhone : null)} />
-    <ProfileEditableField label="Συνεργάτης" value={policy.producerName} />
-    <ProfileEditableField label="Κωδικός συνεργάτη" value={policy.producerCode} mono />
-    <ProfileEditableField label="Προμήθεια συνεργάτη (%)" value={producerCommissionPercent == null ? "" : String(producerCommissionPercent) + "%"} mono />
-    {field("issuedAt","Ημερομηνία έκδοσης",{type:"date"})}
-    {field("startDate","Έναρξη",{type:"date"})}
-    {field("endDate","Λήξη",{type:"date"})}
-    <ProfileEditableField label="Διάρκεια" value={contractDurationLabel(policy.startDate,policy.endDate)} />
-    {field("vehicleRegistrationPlate","Πινακίδα",{mono:true})}
-    {field("driverVatNumber","ΑΦΜ οδηγού",{mono:true})}
-    {field("reasonForCirculation","Λόγος κυκλοφορίας")}
-    {field("premium","Μεικτό ασφάλιστρο",{type:"number"})}
-    {field("netPremium","Καθαρό ασφάλιστρο",{type:"number"})}
-    {field("currency","Νόμισμα")}
-  </Box>;
+  return <PolicyFieldColumns section="general" groups={[
+    [<ProfileEditableField key="number" label="Αριθμός συμβολαίου" value={policy.policyNumber} mono />,
+      field("applicationNumber","Αριθμός αίτησης"), field("insuranceCompanyId","Ασφαλιστική", {options:carrierOptions}),
+      field("previousInsuranceCompanyId","Προηγούμενη ασφαλιστική",{options:[{value:"",label:"Δεν έχει οριστεί"}, ...carrierOptions]}),
+      field("policyType","Κλάδος",{options:types}), field("status","Κατάσταση",{options:statuses}),
+      field("issuedAt","Ημερομηνία έκδοσης",{type:"date"}), field("startDate","Έναρξη",{type:"date"}), field("endDate","Λήξη",{type:"date"}),
+      <ProfileEditableField key="duration" label="Διάρκεια" value={contractDurationLabel(policy.startDate,policy.endDate)} />],
+    [<ProfileEditableField key="customer" label="Πελάτης / ασφαλισμένος" value={policy.customerDisplay} />,
+      <ProfileEditableField key="customerVat" label="ΑΦΜ πελάτη" value={policy.customerVat} mono />,
+      <ProfileEditableField key="customerEmail" label="Email ασφαλισμένου" value={policy.customerEmail} />,
+      <ProfileEditableField key="customerPhone" label="Τηλέφωνο ασφαλισμένου" value={policy.customerPhone} />,
+      field("contractPartyCustomerId","Συμβαλλόμενος",{options:[{value:"",label:"Ίδιος με τον ασφαλιζόμενο"}, ...customers.map(row=>({value:row.id,label:row.companyName || [row.firstName,row.lastName].filter(Boolean).join(" ")}))]}),
+      <ProfileEditableField key="partyVat" label="ΑΦΜ συμβαλλομένου" value={policy.contractPartyVat ?? (!policy.contractPartyCustomerId ? policy.customerVat : null)} mono />,
+      <ProfileEditableField key="partyEmail" label="Email συμβαλλομένου" value={policy.contractPartyEmail ?? (!policy.contractPartyCustomerId ? policy.customerEmail : null)} />,
+      <ProfileEditableField key="partyPhone" label="Τηλέφωνο συμβαλλομένου" value={policy.contractPartyPhone ?? (!policy.contractPartyCustomerId ? policy.customerPhone : null)} />],
+    [<ProfileEditableField key="producer" label="Συνεργάτης" value={policy.producerName} />,
+      <ProfileEditableField key="producerCode" label="Κωδικός συνεργάτη" value={policy.producerCode} mono />,
+      <ProfileEditableField key="producerPercent" label="Προμήθεια συνεργάτη (%)" value={producerCommissionPercent == null ? "" : String(producerCommissionPercent) + "%"} mono />,
+      field("vehicleRegistrationPlate","Πινακίδα",{mono:true}), field("driverVatNumber","ΑΦΜ οδηγού",{mono:true}), field("reasonForCirculation","Λόγος κυκλοφορίας"),
+      field("premium","Μεικτό ασφάλιστρο",{type:"number"}), field("netPremium","Καθαρό ασφάλιστρο",{type:"number"}), field("currency","Νόμισμα")],
+  ]} />;
 }
