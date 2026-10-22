@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import {
   Alert, Box, Button, Card, CardContent, Checkbox, Chip, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, Divider, FormControlLabel, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Table, TableBody,
-  TableCell, TableHead, TableRow, TextField, Tooltip, Typography
+  TableCell, TableHead, TableRow, TextField, Tooltip, Typography, useMediaQuery, useTheme
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -18,11 +18,16 @@ import BookmarkAddIcon from "@mui/icons-material/BookmarkAdd";
 import TableChartIcon from "@mui/icons-material/TableChart";
 import PrintIcon from "@mui/icons-material/Print";
 import ViewColumnIcon from "@mui/icons-material/ViewColumn";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import FilterListIcon from "@mui/icons-material/FilterList";
 import { Link as RouterLink } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { OverCommissionGridEditor } from "../components/OverCommissionGridEditor";
 import { SavedReportsButton } from "../components/SavedReportsButton";
+import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
+import { printTable } from "../utils/printableTable";
+import { DEFAULT_STATEMENT_COLUMNS, STATEMENT_COLUMNS, normalizeStatementColumns, statementCurrency, statementMoney, statementDisplayedColumns, statementExportSnapshot, statementOfficeTotal, statementSections, statementTableLines, statementTotals, type StatementColumn, type StatementDto } from "./overCommissionTable";
 import {
   BarChart, Bar, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer,
   Tooltip as RechartsTooltip, XAxis, YAxis,
@@ -37,33 +42,6 @@ import {
  * re-entering the same (carrier, producer, month) tuple updates instead of
  * inserting a duplicate — safe to re-key from the file at end of month.
  */
-
-interface StatementDto {
-  id: string;
-  insuranceCompanyId: string;
-  insuranceCompanyName: string;
-  producerId: string;
-  producerName: string;
-  producerCode: string | null;
-  year: number;
-  month: number;
-  grossAmount: number;
-  netAmount: number;
-  currency: string;
-  reference: string | null;
-  notes: string | null;
-  paidOn: string | null;
-  producerSharePercent: number;
-  producerAmount: number;
-  officeAmount: number;
-  periodFrom: string | null;
-  periodTo: string | null;
-  // 4-column context from carriers' πινάκια (ERGO ships all four).
-  basePremiumsGross: number | null;
-  basePremiumsNet: number | null;
-  producerDirectCommission: number | null;
-  createdAt: string;
-}
 
 interface Producer { id: string; name: string; code: string | null; }
 interface Carrier  { id: string; name: string; code: string; }
@@ -83,19 +61,12 @@ function isoOfPeriod(year: number, month: number, day: number): string {
   return `${year.toString().padStart(4, "0")}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
 }
 
-function statementTotals(items: StatementDto[]) {
-  return {
-    count: items.length,
-    gross: items.reduce((sum, row) => sum + row.grossAmount, 0),
-    net: items.reduce((sum, row) => sum + row.netAmount, 0),
-    producer: items.reduce((sum, row) => sum + (row.producerAmount ?? row.grossAmount), 0),
-    office: items.reduce((sum, row) => sum + (row.officeAmount ?? 0), 0),
-    paid: items.filter(row => !!row.paidOn).length,
-  };
-}
-
 export function OverCommissionStatementsPage() {
   const qc = useQueryClient();
+  const theme = useTheme();
+  const compactFilters = useMediaQuery(theme.breakpoints.down("xl"));
+  const [compactFiltersOpen, setCompactFiltersOpen] = useState(false);
+  useEffect(() => { if (!compactFilters) setCompactFiltersOpen(false); }, [compactFilters]);
   const now = new Date();
   const [year, setYear] = useState<number>(now.getFullYear());
   const [month, setMonth] = useState<number | "">(now.getMonth() + 1);
@@ -116,6 +87,8 @@ export function OverCommissionStatementsPage() {
   const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
   const [saveFilterRequest, setSaveFilterRequest] = useState(0);
   const [clearSavedFilterRequest, setClearSavedFilterRequest] = useState(0);
+  const [exportBusy, setExportBusy] = useState(false);
+  const statementTableRef = useRef<HTMLTableElement>(null);
   const clearFilters = () => {
     setYear(new Date().getFullYear()); setMonth("");
     setCarrierFilter(""); setProducerFilter(""); setSearch("");
@@ -150,14 +123,6 @@ export function OverCommissionStatementsPage() {
   const producersQ = useQuery({
     queryKey: ["producers-min"],
     queryFn: async () => (await api.get<Producer[]>("/producers")).data
-  });
-  const officeQ = useQuery({
-    queryKey: ["agency-profile", "export"],
-    queryFn: async () => (await api.get<{
-      name?: string | null; code?: string | null; contactEmail?: string | null;
-      contactPhone?: string | null; addressLine?: string | null; vatNumber?: string | null;
-    }>("/agency-profile")).data,
-    staleTime: 5 * 60 * 1000,
   });
   const listQ = useQuery({
     queryKey: ["over-commission-statements", year, month, carrierFilter, producerFilter, search],
@@ -195,22 +160,7 @@ export function OverCommissionStatementsPage() {
     if (paidFilter === "unpaid") r = r.filter(x => !x.paidOn);
     return r;
   }, [rawRows, dateFrom, dateTo, paidFilter]);
-  const groupedSections = useMemo(() => {
-    if (groupBy === "none") return [] as Array<{ key: string; rows: StatementDto[] }>;
-    const groups = new Map<string, StatementDto[]>();
-    for (const row of rows) {
-      const key = groupBy === "producer"
-        ? `${row.producerName}${row.producerCode ? ` · ${row.producerCode}` : ""}`
-        : groupBy === "carrier"
-          ? row.insuranceCompanyName
-          : `${row.month.toString().padStart(2, "0")}/${row.year}`;
-      const current = groups.get(key) ?? [];
-      current.push(row);
-      groups.set(key, current);
-    }
-    return Array.from(groups, ([key, groupedRows]) => ({ key, rows: groupedRows }))
-      .sort((a, b) => a.key.localeCompare(b.key, "el"));
-  }, [rows, groupBy]);
+  const groupedSections = useMemo(() => statementSections(rows, groupBy), [rows, groupBy]);
   const totals = useMemo(() => ({
     // These four columns come straight from carrier πινάκια (ERGO ships
     // all four; other carriers may leave the base-premium ones null).
@@ -262,29 +212,17 @@ export function OverCommissionStatementsPage() {
   // columns to show on the printed πινάκιο (some just want carrier /
   // producer / office amount; others want the full 13-column set). Ticks
   // are persisted in localStorage so the operator's choice sticks.
-  const PRINT_COL_STORAGE = "kalypsis.overCommission.printCols.v1";
-  const PRINT_COLS: { key: string; label: string; numeric?: boolean; get: (r: StatementDto) => string | number }[] = [
-    { key: "year",           label: "Έτος",                                 get: r => r.year },
-    { key: "month",          label: "Μήνας",                                get: r => r.month },
-    { key: "carrier",        label: "Ασφαλιστική",                          get: r => r.insuranceCompanyName },
-    { key: "producer",       label: "Παραγωγός",                            get: r => r.producerName },
-    { key: "producerCode",   label: "Κωδικός",                              get: r => r.producerCode ?? "" },
-    { key: "gross",          label: "Μικτά (€)",                     numeric:true, get: r => r.grossAmount },
-    { key: "net",            label: "Καθαρά (€)",                    numeric:true, get: r => r.netAmount },
-    { key: "sharePercent",   label: "% Παραγωγού",                   numeric:true, get: r => r.producerSharePercent },
-    { key: "producerAmount", label: "Στον παραγωγό (€)",             numeric:true, get: r => r.producerAmount ?? r.grossAmount },
-    { key: "officeAmount",   label: "Στην έδρα / υπερπρομήθεια (€)", numeric:true, get: r => r.officeAmount ?? 0 },
-    { key: "reference",      label: "Reference",                            get: r => r.reference ?? "" },
-    { key: "paidOn",         label: "Πληρωμή",                              get: r => r.paidOn ?? "" },
-    { key: "notes",          label: "Σημείωση",                             get: r => r.notes ?? "" },
-  ];
-  const DEFAULT_PRINT_COLS = new Set(PRINT_COLS.map(c => c.key));
+  const PRINT_COL_STORAGE = "kalypsis.overCommission.printCols.v2";
+  const PRINT_COLS = STATEMENT_COLUMNS;
+  const DEFAULT_PRINT_COLS = new Set(DEFAULT_STATEMENT_COLUMNS);
   const [printColsOpen, setPrintColsOpen] = useState(false);
   const [selectedPrintCols, setSelectedPrintCols] = useState<Set<string>>(() => {
     if (typeof window === "undefined") return new Set(DEFAULT_PRINT_COLS);
     try {
       const stored = localStorage.getItem(PRINT_COL_STORAGE);
-      if (stored) return new Set(JSON.parse(stored) as string[]);
+      if (stored) return normalizeStatementColumns(JSON.parse(stored));
+      const legacy = localStorage.getItem("kalypsis.overCommission.printCols.v1");
+      if (legacy) return normalizeStatementColumns(JSON.parse(legacy), true);
     } catch { /* ignore */ }
     return new Set(DEFAULT_PRINT_COLS);
   });
@@ -295,120 +233,82 @@ export function OverCommissionStatementsPage() {
     return n;
   });
   const setAllPrintCols = (mode: "all" | "none" | "reset") => setSelectedPrintCols(() => {
-    const n = mode === "none" ? new Set<string>() : new Set(DEFAULT_PRINT_COLS);
+    const n = mode === "none" ? new Set<string>() : new Set(mode === "all" ? PRINT_COLS.map(column => column.key) : DEFAULT_PRINT_COLS);
     try { localStorage.setItem(PRINT_COL_STORAGE, JSON.stringify(Array.from(n))); } catch { /* ignore */ }
     return n;
   });
 
-  /** Export the currently-filtered rows in CSV / XLSX / print. */
-  const exportRows = (kind: "csv" | "xlsx" | "print") => {
-    if (rows.length === 0) { setError("Δεν υπάρχουν γραμμές για εξαγωγή."); return; }
-    // Every format uses the same columns selected for the visible statement
-    // table, so print, CSV and Excel never drift apart.
-    const activeCols = PRINT_COLS.filter(c => selectedPrintCols.has(c.key));
-    if (activeCols.length === 0) {
-      setError("Επιλέξτε τουλάχιστον μία στήλη για εκτύπωση.");
-      return;
-    }
-    const headers = activeCols.map(c => c.label);
-    const data = rows.map(r => activeCols.map(c => c.get(r)));
-    const numericFlags = activeCols.map(c => !!c.numeric);
-    const office = officeQ.data;
-    const officeDetails = [office?.addressLine, office?.contactPhone, office?.contactEmail,
-      office?.vatNumber ? `ΑΦΜ: ${office.vatNumber}` : null,
-      office?.code ? `Κωδικός: ${office.code}` : null]
-      .filter(Boolean).join(" · ");
-    const totalValues: Record<string, string | number> = {
-      year: "Σύνολα", gross: totals.basePremiumsGross, net: totals.basePremiumsNet,
-      producerAmount: totals.producer, officeAmount: totals.office,
-      paidOn: `${totals.paidCount}/${rows.length}`
-    };
-    const totalData = activeCols.map(c => totalValues[c.key] ?? "");
-    if (kind === "csv") {
-      const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-      const lines = [
-        esc(office?.name ?? "Kalypsis"), esc(officeDetails),
-        esc(`Υπερπρομήθειες ${year}${month ? `/${String(month).padStart(2, "0")}` : ""}`), "",
-        headers.map(esc).join(";"), ...data.map(row => row.map(esc).join(";")),
-        totalData.map(esc).join(";"), "© Kalypsis · https://mykalypsis.gr"
-      ];
-      const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `overcommissions_${year}${month ? "-" + String(month).padStart(2,"0") : ""}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      return;
-    }
-    if (kind === "xlsx") {
-      // Load SheetJS lazily so this page doesn't pull it on first paint.
-      import("xlsx").then(XLSX => {
-        const ws = XLSX.utils.aoa_to_sheet([
-          [office?.name ?? "Kalypsis"], [officeDetails],
-          [`Υπερπρομήθειες ${year}${month ? `/${String(month).padStart(2, "0")}` : ""}`], [],
-          headers, ...data, totalData
-        ]);
-        const totalRow = 5 + data.length;
-        for (let c = 0; c < headers.length; c++) {
-          const cell = ws[XLSX.utils.encode_cell({ r: totalRow - 1, c })];
-          if (cell) cell.s = { fill: { fgColor: { rgb: "E8F5E9" } }, font: { bold: true, color: { rgb: "1B5E20" } } };
-        }
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Υπερπρομήθειες");
-        XLSX.writeFile(wb, `overcommissions_${year}${month ? "-" + String(month).padStart(2,"0") : ""}.xlsx`);
-      });
-      return;
-    }
-    // print
-    const html = `<!doctype html><html><head><meta charset="utf-8">
-      <title>Υπερπρομήθειες ${year}${month ? "/" + String(month).padStart(2,"0") : ""}</title>
-      <style>body{font-family:Arial,sans-serif;padding:24px;color:#111}
-        h1{font-size:18px;margin:0 0 10px}
-        table{width:100%;border-collapse:collapse;font-size:11px}
-        th,td{border:1px solid #ccc;padding:5px 7px;text-align:left}
-        th{background:#0b2545;color:#fff;font-weight:600;border-right:1px solid #49627d}
-        td+td,th+th{border-left:1px solid #d9e2ec}
-        td.num{text-align:right;font-family:Consolas,monospace}
-        tfoot td{background:#e8f5e9;color:#1b5e20;font-weight:700;border-top:2px solid #66bb6a}
-        @media print{ @page { size: A4 landscape; margin: 12mm } }
-      </style></head><body>
-      <h1>Υπερπρομήθειες παραγωγών · ${year}${month ? "/" + String(month).padStart(2,"0") : ""}
-          · ${rows.length} γραμμές · Έδρα: ${moneyFmt.format(totals.office)}</h1>
-      <div class="office">${office?.name ?? "Kalypsis"}${officeDetails ? ` · ${officeDetails}` : ""}</div>
-      <table>
-        <thead><tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr></thead>
-        <tbody>${data.map(r => `<tr>${r.map((v,i)=>
-          `<td class="${numericFlags[i]?"num":""}">${v ?? ""}</td>`).join("")}</tr>`).join("")}</tbody>
-        <tfoot><tr>${totalData.map((v,i)=>`<td class="${numericFlags[i]?"num":""}">${v ?? ""}</td>`).join("")}</tr></tfoot>
-      </table>
-      <script>window.onload=()=>setTimeout(()=>window.print(),100);</script>
-      </body></html>`;
-    const w = window.open("", "_blank");
-    if (!w) { setError("Ο browser μπλόκαρε το νέο παράθυρο."); return; }
-    w.document.open(); w.document.write(html); w.document.close();
+  const activeColumns = useMemo(() => PRINT_COLS.filter(column => selectedPrintCols.has(column.key)), [selectedPrintCols]);
+  const tableLines = useMemo(() => statementTableLines(rows, groupedSections, activeColumns), [rows, groupedSections, activeColumns]);
+  const exportDisabled = exportBusy || listQ.isFetching || listQ.isError || !rows.length || !activeColumns.length;
+  const exportRows = async (kind: "csv" | "xlsx" | "pdf" | "print") => {
+    if (exportBusy || listQ.isFetching || listQ.isError) return;
+    if (!rows.length) { setError("Δεν υπάρχουν γραμμές για εξαγωγή."); return; }
+    // The global header menu also supports hiding/dragging columns directly.
+    // Read that presentation order only; record data still comes from the model.
+    const visibleKeys = statementTableRef.current ? Array.from(statementTableRef.current.tHead?.rows[0]?.cells ?? [])
+      .filter(cell => cell.style.display !== "none").map(cell => cell.dataset.statementColumn).filter((key): key is string => !!key) : activeColumns.map(column => column.key);
+    const displayedColumns = statementDisplayedColumns(activeColumns, visibleKeys);
+    if (!displayedColumns.length) { setError("Επιλέξτε τουλάχιστον μία ορατή στήλη για εκτύπωση ή εξαγωγή."); return; }
+    // Freeze the very same lines the table renders, before any async work.
+    const subtitle = [`Έτος: ${year}`, month ? `Μήνας: ${month}` : "Όλοι οι μήνες",
+      carrierFilter ? `Ασφαλιστική: ${carriersQ.data?.find(carrier => carrier.id === carrierFilter)?.name ?? carrierFilter}` : "",
+      producerFilter ? `Παραγωγός: ${producersQ.data?.find(producer => producer.id === producerFilter)?.name ?? producerFilter}` : "",
+      search ? `Αναζήτηση: ${search}` : "", dateFrom ? `Από: ${dateFrom}` : "", dateTo ? `Έως: ${dateTo}` : "",
+      paidFilter === "paid" ? "Πληρωμένα" : paidFilter === "unpaid" ? "Απλήρωτα" : "",
+      `Ομαδοποίηση: ${{ producer: "Ανά συνεργάτη", month: "Ανά περίοδο", carrier: "Ανά ασφαλιστική", none: "Χωρίς υποομάδες" }[groupBy]}`].filter(Boolean).join(" · ");
+    const snapshot = statementExportSnapshot(statementTableLines(rows, groupedSections, displayedColumns), displayedColumns, rows.length, subtitle);
+    setError(null); setExportBusy(true);
+    try {
+      if (kind === "print") {
+        const office = (await api.get<{ name: string; code?: string; contactEmail?: string; contactPhone?: string; addressLine?: string; vatNumber?: string }>("/table-exports/office")).data;
+        if (!office.name?.trim()) throw new Error("Δεν φορτώθηκαν τα στοιχεία του γραφείου. Δοκιμάστε ξανά.");
+        printTable<string[]>({ title: office.name, subtitle: `Υπερπρομήθειες · ${subtitle} · ${rows.length} εγγραφές`,
+          columns: snapshot.headers.map((label, index) => ({ key: String(index), label, map: row => row[index] })), rows: snapshot.rows, recordCount: snapshot.recordCount,
+          office: { name: null, code: office.code, address: office.addressLine, phone: office.contactPhone, email: office.contactEmail, vatNumber: office.vatNumber }, orientation: "landscape" });
+      } else {
+        const response = await api.post("/table-exports", snapshot, { params: { format: kind }, responseType: "blob" });
+        const mime = kind === "csv" ? "text/csv;charset=utf-8" : kind === "xlsx" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "application/pdf";
+        const url = URL.createObjectURL(new Blob([response.data], { type: mime }));
+        const anchor = document.createElement("a"); anchor.href = url;
+        anchor.download = `overcommissions_${year}${month ? "-" + String(month).padStart(2, "0") : ""}.${kind}`;
+        document.body.appendChild(anchor); anchor.click(); anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+    } catch (error) { setError(extractErrorMessage(error)); }
+    finally { setExportBusy(false); }
   };
 
   return (
-    <Box>
+    <Box sx={{ minWidth: 0, maxWidth: "100%" }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
-        <Box>
-          <Stack direction="row" alignItems="center" spacing={1.5}>
+        <Box sx={{ minWidth: 0 }}>
+          <Stack direction="row" alignItems="center" flexWrap="wrap" gap={1.5}>
             <ReceiptLongIcon color="primary" sx={{ fontSize: 32 }} />
-            <Typography variant="h4" sx={{ fontWeight: 800 }}>Υπερπρομήθειες</Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, fontSize: { xs: 25, sm: 34 } }}>Υπερπρομήθειες</Typography>
+            <Chip label={`${rows.length} γραμμές · ${statementOfficeTotal(rows)} στην έδρα`}
+              sx={{ bgcolor: "#159B59", color: "#fff", fontWeight: 800, maxWidth: "100%", height: "auto", minHeight: 26, "& .MuiChip-label": { whiteSpace: "normal", py: .5 } }} />
           </Stack>
           <Typography color="text.secondary" sx={{ mt: 0.5 }}>
             Καταχώρηση της μηνιαίας υπερπρομήθειας ανά παραγωγό και ασφαλιστική εταιρεία — μία γραμμή για κάθε
             γραμμή του πινακίου (ERGO, Ατλαντική, Grand Cover, κτλ.).
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ minWidth: 0, maxWidth: "100%" }}>
+          <SavedReportsButton entity="over-commission-statements"
+            currentFilters={{ year, month, carrierFilter, producerFilter, search, dateFrom, dateTo, paidFilter, groupBy }}
+            onLoad={next => { setYear(next.year ?? now.getFullYear()); setMonth(next.month ?? ""); setCarrierFilter(next.carrierFilter ?? ""); setProducerFilter(next.producerFilter ?? ""); setSearch(next.search ?? ""); setDateFrom(next.dateFrom ?? ""); setDateTo(next.dateTo ?? ""); setPaidFilter(next.paidFilter ?? ""); setGroupBy(next.groupBy ?? "producer"); }}
+            onClear={clearFilters} clearRequestToken={clearSavedFilterRequest}
+            saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />
           <Button component={RouterLink} to="/app/over-commissions"
             variant="outlined" size="large">
             Ρυθμίσεις υπερπρομηθειών
           </Button>
           <Button variant="contained" size="large" startIcon={<MoreHorizIcon />} endIcon={<KeyboardArrowDownIcon />}
             onClick={event => setActionsAnchor(event.currentTarget)}>Ενέργειες</Button>
+          {compactFilters && <Button variant="contained" startIcon={<FilterListIcon />} onClick={() => setCompactFiltersOpen(true)}
+            aria-haspopup="dialog" aria-expanded={compactFiltersOpen}
+            sx={{ bgcolor: "#159B59", color: "#fff", "&:hover": { bgcolor: "#107B46", color: "#fff" } }}>Φίλτρα υπερπρομηθειών</Button>}
         </Stack>
       </Stack>
 
@@ -420,9 +320,10 @@ export function OverCommissionStatementsPage() {
         <MenuItem onClick={() => { setActionsAnchor(null); setStatsOpen(true); }} sx={{ color: "#0b5cad", "&:hover": { bgcolor: "#e7f1fc" } }}><ListItemIcon sx={{ color: "#0b5cad" }}><BarChartIcon fontSize="small" /></ListItemIcon><ListItemText primary="Στατιστικά" /></MenuItem>
         <MenuItem onClick={() => { setActionsAnchor(null); setSaveFilterRequest(value => value + 1); }} sx={{ color: "#0b5cad", "&:hover": { bgcolor: "#e7f1fc" } }}><ListItemIcon sx={{ color: "#0b5cad" }}><BookmarkAddIcon fontSize="small" /></ListItemIcon><ListItemText primary="Αποθήκευση νέου φίλτρου" /></MenuItem>
         <Divider />
-        <MenuItem onClick={() => { setActionsAnchor(null); exportRows("csv"); }} sx={{ color: "#087f73", "&:hover": { bgcolor: "#e5f6f3" } }}><ListItemIcon sx={{ color: "#087f73" }}><TableChartIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή CSV" /></MenuItem>
-        <MenuItem onClick={() => { setActionsAnchor(null); exportRows("xlsx"); }} sx={{ color: "#167c45", "&:hover": { bgcolor: "#e7f5ec" } }}><ListItemIcon sx={{ color: "#167c45" }}><GridOnIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή Excel" /></MenuItem>
-        <MenuItem onClick={() => { setActionsAnchor(null); exportRows("print"); }} sx={{ color: "#456b91", "&:hover": { bgcolor: "#edf2f7" } }}><ListItemIcon sx={{ color: "#456b91" }}><PrintIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εκτύπωση" /></MenuItem>
+        <MenuItem disabled={exportDisabled} onClick={() => { setActionsAnchor(null); void exportRows("csv"); }} sx={{ color: "#087f73", "&:hover": { bgcolor: "#e5f6f3" } }}><ListItemIcon sx={{ color: "#087f73" }}><TableChartIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή CSV" /></MenuItem>
+        <MenuItem disabled={exportDisabled} onClick={() => { setActionsAnchor(null); void exportRows("xlsx"); }} sx={{ color: "#167c45", "&:hover": { bgcolor: "#e7f5ec" } }}><ListItemIcon sx={{ color: "#167c45" }}><GridOnIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή Excel" /></MenuItem>
+        <MenuItem disabled={exportDisabled} onClick={() => { setActionsAnchor(null); void exportRows("pdf"); }} sx={{ color: "#b32d3c", "&:hover": { bgcolor: "#fcecef" } }}><ListItemIcon sx={{ color: "#b32d3c" }}><PictureAsPdfIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή PDF" /></MenuItem>
+        <MenuItem disabled={exportDisabled} onClick={() => { setActionsAnchor(null); void exportRows("print"); }} sx={{ color: "#456b91", "&:hover": { bgcolor: "#edf2f7" } }}><ListItemIcon sx={{ color: "#456b91" }}><PrintIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εκτύπωση" /></MenuItem>
         <Divider />
         <MenuItem onClick={() => { setActionsAnchor(null); setPrintColsOpen(true); }} sx={{ color: "#a45b00", "&:hover": { bgcolor: "#fff3df" } }}><ListItemIcon sx={{ color: "#a45b00" }}><ViewColumnIcon fontSize="small" /></ListItemIcon><ListItemText primary="Στήλες εκτύπωσης & εξαγωγής" secondary={`${selectedPrintCols.size}/${PRINT_COLS.length} ενεργές`} /></MenuItem>
       </Menu>
@@ -441,6 +342,7 @@ export function OverCommissionStatementsPage() {
       )}
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
+      {listQ.isError && <Alert severity="error" sx={{ mb: 2 }} action={<Button onClick={() => void listQ.refetch()}>Επανάληψη</Button>}>{extractErrorMessage(listQ.error)}</Alert>}
 
       {/* ── Totals strip — mirrors the ERGO πινάκιο 1:1 ────────────
           Row 1: the four money columns straight off the carrier statement
@@ -481,10 +383,10 @@ export function OverCommissionStatementsPage() {
           clear + counter). Exports moved to their own row above so the
           filter bar stays a single visual block. */}
       <Dialog open={printColsOpen} onClose={() => setPrintColsOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Στήλες προς εκτύπωση</DialogTitle>
+        <DialogTitle>Στήλες πίνακα & εξαγωγών</DialogTitle>
         <DialogContent>
           <Typography variant="caption" color="text.secondary" mb={1} display="block">
-            Επιλέξτε ποιες στήλες θέλετε να εμφανίζονται στο πινάκιο και στις εξαγωγές CSV/XLSX.
+            Επιλέξτε τις ίδιες στήλες για τον πίνακα, την εκτύπωση και τις εξαγωγές CSV, Excel και PDF.
             Η επιλογή αποθηκεύεται τοπικά.
           </Typography>
           <Stack>
@@ -503,7 +405,8 @@ export function OverCommissionStatementsPage() {
           <Button variant="contained" onClick={() => setPrintColsOpen(false)}>Κλείσιμο</Button>
         </DialogActions>
       </Dialog>
-      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+      <ResponsiveFilterPanel compactAt="xl" title="Φίλτρα υπερπρομηθειών" compactButtonPlacement="external"
+        compactOpen={compactFiltersOpen} onCompactOpenChange={setCompactFiltersOpen} cardSx={{ bgcolor: "#edf2f7" }}>
         <Box sx={{
           display: "grid",
           gap: 1,
@@ -552,27 +455,20 @@ export function OverCommissionStatementsPage() {
             <MenuItem value="carrier">Ανά ασφαλιστική</MenuItem>
             <MenuItem value="none">Χωρίς υποομάδες</MenuItem>
           </TextField>
-          <Chip label={`${rows.length} γραμμές · ${moneyFmt.format(totals.office)} στην έδρα`}
-            sx={{ gridColumn: { md: "span 2" }, justifySelf: "start" }} />
-          <Box sx={{ justifySelf: { md: "end" } }}><SavedReportsButton entity="over-commission-statements"
-            currentFilters={{ year, month, carrierFilter, producerFilter, search, dateFrom, dateTo, paidFilter, groupBy }}
-            onLoad={next => { setYear(next.year ?? now.getFullYear()); setMonth(next.month ?? ""); setCarrierFilter(next.carrierFilter ?? ""); setProducerFilter(next.producerFilter ?? ""); setSearch(next.search ?? ""); setDateFrom(next.dateFrom ?? ""); setDateTo(next.dateTo ?? ""); setPaidFilter(next.paidFilter ?? ""); setGroupBy(next.groupBy ?? "producer"); }}
-            onClear={clearFilters} clearRequestToken={clearSavedFilterRequest}
-            saveRequestToken={saveFilterRequest} showSaveMenuItem={false} /></Box>
           <Button size="small" fullWidth color="error" variant="contained"
             onClick={clearFilters}>
             Καθαρισμός φίλτρων
           </Button>
         </Box>
-      </Card>
+      </ResponsiveFilterPanel>
 
       {groupBy !== "none" && groupedSections.length > 0 && (
         <Card variant="outlined" sx={{ mb: 2 }}>
-          <CardContent sx={{ p: 1.5 }}>
+          <CardContent sx={{ p: 1.5, overflowX: "auto" }}>
             <Typography fontWeight={800} mb={1}>
               Σύνολα ανά {groupBy === "producer" ? "συνεργάτη" : groupBy === "month" ? "περίοδο" : "ασφαλιστική"}
             </Typography>
-            <Table size="small">
+            <Table size="small" sx={{ minWidth: 640 }}>
               <TableHead>
                 <TableRow sx={{ bgcolor: "rgba(11,37,69,0.06)" }}>
                   <TableCell>Ομάδα</TableCell>
@@ -585,20 +481,20 @@ export function OverCommissionStatementsPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {groupedSections.map(section => {
-                  const summary = statementTotals(section.rows);
+                {groupedSections.flatMap(section => Array.from(new Set(section.rows.map(statementCurrency))).sort().map(currency => {
+                  const summary = statementTotals(section.rows.filter(row => statementCurrency(row) === currency));
                   return (
-                    <TableRow key={section.key} hover>
-                      <TableCell sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>{section.key}</TableCell>
+                    <TableRow key={section.key + currency} hover>
+                      <TableCell sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>{section.key} · {currency}</TableCell>
                       <TableCell align="right">{summary.count}</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 800, bgcolor: "rgba(31,123,179,0.09)" }}>{moneyFmt.format(summary.gross)}</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 800, bgcolor: "rgba(46,125,50,0.12)", color: "success.dark" }}>{moneyFmt.format(summary.net)}</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 800, bgcolor: "rgba(46,125,50,0.12)", color: "success.dark" }}>{moneyFmt.format(summary.producer)}</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 800, bgcolor: "rgba(31,123,179,0.09)", color: "info.dark" }}>{moneyFmt.format(summary.office)}</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 800, bgcolor: "rgba(31,123,179,0.09)" }}>{statementMoney(summary.gross, currency)}</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 800, bgcolor: "rgba(46,125,50,0.12)", color: "success.dark" }}>{statementMoney(summary.net, currency)}</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 800, bgcolor: "rgba(46,125,50,0.12)", color: "success.dark" }}>{statementMoney(summary.producer, currency)}</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 800, bgcolor: "rgba(31,123,179,0.09)", color: "info.dark" }}>{statementMoney(summary.office, currency)}</TableCell>
                       <TableCell align="right">{summary.paid} / {summary.count}</TableCell>
                     </TableRow>
                   );
-                })}
+                }))}
               </TableBody>
             </Table>
           </CardContent>
@@ -608,80 +504,28 @@ export function OverCommissionStatementsPage() {
       {/* Table */}
       <Card variant="outlined">
         <CardContent sx={{ p: 0, overflowX: "auto" }}>
-          <Table size="small">
+          <Table ref={statementTableRef} size="small" aria-label="Πίνακας υπερπρομηθειών">
             <TableHead>
               <TableRow>
-                <TableCell>Περίοδος</TableCell>
-                <TableCell>Ασφαλιστική</TableCell>
-                <TableCell>Παραγωγός</TableCell>
-                <TableCell align="right">Μικτά</TableCell>
-                <TableCell align="right">Καθαρά</TableCell>
-                <TableCell align="right">% Παρ.</TableCell>
-                <TableCell align="right">Παραγωγός</TableCell>
-                <TableCell align="right">Έδρα</TableCell>
-                <TableCell>Reference</TableCell>
-                <TableCell>Πληρωμή</TableCell>
+                {activeColumns.map(column => <TableCell key={column.key} data-statement-column={column.key} align={column.numeric ? "right" : "left"}>{column.label}</TableCell>)}
                 <TableCell align="right">Ενέργειες</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {listQ.isLoading ? (
-                <TableRow><TableCell colSpan={11} sx={{ py: 4, textAlign: "center" }}>
+                <TableRow><TableCell colSpan={activeColumns.length + 1} sx={{ py: 4, textAlign: "center" }}>
                   <CircularProgress size={22} />
                 </TableCell></TableRow>
               ) : rows.length === 0 ? (
-                <TableRow><TableCell colSpan={11} sx={{ py: 4, textAlign: "center", color: "text.secondary" }}>
+                <TableRow><TableCell colSpan={activeColumns.length + 1} sx={{ py: 4, textAlign: "center", color: "text.secondary" }}>
                   Καμία εγγραφή για αυτή την περίοδο. Πάτα «Νέα εγγραφή» για να ξεκινήσεις.
                 </TableCell></TableRow>
-              ) : groupBy === "none" ? (
-                rows.map(r => (
-                  <StatementTableRow
-                    key={r.id}
-                    row={r}
-                    onEdit={() => setDialog(r)}
-                    onDelete={() => { if (confirm("Διαγραφή εγγραφής;")) del.mutate(r.id); }}
-                  />
-                ))
-              ) : (
-                groupedSections.flatMap(section => {
-                  const summary = statementTotals(section.rows);
-                  return [
-                    <TableRow key={`group-${section.key}`} sx={{ bgcolor: "action.hover" }}>
-                      <TableCell colSpan={11} sx={{ fontWeight: 800, color: "primary.main", py: 1 }}>
-                        {section.key}
-                        <Typography component="span" sx={{ ml: 1, color: "text.secondary", fontSize: 12, fontWeight: 500 }}>
-                          · {summary.count} εγγραφές · {moneyFmt.format(summary.gross)} μεικτά · {moneyFmt.format(summary.office)} έδρα
-                        </Typography>
-                      </TableCell>
-                    </TableRow>,
-                    ...section.rows.map(r => (
-                      <StatementTableRow
-                        key={r.id}
-                        row={r}
-                        onEdit={() => setDialog(r)}
-                        onDelete={() => { if (confirm("Διαγραφή εγγραφής;")) del.mutate(r.id); }}
-                      />
-                    )),
-                    <TableRow key={`subtotal-${section.key}`} sx={{
-                      bgcolor: "rgba(46,125,50,0.10)",
-                      borderTop: "2px solid",
-                      borderColor: "rgba(46,125,50,0.28)",
-                      "& .MuiTableCell-root": { py: 0.85 },
-                    }}>
-                      <TableCell colSpan={3} sx={{ fontWeight: 800, color: "success.dark", whiteSpace: "nowrap" }}>
-                        Υποσύνολο · {section.key}
-                      </TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 800 }}>{moneyFmt.format(summary.gross)}</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 800, color: "success.dark" }}>{moneyFmt.format(summary.net)}</TableCell>
-                      <TableCell align="right">—</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 800, color: "success.dark" }}>{moneyFmt.format(summary.producer)}</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 800, color: "info.dark" }}>{moneyFmt.format(summary.office)}</TableCell>
-                      <TableCell colSpan={2} />
-                      <TableCell align="right" sx={{ fontWeight: 700 }}>{summary.paid}/{summary.count}</TableCell>
-                    </TableRow>,
-                  ];
-                })
-              )}
+              ) : tableLines.map(line => line.record ? <StatementTableRow key={line.key} row={line.record} columns={activeColumns} cells={line.cells}
+                onEdit={() => setDialog(line.record!)} onDelete={() => { if (confirm("Διαγραφή εγγραφής;")) del.mutate(line.record!.id); }} />
+                : line.kind === "group" ? <TableRow key={line.key} sx={{ bgcolor: "#e6edf5" }}><TableCell colSpan={activeColumns.length + 1} sx={{ fontWeight: 800, color: "primary.main" }}>{line.cells[0]}</TableCell></TableRow>
+                  : <TableRow key={line.key} sx={{ bgcolor: "#e8f5e9", "& td": { fontWeight: 800, color: "success.dark", py: .75 } }}>
+                    {line.cells.map((cell, index) => <TableCell key={activeColumns[index].key} align={activeColumns[index].numeric ? "right" : "left"}>{cell}</TableCell>)}<TableCell />
+                  </TableRow>)}
             </TableBody>
           </Table>
         </CardContent>
@@ -798,49 +642,20 @@ function Kpi({ label, value, color }: { label: string; value: string; color?: st
   );
 }
 
-function StatementTableRow({ row, onEdit, onDelete }: {
+function StatementTableRow({ row, columns, cells, onEdit, onDelete }: {
   row: StatementDto;
+  columns: StatementColumn[];
+  cells: string[];
   onEdit: () => void;
   onDelete: () => void;
 }) {
   return (
     <TableRow hover>
-      <TableCell>
-        <Chip size="small" label={`${row.month.toString().padStart(2, "0")}/${row.year}`} />
-      </TableCell>
-      <TableCell>{row.insuranceCompanyName}</TableCell>
-      <TableCell>
-        <Typography fontWeight={600}>{row.producerName}</Typography>
-        {row.producerCode && (
-          <Typography variant="caption" sx={{ fontFamily: "monospace", color: "text.secondary" }}>
-            {row.producerCode}
-          </Typography>
-        )}
-      </TableCell>
-      <TableCell align="right" sx={{ fontFamily: "monospace", fontWeight: 700 }}>
-        {moneyFmt.format(row.grossAmount)}
-      </TableCell>
-      <TableCell align="right" sx={{ fontFamily: "monospace" }}>
-        {moneyFmt.format(row.netAmount)}
-      </TableCell>
-      <TableCell align="right" sx={{ fontFamily: "monospace", fontSize: 12 }}>
-        {(row.producerSharePercent ?? 100).toFixed(1)}%
-      </TableCell>
-      <TableCell align="right" sx={{ fontFamily: "monospace", color: "success.main" }}>
-        {moneyFmt.format(row.producerAmount ?? row.grossAmount)}
-      </TableCell>
-      <TableCell align="right" sx={{ fontFamily: "monospace", color: "info.main" }}>
-        {moneyFmt.format(row.officeAmount ?? 0)}
-      </TableCell>
-      <TableCell sx={{ fontSize: 12, color: "text.secondary" }}>{row.reference ?? "—"}</TableCell>
-      <TableCell>
-        {row.paidOn ? (
-          <Chip size="small" color="success" icon={<PaidIcon />}
-            label={new Date(row.paidOn).toLocaleDateString("el-GR")} />
-        ) : (
-          <Chip size="small" color="warning" variant="outlined" label="Απλήρωτη" />
-        )}
-      </TableCell>
+      {columns.map((column, index) => <TableCell key={column.key} align={column.numeric ? "right" : "left"}
+        sx={{ fontFamily: column.numeric ? "monospace" : undefined, color: column.key === "producerAmount" ? "success.main" : column.key === "officeAmount" ? "info.main" : undefined }}>
+        {column.key === "period" ? <Chip size="small" label={cells[index]} /> : column.key === "paidOn"
+          ? <Chip size="small" color={row.paidOn ? "success" : "warning"} variant={row.paidOn ? "filled" : "outlined"} icon={row.paidOn ? <PaidIcon /> : undefined} label={cells[index]} /> : cells[index]}
+      </TableCell>)}
       <TableCell align="right">
         <Tooltip title="Επεξεργασία">
           <IconButton size="small" onClick={onEdit}>

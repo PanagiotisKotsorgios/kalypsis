@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions,
-  DialogContent, DialogTitle, IconButton, MenuItem, Paper, Stack, Tab, Tabs,
-  TextField, Tooltip, Typography
+  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog as MuiDialog, DialogActions,
+  DialogContent, DialogTitle, IconButton, MenuItem, Paper, Stack, Tab, Tabs as MuiTabs,
+  TextField, Tooltip, Typography, Menu, ListItemIcon, ListItemText, useMediaQuery, useTheme, type DialogProps, type TabsProps
 } from "@mui/material";
 import HubIcon from "@mui/icons-material/Hub";
 import AddIcon from "@mui/icons-material/Add";
@@ -15,8 +15,12 @@ import DownloadIcon from "@mui/icons-material/Download";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
 import BarChartIcon from "@mui/icons-material/BarChart";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import FilterListIcon from "@mui/icons-material/FilterList";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
+import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
 
 type Network = {
   id: string; code: string; name: string; description?: string | null; networkType: string; status: string;
@@ -37,9 +41,23 @@ const emptyForm: Partial<Network> = { code: "", name: "", description: "", netwo
 const statusLabel = (value: string) => value === "Ενεργό" ? "Ενεργό" : value === "Ανενεργό" ? "Ανενεργό" : value;
 const money = (value: number) => new Intl.NumberFormat("el-GR", { style: "currency", currency: "EUR" }).format(value || 0);
 const dateValue = (value?: string | null) => value ? value.slice(0, 10) : "";
+const networkDialogSx = { "& .MuiDialog-paper": { m: { xs: 1, sm: 3 }, width: { xs: "calc(100% - 16px)", sm: "calc(100% - 48px)" }, maxHeight: { xs: "calc(100% - 16px)", sm: "calc(100% - 48px)" } },
+  "& .MuiDialogTitle-root": { overflowWrap: "anywhere", fontSize: { xs: 19, sm: 22 }, "& .MuiStack-root": { flexWrap: "wrap" } },
+  "& .MuiTabs-flexContainer": { minWidth: 0 }, "& .MuiDialogActions-root": { flexWrap: "wrap", gap: .5 },
+  "& .MuiTypography-root": { overflowWrap: "anywhere" }, "& .MuiInputBase-root, & .MuiStack-root, & .MuiBox-root": { minWidth: 0 },
+  "& .MuiDialogContent-root .MuiPaper-root": { minWidth: 0, overflowWrap: "anywhere" } };
+// Scoped wrappers keep every existing network editor/detail/confirmation usable
+// on narrow screens without altering dialogs or navigation elsewhere in the app.
+function Dialog(props: DialogProps) { return <MuiDialog {...props} sx={networkDialogSx} />; }
+function Tabs(props: TabsProps) { return <MuiTabs {...props} allowScrollButtonsMobile scrollButtons="auto" />; }
 
 export function PartnerNetworksPage() {
   const qc = useQueryClient();
+  const theme = useTheme();
+  const compactFilters = useMediaQuery(theme.breakpoints.down("lg"));
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
+  useEffect(() => { if (!compactFilters) setFiltersOpen(false); }, [compactFilters]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [type, setType] = useState("all");
@@ -56,29 +74,39 @@ export function PartnerNetworksPage() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["partner-networks"] }),
     onError: e => setError(extractErrorMessage(e)),
   });
-  const types = useMemo(() => Array.from(new Set((networks.data ?? []).map(x => x.networkType))).filter(Boolean), [networks.data]);
+  const types = useMemo(() => Array.from(new Set(["Δίκτυο συνεργατών", "Ομάδα συνεργατών", "Πρακτορειακό δίκτυο", "Συνεργαζόμενο γραφείο", ...(networks.data ?? []).map(x => x.networkType), ...(type === "all" ? [] : [type])])).filter(Boolean), [networks.data, type]);
+  const clearFilters = () => { setSearch(""); setStatus("all"); setType("all"); };
   const exportCsv = () => {
     const rows = networks.data ?? [];
     const csv = [["Κωδικός", "Δίκτυο", "Τύπος", "Κατάσταση", "Μέλη", "Συμβόλαια", "Μικτά", "Προμήθεια συνεργατών", "Μερίδιο έδρας"], ...rows.map(x => [x.code, x.name, x.networkType, x.status, x.memberCount, x.policyCount, x.grossPremium.toFixed(2), x.producerCommission.toFixed(2), x.officeCommission.toFixed(2)])].map(r => r.map(v => `"${String(v).replaceAll('"', '""')}"`).join(",")).join("\r\n");
     const url = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }));
-    const a = document.createElement("a"); a.href = url; a.download = "δικτυα-συνεργατων.csv"; a.click(); URL.revokeObjectURL(url);
+    const a = document.createElement("a"); a.href = url; a.download = "δικτυα-συνεργατων.csv"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  return <Box sx={{ p: { xs: 1, md: 2 } }}>
+  return <Box sx={{ p: { xs: 1, md: 2 }, minWidth: 0, maxWidth: "100%" }}>
     <Stack direction={{ xs: "column", md: "row" }} alignItems={{ md: "center" }} gap={1.5} mb={2}>
       <HubIcon sx={{ fontSize: 38, color: "#0b4f8a" }} />
-      <Box flex={1}><Typography variant="h4" fontWeight={850}>Δίκτυα συνεργατών</Typography><Typography color="text.secondary">Ομαδοποιήστε συνεργάτες, ομάδες και πρακτορειακές σχέσεις χωρίς να αλλάζετε τα μεμονωμένα συμβόλαια.</Typography></Box>
-      <Button variant="outlined" onClick={exportCsv}>Εξαγωγή</Button>
-      <Button variant="contained" color="success" startIcon={<AddIcon />} onClick={() => setEditing({ ...emptyForm, id: "" } as Network)}>Νέο δίκτυο</Button>
-    </Stack>
-    <Paper variant="outlined" sx={{ p: 1.25, mb: 1.5, bgcolor: "#f4f7fb" }}>
-      <Stack direction={{ xs: "column", sm: "row" }} gap={1} alignItems={{ sm: "center" }}>
-        <TextField size="small" fullWidth placeholder="Αναζήτηση κωδικού, δικτύου, υπευθύνου ή email" value={search} onChange={e => setSearch(e.target.value)} InputProps={{ startAdornment: <SearchIcon sx={{ mr: .75, color: "text.secondary" }} /> }} />
-        <TextField select size="small" label="Κατάσταση" value={status} onChange={e => setStatus(e.target.value)} sx={{ minWidth: 145 }}><MenuItem value="all">Όλες</MenuItem><MenuItem value="Ενεργό">Ενεργά</MenuItem><MenuItem value="Ανενεργό">Ανενεργά</MenuItem></TextField>
-        <TextField select size="small" label="Τύπος" value={type} onChange={e => setType(e.target.value)} sx={{ minWidth: 180 }}><MenuItem value="all">Όλοι οι τύποι</MenuItem>{types.map(x => <MenuItem key={x} value={x}>{x}</MenuItem>)}</TextField>
-        <Button color="error" startIcon={<ClearIcon />} onClick={() => { setSearch(""); setStatus("all"); setType("all"); }}>Καθαρισμός</Button>
+      <Box flex={1} sx={{ minWidth: 0 }}><Typography variant="h4" fontWeight={850} sx={{ fontSize: { xs: 25, sm: 30, md: 34 }, overflowWrap: "anywhere" }}>Δίκτυα συνεργατών</Typography><Typography color="text.secondary">Ομαδοποιήστε συνεργάτες, ομάδες και πρακτορειακές σχέσεις χωρίς να αλλάζετε τα μεμονωμένα συμβόλαια.</Typography></Box>
+      <Stack direction="row" gap={1} flexWrap="wrap" sx={{ flexShrink: 0, maxWidth: "100%" }}>
+        <Button variant="contained" startIcon={<MoreHorizIcon />} endIcon={<KeyboardArrowDownIcon />} onClick={event => setActionsAnchor(event.currentTarget)}>Ενέργειες</Button>
+        <Button variant="contained" color="success" startIcon={<AddIcon />} onClick={() => setEditing({ ...emptyForm, id: "" } as Network)}>Νέο δίκτυο</Button>
+        {compactFilters && <Button variant="contained" startIcon={<FilterListIcon />} aria-haspopup="dialog" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(true)}
+          sx={{ bgcolor: "#159B59", color: "#fff", "&:hover": { bgcolor: "#107B46", color: "#fff" } }}>Φίλτρα δικτύων</Button>}
       </Stack>
-    </Paper>
+    </Stack>
+    <Menu anchorEl={actionsAnchor} open={!!actionsAnchor} onClose={() => setActionsAnchor(null)} anchorOrigin={{ vertical: "bottom", horizontal: "right" }} transformOrigin={{ vertical: "top", horizontal: "right" }} slotProps={{ paper: { sx: { maxWidth: "calc(100vw - 24px)", minWidth: 220 } } }}>
+      <MenuItem disabled={networks.isFetching || networks.isError || !networks.data?.length} onClick={() => { setActionsAnchor(null); exportCsv(); }} sx={{ color: "#159B59" }}><ListItemIcon sx={{ color: "inherit" }}><DownloadIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή CSV" /></MenuItem>
+      <MenuItem onClick={() => { setActionsAnchor(null); clearFilters(); }} sx={{ color: "#D93547" }}><ListItemIcon sx={{ color: "inherit" }}><ClearIcon fontSize="small" /></ListItemIcon><ListItemText primary="Καθαρισμός φίλτρων" /></MenuItem>
+    </Menu>
+    <ResponsiveFilterPanel title="Φίλτρα δικτύων" compactAt="lg" compactButtonPlacement="external" compactOpen={filtersOpen} onCompactOpenChange={setFiltersOpen} cardSx={{ bgcolor: "#edf2f7" }}>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))", lg: "minmax(240px, 2fr) minmax(140px, 1fr) minmax(170px, 1fr) auto" }, gap: 1, alignItems: "center", pt: .5 }}>
+        <TextField size="small" fullWidth placeholder="Αναζήτηση κωδικού, δικτύου, υπευθύνου ή email" value={search} onChange={e => setSearch(e.target.value)} InputProps={{ startAdornment: <SearchIcon sx={{ mr: .75, color: "text.secondary" }} /> }} />
+        <TextField select fullWidth size="small" label="Κατάσταση" value={status} onChange={e => setStatus(e.target.value)} sx={{ minWidth: 0 }}><MenuItem value="all">Όλες</MenuItem><MenuItem value="Ενεργό">Ενεργά</MenuItem><MenuItem value="Ανενεργό">Ανενεργά</MenuItem></TextField>
+        <TextField select fullWidth size="small" label="Τύπος" value={type} onChange={e => setType(e.target.value)} sx={{ minWidth: 0 }}><MenuItem value="all">Όλοι οι τύποι</MenuItem>{types.map(x => <MenuItem key={x} value={x}>{x}</MenuItem>)}</TextField>
+        <Button color="error" variant="contained" startIcon={<ClearIcon />} onClick={clearFilters}>Καθαρισμός</Button>
+      </Box>
+    </ResponsiveFilterPanel>
     {error && <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setError(null)}>{error}</Alert>}
+    {networks.isError && <Alert severity="error" sx={{ mb: 1.5 }} action={<Button onClick={() => void networks.refetch()}>Επανάληψη</Button>}>{extractErrorMessage(networks.error)}</Alert>}
     <Card variant="outlined" sx={{ overflow: "hidden" }}>
       <Box sx={{ overflowX: "auto" }}><Box component="table" sx={{ width: "100%", minWidth: 930, borderCollapse: "collapse", "& th": { bgcolor: "#e8edf3", color: "#18324b", textAlign: "left", fontSize: 13, px: 1.25, py: 1, borderBottom: "2px solid #b9c5d1" }, "& td": { px: 1.25, py: .9, borderBottom: "1px solid #e1e6eb", fontSize: 13 } }}>
         <thead><tr><th>Κωδικός</th><th>Δίκτυο</th><th>Τύπος</th><th>Υπεύθυνος</th><th>Μέλη</th><th>Συμβόλαια</th><th>Παραγωγή</th><th>Κατάσταση</th><th>Ενέργειες</th></tr></thead>
@@ -107,7 +135,7 @@ function NetworkEditor({ open, network, onClose, onSaved, onError }: { open: boo
   </Box></DialogContent><DialogActions><Button color="error" onClick={onClose}>Ακύρωση</Button><Button variant="contained" color="success" onClick={() => void save()} disabled={saving}>{saving ? <CircularProgress size={20} /> : "Αποθήκευση"}</Button></DialogActions></Dialog>;
 }
 
-function NetworkDetail({ id, onClose, onError }: { id: string | null; onClose: () => void; onError: (x: string) => void }) {
+export function NetworkDetail({ id, onClose, onError }: { id: string | null; onClose: () => void; onError: (x: string) => void }) {
   const qc = useQueryClient(); const [tab, setTab] = useState(0); const [memberOpen, setMemberOpen] = useState(false); const [file, setFile] = useState<File | null>(null); const [memberDelete, setMemberDelete] = useState<Member | null>(null);
   const detail = useQuery({ queryKey: ["partner-network-detail", id], enabled: !!id, queryFn: async () => (await api.get<Detail>(`/partner-networks/${id}/detail`)).data });
   const producers = useQuery({ queryKey: ["producers-for-network"], enabled: !!id && memberOpen, queryFn: async () => (await api.get<Producer[]>("/producers")).data });
@@ -120,9 +148,25 @@ function NetworkDetail({ id, onClose, onError }: { id: string | null; onClose: (
   const n = detail.data?.network;
   return <Dialog open={!!id} onClose={onClose} fullWidth maxWidth="xl"><DialogTitle sx={{ borderBottom: "1px solid #dce3ea" }}><Stack direction="row" alignItems="center" gap={1}><HubIcon color="primary" />{n?.name ?? "Δίκτυο συνεργατών"}{n && <Chip size="small" label={n.status} color={n.status === "Ενεργό" ? "success" : "default"} />}</Stack></DialogTitle><DialogContent sx={{ p: 0 }}>{detail.isLoading ? <Box sx={{ p: 4, textAlign: "center" }}><CircularProgress /></Box> : n && <><Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" sx={{ px: 2, bgcolor: "#eef2f6", borderBottom: "1px solid #c8d2dc" }}><Tab label="Σύνοψη" /><Tab label="Μέλη δικτύου" /><Tab label="Έγγραφα" /><Tab label="Στατιστικά" /></Tabs><Box sx={{ p: 2 }}>
     {tab === 0 && <Stack spacing={1.5}><Typography variant="h6" fontWeight={800}>{n.code} · {n.name}</Typography><Typography color="text.secondary">{n.description || "Δεν έχει καταχωρηθεί περιγραφή."}</Typography><Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 1 }}><Info label="Υπεύθυνος" value={n.managerName} /><Info label="Email" value={n.email} /><Info label="Τηλέφωνο" value={n.phone} /><Info label="Έδρα" value={[n.address, n.city, n.postalCode].filter(Boolean).join(", ")} /><Info label="ΑΦΜ / ΔΟΥ" value={[n.taxId, n.taxOffice].filter(Boolean).join(" · ")} /><Info label="Σύμβαση" value={n.contractNumber} /></Box></Stack>}
-    {tab === 1 && <Stack spacing={1}><Stack direction="row" justifyContent="space-between" alignItems="center"><Typography fontWeight={800}>Συνεργάτες ({detail.data?.members.length ?? 0})</Typography><Button startIcon={<PersonAddIcon />} variant="contained" onClick={() => setMemberOpen(v => !v)}>Προσθήκη συνεργάτη</Button></Stack>{memberOpen && <Paper variant="outlined" sx={{ p: 1, bgcolor: "#f5f9ff" }}><Typography variant="caption" color="text.secondary">Επιλέξτε συνεργάτη για να τον εντάξετε στο δίκτυο</Typography><Stack direction="row" gap={1} flexWrap="wrap" mt={1}>{(producers.data ?? []).filter(p => !(detail.data?.members ?? []).some(m => m.producerId === p.id)).map(p => <Button key={p.id} size="small" variant="outlined" onClick={() => void addMember(p.id)}>{p.name} · {p.code}</Button>)}</Stack></Paper>}{(detail.data?.members ?? []).map(m => <Paper key={m.id} variant="outlined" sx={{ p: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}><Box><Typography fontWeight={700}>{m.producerName}</Typography><Typography variant="caption" color="text.secondary">{m.producerCode} · {m.role}</Typography></Box><Stack direction="row" alignItems="center" gap={.5}><Chip size="small" label={m.isActive ? "Ενεργός" : "Ανενεργός"} color={m.isActive ? "success" : "default"} /><IconButton size="small" color="error" onClick={() => void removeMember(m)}><DeleteIcon fontSize="small" /></IconButton></Stack></Paper>)}{!(detail.data?.members ?? []).length && <Typography color="text.secondary">Δεν έχουν προστεθεί μέλη.</Typography>}</Stack>}
+    {tab === 1 && <Stack spacing={1}>
+      <Stack direction="row" flexWrap="wrap" gap={1} justifyContent="space-between" alignItems="center">
+        <Typography fontWeight={800}>Συνεργάτες ({detail.data?.members.length ?? 0})</Typography><Button startIcon={<PersonAddIcon />} variant="contained" onClick={() => setMemberOpen(v => !v)}>Προσθήκη συνεργάτη</Button>
+      </Stack>
+      {memberOpen && <Paper variant="outlined" sx={{ p: 1, bgcolor: "#f5f9ff" }}><Typography variant="caption" color="text.secondary">Επιλέξτε συνεργάτη για να τον εντάξετε στο δίκτυο</Typography><Stack direction="row" gap={1} flexWrap="wrap" mt={1}>{(producers.data ?? []).filter(p => !(detail.data?.members ?? []).some(m => m.producerId === p.id)).map(p => <Button key={p.id} size="small" variant="outlined" onClick={() => void addMember(p.id)}>{p.name} · {p.code}</Button>)}</Stack></Paper>}
+      {(detail.data?.members ?? []).map(m => <Paper key={m.id} variant="outlined" sx={{ p: 1, display: "flex", flexWrap: "wrap", gap: 1, justifyContent: "space-between", alignItems: "center" }}>
+        <Box sx={{ minWidth: 0, flex: "1 1 160px" }}><Typography fontWeight={700}>{m.producerName}</Typography><Typography variant="caption" color="text.secondary">{m.producerCode} · {m.role}</Typography></Box>
+        <Stack direction="row" alignItems="center" gap={.5}><Chip size="small" label={m.isActive ? "Ενεργός" : "Ανενεργός"} color={m.isActive ? "success" : "default"} /><IconButton size="small" color="error" aria-label={`Αφαίρεση ${m.producerName}`} onClick={() => void removeMember(m)}><DeleteIcon fontSize="small" /></IconButton></Stack>
+      </Paper>)}{!(detail.data?.members ?? []).length && <Typography color="text.secondary">Δεν έχουν προστεθεί μέλη.</Typography>}
+    </Stack>}
     {tab === 2 && <Stack spacing={1.25}><Stack direction={{ xs: "column", sm: "row" }} gap={1} alignItems={{ sm: "center" }}><Button component="label" startIcon={<UploadFileIcon />} variant="outlined">Επιλογή αρχείου<input hidden type="file" onChange={e => setFile(e.target.files?.[0] ?? null)} /></Button><Typography variant="body2" flex={1}>{file?.name || "Δεν έχει επιλεγεί αρχείο"}</Typography><Button variant="contained" disabled={!file} onClick={() => void upload()}>Ανέβασμα</Button></Stack>{(detail.data?.documents ?? []).map(d => <Paper key={d.id} variant="outlined" sx={{ p: 1, display: "flex", alignItems: "center", gap: 1 }}><Box flex={1}><Typography fontWeight={700}>{d.fileName}</Typography><Typography variant="caption" color="text.secondary">{d.category} · {(d.sizeBytes / 1024).toFixed(0)} KB</Typography></Box><IconButton color="primary" onClick={() => void downloadDocument(d)}><DownloadIcon /></IconButton></Paper>)}{!(detail.data?.documents ?? []).length && <Typography color="text.secondary">Δεν έχουν ανέβει έγγραφα.</Typography>}</Stack>}
-    {tab === 3 && <><Stack direction={{ xs: "column", sm: "row" }} spacing={1.25} mb={2}>{[["Ενεργά μέλη", n.activeMemberCount], ["Συμβόλαια", n.policyCount], ["Μικτά ασφάλιστρα", money(n.grossPremium)], ["Προμήθειες συνεργατών", money(n.producerCommission)], ["Μερίδιο έδρας", money(n.officeCommission)]].map(([label, value]) => <Card key={String(label)} variant="outlined" sx={{ flex: 1, bgcolor: "#f5f9ff" }}><CardContent sx={{ p: "12px !important" }}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography variant="h6" fontWeight={850}>{value}</Typography></CardContent></Card>)}</Stack><Paper variant="outlined" sx={{ p: 2 }}><Stack direction="row" gap={1} alignItems="center"><BarChartIcon color="primary" /><Typography fontWeight={800}>Σύγκριση οικονομικής εικόνας</Typography></Stack><Box sx={{ display: "flex", alignItems: "end", height: 180, gap: 3, mt: 2, px: 2 }}>{[["Μικτά", n.grossPremium, "#1976d2"], ["Συνεργάτες", n.producerCommission, "#ed8b00"], ["Έδρα", n.officeCommission, "#2e7d32"]].map(([label, value, color]) => <Box key={String(label)} sx={{ flex: 1, textAlign: "center" }}><Box sx={{ height: Math.max(8, Math.min(145, Number(value) / Math.max(1, n.grossPremium) * 145)), bgcolor: color, borderRadius: "8px 8px 0 0", transition: "height .25s" }} /><Typography variant="caption">{label}</Typography></Box>)}</Box></Paper></>}
+    {tab === 3 && <>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(5, minmax(0, 1fr))" }, gap: 1.25, mb: 2 }}>
+        {[["Ενεργά μέλη", n.activeMemberCount], ["Συμβόλαια", n.policyCount], ["Μικτά ασφάλιστρα", money(n.grossPremium)], ["Προμήθειες συνεργατών", money(n.producerCommission)], ["Μερίδιο έδρας", money(n.officeCommission)]].map(([label, value]) => <Card key={String(label)} variant="outlined" sx={{ minWidth: 0, bgcolor: "#f5f9ff" }}><CardContent sx={{ p: "12px !important" }}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography variant="h6" fontWeight={850}>{value}</Typography></CardContent></Card>)}
+      </Box>
+      <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 } }}><Stack direction="row" gap={1} alignItems="center"><BarChartIcon color="primary" /><Typography fontWeight={800}>Σύγκριση οικονομικής εικόνας</Typography></Stack>
+        <Box sx={{ display: "flex", alignItems: "end", height: 180, gap: { xs: 1, sm: 3 }, mt: 2, px: { xs: 0, sm: 2 } }}>{[["Μικτά", n.grossPremium, "#1976d2"], ["Συνεργάτες", n.producerCommission, "#ed8b00"], ["Έδρα", n.officeCommission, "#2e7d32"]].map(([label, value, color]) => <Box key={String(label)} sx={{ flex: 1, minWidth: 0, textAlign: "center" }}><Box sx={{ height: Math.max(8, Math.min(145, Number(value) / Math.max(1, n.grossPremium) * 145)), bgcolor: color, borderRadius: "8px 8px 0 0", transition: "height .25s" }} /><Typography variant="caption">{label}</Typography></Box>)}</Box>
+      </Paper>
+    </>}
   </Box></>}</DialogContent><DialogActions><Button color="error" onClick={onClose}>Κλείσιμο</Button></DialogActions><Dialog open={!!memberDelete} onClose={() => setMemberDelete(null)}><DialogTitle>Αφαίρεση μέλους;</DialogTitle><DialogContent><Typography>Να αφαιρεθεί ο/η {memberDelete?.producerName} από το δίκτυο;</Typography></DialogContent><DialogActions><Button onClick={() => setMemberDelete(null)}>Ακύρωση</Button><Button color="error" variant="contained" onClick={() => void confirmRemoveMember()}>Είμαι σίγουρος</Button></DialogActions></Dialog></Dialog>;
 }
 

@@ -14,6 +14,53 @@ public class TableSnapshotExportTests
     [InlineData("csv")]
     [InlineData("xlsx")]
     [InlineData("pdf")]
+    public async Task OverCommissions_KeepTheFilteredTableItsSubtotalsAndCurrencyValuesInEveryFormat(string format)
+    {
+        var tenantId = Guid.NewGuid();
+        var current = TestScaffold.AgencyStaff(tenantId);
+        using var db = TestScaffold.NewDb(current, TestScaffold.Clock);
+        db.Tenants.Add(new Tenant { Id = tenantId, Name = "Γραφείο υπερπρομηθειών", Code = "OFFICE" });
+        await db.SaveChangesAsync();
+        string?[][] rows = [
+            ["ΟΜΑΔΑ: Συνεργάτης Α · 1 εγγραφές", "", "", ""],
+            ["10/2026", "Συνεργάτης Α", "40,00 €", "20,00 €"],
+            ["Υποσύνολο · Συνεργάτης Α · EUR", "", "40,00 €", "20,00 €"],
+            ["Σύνολα · EUR", "", "40,00 €", "20,00 €"]
+        ];
+        var snapshot = new TableExportsController.TableSnapshot("Υπερπρομήθειες", ["Περίοδος", "Παραγωγός", "Μικτά", "Στην έδρα"], rows,
+            "Μήνας: 10 · Απλήρωτα · Ομαδοποίηση: Ανά συνεργάτη", RecordCount: 1);
+        var result = Assert.IsType<FileContentResult>(await new TableExportsController(db, current).Export(snapshot, format));
+        Assert.NotEmpty(result.FileContents);
+        if (format == "csv")
+        {
+            Assert.Equal(new byte[] { 0xEF, 0xBB, 0xBF }, result.FileContents.Take(3).ToArray());
+            var csv = Encoding.UTF8.GetString(result.FileContents);
+            Assert.Contains("Γραφείο υπερπρομηθειών", csv);
+            Assert.Contains("\"10/2026\",\"Συνεργάτης Α\",\"40,00 €\",\"20,00 €\"", csv);
+            Assert.Contains("Υποσύνολο · Συνεργάτης Α · EUR", csv);
+            Assert.Contains("Σύνολα · EUR", csv);
+            Assert.True(csv.IndexOf("ΟΜΑΔΑ:", StringComparison.Ordinal) < csv.IndexOf("10/2026", StringComparison.Ordinal));
+        }
+        else if (format == "xlsx")
+        {
+            using var workbook = new XLWorkbook(new MemoryStream(result.FileContents));
+            var sheet = workbook.Worksheets.First();
+            Assert.Equal("Γραφείο υπερπρομηθειών", sheet.Cell(1, 1).GetString());
+            Assert.Contains("1 εγγραφές", sheet.Cell(2, 1).GetString());
+            for (var row = 0; row < rows.Length; row++)
+                for (var column = 0; column < rows[row].Length; column++)
+                    Assert.Equal(rows[row][column], sheet.Cell(row + 5, column + 1).GetString());
+            Assert.True(sheet.Cell(5, 1).Style.Font.Bold);
+            Assert.True(sheet.Cell(7, 1).Style.Font.Bold);
+            Assert.True(sheet.Cell(8, 1).Style.Font.Bold);
+        }
+        else Assert.StartsWith("%PDF-", Encoding.ASCII.GetString(result.FileContents.Take(8).ToArray()));
+    }
+
+    [Theory]
+    [InlineData("csv")]
+    [InlineData("xlsx")]
+    [InlineData("pdf")]
     public async Task Export_FormatsTheSuppliedRowsAndColumnOrder_WithOfficeHeading(string format)
     {
         var tenantId = Guid.NewGuid();

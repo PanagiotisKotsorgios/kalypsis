@@ -37,10 +37,10 @@ export function ProducerBalanceSummary({ currencies }: { currencies: Balance[] }
 }
 
 function BalanceValue({ value, currency, highlight = false }: { value: number; currency: string; highlight?: boolean }) {
-  return <Box sx={{ display: "inline-block", whiteSpace: "nowrap", borderRadius: 1, px: .75, py: .5,
+  return <Box sx={{ display: "inline-block", whiteSpace: "nowrap", borderRadius: 1, px: .65, py: .15,
     bgcolor: highlight && value > 0 ? "#D00000" : undefined, color: highlight && value > 0 ? "#fff" : "#102c55" }}>
-    <Typography variant="body2" fontWeight={700}>{amount(Math.abs(value), currency)}</Typography>
-    <Typography variant="caption" color="inherit">{value > 0 ? "Προς συνεργάτη" : value < 0 ? "Πιστωτικό" : "Μηδενικό υπόλοιπο"}</Typography>
+    <Typography component="span" variant="body2" fontWeight={700}>{amount(Math.abs(value), currency)}</Typography>
+    <Typography component="span" variant="caption" color="inherit" sx={{ ml: .65 }}>{value > 0 ? "Προς συνεργάτη" : value < 0 ? "Πιστωτικό" : "Μηδενικό υπόλοιπο"}</Typography>
   </Box>;
 }
 
@@ -82,7 +82,7 @@ export function ProducerBalancesPanel({ producerId }: { producerId: string }) {
     </Stack>
     <Typography variant="caption" color="text.secondary">Προμήθειες: μήνας έναρξης συμβολαίου. Καταβολές: μήνας πληρωμής. Το υπόλοιπο μεταφέρεται στους επόμενους μήνες, ξεχωριστά ανά νόμισμα.</Typography>
     <Box sx={{ overflowX: "auto", border: "1px solid #d5e0ec", borderRadius: 1.5 }}>
-      <Table size="small" aria-label="Μηνιαία υπόλοιπα συνεργάτη" sx={{ ...tableSx, minWidth: 780 }}>
+      <Table size="small" aria-label="Μηνιαία υπόλοιπα συνεργάτη" sx={{ ...tableSx, minWidth: 780, "& td": { py: .45, px: 1, lineHeight: 1.3 }, "& th": { ...tableSx["& th"], py: .7, px: 1, lineHeight: 1.3 } }}>
         <TableHead><TableRow><TableCell>Μήνας</TableCell><TableCell align="right">Εκ μεταφοράς</TableCell><TableCell align="right">Προμήθειες μήνα</TableCell><TableCell align="right">Καταβλήθηκαν μήνα</TableCell><TableCell align="right">Υπόλοιπο τέλους μήνα</TableCell><TableCell>Ανάλυση</TableCell></TableRow></TableHead>
         <TableBody>{rows.slice(visiblePage * 10, visiblePage * 10 + 10).map((row, index) => <TableRow key={row.month + row.currency} sx={{ bgcolor: index % 2 ? "#f0f2f5" : "#f8fafc" }}>
           <TableCell sx={{ whiteSpace: "nowrap", fontWeight: 700 }}>{monthLabel(row.month)}</TableCell>
@@ -90,7 +90,8 @@ export function ProducerBalancesPanel({ producerId }: { producerId: string }) {
           <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>{amount(row.earned, row.currency)}</TableCell>
           <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>{amount(row.paid, row.currency)}</TableCell>
           <TableCell align="right"><BalanceValue value={row.closingBalance} currency={row.currency} highlight /></TableCell>
-          <TableCell><Button size="small" startIcon={<ReceiptLongIcon />} onClick={() => setSelectedMonth(row)} aria-label={`Κινήσεις ${monthLabel(row.month)} ${row.currency}`} sx={{ whiteSpace: "nowrap" }}>{row.entryCount} κινήσεις</Button></TableCell>
+          <TableCell><Button size="small" variant="contained" startIcon={<ReceiptLongIcon />} onClick={() => setSelectedMonth(row)} aria-label={`Κινήσεις ${monthLabel(row.month)} ${row.currency}`}
+            sx={{ whiteSpace: "nowrap", minHeight: 28, py: .25, bgcolor: "#159B59", color: "#fff", "&:hover": { bgcolor: "#107B46", color: "#fff" } }}>{row.entryCount} {row.entryCount === 1 ? "κίνηση" : "κινήσεις"}</Button></TableCell>
         </TableRow>)}</TableBody>
       </Table>
     </Box>

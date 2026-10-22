@@ -277,6 +277,7 @@ public static class ExportFormatter
         if (row.Count == 0) return false;
         var first = row[0] ?? "";
         return first.Contains("ΣΥΝΟΛ", StringComparison.OrdinalIgnoreCase)
+            || first.Contains("ΣΎΝΟΛ", StringComparison.OrdinalIgnoreCase)
             || first.Contains("ΥΠΟΣΥΝΟΛ", StringComparison.OrdinalIgnoreCase)
             || first.Contains("TOTAL", StringComparison.OrdinalIgnoreCase)
             || first.Contains("SUBTOTAL", StringComparison.OrdinalIgnoreCase);

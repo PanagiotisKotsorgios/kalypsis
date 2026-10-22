@@ -29,6 +29,8 @@ export interface PrintOptions<T> {
   title: string;
   columns: PrintColumn<T>[];
   rows: T[];
+  /** Real records, excluding structural headings/subtotals in a frozen matrix. */
+  recordCount?: number;
   /** Optional subtitle rendered under the title, e.g. current filters. */
   subtitle?: string;
   /** Locale used for date/number formatting fall-backs. Defaults to el-GR. */
@@ -97,6 +99,11 @@ export function printTable<T>(opts: PrintOptions<T>): void {
 
   const head = opts.columns.map(c => `<th>${escapeHtml(c.label)}</th>`).join("");
   const renderRow = (r: T) => {
+    // Snapshot exports use the same full-width group marker as the server's
+    // CSV/XLSX/PDF formatter. Preserve it when printing the frozen matrix.
+    const values = opts.columns.map(c => formatCell(c.map ? c.map(r) : (r as Record<string, unknown>)[c.key], locale));
+    if (values[0]?.startsWith("ΟΜΑΔΑ:") && values.slice(1).every(value => !value))
+      return `<tr class="group-header-row"><td colspan="${opts.columns.length}"><span class="group-title">${escapeHtml(values[0])}</span></td></tr>`;
     const cells = opts.columns
       .map(c => {
         const raw = c.map ? c.map(r) : (r as Record<string, unknown>)[c.key];
@@ -105,7 +112,7 @@ export function printTable<T>(opts: PrintOptions<T>): void {
       .join("");
     const isTotal = opts.columns.some(c => {
       const raw = c.map ? c.map(r) : (r as Record<string, unknown>)[c.key];
-      return /σύνολο|υποσύνολο|total|subtotal/i.test(formatCell(raw, locale));
+      return /σ[ύυ]νολ|total|subtotal/i.test(formatCell(raw, locale));
     });
     return `<tr${isTotal ? ` class="total-row"` : ""}>${cells}</tr>`;
   };
@@ -189,7 +196,7 @@ export function printTable<T>(opts: PrintOptions<T>): void {
     <h1>${escapeHtml(opts.title)}</h1>
     ${opts.subtitle ? `<div class="subtitle">${escapeHtml(opts.subtitle)}</div>` : ""}
     ${officeBlock}
-    <div class="meta">Εκτυπώθηκε: ${escapeHtml(now)} — Σύνολο εγγραφών: ${opts.rows.length.toLocaleString(locale)}</div>
+    <div class="meta">Εκτυπώθηκε: ${escapeHtml(now)} — Σύνολο εγγραφών: ${(opts.recordCount ?? opts.rows.length).toLocaleString(locale)}</div>
   </header>
   ${opts.rows.length === 0
       ? `<div class="empty">Δεν υπάρχουν εγγραφές για εκτύπωση.</div>`
