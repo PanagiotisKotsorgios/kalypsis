@@ -8,8 +8,9 @@ import { VEHICLE_SPEC_FIELDS, mergeVehicleSpecs, vehicleGeneralColumns } from ".
 import { vehicleOwnerHistory } from "../components/profile/vehicleHistory";
 import { vehicleCoOwners, ownershipFieldValues, mergeVehicleOwnership, ownershipCreationChanges } from "../components/profile/vehicleOwnership";
 import { VehicleOwnershipFields, VehicleOwnershipInputs } from "../components/profile/VehicleOwnershipFields";
+import { filterVehicleRegister, vehicleRegisterColumns, vehicleOwnerText, vehicleUseLabel, type VehicleRow } from "./vehicleRegister";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, InputAdornment, ListItemIcon, ListItemText, Menu, MenuItem, Snackbar, Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Tooltip, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, InputAdornment, ListItemIcon, ListItemText, Menu, MenuItem, Snackbar, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow, TextField, Tooltip, Typography, useMediaQuery, useTheme } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import DownloadIcon from "@mui/icons-material/Download";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
@@ -24,9 +25,8 @@ import PrintIcon from "@mui/icons-material/Print";
 import GridOnIcon from "@mui/icons-material/GridOn";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import ViewColumnIcon from "@mui/icons-material/ViewColumn";
-import { TableToolbar } from "../components/TableToolbar";
-import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
-import { exportActionSx } from "../components/actionButtonStyles";
+import { TableToolbar, RecordCountChip } from "../components/TableToolbar";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 import { Link as RouterLink } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
@@ -167,7 +167,7 @@ export function VehicleDetailDialog({ open, plate, policyIds: suppliedPolicyIds,
   });
   const details = [...(q.data?.details ?? [])].sort((a, b) => b.startDate.localeCompare(a.startDate) || b.id.localeCompare(a.id)), first = details[0];
   const invalidateVehicle = () => {
-    for (const key of [queryKey, ["customer-vehicles-all"], ["customer-vehicles"], ["policies"], ["policy-detail"]]) void qc.invalidateQueries({ queryKey: key });
+    for (const key of [queryKey, ["customer-vehicles-all"], ["customer-vehicles"], ["vehicle-policy-options"], ["policies"], ["policy-detail"]]) void qc.invalidateQueries({ queryKey: key });
   };
   const specs = parseSpecs(first?.specsJson);
   const values = Object.fromEntries([
@@ -295,53 +295,6 @@ export function VehicleProfileFields({ session, values, owner, ownerVat }: { ses
   </Box>;
 }
 
-function LegacyCustomerVehiclesPage() {
-  const [search, setSearch] = useState("");
-  const [selectedPlate, setSelectedPlate] = useState<string | null>(null);
-  const q = useQuery({
-    queryKey: ["customer-vehicles-all"],
-    queryFn: async () => (await api.get<VehiclePolicyRow[]>("/policies", { params: { type: "Auto" } })).data
-  });
-  const rows = useMemo(() => {
-    const term = search.trim().toLocaleLowerCase("el-GR");
-    if (!term) return q.data ?? [];
-    return (q.data ?? []).filter(row => [row.vehicleRegistrationPlate, row.customerDisplay, row.policyNumber, row.insuranceCompanyName].some(value => String(value ?? "").toLocaleLowerCase("el-GR").includes(term)));
-  }, [q.data, search]);
-  const uniquePlates = new Set(rows.map(row => row.vehicleRegistrationPlate).filter(Boolean)).size;
-  const expiring = rows.filter(row => { const days = (new Date(row.endDate).getTime() - Date.now()) / 86400000; return days >= 0 && days <= 30; }).length;
-  const exportCsv = () => {
-    const header = ["Πινακίδα", "Πελάτης", "Αριθμός συμβολαίου", "Ασφαλιστική", "Έναρξη", "Λήξη", "Ασφάλιστρο"];
-    const body = rows.map(row => [row.vehicleRegistrationPlate ?? "", row.customerDisplay ?? "", row.policyNumber, row.insuranceCompanyName, row.startDate, row.endDate, String(row.premium ?? "")]);
-    const csv = [header, ...body].map(line => line.map(value => `"${String(value).replaceAll('"', '""')}"`).join(",")).join("\r\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "οχηματα-πελατων.csv"; a.click(); URL.revokeObjectURL(url);
-  };
-  if (q.isLoading) return <Box sx={{ p: 6, textAlign: "center" }}><CircularProgress /></Box>;
-  if (q.isError) return <Alert severity="error">{extractErrorMessage(q.error)}</Alert>;
-  return <Stack spacing={2.5}>
-    <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" gap={2}>
-      <Box><Typography variant="h4" fontWeight={800}>Οχήματα πελατών</Typography><Typography color="text.secondary">Όλα τα οχήματα όπως προκύπτουν από τα ενεργά και ιστορικά συμβόλαια αυτοκινήτου.</Typography></Box>
-      <Button startIcon={<DownloadIcon />} variant="outlined" sx={exportActionSx} onClick={exportCsv}>Εξαγωγή CSV</Button>
-    </Stack>
-    <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-      <Card variant="outlined" sx={{ p: 2, flex: 1 }}><Typography variant="caption" color="text.secondary">Συμβόλαια αυτοκινήτου</Typography><Typography variant="h5" fontWeight={800}>{rows.length}</Typography></Card>
-      <Card variant="outlined" sx={{ p: 2, flex: 1 }}><Typography variant="caption" color="text.secondary">Μοναδικές πινακίδες</Typography><Typography variant="h5" fontWeight={800}>{uniquePlates}</Typography></Card>
-      <Card variant="outlined" sx={{ p: 2, flex: 1 }}><Typography variant="caption" color="text.secondary">Λήγουν σε 30 ημέρες</Typography><Typography variant="h5" fontWeight={800} color={expiring ? "warning.main" : "text.primary"}>{expiring}</Typography></Card>
-    </Stack>
-    <TextField value={search} onChange={e => setSearch(e.target.value)} placeholder="Αναζήτηση πινακίδας, πελάτη, συμβολαίου ή ασφαλιστικής" InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }} />
-    {rows.length === 0 ? <Alert severity="info"><DirectionsCarIcon sx={{ verticalAlign: "middle", mr: 1 }} />Δεν βρέθηκαν οχήματα με τα συγκεκριμένα κριτήρια.</Alert> : <Card variant="outlined" sx={{ overflowX: "auto" }}><Table size="small">
-      <TableHead><TableRow><TableCell>Πινακίδα</TableCell><TableCell>Πελάτης</TableCell><TableCell>Συμβόλαιο</TableCell><TableCell>Ασφαλιστική</TableCell><TableCell>Έναρξη</TableCell><TableCell>Λήξη</TableCell><TableCell align="right">Ασφάλιστρο</TableCell></TableRow></TableHead>
-      <TableBody>{rows.map(row => <TableRow key={row.id} hover>
-        <TableCell sx={{ fontFamily: "monospace", fontWeight: 800 }}>{row.vehicleRegistrationPlate ?? "—"}</TableCell>
-        <TableCell><Button component={RouterLink} to={`/app/customers/${row.customerId}`} size="small">{row.customerDisplay ?? "Πελάτης"}</Button></TableCell>
-        <TableCell><Button component={RouterLink} to={`/app/policies?focus=${row.id}`} size="small">{row.policyNumber}</Button></TableCell>
-        <TableCell>{row.insuranceCompanyName}</TableCell><TableCell>{row.startDate}</TableCell><TableCell>{row.endDate}</TableCell>
-        <TableCell align="right">{row.premium?.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {row.currency}</TableCell><TableCell><Button size="small" onClick={() => setSelectedPlate(row.vehicleRegistrationPlate ?? "")}>Καρτέλα οχήματος</Button></TableCell>
-      </TableRow>)}</TableBody>
-    </Table></Card>}
-    <VehicleDetailDialog open={selectedPlate !== null} plate={selectedPlate ?? ""} policyIds={rows.filter(row => (row.vehicleRegistrationPlate ?? "") === (selectedPlate ?? "")).map(row => row.id)} onClose={() => setSelectedPlate(null)} />
-  </Stack>;
-}
 
 type AddVehicleForm = {
   policyId: string;
@@ -368,7 +321,7 @@ const emptyVehicleForm = (policyId = ""): AddVehicleForm => ({
   ownerCount: "", use: "", color: "", seats: "", notes: ""
 });
 
-function AddVehicleDialog({ open, rows, onClose, onSaved }: { open: boolean; rows: VehiclePolicyRow[]; onClose: () => void; onSaved: (plate: string) => void }) {
+function AddVehicleDialog({ open, rows, loading = false, error: loadError, onClose, onSaved }: { open: boolean; rows: VehiclePolicyRow[]; loading?: boolean; error?: string | null; onClose: () => void; onSaved: (plate: string, policyId: string) => void }) {
   const [form, setForm] = useState<AddVehicleForm>(() => emptyVehicleForm(rows[0]?.id));
   const [ownershipValues, setOwnershipValues] = useState<Record<string, string>>({});
   useEffect(() => { setOwnershipValues({}); }, [open, form.policyId]);
@@ -393,7 +346,7 @@ function AddVehicleDialog({ open, rows, onClose, onSaved }: { open: boolean; row
         specsJson: mergeVehicleOwnership(mergeVehicleSpecs(current.specsJson, specs), ownershipCreationChanges(ownershipValues, form.ownerCount), current.customerDisplay, current.customerVat ?? ""), replaceDetails: true
       });
     },
-    onSuccess: () => onSaved(form.plate.trim().toUpperCase()),
+    onSuccess: () => onSaved(form.plate.trim().toUpperCase(), form.policyId),
     onError: e => setError(extractErrorMessage(e))
   });
   const set = <K extends keyof AddVehicleForm>(key: K, value: AddVehicleForm[K]) => setForm(current => ({ ...current, [key]: value }));
@@ -401,7 +354,7 @@ function AddVehicleDialog({ open, rows, onClose, onSaved }: { open: boolean; row
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
       <DialogTitle>Προσθήκη οχήματος</DialogTitle>
       <DialogContent dividers>
-        {rows.length === 0 ? <Alert severity="info">Δεν υπάρχουν καταχωρημένα ασφαλιστήρια αυτοκινήτου για σύνδεση οχήματος.</Alert> : (
+        {loading ? <Box sx={{ p: 3, textAlign: "center" }}><CircularProgress /></Box> : loadError ? <Alert severity="error">{loadError}</Alert> : rows.length === 0 ? <Alert severity="info">Δεν υπάρχουν καταχωρημένα ασφαλιστήρια αυτοκινήτου για σύνδεση οχήματος.</Alert> : (
           <Stack spacing={1.25} sx={{ pt: 0.25 }}>
             <Alert severity="info" sx={{ py: 0.5 }}>Το όχημα συνδέεται με το επιλεγμένο ασφαλιστήριο. Τα στοιχεία μπορούν να συμπληρωθούν και αργότερα από την καρτέλα οχήματος.</Alert>
             <TextField select fullWidth label="Συμβόλαιο σύνδεσης" value={form.policyId} onChange={e => set("policyId", e.target.value)}>
@@ -431,7 +384,7 @@ function AddVehicleDialog({ open, rows, onClose, onSaved }: { open: boolean; row
       </DialogContent>
       <DialogActions>
         <Button color="error" variant="contained" onClick={onClose} sx={{ color: "#fff" }}>Ακύρωση</Button>
-        <Button color="success" variant="contained" onClick={() => save.mutate()} disabled={!form.policyId || !form.plate.trim() || save.isPending || rows.length === 0} sx={{ color: "#fff" }}>
+        <Button color="success" variant="contained" onClick={() => save.mutate()} disabled={loading || !!loadError || !form.policyId || !form.plate.trim() || save.isPending || rows.length === 0} sx={{ color: "#fff" }}>
           {save.isPending ? "Αποθήκευση…" : "Προσθήκη οχήματος"}
         </Button>
       </DialogActions>
@@ -439,21 +392,17 @@ function AddVehicleDialog({ open, rows, onClose, onSaved }: { open: boolean; row
   );
 }
 
-void LegacyCustomerVehiclesPage;
-
 export function CustomerVehiclesPage() {
   const qc = useQueryClient();
   const canWrite = usePermission("policies.write");
-  const [search, setSearch] = useState("");
-  const [companyFilter, setCompanyFilter] = useState("");
-  const [renewalFilter, setRenewalFilter] = useState("all");
-  const [selectedVehicle, setSelectedVehicle] = useState<{ plate: string; edit: boolean } | null>(null);
+  const defaults = { search: "", make: "", fuelType: "", use: "" };
+  const [filters, setFilters] = useState(defaults);
+  const [selectedVehicle, setSelectedVehicle] = useState<{ plate: string; policyIds: string[]; edit: boolean } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [statsOpen, setStatsOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  const [statsFocus, setStatsFocus] = useState<string | null>(null);
   const [deleteTargets, setDeleteTargets] = useState<DeletionTarget[] | null>(null);
   const [deleteResult, setDeleteResult] = useState<DeletionResult | null>(null);
   const [deleteCompleted, setDeleteCompleted] = useState(0);
@@ -467,31 +416,25 @@ export function CustomerVehiclesPage() {
     setExportAction(previous => ({ token: previous.token + 1, action }));
   };
   const q = useQuery({
-    queryKey: ["customer-vehicles-all"],
-    queryFn: async () => (await api.get<VehiclePolicyRow[]>("/policies", { params: { type: "Auto" } })).data
+    queryKey: ["customer-vehicles-all", "vehicle-register"],
+    queryFn: async () => (await api.get<VehicleRow[]>("/vehicles")).data,
   });
-
-  const sourceRows = q.data ?? [];
-  const companies = useMemo(() => [...new Set(sourceRows.map(row => row.insuranceCompanyName).filter(Boolean))].sort((a, b) => a.localeCompare(b, "el")), [sourceRows]);
-  const filteredRows = useMemo(() => {
-    const term = search.trim().toLocaleLowerCase("el-GR");
-    const now = Date.now();
-    return sourceRows.filter(row => {
-      if (!row.vehicleRegistrationPlate?.trim()) return false;
-      const haystack = [row.vehicleRegistrationPlate, row.customerDisplay, row.policyNumber, row.insuranceCompanyName, row.policyType].join(" ").toLocaleLowerCase("el-GR");
-      if (term && !haystack.includes(term)) return false;
-      if (companyFilter && row.insuranceCompanyName !== companyFilter) return false;
-      if (renewalFilter !== "all") {
-        const days = (new Date(row.endDate).getTime() - now) / 86400000;
-        if (renewalFilter === "30" && !(days >= 0 && days <= 30)) return false;
-        if (renewalFilter === "31-90" && !(days > 30 && days <= 90)) return false;
-        if (renewalFilter === "90" && !(days >= 0 && days <= 90)) return false;
-        if (renewalFilter === "expired" && days >= 0) return false;
-      }
-      return true;
-    });
-  }, [sourceRows, search, companyFilter, renewalFilter]);
-  useEffect(() => { setPage(0); }, [search, companyFilter, renewalFilter, rowsPerPage]);
+  // Contract choices belong only to the existing add/link dialog, never to the vehicle table.
+  const policyOptionsQ = useQuery({
+    queryKey: ["vehicle-policy-options"], enabled: addOpen,
+    queryFn: async () => (await api.get<VehiclePolicyRow[]>("/policies", { params: { type: "Auto" } })).data,
+  });
+  const policyOptions = useMemo(() => policyOptionsQ.data ?? [], [policyOptionsQ.data]);
+  const sourceRows = useMemo(() => q.data ?? [], [q.data]);
+  const filteredRows = useMemo(() => filterVehicleRegister(sourceRows, filters), [sourceRows, filters]);
+  const update = (key: keyof typeof filters, value: string) => {
+    setFilters(previous => ({ ...previous, [key]: value })); setPage(0);
+  };
+  const resetFilters = () => {
+    setFilters(defaults); setSelectedIds(new Set()); setPage(0);
+    setClearSavedFilterRequest(value => value + 1);
+  };
+  useEffect(() => { setPage(0); }, [filters, rowsPerPage]);
   const filteredIdsKey = JSON.stringify(filteredRows.map(row => row.id));
   useEffect(() => {
     const visible = new Set<string>(JSON.parse(filteredIdsKey));
@@ -502,244 +445,157 @@ export function CustomerVehiclesPage() {
   }, [filteredIdsKey]);
   const visiblePage = Math.min(page, Math.max(0, Math.ceil(filteredRows.length / rowsPerPage) - 1));
   const pageRows = filteredRows.slice(visiblePage * rowsPerPage, visiblePage * rowsPerPage + rowsPerPage);
-  const uniquePlates = new Set(filteredRows.map(row => row.vehicleRegistrationPlate).filter(Boolean)).size;
-  const expiring = filteredRows.filter(row => {
-    const days = (new Date(row.endDate).getTime() - Date.now()) / 86400000;
-    return days >= 0 && days <= 30;
-  }).length;
-  const totalPremium = filteredRows.reduce((sum, row) => sum + (Number(row.premium) || 0), 0);
   const allPageSelected = pageRows.length > 0 && pageRows.every(row => selectedIds.has(row.id));
   const somePageSelected = pageRows.some(row => selectedIds.has(row.id));
   const selectedRows = filteredRows.filter(row => selectedIds.has(row.id));
   const selectedCount = selectedRows.length;
-  const companyStats = useMemo(() => {
-    const map = new Map<string, { contracts: number; plates: Set<string> }>();
-    for (const row of filteredRows) {
-      const item = map.get(row.insuranceCompanyName) ?? { contracts: 0, plates: new Set<string>() };
-      item.contracts += 1;
-      if (row.vehicleRegistrationPlate) item.plates.add(row.vehicleRegistrationPlate);
-      map.set(row.insuranceCompanyName, item);
-    }
-    return [...map.entries()].sort((a, b) => b[1].contracts - a[1].contracts);
-  }, [filteredRows]);
-  const typeStats = useMemo(() => {
-    const map = new Map<string, { contracts: number; premium: number }>();
-    for (const row of filteredRows) {
-      const key = row.policyType || "Χωρίς κλάδο";
-      const current = map.get(key) ?? { contracts: 0, premium: 0 };
-      current.contracts += 1;
-      current.premium += Number(row.premium) || 0;
-      map.set(key, current);
-    }
-    return [...map.entries()].map(([name, value]) => ({ name, ...value })).sort((a, b) => b.contracts - a.contracts);
-  }, [filteredRows]);
-  const expiryStats = useMemo(() => {
-    const now = Date.now();
-    const buckets = new Map([
-      ["expired", { name: "Ληγμένα", value: 0, filter: "expired" }],
-      ["30", { name: "Έως 30 ημέρες", value: 0, filter: "30" }],
-      ["31-90", { name: "31–90 ημέρες", value: 0, filter: "31-90" }],
-      ["later", { name: "Πάνω από 90 ημέρες", value: 0, filter: null }]
-    ]);
-    for (const row of filteredRows) {
-      const days = (new Date(row.endDate).getTime() - now) / 86400000;
-      const bucket = days < 0 ? buckets.get("expired") : days <= 30 ? buckets.get("30") : days <= 90 ? buckets.get("31-90") : buckets.get("later");
-      if (bucket) bucket.value += 1;
-    }
-    return [...buckets.values()];
-  }, [filteredRows]);
-  const monthlyExpiryStats = useMemo(() => {
-    const map = new Map<string, { label: string; contracts: number; premium: number; sort: number }>();
-    for (const row of filteredRows) {
-      const date = new Date(row.endDate);
-      if (Number.isNaN(date.getTime())) continue;
-      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-      const current = map.get(key) ?? { label: date.toLocaleDateString("el-GR", { month: "short", year: "numeric" }), contracts: 0, premium: 0, sort: date.getTime() };
-      current.contracts += 1;
-      current.premium += Number(row.premium) || 0;
-      map.set(key, current);
-    }
-    return [...map.values()].sort((a, b) => a.sort - b.sort).slice(0, 12);
-  }, [filteredRows]);
-  const applyChartFilter = (kind: "company" | "expiry", value: string) => {
-    if (kind === "company") setCompanyFilter(value);
-    if (kind === "expiry") setRenewalFilter(value);
-    setStatsFocus(`${kind}:${value}`);
+  const options = (key: "make" | "fuelType" | "use") => [...new Set(sourceRows.map(row => row[key]).filter((value): value is string => !!value))].sort((a, b) => a.localeCompare(b, "el"));
+  const stats = (key: "make" | "fuelType") => {
+    const counts = new Map<string, number>();
+    filteredRows.forEach(row => { const label = row[key] || "Δεν έχει οριστεί"; counts.set(label, (counts.get(label) ?? 0) + 1); });
+    return [...counts].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+  };
+  const invalidateVehicles = () => {
+    for (const key of [["customer-vehicles-all"], ["customer-vehicles"], ["vehicle-detail"], ["vehicle-policy-options"], ["policies"], ["policy-detail"]])
+      void qc.invalidateQueries({ queryKey: key });
   };
   const clearVehicle = useMutation({
-    mutationFn: (targets: DeletionTarget[]) => deleteSelectedRecords(targets,
-      id => api.patch(`/policies/${id}/vehicle`, { clearVehicleRegistrationPlate: true }), extractErrorMessage, setDeleteCompleted),
+    mutationFn: (targets: DeletionTarget[]) => deleteSelectedRecords(targets, id => {
+      const vehicle = sourceRows.find(row => row.id === id);
+      if (!vehicle) throw new Error("Το όχημα δεν είναι πλέον διαθέσιμο. Ανανεώστε τη λίστα.");
+      // The existing protected endpoint prevents detaching an entire vehicle's history.
+      return api.patch(`/policies/${vehicle.primaryPolicyId}/vehicle`, { clearVehicleRegistrationPlate: true });
+    }, extractErrorMessage, setDeleteCompleted),
     onSuccess: result => {
       setSelectedIds(previous => selectPageRecords(previous, result.deletedIds, false));
       if (result.deletedIds.length) {
-        setDeleteSuccess(`Διαγράφηκαν επιτυχώς ${result.deletedIds.length} εγγραφές οχημάτων.`);
-        for (const key of [["customer-vehicles-all"], ["customer-vehicles"], ["vehicle-detail"], ["policies"], ["policy-detail"]]) void qc.invalidateQueries({ queryKey: key });
+        setDeleteSuccess(`Διαγράφηκαν επιτυχώς ${result.deletedIds.length} οχήματα.`);
+        invalidateVehicles();
       }
       if (result.failures.length) setDeleteResult(result);
       else setDeleteTargets(null);
-    }
+    },
   });
   const requestDelete = (ids: string[]) => {
     if (!canWrite || clearVehicle.isPending) return;
-    const targets = filteredRows.filter(row => ids.includes(row.id)).map(row => ({ id: row.id,
-      label: `${row.vehicleRegistrationPlate} · ${row.policyNumber} · ${row.customerDisplay ?? "Πελάτης"}` }));
+    const targets = filteredRows.filter(row => ids.includes(row.id)).map(row => ({ id: row.id, label: `${row.plate} · ${vehicleOwnerText(row)}` }));
     if (!targets.length) return;
     clearVehicle.reset(); setDeleteResult(null); setDeleteCompleted(0); setDeleteTargets(targets);
   };
-  const exportColumns = [
-    { key: "vehicleRegistrationPlate", label: "Πινακίδα", map: (row: VehiclePolicyRow) => row.vehicleRegistrationPlate ?? "—" },
-    { key: "customerDisplay", label: "Πελάτης", map: (row: VehiclePolicyRow) => row.customerDisplay ?? "Πελάτης" },
-    { key: "policyNumber", label: "Συμβόλαιο" },
-    { key: "insuranceCompanyName", label: "Ασφαλιστική" },
-    { key: "startDate", label: "Έναρξη" },
-    { key: "endDate", label: "Λήξη" },
-    { key: "premium", label: "Ασφάλιστρο", map: (row: VehiclePolicyRow) => `${row.premium?.toLocaleString("el-GR", { minimumFractionDigits: 2 }) ?? "—"} ${row.currency}` },
-  ];
-  const exportSubtitle = [search && `Αναζήτηση: ${search}`, companyFilter && `Ασφαλιστική: ${companyFilter}`,
-    renewalFilter !== "all" && `Λήξη: ${{ "30": "Σε 30 ημέρες", "31-90": "31–90 ημέρες", "90": "Σε 90 ημέρες", expired: "Ληγμένα" }[renewalFilter] ?? renewalFilter}`].filter(Boolean).join(" · ");
-  const resetFilters = () => { setSearch(""); setCompanyFilter(""); setRenewalFilter("all"); setSelectedIds(new Set()); setPage(0); setClearSavedFilterRequest(value => value + 1); };
+  const openVehicle = (row: VehicleRow, edit = false) => setSelectedVehicle({ plate: row.plate, policyIds: row.policyIds, edit });
+  const exportSubtitle = [
+    filters.search && `Αναζήτηση: ${filters.search}`, filters.make && `Μάρκα: ${filters.make}`,
+    filters.fuelType && `Καύσιμο: ${filters.fuelType}`, filters.use && `Χρήση: ${vehicleUseLabel(filters.use)}`,
+  ].filter(Boolean).join(" · ");
   if (q.isLoading) return <Box sx={{ p: 6, textAlign: "center" }}><CircularProgress /></Box>;
   if (q.isError) return <Alert severity="error">{extractErrorMessage(q.error)}</Alert>;
 
-  return <Stack spacing={1.5}>
-    <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" gap={1} alignItems={{ md: "center" }}>
-      <Box><Typography variant="h4" fontWeight={800}>Οχήματα πελατών</Typography><Typography color="text.secondary">Κεντρική αναζήτηση, φίλτρα, στατιστικά και ενέργειες για όλα τα οχήματα των συμβολαίων.</Typography></Box>
+  return <Stack spacing={1}>
+    <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" gap={1} alignItems={{ sm: "center" }}>
+      <Stack direction="row" alignItems="center" gap={1}><DirectionsCarIcon color="primary" /><Typography variant="h5" fontWeight={800}>Οχήματα</Typography><RecordCountChip count={filteredRows.length} /></Stack>
       <Box>
         <Button variant="contained" startIcon={<MoreHorizIcon />} endIcon={<KeyboardArrowDownIcon />}
-          onClick={event => setActionsAnchor(event.currentTarget)} aria-haspopup="menu" aria-expanded={Boolean(actionsAnchor)}>
-          Ενέργειες
-        </Button>
+          onClick={event => setActionsAnchor(event.currentTarget)} aria-haspopup="menu" aria-expanded={Boolean(actionsAnchor)}>Ενέργειες</Button>
         <Menu anchorEl={actionsAnchor} open={Boolean(actionsAnchor)} onClose={() => setActionsAnchor(null)}
           anchorOrigin={{ vertical: "bottom", horizontal: "right" }} transformOrigin={{ vertical: "top", horizontal: "right" }}
-          slotProps={{ paper: { sx: { minWidth: 285, maxWidth: "calc(100vw - 24px)" } } }}>
-          <MenuItem onClick={() => { setActionsAnchor(null); setAddOpen(true); }} sx={{ color: "#0877c9", "&:hover": { bgcolor: "#e7f2fd" } }}>
-            <ListItemIcon sx={{ color: "#0877c9" }}><AddIcon fontSize="small" /></ListItemIcon><ListItemText primary="Προσθήκη οχήματος" />
+          slotProps={{ paper: { sx: { minWidth: 260, maxWidth: "calc(100vw - 24px)" } } }}>
+          <MenuItem disabled={!canWrite} onClick={() => { setActionsAnchor(null); setAddOpen(true); }} sx={{ color: "#0877c9" }}>
+            <ListItemIcon sx={{ color: "inherit" }}><AddIcon fontSize="small" /></ListItemIcon><ListItemText primary="Προσθήκη οχήματος" />
           </MenuItem>
-          <MenuItem onClick={() => { setActionsAnchor(null); setStatsFocus(null); setStatsOpen(true); }} sx={{ color: "#5b55a5", "&:hover": { bgcolor: "#efedfb" } }}>
-            <ListItemIcon sx={{ color: "#5b55a5" }}><DirectionsCarIcon fontSize="small" /></ListItemIcon><ListItemText primary="Στατιστικά οχημάτων" />
+          <MenuItem onClick={() => { setActionsAnchor(null); setStatsOpen(true); }} sx={{ color: "#5b55a5" }}>
+            <ListItemIcon sx={{ color: "inherit" }}><DirectionsCarIcon fontSize="small" /></ListItemIcon><ListItemText primary="Στατιστικά οχημάτων" />
           </MenuItem>
-          <MenuItem onClick={() => { setActionsAnchor(null); setSaveFilterRequest(value => value + 1); }} sx={{ color: "#0b5cad", "&:hover": { bgcolor: "#e7f1fc" } }}>
-            <ListItemIcon sx={{ color: "#0b5cad" }}><BookmarkAddIcon fontSize="small" /></ListItemIcon><ListItemText primary="Αποθήκευση νέου φίλτρου" />
+          <MenuItem onClick={() => { setActionsAnchor(null); setSaveFilterRequest(value => value + 1); }} sx={{ color: "#0b5cad" }}>
+            <ListItemIcon sx={{ color: "inherit" }}><BookmarkAddIcon fontSize="small" /></ListItemIcon><ListItemText primary="Αποθήκευση νέου φίλτρου" />
           </MenuItem>
           <Divider />
           {([['csv', 'Εξαγωγή CSV', DownloadIcon, '#087f73'], ['xlsx', 'Εξαγωγή Excel', GridOnIcon, '#167c45'], ['pdf', 'Εξαγωγή PDF', PictureAsPdfIcon, '#c73545'], ['print', 'Εκτύπωση', PrintIcon, '#456b91'], ['columns', 'Στήλες εξαγωγής', ViewColumnIcon, '#5b55a5']] as const).map(([action, label, Icon, color]) => <MenuItem key={action} onClick={() => runExport(action)} sx={{ color }}><ListItemIcon sx={{ color: "inherit" }}><Icon fontSize="small" /></ListItemIcon><ListItemText primary={label} /></MenuItem>)}
-          <Divider /><MenuItem disabled={!canWrite || !selectedCount || clearVehicle.isPending} onClick={() => { setActionsAnchor(null); requestDelete(selectedRows.map(row => row.id)); }} sx={{ color: "#c73545", "&:hover": { bgcolor: "#fdecef" } }}>
-            <ListItemIcon sx={{ color: "#c73545" }}><DeleteOutlineIcon fontSize="small" /></ListItemIcon><ListItemText primary={`Διαγραφή επιλεγμένων (${selectedCount})`} secondary="Με έλεγχο συσχετίσεων και ιστορικού" />
+          <Divider />
+          <MenuItem disabled={!canWrite || !selectedCount || clearVehicle.isPending} onClick={() => { setActionsAnchor(null); requestDelete(selectedRows.map(row => row.id)); }} sx={{ color: "#c73545" }}>
+            <ListItemIcon sx={{ color: "inherit" }}><DeleteOutlineIcon fontSize="small" /></ListItemIcon><ListItemText primary={`Διαγραφή επιλεγμένων (${selectedCount})`} secondary="Με έλεγχο συσχετίσεων και ιστορικού" />
           </MenuItem>
         </Menu>
       </Box>
     </Stack>
-    <Card variant="outlined" sx={{ p: 1 }}>
+    <Card variant="outlined" sx={{ p: 1, bgcolor: "#edf2f7" }}>
       <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }} flexWrap="wrap" useFlexGap>
-        <TextField size="small" value={search} onChange={e => setSearch(e.target.value)} placeholder="Αναζήτηση πινακίδας, πελάτη, συμβολαίου ή ασφαλιστικής" InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }} sx={{ flex: 1, minWidth: { md: 260 } }} />
-        <TextField select size="small" label="Ασφαλιστική" value={companyFilter} onChange={e => setCompanyFilter(e.target.value)} sx={{ minWidth: 180 }}><MenuItem value="">Όλες</MenuItem>{companies.map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}</TextField>
-        <TextField select size="small" label="Λήξη" value={renewalFilter} onChange={e => setRenewalFilter(e.target.value)} sx={{ minWidth: 145 }}><MenuItem value="all">Όλες</MenuItem><MenuItem value="30">Σε 30 ημέρες</MenuItem><MenuItem value="31-90">31–90 ημέρες</MenuItem><MenuItem value="90">Σε 90 ημέρες</MenuItem><MenuItem value="expired">Ληγμένα</MenuItem></TextField>
-        <SavedReportsButton entity="vehicles" currentFilters={{ search, companyFilter, renewalFilter }}
-          onLoad={next => { setSearch(next.search ?? ""); setCompanyFilter(next.companyFilter ?? ""); setRenewalFilter(next.renewalFilter ?? "all"); }}
-          onClear={resetFilters} clearRequestToken={clearSavedFilterRequest}
-          saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />
+        <TextField size="small" value={filters.search} onChange={event => update("search", event.target.value)} label="Αναζήτηση οχήματος ή ιδιοκτήτη"
+          placeholder="Πινακίδα, ιδιοκτήτης, μάρκα, μοντέλο, VIN, ΑΦΜ…"
+          InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }} sx={{ flex: { xs: "0 0 auto", md: "1 1 260px" }, minWidth: 0, width: { xs: "100%", md: "auto" } }} />
+        {([["make", "Μάρκα"], ["fuelType", "Καύσιμο"], ["use", "Χρήση"]] as const).map(([key, label]) =>
+          <TextField key={key} select size="small" label={label} value={filters[key]} onChange={event => update(key, event.target.value)} sx={{ width: { xs: "100%", md: 150 }, flexShrink: 0 }}>
+            <MenuItem value="">Όλα</MenuItem>{options(key).map(value => <MenuItem key={value} value={value}>{key === "use" ? vehicleUseLabel(value) : value}</MenuItem>)}
+          </TextField>)}
+        <SavedReportsButton entity="vehicles" currentFilters={filters}
+          onLoad={next => { setFilters({ search: typeof next.search === "string" ? next.search : "", make: typeof next.make === "string" ? next.make : "", fuelType: typeof next.fuelType === "string" ? next.fuelType : "", use: typeof next.use === "string" ? next.use : "" }); setPage(0); }}
+          onClear={resetFilters} clearRequestToken={clearSavedFilterRequest} saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />
         <Button size="small" color="error" variant="contained" onClick={resetFilters}>Καθαρισμός</Button>
       </Stack>
     </Card>
-    <TableToolbar<VehiclePolicyRow> query="" onQuery={() => {}} count={sourceRows.length} filteredCount={filteredRows.length}
+    <TableToolbar<VehicleRow> query="" onQuery={() => {}} count={sourceRows.length} filteredCount={filteredRows.length}
       pageSize={rowsPerPage} onPageSize={setRowsPerPage} hideSearch hideCount hidePageSize hideActionButtons snapshotExport
-      exportRows={filteredRows} exportColumns={exportColumns} exportFileName="vehicles" printTitle="Οχήματα"
-      printSubtitle={exportSubtitle} columnSelectionId="vehicles" actionRequest={exportAction} />
+      exportRows={filteredRows} exportColumns={vehicleRegisterColumns} exportFileName="vehicles" printTitle="Οχήματα"
+      printSubtitle={exportSubtitle} columnSelectionId="vehicle-register" actionRequest={exportAction} />
     {selectedCount > 0 && <Stack direction="row" flexWrap="wrap" useFlexGap spacing={1} alignItems="center">
       <Chip size="small" label={`${selectedCount} επιλεγμένα`} sx={{ bgcolor: "#102d55", color: "#fff", fontWeight: 750 }} />
       <Button size="small" variant="contained" color="error" startIcon={<DeleteOutlineIcon />} disabled={!canWrite || clearVehicle.isPending} onClick={() => requestDelete(selectedRows.map(row => row.id))}>Διαγραφή επιλεγμένων ({selectedCount})</Button>
       <Button size="small" disabled={clearVehicle.isPending} onClick={() => setSelectedIds(new Set())}>Καθαρισμός επιλογής</Button>
       {selectedCount < filteredRows.length && <Button size="small" disabled={clearVehicle.isPending} onClick={() => setSelectedIds(new Set(filteredRows.map(row => row.id)))}>Επιλογή όλων των αποτελεσμάτων ({filteredRows.length})</Button>}
     </Stack>}
-    {filteredRows.length === 0 ? <Alert severity="info"><DirectionsCarIcon sx={{ verticalAlign: "middle", mr: 1 }} />Δεν βρέθηκαν οχήματα με τα συγκεκριμένα φίλτρα.</Alert> : <Card variant="outlined" sx={{ overflowX: "auto" }}>
-      <Table size="small">
-        <TableHead><TableRow><TableCell padding="checkbox"><Checkbox size="small" checked={allPageSelected} indeterminate={somePageSelected && !allPageSelected} disabled={!pageRows.length || clearVehicle.isPending} inputProps={{ "aria-label": "Επιλογή όλων των οχημάτων αυτής της σελίδας" }} onChange={(_event, checked) => setSelectedIds(previous => selectPageRecords(previous, pageRows.map(row => row.id), checked))} /></TableCell><TableCell>Πινακίδα</TableCell><TableCell>Πελάτης</TableCell><TableCell>Συμβόλαιο</TableCell><TableCell>Ασφαλιστική</TableCell><TableCell>Έναρξη</TableCell><TableCell>Λήξη</TableCell><TableCell align="right">Ασφάλιστρο</TableCell><TableCell align="right">Ενέργειες</TableCell></TableRow></TableHead>
-        <TableBody>{pageRows.map(row => <TableRow key={row.id} hover selected={selectedIds.has(row.id)} onClick={() => setSelectedVehicle({ plate: row.vehicleRegistrationPlate ?? "", edit: false })} sx={{ cursor: "pointer" }}>
-          <TableCell padding="checkbox" onClick={event => event.stopPropagation()}><Checkbox size="small" checked={selectedIds.has(row.id)} disabled={clearVehicle.isPending} inputProps={{ "aria-label": `Επιλογή οχήματος ${row.vehicleRegistrationPlate} · ${row.policyNumber}` }} onChange={(_event, checked) => setSelectedIds(previous => selectPageRecords(previous, [row.id], checked))} /></TableCell>
-          <TableCell sx={{ fontFamily: "monospace", fontWeight: 800 }}>{row.vehicleRegistrationPlate ?? "—"}</TableCell>
-          <TableCell>
-            <Tooltip title="Άνοιγμα καρτέλας πελάτη — δεν ανοίγει την καρτέλα οχήματος" arrow>
-              <Button
-                component={RouterLink}
-                to={`/app/customers/${row.customerId}`}
-                size="small"
-                onClick={event => event.stopPropagation()}
-                sx={{
-                  fontWeight: 700,
-                  borderRadius: 1,
-                  transition: "background-color .15s ease, color .15s ease, box-shadow .15s ease",
-                  "&:hover": { bgcolor: "success.main", color: "#fff", boxShadow: 2 },
-                }}
-              >
-                {row.customerDisplay ?? "Πελάτης"}
-              </Button>
-            </Tooltip>
-          </TableCell>
-          <TableCell>
-            <Tooltip title="Άνοιγμα καρτέλας συμβολαίου — δεν ανοίγει την καρτέλα οχήματος" arrow>
-              <Button
-                component={RouterLink}
-                to={`/app/policies?focus=${row.id}`}
-                size="small"
-                onClick={event => event.stopPropagation()}
-                sx={{
-                  fontWeight: 700,
-                  borderRadius: 1,
-                  transition: "background-color .15s ease, color .15s ease, box-shadow .15s ease",
-                  "&:hover": { bgcolor: "success.main", color: "#fff", boxShadow: 2 },
-                }}
-              >
-                {row.policyNumber}
-              </Button>
-            </Tooltip>
-          </TableCell>
-          <TableCell>{row.insuranceCompanyName}</TableCell><TableCell>{row.startDate}</TableCell><TableCell>{row.endDate}</TableCell>
-          <TableCell align="right">{row.premium?.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {row.currency}</TableCell>
-          <TableCell align="right"><Stack direction="row" justifyContent="flex-end" spacing={0.25}><Tooltip title="Προεπισκόπηση καρτέλας οχήματος" arrow><IconButton size="small" color="info" onClick={event => { event.stopPropagation(); setSelectedVehicle({ plate: row.vehicleRegistrationPlate ?? "", edit: false }); }}><VisibilityIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Επεξεργασία οχήματος" arrow><IconButton size="small" color="success" onClick={event => { event.stopPropagation(); setSelectedVehicle({ plate: row.vehicleRegistrationPlate ?? "", edit: true }); }}><EditIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Διαγραφή οχήματος — έλεγχος συσχετίσεων" arrow><IconButton size="small" color="error" disabled={!canWrite || clearVehicle.isPending} onClick={event => { event.stopPropagation(); requestDelete([row.id]); }}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip></Stack></TableCell>
-        </TableRow>)}</TableBody>
-      </Table>
-      <TablePagination component="div" count={filteredRows.length} page={visiblePage} onPageChange={(_, next) => setPage(next)} rowsPerPage={rowsPerPage} onRowsPerPageChange={event => { setRowsPerPage(Number(event.target.value)); setPage(0); }} rowsPerPageOptions={[10, 25, 50, 100]} labelRowsPerPage="Ανά σελίδα" labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`} />
+    {filteredRows.length === 0 ? <Alert severity="info">Δεν βρέθηκαν οχήματα με τα συγκεκριμένα φίλτρα.</Alert> : <Card variant="outlined" sx={{ overflow: "hidden" }}>
+      <TableContainer sx={{ maxHeight: "70vh", overflow: "auto" }}>
+        <Table size="small" stickyHeader aria-label="Μητρώο οχημάτων" sx={{ minWidth: 1150, "& th": { bgcolor: "#e9eef4", fontWeight: 800 }, "& td": { borderColor: "#dfe5ed" }, "& tbody tr:nth-of-type(even)": { bgcolor: "#f0f2f5" } }}>
+          <TableHead><TableRow>
+            <TableCell padding="checkbox"><Checkbox size="small" checked={allPageSelected} indeterminate={somePageSelected && !allPageSelected} disabled={!pageRows.length || clearVehicle.isPending}
+              inputProps={{ "aria-label": "Επιλογή όλων των οχημάτων αυτής της σελίδας" }} onChange={(_event, checked) => setSelectedIds(previous => selectPageRecords(previous, pageRows.map(row => row.id), checked))} /></TableCell>
+            {vehicleRegisterColumns.map(column => <TableCell key={column.key} sx={{ whiteSpace: "nowrap" }}>{column.label}</TableCell>)}
+            <TableCell align="right">Ενέργειες</TableCell>
+          </TableRow></TableHead>
+          <TableBody>{pageRows.map(row => <TableRow key={row.id} hover selected={selectedIds.has(row.id)} onClick={() => openVehicle(row)} sx={{ cursor: "pointer" }}>
+            <TableCell padding="checkbox" onClick={event => event.stopPropagation()}><Checkbox size="small" checked={selectedIds.has(row.id)} disabled={clearVehicle.isPending}
+              inputProps={{ "aria-label": `Επιλογή οχήματος ${row.plate}` }} onChange={(_event, checked) => setSelectedIds(previous => selectPageRecords(previous, [row.id], checked))} /></TableCell>
+            {vehicleRegisterColumns.map(column => <TableCell key={column.key} sx={column.key === "plate" ? { fontFamily: "monospace", fontWeight: 800, whiteSpace: "nowrap" } : undefined}>
+              {column.key === "owners" ? <Stack spacing={.2}>{row.owners.map((owner, index) => <Box key={index}>
+                {owner.customerId ? <Button component={RouterLink} to={`/app/customers/${owner.customerId}`} size="small" onClick={event => event.stopPropagation()}
+                  sx={{ p: 0, minWidth: 0, textAlign: "left", fontWeight: 700 }}>{owner.name || "Χωρίς όνομα"}</Button> : owner.name || "Χωρίς όνομα"}
+                {owner.percentage != null && <Typography component="span" variant="caption" sx={{ ml: .5 }}>({owner.percentage.toLocaleString("el-GR")}%)</Typography>}
+              </Box>)}</Stack> : column.map ? column.map(row) : row.plate}
+            </TableCell>)}
+            <TableCell align="right"><Stack direction="row" justifyContent="flex-end" spacing={.25}>
+              <Tooltip title="Προβολή οχήματος"><IconButton size="small" color="info" onClick={event => { event.stopPropagation(); openVehicle(row); }}><VisibilityIcon fontSize="small" /></IconButton></Tooltip>
+              <Tooltip title="Επεξεργασία οχήματος"><span><IconButton size="small" color="success" disabled={!canWrite} onClick={event => { event.stopPropagation(); openVehicle(row, true); }}><EditIcon fontSize="small" /></IconButton></span></Tooltip>
+              <Tooltip title="Διαγραφή οχήματος — έλεγχος συσχετίσεων"><span><IconButton size="small" color="error" disabled={!canWrite || clearVehicle.isPending} onClick={event => { event.stopPropagation(); requestDelete([row.id]); }}><DeleteOutlineIcon fontSize="small" /></IconButton></span></Tooltip>
+            </Stack></TableCell>
+          </TableRow>)}</TableBody>
+        </Table>
+      </TableContainer>
+      <TablePagination component="div" count={filteredRows.length} page={visiblePage} onPageChange={(_, next) => setPage(next)} rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={event => { setRowsPerPage(Number(event.target.value)); setPage(0); }} rowsPerPageOptions={[10, 25, 50, 100]} labelRowsPerPage="Ανά σελίδα" labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`} />
     </Card>}
-    <VehicleDetailDialog open={selectedVehicle !== null} plate={selectedVehicle?.plate ?? ""} initialEditing={selectedVehicle?.edit ?? false} policyIds={sourceRows.filter(row => (row.vehicleRegistrationPlate ?? "") === (selectedVehicle?.plate ?? "")).map(row => row.id)} onClose={() => setSelectedVehicle(null)} />
-    <AddVehicleDialog open={addOpen} rows={sourceRows} onClose={() => setAddOpen(false)} onSaved={plate => { setAddOpen(false); setSelectedVehicle({ plate, edit: false }); void qc.invalidateQueries({ queryKey: ["customer-vehicles-all"] }); void qc.invalidateQueries({ queryKey: ["customer-vehicles"] }); }} />
-    <Dialog open={statsOpen} onClose={() => setStatsOpen(false)} fullWidth maxWidth="lg">
-      <DialogTitle sx={{ pb: 1 }}>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} justifyContent="space-between" alignItems={{ sm: "center" }}>
-          <Box><Typography variant="h6" fontWeight={900}>Στατιστικά οχημάτων</Typography><Typography variant="body2" color="text.secondary">Ζωντανή εικόνα των {filteredRows.length} εγγραφών που ταιριάζουν στα τρέχοντα φίλτρα.</Typography></Box>
-          {statsFocus && <Button size="small" color="error" onClick={() => { setStatsFocus(null); resetFilters(); }}>Καθαρισμός φίλτρου γραφήματος</Button>}
-        </Stack>
-      </DialogTitle>
+    <VehicleDetailDialog open={selectedVehicle !== null} plate={selectedVehicle?.plate ?? ""} initialEditing={selectedVehicle?.edit ?? false}
+      policyIds={selectedVehicle?.policyIds ?? []} onClose={() => setSelectedVehicle(null)} />
+    <AddVehicleDialog open={addOpen} rows={policyOptions} loading={policyOptionsQ.isLoading} error={policyOptionsQ.isError ? extractErrorMessage(policyOptionsQ.error) : null}
+      onClose={() => setAddOpen(false)} onSaved={(plate, policyId) => { setAddOpen(false); setSelectedVehicle({ plate, policyIds: [policyId], edit: false }); invalidateVehicles(); }} />
+    <Dialog open={statsOpen} onClose={() => setStatsOpen(false)} fullWidth maxWidth="md">
+      <DialogTitle>Στατιστικά οχημάτων</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={1.5}>
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }, gap: 1 }}>{[["Συμβόλαια", filteredRows.length], ["Πινακίδες", uniquePlates], ["Λήξεις 30 ημερών", expiring], ["Ασφάλιστρα", money(totalPremium)]].map(([label, value]) => <Card key={String(label)} variant="outlined" sx={{ p: 1.25, bgcolor: "#f7f9fc" }}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography fontWeight={900}>{value}</Typography></Card>)}</Box>
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }, gap: 1.5 }}>
-            <Card variant="outlined" sx={{ p: 1.25 }}>
-              <Typography variant="subtitle2" fontWeight={900}>Συμβόλαια ανά ασφαλιστική</Typography>
-              <Typography variant="caption" color="text.secondary">Κλικ σε μπάρα για εφαρμογή φίλτρου ασφαλιστικής.</Typography>
-              <Box sx={{ height: 250, mt: 0.5 }}>
-                {companyStats.length === 0 ? <Typography color="text.secondary" sx={{ p: 2 }}>Δεν υπάρχουν δεδομένα.</Typography> : <ResponsiveContainer width="100%" height="100%"><BarChart data={companyStats.map(([name, value]) => ({ name, contracts: value.contracts }))} margin={{ top: 8, right: 8, left: -12, bottom: 8 }} onClick={event => { const chartEvent = event as unknown as { activePayload?: Array<{ payload?: { name?: string } }> }; const name = chartEvent.activePayload?.[0]?.payload?.name; if (name) applyChartFilter("company", name); }}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-18} textAnchor="end" height={55} /><YAxis allowDecimals={false} /><ChartTooltip /><Bar dataKey="contracts" name="Συμβόλαια" fill="#0b5cad" radius={[5, 5, 0, 0]} /></BarChart></ResponsiveContainer>}
-              </Box>
-            </Card>
-            <Card variant="outlined" sx={{ p: 1.25 }}>
-              <Typography variant="subtitle2" fontWeight={900}>Λήξεις ανά χρονικό διάστημα</Typography>
-              <Typography variant="caption" color="text.secondary">Παρακολούθηση άμεσων ανανεώσεων και ληγμένων.</Typography>
-              <Box sx={{ height: 250, mt: 0.5 }}>
-                <ResponsiveContainer width="100%" height="100%"><BarChart data={expiryStats} margin={{ top: 8, right: 8, left: -12, bottom: 8 }} onClick={event => { const chartEvent = event as unknown as { activePayload?: Array<{ payload?: { filter?: string | null } }> }; const item = chartEvent.activePayload?.[0]?.payload; if (item?.filter) applyChartFilter("expiry", item.filter); }}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-14} textAnchor="end" height={52} /><YAxis allowDecimals={false} /><ChartTooltip /><Bar dataKey="value" name="Συμβόλαια" radius={[5, 5, 0, 0]}>{expiryStats.map((entry, index) => <Cell key={entry.name} fill={index === 0 ? "#c62828" : index === 1 ? "#ed6c02" : index === 2 ? "#f9a825" : "#2e7d32"} />)}</Bar></BarChart></ResponsiveContainer>
-              </Box>
-            </Card>
-            <Card variant="outlined" sx={{ p: 1.25 }}>
-              <Typography variant="subtitle2" fontWeight={900}>Μηνιαία εικόνα λήξεων και ασφαλίστρων</Typography>
-              <Typography variant="caption" color="text.secondary">Υπολογίζεται αυτόματα από τις ημερομηνίες λήξης.</Typography>
-              <Box sx={{ height: 250, mt: 0.5 }}>
-                {monthlyExpiryStats.length === 0 ? <Typography color="text.secondary" sx={{ p: 2 }}>Δεν υπάρχουν έγκυρες ημερομηνίες.</Typography> : <ResponsiveContainer width="100%" height="100%"><LineChart data={monthlyExpiryStats} margin={{ top: 8, right: 12, left: -12, bottom: 8 }}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="label" tick={{ fontSize: 11 }} /><YAxis yAxisId="left" allowDecimals={false} /><YAxis yAxisId="right" orientation="right" /><ChartTooltip formatter={(value, name) => [name === "premium" ? money(Number(value)) : value, name === "premium" ? "Ασφάλιστρα" : "Συμβόλαια"]} /><Legend formatter={name => name === "premium" ? "Ασφάλιστρα" : "Συμβόλαια"} /><Line yAxisId="left" type="monotone" dataKey="contracts" name="Συμβόλαια" stroke="#0b5cad" strokeWidth={3} dot /><Line yAxisId="right" type="monotone" dataKey="premium" name="premium" stroke="#2e7d32" strokeWidth={2} dot /></LineChart></ResponsiveContainer>}
-              </Box>
-            </Card>
+          <Typography variant="body2" color="text.secondary">Κάθε όχημα υπολογίζεται μία φορά, ανεξάρτητα από το πλήθος συμβολαίων του.</Typography>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }, gap: 1 }}>
+            {[["Οχήματα", filteredRows.length], ["Ιδιοκτήτες", new Set(filteredRows.flatMap(row => row.owners.map(owner => owner.vatNumber || owner.customerId || owner.name).filter(Boolean))).size],
+              ["Με καταχωρημένο VIN", filteredRows.filter(row => row.vin).length], ["Μάρκες", new Set(filteredRows.map(row => row.make).filter(Boolean)).size]].map(([label, value]) =>
+                <Card key={String(label)} variant="outlined" sx={{ p: 1.25, bgcolor: "#edf2f7" }}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography fontWeight={900}>{value}</Typography></Card>)}
           </Box>
-          <Card variant="outlined" sx={{ p: 1.25 }}>
-            <Typography variant="subtitle2" fontWeight={900} sx={{ mb: 0.75 }}>Κλάδοι οχημάτων</Typography>
-            {typeStats.length === 0 ? <Typography color="text.secondary">Δεν υπάρχουν δεδομένα κλάδων.</Typography> : <Box sx={{ height: Math.max(180, Math.min(330, typeStats.length * 42)) }}><ResponsiveContainer width="100%" height="100%"><BarChart data={typeStats} layout="vertical" margin={{ top: 4, right: 16, left: 24, bottom: 4 }}><CartesianGrid strokeDasharray="3 3" /><XAxis type="number" allowDecimals={false} /><YAxis type="category" dataKey="name" width={95} tick={{ fontSize: 11 }} /><ChartTooltip formatter={(value, name) => [name === "premium" ? money(Number(value)) : value, name === "premium" ? "Ασφάλιστρα" : "Συμβόλαια"]} /><Legend formatter={name => name === "premium" ? "Ασφάλιστρα" : "Συμβόλαια"} /><Bar dataKey="contracts" name="Συμβόλαια" fill="#0b5cad" radius={[0, 5, 5, 0]} /><Bar dataKey="premium" name="premium" fill="#2e7d32" radius={[0, 5, 5, 0]} /></BarChart></ResponsiveContainer></Box>}
-          </Card>
-          <Typography variant="caption" color="text.secondary">Τα γραφήματα ανανεώνονται άμεσα όταν αλλάζετε αναζήτηση ή φίλτρα. Τα ποσά είναι τα ασφάλιστρα των συμβολαίων που εμφανίζονται.</Typography>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }, gap: 1 }}>
+            {([["make", "Οχήματα ανά μάρκα"], ["fuelType", "Οχήματα ανά καύσιμο"]] as const).map(([key, title]) =>
+              <Card key={key} variant="outlined" sx={{ p: 1.25 }}><Typography fontWeight={800}>{title}</Typography>
+                <Box sx={{ height: 280, mt: 1 }}>{!filteredRows.length ? <Typography color="text.secondary">Δεν υπάρχουν δεδομένα.</Typography> :
+                  <ResponsiveContainer width="100%" height="100%"><BarChart data={stats(key)} margin={{ top: 8, right: 8, left: -20, bottom: 15 }}>
+                    <CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis allowDecimals={false} /><ChartTooltip />
+                    <Bar dataKey="count" name="Οχήματα" fill="#087ceb" radius={[4, 4, 0, 0]} />
+                  </BarChart></ResponsiveContainer>}</Box>
+              </Card>)}
+          </Box>
         </Stack>
       </DialogContent>
       <DialogActions><Button startIcon={<DownloadIcon />} onClick={() => runExport("csv")}>Εξαγωγή CSV</Button><Button startIcon={<PrintIcon />} onClick={() => runExport("print")}>Εκτύπωση</Button><Button variant="contained" color="error" sx={{ color: "#fff" }} onClick={() => setStatsOpen(false)}>Κλείσιμο</Button></DialogActions>
