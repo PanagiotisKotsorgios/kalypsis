@@ -12,7 +12,7 @@ import { printActionSx } from "./actionButtonStyles";
 import { useTranslation } from "react-i18next";
 import * as XLSX from "xlsx";
 import { api, extractErrorMessage } from "../api/client";
-import { buildTableExportSnapshot } from "../utils/tableExportSnapshot";
+import { buildTableExportSnapshot, groupTableExportRows } from "../utils/tableExportSnapshot";
 import { printTable, type ExportOfficeInfo } from "../utils/printableTable";
 import { ExportColumnPicker, useExportColumnSelection, type ExportColumnDescriptor } from "./ExportColumnPicker";
 import { ExportFormatMenu, type ExportFormat } from "./ExportFormatMenu";
@@ -126,6 +126,7 @@ export function TableToolbar<T>({
   hideCount = false,
   hidePageSize = false,
   snapshotExport = false,
+  exportGroupBy,
 }: {
   query: string;
   onQuery: (s: string) => void;
@@ -176,6 +177,8 @@ export function TableToolbar<T>({
   hidePageSize?: boolean;
   /** Format the exact browser table snapshot on the server for all formats. */
   snapshotExport?: boolean;
+  /** Mirror the visible group headings in every snapshot format and printout. */
+  exportGroupBy?: (row: T) => string;
 }) {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -245,7 +248,7 @@ export function TableToolbar<T>({
       return;
     }
     try {
-      const snapshot = buildTableExportSnapshot(printTitle ?? exportFileName, effectiveColumns, exportRows, printSubtitle);
+      const snapshot = buildTableExportSnapshot(printTitle ?? exportFileName, effectiveColumns, exportRows, printSubtitle, exportGroupBy);
       const response = await api.post("/table-exports", snapshot, { params: { format }, responseType: "blob" });
       const mime = format === "csv" ? "text/csv;charset=utf-8"
         : format === "xlsx" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "application/pdf";
@@ -351,6 +354,7 @@ export function TableToolbar<T>({
         map: c.map ? (r: T) => c.map!(r) : undefined,
       })),
       rows: exportRows,
+      groups: groupTableExportRows(exportRows, exportGroupBy),
       office: snapshotExport ? { ...officeInfo, name: null } : officeInfo,
     });
   };

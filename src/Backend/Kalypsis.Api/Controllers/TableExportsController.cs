@@ -19,7 +19,7 @@ namespace Kalypsis.Api.Controllers;
 [RequirePermission("exports.run")]
 public sealed class TableExportsController(IAppDbContext db, ICurrentUser current) : ControllerBase
 {
-    public record TableSnapshot(string Title, string[] Headers, string?[][] Rows, string? Subtitle = null);
+    public record TableSnapshot(string Title, string[] Headers, string?[][] Rows, string? Subtitle = null, int? RecordCount = null);
 
     [HttpPost]
     [RequestSizeLimit(10_000_000)]
@@ -32,6 +32,7 @@ public sealed class TableExportsController(IAppDbContext db, ICurrentUser curren
         if (body.Headers is null || body.Headers.Length is < 1 or > 50
             || body.Headers.Any(header => string.IsNullOrWhiteSpace(header) || header.Length > 200)
             || body.Rows is null || body.Rows.Length > 5000
+            || body.RecordCount is < 0 || body.RecordCount > body.Rows.Length
             || body.Rows.Any(row => row is null || row.Length != body.Headers.Length
                 || row.Any(value => value?.Length > 20_000)))
             throw AppException.Validation("Ο πίνακας εξαγωγής δεν είναι έγκυρος ή υπερβαίνει τα όρια εξαγωγής.");
@@ -53,7 +54,7 @@ public sealed class TableExportsController(IAppDbContext db, ICurrentUser curren
             string.IsNullOrWhiteSpace(tenant?.VatNumber) ? null : $"ΑΦΜ: {tenant!.VatNumber}"
         }.Where(value => !string.IsNullOrWhiteSpace(value));
         var title = string.IsNullOrWhiteSpace(body.Title) ? "Λίστα" : body.Title.Trim()[..Math.Min(body.Title.Trim().Length, 200)];
-        var subtitle = string.Join(" · ", new[] { title, body.Subtitle, $"{body.Rows.Length} εγγραφές" }.Where(value => !string.IsNullOrWhiteSpace(value)));
+        var subtitle = string.Join(" · ", new[] { title, body.Subtitle, $"{body.RecordCount ?? body.Rows.Length} εγγραφές" }.Where(value => !string.IsNullOrWhiteSpace(value)));
         var sheet = new Sheet(title, body.Headers,
             body.Rows.Select(row => (IReadOnlyList<string>)row.Select(value => value ?? "").ToArray()).ToArray(),
             subtitle, officeName, string.Join(" · ", details), HeaderTitle: officeName);

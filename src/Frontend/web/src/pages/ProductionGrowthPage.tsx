@@ -141,8 +141,9 @@ export function ProductionGrowthPage() {
     <TableToolbar<ProductionGrowthRow> query="" onQuery={() => {}} hideSearch hideCount hidePageSize hideActionButtons snapshotExport
       count={allRows.length} filteredCount={displayRows.length} pageSize={table.pageSize} onPageSize={table.setPageSize}
       exportRows={displayRows} exportFileName="production-growth" columnSelectionId="production-growth" printTitle="Λίστες αύξησης παραγωγής"
-      printSubtitle={`${filters.view === "opportunities" ? "Προτεινόμενες καλύψεις" : "Όλα τα στοιχεία"} · ${displayRows.length} εγγραφές${filters.search ? ` · ${filters.search}` : ""}`}
-      actionRequest={action} visibleColumnKeys={[...columns.visibleColumns.map(c => c.key), ...(filters.groupBy ? ["group"] : [])]}
+      printSubtitle={`${filters.view === "opportunities" ? "Προτεινόμενες καλύψεις" : "Όλα τα στοιχεία"}${filters.search ? ` · Αναζήτηση: ${filters.search}` : ""}`}
+      exportGroupBy={filters.groupBy ? row => growthGroupLabel(row, filters.groupBy) : undefined}
+      actionRequest={action} visibleColumnKeys={columns.visibleColumns.map(c => c.key)}
       exportColumns={[
         { key: "customer", label: "Πελάτης", map: row => `${row.customerNumber} · ${row.customerName}` },
         { key: "assets", label: "Διαθέτει", map: row => joinKinds(row.assetKinds, NEED_LABEL) },
@@ -153,9 +154,8 @@ export function ProductionGrowthPage() {
         { key: "next", label: "Επόμενη επικοινωνία", map: row => shortDate(row.nextContactAt) },
         { key: "contact", label: "Επικοινωνία", map: row => [row.phone, row.email].filter(Boolean).join(" · ") },
         { key: "producer", label: "Συνεργάτης", map: row => row.producers.map(p => p.name).join(", ") },
-        { key: "city", label: "Πόλη" }, { key: "family", label: "Οικογένεια", map: row => row.family.map(p => `${p.name} (${RELATION_LABEL[p.relationship] ?? p.relationship})`).join(", ") },
-        { key: "notes", label: "Σημειώσεις" }, { key: "reason", label: "Αιτιολογία" },
-        { key: "group", label: "Ομαδοποίηση", map: row => growthGroupLabel(row, filters.groupBy) },
+        { key: "city", label: "Πόλη", map: row => row.city || "—" }, { key: "family", label: "Οικογένεια", map: row => row.family.map(p => `${p.name} (${RELATION_LABEL[p.relationship] ?? p.relationship})`).join(", ") || "—" },
+        { key: "notes", label: "Σημειώσεις", map: row => row.notes || "—" }, { key: "reason", label: "Αιτιολογία" },
       ]} />
     {query.isError && <Alert severity="error" sx={{ mb: 1 }} action={<Button onClick={() => void query.refetch()}>Επανάληψη</Button>}>{extractErrorMessage(query.error)}</Alert>}
     {query.isLoading ? <Box sx={{ py: 5, textAlign: "center" }}><CircularProgress /></Box> : <Card variant="outlined" sx={{ bgcolor: "#f8fafc", borderColor: "#d5e0ec", overflow: "hidden" }}>

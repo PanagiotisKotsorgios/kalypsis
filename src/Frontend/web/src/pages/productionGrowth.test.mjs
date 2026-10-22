@@ -6,6 +6,7 @@ import { createServer } from "vite";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { readFile } from "node:fs/promises";
 import { defaultGrowthFilters, filterGrowthRows, normalizeGrowthFilters, growthGroupLabel } from "./productionGrowth.ts";
+import { buildTableExportSnapshot } from "../utils/tableExportSnapshot.ts";
 
 const home = {
   id: "home", needId: "home", customerId: "1", customerNumber: "C-1", customerName: "Μαρία Παπαδοπούλου", customerType: "Individual", customerStatus: "Active",
@@ -50,6 +51,15 @@ test("saved filters retain multiple values and dates, reject malformed values, a
   assert.equal(growthGroupLabel(home, "producer"), "Συνεργάτης Α");
   assert.equal(growthGroupLabel(unknown, "kind"), "Χωρίς καταχωρημένες ανάγκες");
 });
+test("growth export keeps only matching clients and current grouping, not the source data or current page", () => {
+  const selected = filters({ view: "all", cities: ["Αθήνα"], groupBy: "producer" });
+  const filtered = filterGrowthRows(rows, selected);
+  const snapshot = buildTableExportSnapshot("Λίστες αύξησης παραγωγής", [{ key: "customerName", label: "Πελάτης" }, { key: "needTitle", label: "Ανάγκη" }], filtered, undefined, row => growthGroupLabel(row, selected.groupBy));
+  assert.deepEqual(snapshot.headers, ["Πελάτης", "Ανάγκη"]);
+  assert.deepEqual(snapshot.rows, [["ΟΜΑΔΑ: Συνεργάτης Α · 1 εγγραφές", ""], ["Μαρία Παπαδοπούλου", "Εξοχικό"]]);
+  assert.equal(snapshot.recordCount, 1);
+  assert.ok(!JSON.stringify(snapshot).includes("Πάτρα"));
+});
 test("route and office-managed sidebar entry exist once per staff role, after production lists for admins", async () => {
   const source = await readFile(new URL("../App.tsx", import.meta.url), "utf8");
   const admin = source.slice(source.indexOf("  AgencyAdmin: ["), source.indexOf("  AgencyUser: ["));
@@ -76,6 +86,8 @@ test("actual page renders compact paginated rows and exports the complete filter
     assert.ok(body.includes("Καρτέλα"));
     const source = await readFile(new URL("./ProductionGrowthPage.tsx", import.meta.url), "utf8");
     for (const text of ["exportRows={displayRows}", "snapshotExport", 'compactAt="xl"', "normalizeGrowthFilters(value)"]) assert.ok(source.includes(text), text);
+    assert.ok(source.includes("exportGroupBy={filters.groupBy ? row => growthGroupLabel(row, filters.groupBy) : undefined}"));
+    assert.ok(source.includes("visibleColumnKeys={columns.visibleColumns.map(c => c.key)}"));
     assert.ok(!source.includes("estimatedCommission"));
   } finally { client.clear(); await server.close(); }
 });

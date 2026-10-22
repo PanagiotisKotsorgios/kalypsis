@@ -36,12 +36,17 @@ test("real vehicle list and shared confirmation show selectable vehicle rows and
     const { ThemeProvider, createTheme } = await server.ssrLoadModule("@mui/material/styles");
     await server.ssrLoadModule("/src/i18n/index.ts");
     const policy = { id: "p1", customerId: "c1", customerDisplay: "Δοκιμή", policyNumber: "P-1", insuranceCompanyName: "Εταιρεία", policyType: "Auto", status: "Active", startDate: "2026-01-01", endDate: "2027-01-01", premium: 100, currency: "EUR", vehicleRegistrationPlate: "ABC1234" };
-    client.setQueryData(["customer-vehicles-all"], [policy, { ...policy, id: "p2", policyNumber: "P-2", vehicleRegistrationPlate: "XYZ9876" }, { ...policy, id: "empty", policyNumber: "NO-VEHICLE", vehicleRegistrationPlate: null }]);
+    client.setQueryData(["customer-vehicles-all"], [policy, { ...policy, id: "p2", policyNumber: "P-2", status: "Prospect", vehicleRegistrationPlate: "XYZ9876" }, { ...policy, id: "empty", policyNumber: "NO-VEHICLE", vehicleRegistrationPlate: null }]);
     const html = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(AuthProvider, null, createElement(MemoryRouter, null, createElement(CustomerVehiclesPage)))));
     for (const label of ["Επιλογή όλων των οχημάτων αυτής της σελίδας", "Επιλογή οχήματος ABC1234 · P-1", "Επιλογή οχήματος XYZ9876 · P-2"]) assert.ok(html.includes(`aria-label="${label}"`));
     const body = html.match(/<tbody\b[\s\S]*?<\/tbody>/)?.[0] ?? "";
     assert.equal((body.match(/<tr\b/g) ?? []).length, 2);
     assert.ok(!body.includes("NO-VEHICLE"));
+    assert.ok(!body.includes("Πιθανό συμβόλαιο"));
+    assert.ok(!body.includes("Ενεργό"));
+    const header = html.match(/<thead\b[\s\S]*?<\/thead>/)?.[0] ?? "";
+    assert.ok(!header.includes("Κατάσταση"));
+    assert.equal((header.match(/<th\b/g) ?? []).length, 9);
     const theme = createTheme({ components: { MuiDialog: { defaultProps: { disablePortal: true } } } });
     const props = { entity: "vehicles", targets: [{ id: "p1", label: "ABC1234 · P-1" }], pending: false, completed: 1, result: { deletedIds: [], failures: [{ id: "p1", label: "ABC1234 · P-1", reason: "Δεν επιτρέπεται η διαγραφή λόγω συσχετίσεων με το συμβόλαιο P-1" }] }, onConfirm() {}, onClose() {} };
     const blocked = renderToStaticMarkup(createElement(ThemeProvider, { theme }, createElement(BulkDeleteDialog, props)));
@@ -52,5 +57,12 @@ test("real vehicle list and shared confirmation show selectable vehicle rows and
     assert.ok(source.includes("selectPageRecords(previous, [row.id], checked)"));
     assert.ok(source.includes("selectedRows.map(row => row.id)"));
     assert.ok(!source.includes("Πληκτρολόγησε ΔΙΑΓΡΑΦΗ"));
+    const list = source.slice(source.indexOf("export function CustomerVehiclesPage()"));
+    assert.ok(!list.includes("statusFilter"), "old saved policy-status filters must not silently restrict vehicles");
+    assert.ok(!list.includes("vehicleStatusLabel"));
+    assert.ok(!list.includes("window.print()"), "print the filtered table, not the entire dashboard");
+    for (const text of ["exportRows={filteredRows}", "snapshotExport", "actionRequest={exportAction}", 'columnSelectionId="vehicles"', "Εξαγωγή Excel", "Εξαγωγή PDF", "Στήλες εξαγωγής"]) assert.ok(list.includes(text), text);
+    assert.ok(source.includes("vehicleStatusLabel(detail.status)"), "linked-policy tabs keep their own contract status");
+    assert.ok(source.includes('value={form.condition}'), "actual vehicle condition is preserved");
   } finally { client.clear(); await server.close(); }
 });

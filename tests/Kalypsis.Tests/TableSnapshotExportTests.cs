@@ -72,5 +72,49 @@ public class TableSnapshotExportTests
             new TableExportsController.TableSnapshot("Λίστα", [], []), "pdf"));
         await Assert.ThrowsAsync<AppException>(() => controller.Export(
             new TableExportsController.TableSnapshot("Λίστα", ["Πελάτης"], []), "invalid"));
+        await Assert.ThrowsAsync<AppException>(() => controller.Export(
+            new TableExportsController.TableSnapshot("Λίστα", ["Πελάτης"], [], RecordCount: 1), "csv"));
+        await Assert.ThrowsAsync<AppException>(() => controller.Export(
+            new TableExportsController.TableSnapshot("Λίστα", ["Πελάτης"], [], RecordCount: -1), "csv"));
+    }
+
+    [Theory]
+    [InlineData("csv")]
+    [InlineData("xlsx")]
+    [InlineData("pdf")]
+    public async Task GroupedSnapshot_PreservesFilteredSectionsAndOfficeBranding(string format)
+    {
+        var tenantId = Guid.NewGuid();
+        var current = TestScaffold.AgencyStaff(tenantId);
+        using var db = TestScaffold.NewDb(current, TestScaffold.Clock);
+        db.Tenants.Add(new Tenant { Id = tenantId, Name = "Ασφαλιστικό γραφείο", Code = "OFFICE" });
+        await db.SaveChangesAsync();
+        var controller = new TableExportsController(db, current);
+        var snapshot = new TableExportsController.TableSnapshot("Αύξηση παραγωγής", ["Πελάτης", "Ανάγκη"],
+            [["ΟΜΑΔΑ: Συνεργάτης Α · 1 εγγραφές", ""], ["Μαρία", "Κατοικία"],
+             ["ΟΜΑΔΑ: Συνεργάτης Β · 1 εγγραφές", ""], ["Νίκος", "Υγεία"]], RecordCount: 2);
+        var result = Assert.IsType<FileContentResult>(await controller.Export(snapshot, format));
+        Assert.NotEmpty(result.FileContents);
+        if (format == "csv")
+        {
+            var csv = Encoding.UTF8.GetString(result.FileContents);
+            Assert.Contains("ΟΜΑΔΑ: Συνεργάτης Α", csv);
+            Assert.Contains("ΟΜΑΔΑ: Συνεργάτης Β", csv);
+            Assert.Contains("Μαρία", csv);
+            Assert.Contains("Νίκος", csv);
+            Assert.DoesNotContain("Kalypsis — Αύξηση παραγωγής", csv);
+        }
+        else if (format == "xlsx")
+        {
+            using var workbook = new XLWorkbook(new MemoryStream(result.FileContents));
+            var sheet = workbook.Worksheets.First();
+            Assert.Equal("Ασφαλιστικό γραφείο", sheet.Cell(1, 1).GetString());
+            Assert.Contains("2 εγγραφές", sheet.Cell(2, 1).GetString());
+            Assert.Contains("ΟΜΑΔΑ: Συνεργάτης Α", sheet.Cell(5, 1).GetString());
+            Assert.True(sheet.Cell(5, 1).Style.Font.Bold);
+            Assert.Equal("Μαρία", sheet.Cell(6, 1).GetString());
+            Assert.Equal("Νίκος", sheet.Cell(8, 1).GetString());
+        }
+        else Assert.StartsWith("%PDF-", Encoding.ASCII.GetString(result.FileContents.Take(8).ToArray()));
     }
 }

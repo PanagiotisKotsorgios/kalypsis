@@ -21,7 +21,11 @@ import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import BookmarkAddIcon from "@mui/icons-material/BookmarkAdd";
 import PrintIcon from "@mui/icons-material/Print";
-import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
+import GridOnIcon from "@mui/icons-material/GridOn";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import ViewColumnIcon from "@mui/icons-material/ViewColumn";
+import { TableToolbar } from "../components/TableToolbar";
+import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 import { exportActionSx } from "../components/actionButtonStyles";
 import { Link as RouterLink } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -306,8 +310,8 @@ function LegacyCustomerVehiclesPage() {
   const uniquePlates = new Set(rows.map(row => row.vehicleRegistrationPlate).filter(Boolean)).size;
   const expiring = rows.filter(row => { const days = (new Date(row.endDate).getTime() - Date.now()) / 86400000; return days >= 0 && days <= 30; }).length;
   const exportCsv = () => {
-    const header = ["Πινακίδα", "Πελάτης", "Αριθμός συμβολαίου", "Ασφαλιστική", "Έναρξη", "Λήξη", "Ασφάλιστρο", "Κατάσταση"];
-    const body = rows.map(row => [row.vehicleRegistrationPlate ?? "", row.customerDisplay ?? "", row.policyNumber, row.insuranceCompanyName, row.startDate, row.endDate, String(row.premium ?? ""), vehicleStatusLabel(row.status)]);
+    const header = ["Πινακίδα", "Πελάτης", "Αριθμός συμβολαίου", "Ασφαλιστική", "Έναρξη", "Λήξη", "Ασφάλιστρο"];
+    const body = rows.map(row => [row.vehicleRegistrationPlate ?? "", row.customerDisplay ?? "", row.policyNumber, row.insuranceCompanyName, row.startDate, row.endDate, String(row.premium ?? "")]);
     const csv = [header, ...body].map(line => line.map(value => `"${String(value).replaceAll('"', '""')}"`).join(",")).join("\r\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "οχηματα-πελατων.csv"; a.click(); URL.revokeObjectURL(url);
@@ -326,13 +330,13 @@ function LegacyCustomerVehiclesPage() {
     </Stack>
     <TextField value={search} onChange={e => setSearch(e.target.value)} placeholder="Αναζήτηση πινακίδας, πελάτη, συμβολαίου ή ασφαλιστικής" InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }} />
     {rows.length === 0 ? <Alert severity="info"><DirectionsCarIcon sx={{ verticalAlign: "middle", mr: 1 }} />Δεν βρέθηκαν οχήματα με τα συγκεκριμένα κριτήρια.</Alert> : <Card variant="outlined" sx={{ overflowX: "auto" }}><Table size="small">
-      <TableHead><TableRow><TableCell>Πινακίδα</TableCell><TableCell>Πελάτης</TableCell><TableCell>Συμβόλαιο</TableCell><TableCell>Ασφαλιστική</TableCell><TableCell>Έναρξη</TableCell><TableCell>Λήξη</TableCell><TableCell align="right">Ασφάλιστρο</TableCell><TableCell>Κατάσταση</TableCell></TableRow></TableHead>
+      <TableHead><TableRow><TableCell>Πινακίδα</TableCell><TableCell>Πελάτης</TableCell><TableCell>Συμβόλαιο</TableCell><TableCell>Ασφαλιστική</TableCell><TableCell>Έναρξη</TableCell><TableCell>Λήξη</TableCell><TableCell align="right">Ασφάλιστρο</TableCell></TableRow></TableHead>
       <TableBody>{rows.map(row => <TableRow key={row.id} hover>
         <TableCell sx={{ fontFamily: "monospace", fontWeight: 800 }}>{row.vehicleRegistrationPlate ?? "—"}</TableCell>
         <TableCell><Button component={RouterLink} to={`/app/customers/${row.customerId}`} size="small">{row.customerDisplay ?? "Πελάτης"}</Button></TableCell>
         <TableCell><Button component={RouterLink} to={`/app/policies?focus=${row.id}`} size="small">{row.policyNumber}</Button></TableCell>
         <TableCell>{row.insuranceCompanyName}</TableCell><TableCell>{row.startDate}</TableCell><TableCell>{row.endDate}</TableCell>
-        <TableCell align="right">{row.premium?.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {row.currency}</TableCell><TableCell><Chip size="small" label={vehicleStatusLabel(row.status)} /></TableCell><TableCell><Button size="small" onClick={() => setSelectedPlate(row.vehicleRegistrationPlate ?? "")}>Καρτέλα οχήματος</Button></TableCell>
+        <TableCell align="right">{row.premium?.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {row.currency}</TableCell><TableCell><Button size="small" onClick={() => setSelectedPlate(row.vehicleRegistrationPlate ?? "")}>Καρτέλα οχήματος</Button></TableCell>
       </TableRow>)}</TableBody>
     </Table></Card>}
     <VehicleDetailDialog open={selectedPlate !== null} plate={selectedPlate ?? ""} policyIds={rows.filter(row => (row.vehicleRegistrationPlate ?? "") === (selectedPlate ?? "")).map(row => row.id)} onClose={() => setSelectedPlate(null)} />
@@ -441,7 +445,6 @@ export function CustomerVehiclesPage() {
   const qc = useQueryClient();
   const canWrite = usePermission("policies.write");
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
   const [companyFilter, setCompanyFilter] = useState("");
   const [renewalFilter, setRenewalFilter] = useState("all");
   const [selectedVehicle, setSelectedVehicle] = useState<{ plate: string; edit: boolean } | null>(null);
@@ -458,6 +461,11 @@ export function CustomerVehiclesPage() {
   const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
   const [saveFilterRequest, setSaveFilterRequest] = useState(0);
   const [clearSavedFilterRequest, setClearSavedFilterRequest] = useState(0);
+  const [exportAction, setExportAction] = useState<{ token: number; action: "csv" | "xlsx" | "pdf" | "print" | "columns" }>({ token: 0, action: "csv" });
+  const runExport = (action: typeof exportAction.action) => {
+    setActionsAnchor(null);
+    setExportAction(previous => ({ token: previous.token + 1, action }));
+  };
   const q = useQuery({
     queryKey: ["customer-vehicles-all"],
     queryFn: async () => (await api.get<VehiclePolicyRow[]>("/policies", { params: { type: "Auto" } })).data
@@ -472,7 +480,6 @@ export function CustomerVehiclesPage() {
       if (!row.vehicleRegistrationPlate?.trim()) return false;
       const haystack = [row.vehicleRegistrationPlate, row.customerDisplay, row.policyNumber, row.insuranceCompanyName, row.policyType].join(" ").toLocaleLowerCase("el-GR");
       if (term && !haystack.includes(term)) return false;
-      if (statusFilter && row.status !== statusFilter) return false;
       if (companyFilter && row.insuranceCompanyName !== companyFilter) return false;
       if (renewalFilter !== "all") {
         const days = (new Date(row.endDate).getTime() - now) / 86400000;
@@ -483,8 +490,8 @@ export function CustomerVehiclesPage() {
       }
       return true;
     });
-  }, [sourceRows, search, statusFilter, companyFilter, renewalFilter]);
-  useEffect(() => { setPage(0); }, [search, statusFilter, companyFilter, renewalFilter, rowsPerPage]);
+  }, [sourceRows, search, companyFilter, renewalFilter]);
+  useEffect(() => { setPage(0); }, [search, companyFilter, renewalFilter, rowsPerPage]);
   const filteredIdsKey = JSON.stringify(filteredRows.map(row => row.id));
   useEffect(() => {
     const visible = new Set<string>(JSON.parse(filteredIdsKey));
@@ -514,11 +521,6 @@ export function CustomerVehiclesPage() {
       map.set(row.insuranceCompanyName, item);
     }
     return [...map.entries()].sort((a, b) => b[1].contracts - a[1].contracts);
-  }, [filteredRows]);
-  const statusStats = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const row of filteredRows) map.set(row.status, (map.get(row.status) ?? 0) + 1);
-    return [...map.entries()].map(([key, value]) => ({ key, name: vehicleStatusLabel(key), value })).sort((a, b) => b.value - a.value);
   }, [filteredRows]);
   const typeStats = useMemo(() => {
     const map = new Map<string, { contracts: number; premium: number }>();
@@ -559,9 +561,7 @@ export function CustomerVehiclesPage() {
     }
     return [...map.values()].sort((a, b) => a.sort - b.sort).slice(0, 12);
   }, [filteredRows]);
-  const chartColors = ["#0b5cad", "#2e7d32", "#ed6c02", "#c62828", "#6a1b9a", "#00838f", "#546e7a"];
-  const applyChartFilter = (kind: "status" | "company" | "expiry", value: string) => {
-    if (kind === "status") setStatusFilter(value);
+  const applyChartFilter = (kind: "company" | "expiry", value: string) => {
     if (kind === "company") setCompanyFilter(value);
     if (kind === "expiry") setRenewalFilter(value);
     setStatsFocus(`${kind}:${value}`);
@@ -586,14 +586,18 @@ export function CustomerVehiclesPage() {
     if (!targets.length) return;
     clearVehicle.reset(); setDeleteResult(null); setDeleteCompleted(0); setDeleteTargets(targets);
   };
-  const exportCsv = (dataset = filteredRows) => {
-    const header = ["Πινακίδα", "Πελάτης", "Αριθμός συμβολαίου", "Ασφαλιστική", "Έναρξη", "Λήξη", "Ασφάλιστρο", "Κατάσταση"];
-    const body = dataset.map(row => [row.vehicleRegistrationPlate ?? "", row.customerDisplay ?? "", row.policyNumber, row.insuranceCompanyName, row.startDate, row.endDate, String(row.premium ?? ""), vehicleStatusLabel(row.status)]);
-    const csv = [header, ...body].map(line => line.map(value => `"${String(value).replaceAll('"', '""')}"`).join(",")).join("\r\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "οχήματα-πελατών.csv"; anchor.click(); URL.revokeObjectURL(url);
-  };
-  const resetFilters = () => { setSearch(""); setStatusFilter(""); setCompanyFilter(""); setRenewalFilter("all"); setSelectedIds(new Set()); setPage(0); setClearSavedFilterRequest(value => value + 1); };
+  const exportColumns = [
+    { key: "vehicleRegistrationPlate", label: "Πινακίδα", map: (row: VehiclePolicyRow) => row.vehicleRegistrationPlate ?? "—" },
+    { key: "customerDisplay", label: "Πελάτης", map: (row: VehiclePolicyRow) => row.customerDisplay ?? "Πελάτης" },
+    { key: "policyNumber", label: "Συμβόλαιο" },
+    { key: "insuranceCompanyName", label: "Ασφαλιστική" },
+    { key: "startDate", label: "Έναρξη" },
+    { key: "endDate", label: "Λήξη" },
+    { key: "premium", label: "Ασφάλιστρο", map: (row: VehiclePolicyRow) => `${row.premium?.toLocaleString("el-GR", { minimumFractionDigits: 2 }) ?? "—"} ${row.currency}` },
+  ];
+  const exportSubtitle = [search && `Αναζήτηση: ${search}`, companyFilter && `Ασφαλιστική: ${companyFilter}`,
+    renewalFilter !== "all" && `Λήξη: ${{ "30": "Σε 30 ημέρες", "31-90": "31–90 ημέρες", "90": "Σε 90 ημέρες", expired: "Ληγμένα" }[renewalFilter] ?? renewalFilter}`].filter(Boolean).join(" · ");
+  const resetFilters = () => { setSearch(""); setCompanyFilter(""); setRenewalFilter("all"); setSelectedIds(new Set()); setPage(0); setClearSavedFilterRequest(value => value + 1); };
   if (q.isLoading) return <Box sx={{ p: 6, textAlign: "center" }}><CircularProgress /></Box>;
   if (q.isError) return <Alert severity="error">{extractErrorMessage(q.error)}</Alert>;
 
@@ -618,12 +622,7 @@ export function CustomerVehiclesPage() {
             <ListItemIcon sx={{ color: "#0b5cad" }}><BookmarkAddIcon fontSize="small" /></ListItemIcon><ListItemText primary="Αποθήκευση νέου φίλτρου" />
           </MenuItem>
           <Divider />
-          <MenuItem onClick={() => { setActionsAnchor(null); exportCsv(); }} sx={{ color: "#167c45", "&:hover": { bgcolor: "#e7f5ec" } }}>
-            <ListItemIcon sx={{ color: "#167c45" }}><DownloadIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εξαγωγή CSV" />
-          </MenuItem>
-          <MenuItem onClick={() => { setActionsAnchor(null); window.print(); }} sx={{ color: "#456b91", "&:hover": { bgcolor: "#edf2f7" } }}>
-            <ListItemIcon sx={{ color: "#456b91" }}><PrintIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εκτύπωση" />
-          </MenuItem>
+          {([['csv', 'Εξαγωγή CSV', DownloadIcon, '#087f73'], ['xlsx', 'Εξαγωγή Excel', GridOnIcon, '#167c45'], ['pdf', 'Εξαγωγή PDF', PictureAsPdfIcon, '#c73545'], ['print', 'Εκτύπωση', PrintIcon, '#456b91'], ['columns', 'Στήλες εξαγωγής', ViewColumnIcon, '#5b55a5']] as const).map(([action, label, Icon, color]) => <MenuItem key={action} onClick={() => runExport(action)} sx={{ color }}><ListItemIcon sx={{ color: "inherit" }}><Icon fontSize="small" /></ListItemIcon><ListItemText primary={label} /></MenuItem>)}
           <Divider /><MenuItem disabled={!canWrite || !selectedCount || clearVehicle.isPending} onClick={() => { setActionsAnchor(null); requestDelete(selectedRows.map(row => row.id)); }} sx={{ color: "#c73545", "&:hover": { bgcolor: "#fdecef" } }}>
             <ListItemIcon sx={{ color: "#c73545" }}><DeleteOutlineIcon fontSize="small" /></ListItemIcon><ListItemText primary={`Διαγραφή επιλεγμένων (${selectedCount})`} secondary="Με έλεγχο συσχετίσεων και ιστορικού" />
           </MenuItem>
@@ -633,16 +632,19 @@ export function CustomerVehiclesPage() {
     <Card variant="outlined" sx={{ p: 1 }}>
       <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }} flexWrap="wrap" useFlexGap>
         <TextField size="small" value={search} onChange={e => setSearch(e.target.value)} placeholder="Αναζήτηση πινακίδας, πελάτη, συμβολαίου ή ασφαλιστικής" InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }} sx={{ flex: 1, minWidth: { md: 260 } }} />
-        <TextField select size="small" label="Κατάσταση" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} sx={{ minWidth: 150 }}><MenuItem value="">Όλες</MenuItem>{[...new Set(sourceRows.map(row => row.status))].filter(Boolean).map(value => <MenuItem key={value} value={value}>{vehicleStatusLabel(value)}</MenuItem>)}</TextField>
         <TextField select size="small" label="Ασφαλιστική" value={companyFilter} onChange={e => setCompanyFilter(e.target.value)} sx={{ minWidth: 180 }}><MenuItem value="">Όλες</MenuItem>{companies.map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}</TextField>
         <TextField select size="small" label="Λήξη" value={renewalFilter} onChange={e => setRenewalFilter(e.target.value)} sx={{ minWidth: 145 }}><MenuItem value="all">Όλες</MenuItem><MenuItem value="30">Σε 30 ημέρες</MenuItem><MenuItem value="31-90">31–90 ημέρες</MenuItem><MenuItem value="90">Σε 90 ημέρες</MenuItem><MenuItem value="expired">Ληγμένα</MenuItem></TextField>
-        <SavedReportsButton entity="vehicles" currentFilters={{ search, statusFilter, companyFilter, renewalFilter }}
-          onLoad={next => { setSearch(next.search ?? ""); setStatusFilter(next.statusFilter ?? ""); setCompanyFilter(next.companyFilter ?? ""); setRenewalFilter(next.renewalFilter ?? "all"); }}
+        <SavedReportsButton entity="vehicles" currentFilters={{ search, companyFilter, renewalFilter }}
+          onLoad={next => { setSearch(next.search ?? ""); setCompanyFilter(next.companyFilter ?? ""); setRenewalFilter(next.renewalFilter ?? "all"); }}
           onClear={resetFilters} clearRequestToken={clearSavedFilterRequest}
           saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />
         <Button size="small" color="error" variant="contained" onClick={resetFilters}>Καθαρισμός</Button>
       </Stack>
     </Card>
+    <TableToolbar<VehiclePolicyRow> query="" onQuery={() => {}} count={sourceRows.length} filteredCount={filteredRows.length}
+      pageSize={rowsPerPage} onPageSize={setRowsPerPage} hideSearch hideCount hidePageSize hideActionButtons snapshotExport
+      exportRows={filteredRows} exportColumns={exportColumns} exportFileName="vehicles" printTitle="Οχήματα"
+      printSubtitle={exportSubtitle} columnSelectionId="vehicles" actionRequest={exportAction} />
     {selectedCount > 0 && <Stack direction="row" flexWrap="wrap" useFlexGap spacing={1} alignItems="center">
       <Chip size="small" label={`${selectedCount} επιλεγμένα`} sx={{ bgcolor: "#102d55", color: "#fff", fontWeight: 750 }} />
       <Button size="small" variant="contained" color="error" startIcon={<DeleteOutlineIcon />} disabled={!canWrite || clearVehicle.isPending} onClick={() => requestDelete(selectedRows.map(row => row.id))}>Διαγραφή επιλεγμένων ({selectedCount})</Button>
@@ -651,7 +653,7 @@ export function CustomerVehiclesPage() {
     </Stack>}
     {filteredRows.length === 0 ? <Alert severity="info"><DirectionsCarIcon sx={{ verticalAlign: "middle", mr: 1 }} />Δεν βρέθηκαν οχήματα με τα συγκεκριμένα φίλτρα.</Alert> : <Card variant="outlined" sx={{ overflowX: "auto" }}>
       <Table size="small">
-        <TableHead><TableRow><TableCell padding="checkbox"><Checkbox size="small" checked={allPageSelected} indeterminate={somePageSelected && !allPageSelected} disabled={!pageRows.length || clearVehicle.isPending} inputProps={{ "aria-label": "Επιλογή όλων των οχημάτων αυτής της σελίδας" }} onChange={(_event, checked) => setSelectedIds(previous => selectPageRecords(previous, pageRows.map(row => row.id), checked))} /></TableCell><TableCell>Πινακίδα</TableCell><TableCell>Πελάτης</TableCell><TableCell>Συμβόλαιο</TableCell><TableCell>Ασφαλιστική</TableCell><TableCell>Έναρξη</TableCell><TableCell>Λήξη</TableCell><TableCell align="right">Ασφάλιστρο</TableCell><TableCell>Κατάσταση</TableCell><TableCell align="right">Ενέργειες</TableCell></TableRow></TableHead>
+        <TableHead><TableRow><TableCell padding="checkbox"><Checkbox size="small" checked={allPageSelected} indeterminate={somePageSelected && !allPageSelected} disabled={!pageRows.length || clearVehicle.isPending} inputProps={{ "aria-label": "Επιλογή όλων των οχημάτων αυτής της σελίδας" }} onChange={(_event, checked) => setSelectedIds(previous => selectPageRecords(previous, pageRows.map(row => row.id), checked))} /></TableCell><TableCell>Πινακίδα</TableCell><TableCell>Πελάτης</TableCell><TableCell>Συμβόλαιο</TableCell><TableCell>Ασφαλιστική</TableCell><TableCell>Έναρξη</TableCell><TableCell>Λήξη</TableCell><TableCell align="right">Ασφάλιστρο</TableCell><TableCell align="right">Ενέργειες</TableCell></TableRow></TableHead>
         <TableBody>{pageRows.map(row => <TableRow key={row.id} hover selected={selectedIds.has(row.id)} onClick={() => setSelectedVehicle({ plate: row.vehicleRegistrationPlate ?? "", edit: false })} sx={{ cursor: "pointer" }}>
           <TableCell padding="checkbox" onClick={event => event.stopPropagation()}><Checkbox size="small" checked={selectedIds.has(row.id)} disabled={clearVehicle.isPending} inputProps={{ "aria-label": `Επιλογή οχήματος ${row.vehicleRegistrationPlate} · ${row.policyNumber}` }} onChange={(_event, checked) => setSelectedIds(previous => selectPageRecords(previous, [row.id], checked))} /></TableCell>
           <TableCell sx={{ fontFamily: "monospace", fontWeight: 800 }}>{row.vehicleRegistrationPlate ?? "—"}</TableCell>
@@ -692,7 +694,7 @@ export function CustomerVehiclesPage() {
             </Tooltip>
           </TableCell>
           <TableCell>{row.insuranceCompanyName}</TableCell><TableCell>{row.startDate}</TableCell><TableCell>{row.endDate}</TableCell>
-          <TableCell align="right">{row.premium?.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {row.currency}</TableCell><TableCell><Chip size="small" label={vehicleStatusLabel(row.status)} /></TableCell>
+          <TableCell align="right">{row.premium?.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {row.currency}</TableCell>
           <TableCell align="right"><Stack direction="row" justifyContent="flex-end" spacing={0.25}><Tooltip title="Προεπισκόπηση καρτέλας οχήματος" arrow><IconButton size="small" color="info" onClick={event => { event.stopPropagation(); setSelectedVehicle({ plate: row.vehicleRegistrationPlate ?? "", edit: false }); }}><VisibilityIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Επεξεργασία οχήματος" arrow><IconButton size="small" color="success" onClick={event => { event.stopPropagation(); setSelectedVehicle({ plate: row.vehicleRegistrationPlate ?? "", edit: true }); }}><EditIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Διαγραφή οχήματος — έλεγχος συσχετίσεων" arrow><IconButton size="small" color="error" disabled={!canWrite || clearVehicle.isPending} onClick={event => { event.stopPropagation(); requestDelete([row.id]); }}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip></Stack></TableCell>
         </TableRow>)}</TableBody>
       </Table>
@@ -711,13 +713,6 @@ export function CustomerVehiclesPage() {
         <Stack spacing={1.5}>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }, gap: 1 }}>{[["Συμβόλαια", filteredRows.length], ["Πινακίδες", uniquePlates], ["Λήξεις 30 ημερών", expiring], ["Ασφάλιστρα", money(totalPremium)]].map(([label, value]) => <Card key={String(label)} variant="outlined" sx={{ p: 1.25, bgcolor: "#f7f9fc" }}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography fontWeight={900}>{value}</Typography></Card>)}</Box>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }, gap: 1.5 }}>
-            <Card variant="outlined" sx={{ p: 1.25 }}>
-              <Typography variant="subtitle2" fontWeight={900}>Κατάσταση συμβολαίων</Typography>
-              <Typography variant="caption" color="text.secondary">Κάντε κλικ σε τμήμα για φιλτράρισμα της λίστας.</Typography>
-              <Box sx={{ height: 250, mt: 0.5 }}>
-                {statusStats.length === 0 ? <Typography color="text.secondary" sx={{ p: 2 }}>Δεν υπάρχουν δεδομένα.</Typography> : <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={statusStats} dataKey="value" nameKey="name" innerRadius={52} outerRadius={86} paddingAngle={2} label onClick={entry => { if (entry?.key != null) applyChartFilter("status", String(entry.key)); }}>{statusStats.map((entry, index) => <Cell key={entry.key} fill={chartColors[index % chartColors.length]} />)}</Pie><ChartTooltip /><Legend /></PieChart></ResponsiveContainer>}
-              </Box>
-            </Card>
             <Card variant="outlined" sx={{ p: 1.25 }}>
               <Typography variant="subtitle2" fontWeight={900}>Συμβόλαια ανά ασφαλιστική</Typography>
               <Typography variant="caption" color="text.secondary">Κλικ σε μπάρα για εφαρμογή φίλτρου ασφαλιστικής.</Typography>
@@ -747,7 +742,7 @@ export function CustomerVehiclesPage() {
           <Typography variant="caption" color="text.secondary">Τα γραφήματα ανανεώνονται άμεσα όταν αλλάζετε αναζήτηση ή φίλτρα. Τα ποσά είναι τα ασφάλιστρα των συμβολαίων που εμφανίζονται.</Typography>
         </Stack>
       </DialogContent>
-      <DialogActions><Button startIcon={<DownloadIcon />} onClick={() => exportCsv()}>Εξαγωγή CSV</Button><Button onClick={() => window.print()}>Εκτύπωση</Button><Button variant="contained" color="error" sx={{ color: "#fff" }} onClick={() => setStatsOpen(false)}>Κλείσιμο</Button></DialogActions>
+      <DialogActions><Button startIcon={<DownloadIcon />} onClick={() => runExport("csv")}>Εξαγωγή CSV</Button><Button startIcon={<PrintIcon />} onClick={() => runExport("print")}>Εκτύπωση</Button><Button variant="contained" color="error" sx={{ color: "#fff" }} onClick={() => setStatsOpen(false)}>Κλείσιμο</Button></DialogActions>
     </Dialog>
     <BulkDeleteDialog entity="vehicles" targets={deleteTargets} pending={clearVehicle.isPending} completed={deleteCompleted} result={deleteResult}
       onClose={() => { if (!clearVehicle.isPending) { setDeleteTargets(null); setDeleteResult(null); } }}
