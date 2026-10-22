@@ -25,11 +25,11 @@ import { TableToolbar, NumberedPager, RecordCountChip } from "../components/Tabl
 import { useTableState } from "../components/useTableState";
 import { NEED_KINDS, NEED_LABEL, RELATION_LABEL } from "../components/customer/customerFamilyData";
 import { CustomerDetailPage } from "./CustomerDetailPage";
-import { defaultGrowthFilters, normalizeGrowthFilters, filterGrowthRows, growthGroupLabel, GROWTH_STATES, GROWTH_CUSTOMER_STATUSES, GROWTH_POLICY_TYPES, type ProductionGrowthFilters, type ProductionGrowthRow } from "./productionGrowth";
+import { defaultGrowthFilters, normalizeGrowthFilters, filterGrowthRows, growthGroupLabel, groupGrowthRows, growthFilterError, growthFilterSummary, growthExportColumns, GROWTH_INSURANCE_LABELS, GROWTH_STATES, GROWTH_CUSTOMER_STATUSES, GROWTH_POLICY_TYPES, type ProductionGrowthFilters, type ProductionGrowthRow } from "./productionGrowth";
 
 const FILTERS: FilterVisibilityDescriptor[] = [
-  { key: "search", label: "Αναζήτηση" }, { key: "view", label: "Προβολή" }, { key: "kinds", label: "Ανάγκη / προτεινόμενη κάλυψη" },
-  { key: "coverageStates", label: "Κατάσταση κάλυψης" }, { key: "assetKinds", label: "Διαθέτει περιουσία / ανάγκη" },
+  { key: "search", label: "Αναζήτηση" }, { key: "view", label: "Αποτελέσματα" }, { key: "kinds", label: "Είδος προτεινόμενης ασφάλισης" },
+  { key: "coverageStates", label: "Κατάσταση ασφάλισης" }, { key: "assetKinds", label: "Διαθέτει περιουσία / ανάγκη" },
   { key: "activePolicyTypes", label: "Έχει ενεργά συμβόλαια", defaultOff: true }, { key: "producerIds", label: "Συνεργάτης" }, { key: "cities", label: "Πόλη" },
   { key: "customerStatuses", label: "Κατάσταση πελάτη", defaultOff: true }, { key: "family", label: "Οικογένεια", defaultOff: true }, { key: "priorityMin", label: "Προτεραιότητα" },
   { key: "contactState", label: "Χρόνος επικοινωνίας", defaultOff: true }, { key: "contactFrom", label: "Επικοινωνία από", defaultOff: true }, { key: "contactTo", label: "Επικοινωνία έως", defaultOff: true },
@@ -37,14 +37,15 @@ const FILTERS: FilterVisibilityDescriptor[] = [
 ];
 const COLUMNS = [
   { key: "customer", label: "Πελάτης", alwaysVisible: true }, { key: "assets", label: "Διαθέτει" },
-  { key: "need", label: "Ανάγκη / πρόταση", alwaysVisible: true }, { key: "state", label: "Κατάσταση κάλυψης" },
-  { key: "policies", label: "Ενεργές καλύψεις" }, { key: "priority", label: "Προτερ." },
+  { key: "need", label: "Προτεινόμενη ασφάλιση / ανάγκη", alwaysVisible: true }, { key: "state", label: "Κατάσταση ασφάλισης" },
+  { key: "policies", label: "Ενεργοί κλάδοι" }, { key: "priority", label: "Προτερ." },
   { key: "next", label: "Επόμ. επικοινωνία" }, { key: "contact", label: "Επικοινωνία" },
   { key: "producer", label: "Συνεργάτης", defaultVisible: false }, { key: "city", label: "Πόλη", defaultVisible: false },
   { key: "family", label: "Οικογένεια", defaultVisible: false }, { key: "notes", label: "Σημειώσεις", defaultVisible: false },
   { key: "reason", label: "Αιτιολογία", defaultVisible: false },
 ];
 const kinds = NEED_KINDS.map(value => ({ value, label: NEED_LABEL[value] ?? value }));
+const insuranceKinds = NEED_KINDS.map(value => ({ value, label: GROWTH_INSURANCE_LABELS[value] ?? value }));
 const policyKinds = Object.entries(GROWTH_POLICY_TYPES).map(([value, label]) => ({ value, label }));
 const shortDate = (value: string | null) => value ? new Date(`${value}T12:00:00`).toLocaleDateString("el-GR") : "—";
 const joinKinds = (values: string[], labels: Record<string, string>) => values.map(value => labels[value] ?? value).join(", ") || "—";
@@ -64,7 +65,8 @@ export function ProductionGrowthPage() {
   const allRows = query.data ?? [];
   const rows = useMemo(() => filterGrowthRows(query.data ?? [], filters), [query.data, filters]);
   const table = useTableState({ rows, searchableText: () => "", pageSize: 25, initialSortKey: "priority", initialSortDir: "desc" });
-  const displayRows = useMemo(() => filters.groupBy ? [...table.filtered].sort((a, b) => growthGroupLabel(a, filters.groupBy).localeCompare(growthGroupLabel(b, filters.groupBy), "el")) : table.filtered, [table.filtered, filters.groupBy]);
+  const displayRows = useMemo(() => groupGrowthRows(table.filtered, filters.groupBy), [table.filtered, filters.groupBy]);
+  const filterError = growthFilterError(filters);
   const pageRows = displayRows.slice((table.page - 1) * table.pageSize, table.page * table.pageSize);
   const groupCounts = new Map<string, number>();
   displayRows.forEach(row => { const key = growthGroupLabel(row, filters.groupBy); groupCounts.set(key, (groupCounts.get(key) ?? 0) + 1); });
@@ -89,7 +91,7 @@ export function ProductionGrowthPage() {
     switch (key) {
       case "customer": return <Button size="small" onClick={() => setCustomer(row)} sx={{ p: 0, textAlign: "left", display: "block", minWidth: 150 }}><Typography fontSize={12.5} fontWeight={800}>{row.customerName}</Typography><Typography fontSize={11} color="text.secondary">{row.customerNumber} · {GROWTH_CUSTOMER_STATUSES[row.customerStatus] ?? row.customerStatus}</Typography></Button>;
       case "assets": return joinKinds(row.assetKinds, NEED_LABEL);
-      case "need": return <Box sx={{ minWidth: 170, maxWidth: 250 }}><Typography fontSize={12.5} fontWeight={750}>{row.needKind ? NEED_LABEL[row.needKind] ?? row.needKind : "Χωρίς στοιχεία"}</Typography><Tooltip title={row.needTitle} enterTouchDelay={0}><Typography fontSize={12} noWrap>{row.needTitle}</Typography></Tooltip></Box>;
+      case "need": return <Box sx={{ minWidth: 170, maxWidth: 250 }}><Typography fontSize={12.5} fontWeight={750}>{row.needKind ? GROWTH_INSURANCE_LABELS[row.needKind] ?? row.needKind : "Χωρίς στοιχεία"}</Typography><Tooltip title={row.needTitle} enterTouchDelay={0}><Typography fontSize={12} noWrap>{row.needTitle}</Typography></Tooltip></Box>;
       case "state": return <Tooltip title={row.reason} enterTouchDelay={0}><Chip size="small" label={GROWTH_STATES[row.coverageState] ?? row.coverageState} color={row.isOpportunity ? "warning" : row.coverageState === "DeclaredInsured" ? "success" : row.coverageState === "ActivePolicy" ? "info" : "default"} sx={{ height: 23, fontSize: 11 }} /></Tooltip>;
       case "policies": return joinKinds(row.activePolicyTypes, GROWTH_POLICY_TYPES);
       case "priority": return row.needId ? <Chip size="small" label={`${row.priority}/5`} color={row.priority >= 4 ? "error" : "default"} sx={{ height: 22 }} /> : "—";
@@ -115,15 +117,15 @@ export function ProductionGrowthPage() {
     <Menu anchorEl={menu} open={!!menu} onClose={() => setMenu(null)}>
       <MenuItem onClick={() => { setMenu(null); setSaveRequest(value => value + 1); }} sx={{ color: "#5b55a5" }}><ListItemIcon sx={{ color: "inherit" }}><BookmarkAddIcon fontSize="small" /></ListItemIcon><ListItemText>Αποθήκευση νέου φίλτρου</ListItemText></MenuItem>
       <Divider />
-      {([['csv', 'Εξαγωγή CSV', TableChartIcon, '#087f73'], ['xlsx', 'Εξαγωγή Excel', GridOnIcon, '#167c45'], ['pdf', 'Εξαγωγή PDF', PictureAsPdfIcon, '#c73545'], ['print', 'Εκτύπωση', PrintIcon, '#456b91'], ['columns', 'Στήλες εξαγωγής', ViewColumnIcon, '#5b55a5']] as const).map(([key, label, Icon, color]) => <MenuItem key={key} onClick={() => run(key)} sx={{ color }}><ListItemIcon sx={{ color: "inherit" }}><Icon fontSize="small" /></ListItemIcon>{label}</MenuItem>)}
+      {([['csv', 'Εξαγωγή CSV', TableChartIcon, '#087f73'], ['xlsx', 'Εξαγωγή Excel', GridOnIcon, '#167c45'], ['pdf', 'Εξαγωγή PDF', PictureAsPdfIcon, '#c73545'], ['print', 'Εκτύπωση', PrintIcon, '#456b91'], ['columns', 'Στήλες εξαγωγής', ViewColumnIcon, '#5b55a5']] as const).map(([key, label, Icon, color]) => <MenuItem key={key} disabled={key !== "columns" && (query.isLoading || query.isError || !!filterError)} onClick={() => run(key)} sx={{ color }}><ListItemIcon sx={{ color: "inherit" }}><Icon fontSize="small" /></ListItemIcon>{label}</MenuItem>)}
       <Divider /><MenuItem onClick={() => { setMenu(null); void query.refetch(); }}><ListItemIcon><RefreshIcon fontSize="small" /></ListItemIcon>Ανανέωση δεδομένων</MenuItem>
     </Menu>
     <ResponsiveFilterPanel title="Φίλτρα αύξησης παραγωγής" activeCount={activeCount} compactAt="xl" compactButtonPlacement="external" compactOpen={filterOpen} onCompactOpenChange={setFilterOpen} cardSx={{ bgcolor: "#edf2f7", border: "1px solid #d5e0ec", boxShadow: "none", mb: 1 }}>
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))", xl: "repeat(5, minmax(0, 1fr))" }, alignItems: "center", gap: 1, pt: .5 }}>
-        {visibility.visible("search") && <TextField size="small" label="Αναζήτηση πελάτη / ανάγκης" value={filters.search} onChange={e => update("search", e.target.value)} />}
-        {visibility.visible("view") && <TextField select size="small" label="Προβολή" value={filters.view} onChange={e => update("view", e.target.value as ProductionGrowthFilters["view"])}><MenuItem value="opportunities">Προτεινόμενες καλύψεις</MenuItem><MenuItem value="all">Όλα τα στοιχεία / πελάτες</MenuItem></TextField>}
-        {multi("kinds", "Ανάγκη / προτεινόμενη κάλυψη", kinds)}
-        {multi("coverageStates", "Κατάσταση κάλυψης", Object.entries(GROWTH_STATES).map(([value, label]) => ({ value, label })))}
+        {visibility.visible("search") && <TextField size="small" label="Πελάτης / είδος ασφάλισης" value={filters.search} onChange={e => update("search", e.target.value)} />}
+        {visibility.visible("view") && <TextField select size="small" label="Αποτελέσματα" value={filters.view} onChange={e => update("view", e.target.value as ProductionGrowthFilters["view"])}><MenuItem value="opportunities">Προτάσεις ασφάλισης</MenuItem><MenuItem value="all">Όλοι οι πελάτες / ανάγκες</MenuItem></TextField>}
+        {multi("kinds", "Είδος προτεινόμενης ασφάλισης", insuranceKinds)}
+        {multi("coverageStates", "Κατάσταση ασφάλισης", Object.entries(GROWTH_STATES).map(([value, label]) => ({ value, label })))}
         {multi("assetKinds", "Διαθέτει περιουσία / ανάγκη", kinds)}
         {multi("activePolicyTypes", "Έχει ενεργά συμβόλαια", policyKinds)}
         {multi("producerIds", "Συνεργάτης", options("producers"))}
@@ -134,29 +136,18 @@ export function ProductionGrowthPage() {
         {visibility.visible("contactState") && <TextField select size="small" label="Επικοινωνία" value={filters.contactState} onChange={e => update("contactState", e.target.value)}><MenuItem value="">Όλες</MenuItem><MenuItem value="due">Σήμερα / καθυστερημένη</MenuItem><MenuItem value="future">Μελλοντική</MenuItem><MenuItem value="unscheduled">Χωρίς προγραμματισμό</MenuItem></TextField>}
         {visibility.visible("contactFrom") && <TextField size="small" type="date" label="Επόμενη επικοινωνία από" InputLabelProps={{ shrink: true }} value={filters.contactFrom} onChange={e => update("contactFrom", e.target.value)} />}
         {visibility.visible("contactTo") && <TextField size="small" type="date" label="Επόμενη επικοινωνία έως" InputLabelProps={{ shrink: true }} value={filters.contactTo} onChange={e => update("contactTo", e.target.value)} />}
-        {visibility.visible("groupBy") && <TextField select size="small" label="Ομαδοποίηση" value={filters.groupBy} onChange={e => update("groupBy", e.target.value as ProductionGrowthFilters["groupBy"])}><MenuItem value="">Χωρίς ομαδοποίηση</MenuItem><MenuItem value="customer">Ανά πελάτη</MenuItem><MenuItem value="kind">Ανά κάλυψη</MenuItem><MenuItem value="city">Ανά πόλη</MenuItem><MenuItem value="producer">Ανά συνεργάτη</MenuItem></TextField>}
+        {visibility.visible("groupBy") && <TextField select size="small" label="Ομαδοποίηση" value={filters.groupBy} onChange={e => update("groupBy", e.target.value as ProductionGrowthFilters["groupBy"])}><MenuItem value="">Χωρίς ομαδοποίηση</MenuItem><MenuItem value="customer">Ανά πελάτη</MenuItem><MenuItem value="kind">Ανά είδος ασφάλισης</MenuItem><MenuItem value="city">Ανά πόλη</MenuItem><MenuItem value="producer">Ανά συνεργάτη</MenuItem></TextField>}
         <Stack direction="row" gap={.75}><Button variant="contained" color="error" size="small" startIcon={<FilterAltOffIcon />} onClick={reset}>Καθαρισμός</Button><FilterVisibilityPicker filters={FILTERS} {...visibility} /></Stack>
       </Box>
     </ResponsiveFilterPanel>
-    <TableToolbar<ProductionGrowthRow> query="" onQuery={() => {}} hideSearch hideCount hidePageSize hideActionButtons snapshotExport
+    {filterError && <Alert severity="warning" sx={{ mb: 1 }}>{filterError}</Alert>}
+    <TableToolbar<ProductionGrowthRow> query="" onQuery={() => {}} hideSearch hideCount hidePageSize hideActionButtons snapshotExport printOfficeSource="export"
       count={allRows.length} filteredCount={displayRows.length} pageSize={table.pageSize} onPageSize={table.setPageSize}
       exportRows={displayRows} exportFileName="production-growth" columnSelectionId="production-growth" printTitle="Λίστες αύξησης παραγωγής"
-      printSubtitle={`${filters.view === "opportunities" ? "Προτεινόμενες καλύψεις" : "Όλα τα στοιχεία"}${filters.search ? ` · Αναζήτηση: ${filters.search}` : ""}`}
+      printSubtitle={growthFilterSummary(filters, allRows)}
       exportGroupBy={filters.groupBy ? row => growthGroupLabel(row, filters.groupBy) : undefined}
       actionRequest={action} visibleColumnKeys={columns.visibleColumns.map(c => c.key)}
-      exportColumns={[
-        { key: "customer", label: "Πελάτης", map: row => `${row.customerNumber} · ${row.customerName}` },
-        { key: "assets", label: "Διαθέτει", map: row => joinKinds(row.assetKinds, NEED_LABEL) },
-        { key: "need", label: "Ανάγκη / πρόταση", map: row => `${row.needKind ? NEED_LABEL[row.needKind] ?? row.needKind : ""} · ${row.needTitle}` },
-        { key: "state", label: "Κατάσταση κάλυψης", map: row => GROWTH_STATES[row.coverageState] ?? row.coverageState },
-        { key: "policies", label: "Ενεργές καλύψεις", map: row => joinKinds(row.activePolicyTypes, GROWTH_POLICY_TYPES) },
-        { key: "priority", label: "Προτεραιότητα", map: row => row.needId ? `${row.priority}/5` : "—" },
-        { key: "next", label: "Επόμενη επικοινωνία", map: row => shortDate(row.nextContactAt) },
-        { key: "contact", label: "Επικοινωνία", map: row => [row.phone, row.email].filter(Boolean).join(" · ") },
-        { key: "producer", label: "Συνεργάτης", map: row => row.producers.map(p => p.name).join(", ") },
-        { key: "city", label: "Πόλη", map: row => row.city || "—" }, { key: "family", label: "Οικογένεια", map: row => row.family.map(p => `${p.name} (${RELATION_LABEL[p.relationship] ?? p.relationship})`).join(", ") || "—" },
-        { key: "notes", label: "Σημειώσεις", map: row => row.notes || "—" }, { key: "reason", label: "Αιτιολογία" },
-      ]} />
+      exportColumns={growthExportColumns} />
     {query.isError && <Alert severity="error" sx={{ mb: 1 }} action={<Button onClick={() => void query.refetch()}>Επανάληψη</Button>}>{extractErrorMessage(query.error)}</Alert>}
     {query.isLoading ? <Box sx={{ py: 5, textAlign: "center" }}><CircularProgress /></Box> : <Card variant="outlined" sx={{ bgcolor: "#f8fafc", borderColor: "#d5e0ec", overflow: "hidden" }}>
       <TableContainer sx={{ maxHeight: "min(64vh, 780px)", overflow: "auto" }}>
@@ -167,7 +158,7 @@ export function ProductionGrowthPage() {
           <TableBody>{pageRows.map((row, index) => <Fragment key={row.id}>
             {filters.groupBy && (index === 0 || growthGroupLabel(pageRows[index - 1], filters.groupBy) !== growthGroupLabel(row, filters.groupBy)) && <TableRow><TableCell colSpan={columns.visibleColumns.length + 1} sx={{ bgcolor: "#dce8f5", fontWeight: 800 }}>{growthGroupLabel(row, filters.groupBy)} · {groupCounts.get(growthGroupLabel(row, filters.groupBy))} εγγραφές</TableCell></TableRow>}
             <TableRow hover>{columns.visibleColumns.map(column => <TableCell key={column.key}>{renderCell(column.key, row)}</TableCell>)}<TableCell><Button size="small" variant="contained" color="success" startIcon={<PersonOutlineIcon />} onClick={() => setCustomer(row)} sx={{ whiteSpace: "nowrap" }}>Καρτέλα</Button></TableCell></TableRow>
-          </Fragment>)}{!pageRows.length && <TableRow><TableCell colSpan={columns.visibleColumns.length + 1} sx={{ textAlign: "center", py: "32px !important" }}>{query.isError ? "Η φόρτωση απέτυχε. Πατήστε Επανάληψη." : allRows.length ? "Δεν βρέθηκαν αποτελέσματα. Αλλάξτε τα φίλτρα ή επιλέξτε «Όλα τα στοιχεία / πελάτες»." : "Δεν υπάρχουν καταχωρημένοι πελάτες."}</TableCell></TableRow>}</TableBody>
+          </Fragment>)}{!pageRows.length && <TableRow><TableCell colSpan={columns.visibleColumns.length + 1} sx={{ textAlign: "center", py: "32px !important" }}>{query.isError ? "Η φόρτωση απέτυχε. Πατήστε Επανάληψη." : allRows.length ? "Δεν βρέθηκαν αποτελέσματα. Αλλάξτε τα φίλτρα ή επιλέξτε «Όλοι οι πελάτες / ανάγκες»." : "Δεν υπάρχουν καταχωρημένοι πελάτες."}</TableCell></TableRow>}</TableBody>
         </Table>
       </TableContainer>
       <Box sx={{ px: 1, py: .75 }}><NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage} totalRows={displayRows.length} pageSize={table.pageSize} onPageSize={table.setPageSize} /></Box>

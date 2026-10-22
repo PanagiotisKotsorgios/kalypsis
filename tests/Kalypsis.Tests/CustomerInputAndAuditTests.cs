@@ -144,7 +144,7 @@ public class CustomerInputAndAuditTests
             .Where(p => p.Name is not ("CreatePortalAccount" or "FirstName")))
             Assert.Equal(property.GetValue(request), typeof(CustomerDto).GetProperty(property.Name)!.GetValue(loaded));
         Assert.Equal("Νέο όνομα", loaded.FirstName);
-        var profile = await new GetCustomerFamilyProfileHandler(db, current).Handle(new(loaded.Id), default);
+        var profile = await new GetCustomerFamilyProfileHandler(db, current, TestScaffold.Clock).Handle(new(loaded.Id), default);
         Assert.Equal(loaded.Occupation, profile.Profile.Occupation);
         Assert.Equal(loaded.MaritalStatus, profile.Profile.MaritalStatus);
         Assert.Equal(loaded.Nationality, profile.Profile.Nationality);

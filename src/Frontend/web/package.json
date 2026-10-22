@@ -14,6 +14,7 @@
     "test:searchable-options": "node --experimental-strip-types --test src/components/searchableOptions.test.mjs",
     "test:over-commissions": "node --experimental-strip-types --test src/pages/overCommissionTable.test.mjs src/pages/partnerResponsive.test.mjs src/utils/tableExportSnapshot.test.mjs",
     "test:production-lists": "node --experimental-strip-types --test src/pages/productionListsSimplification.test.mjs",
+    "test:production-growth": "node --experimental-strip-types --test --test-concurrency=1 src/pages/productionGrowth.test.mjs",
     "test:advance-payments": "node --experimental-strip-types --test src/pages/advancePaymentsAllocation.test.mjs",
     "test:financial-layout": "node --experimental-strip-types --test src/pages/financialResponsive.test.mjs",
     "test:sidebar-visibility": "node --experimental-strip-types --test src/config/sidebarVisibility.test.mjs",

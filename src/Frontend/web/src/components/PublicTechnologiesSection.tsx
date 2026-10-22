@@ -36,7 +36,7 @@ export function PublicTechnologiesSection() {
           </Stack>
         </Box>)}
       </Box>
-      <Typography sx={{ mt: 3, textAlign: "center", color: "#536B89", fontSize: 12, lineHeight: 1.6 }}>Τα λογότυπα και τα εμπορικά σήματα ανήκουν στους αντίστοιχους δικαιούχους. Η αναφορά τεχνολογιών δεν υποδηλώνει επίσημη συνεργασία ή έγκριση του KALYPSIS.</Typography>
+      <Typography sx={{ mt: 3, textAlign: "center", color: "#536B89", fontSize: 12, lineHeight: 1.6 }}>Τα λογότυπα και τα εμπορικά σήματα ανήκουν στους αντίστοιχους δικαιούχους.</Typography>
     </Container>
   </Box>;
 }

@@ -86,7 +86,8 @@ test("public technology credits, reference-style comparison and notice render fr
         const technologies = render(h(PublicTechnologiesSection),width);
         assert.equal((technologies.match(/<img/g)??[]).length,8);
         assert.equal((technologies.match(/Πηγαίος κώδικας<\/a>/g)??[]).length,7);
-        assert.ok(technologies.includes("δεν υποδηλώνει επίσημη συνεργασία"));
+        assert.ok(!technologies.includes("Η αναφορά τεχνολογιών δεν υποδηλώνει"));
+        assert.ok(technologies.includes("Τα λογότυπα και τα εμπορικά σήματα ανήκουν"));
         const notice = render(h(InfrastructureNoticeBanner),width);
         for (const token of ["#E8F5ED","#FFE16A","#151515","26/10/2026"]) assert.ok(notice.includes(token));
       }

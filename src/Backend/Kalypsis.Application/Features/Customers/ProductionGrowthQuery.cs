@@ -21,12 +21,13 @@ public record GetProductionGrowthQuery : IRequest<IReadOnlyList<ProductionGrowth
 /// <summary>One row per recorded need, or one explicitly unknown row for a customer without needs.
 /// Reads the existing family/needs data in bounded query count, never one API call per customer.
 /// Normal EF tenant, office and soft-deletion filters remain in force for every source.</summary>
-public sealed class GetProductionGrowthHandler(IAppDbContext db, ICurrentUser current)
+public sealed class GetProductionGrowthHandler(IAppDbContext db, ICurrentUser current, IDateTimeProvider clock)
     : IRequestHandler<GetProductionGrowthQuery, IReadOnlyList<ProductionGrowthRowDto>>
 {
     public async Task<IReadOnlyList<ProductionGrowthRowDto>> Handle(GetProductionGrowthQuery request, CancellationToken ct)
     {
         var tenantId = current.TenantId ?? throw AppException.Forbidden();
+        var today = DateOnly.FromDateTime(clock.UtcNow);
         var visibleCustomers = db.Customers.AsNoTracking().Where(c => c.TenantId == tenantId && c.DeletedAt == null);
         var people = await visibleCustomers.OrderBy(c => c.CustomerNumber).Select(c => new
         {
@@ -39,7 +40,7 @@ public sealed class GetProductionGrowthHandler(IAppDbContext db, ICurrentUser cu
             .OrderByDescending(n => n.Priority).ThenBy(n => n.Kind).ToListAsync(ct);
         var policies = await db.Policies.AsNoTracking()
             .Where(p => p.TenantId == tenantId && p.DeletedAt == null && ids.Contains(p.CustomerId))
-            .Select(p => new { p.CustomerId, p.Status, p.PolicyType, p.ProducerId }).ToListAsync(ct);
+            .Select(p => new { p.CustomerId, p.Status, p.PolicyType, p.ProducerId, p.StartDate, p.EndDate }).ToListAsync(ct);
         var producers = await db.Producers.AsNoTracking()
             .Where(p => p.TenantId == tenantId && p.DeletedAt == null)
             .Select(p => new GrowthProducerDto(p.Id, p.Name)).ToDictionaryAsync(p => p.Id, ct);
@@ -58,7 +59,7 @@ public sealed class GetProductionGrowthHandler(IAppDbContext db, ICurrentUser cu
         {
             var customerNeeds = needsByCustomer[customer.Id].ToList();
             var customerPolicies = policiesByCustomer[customer.Id].ToList();
-            var active = customerPolicies.Where(p => p.Status == PolicyStatus.Active).ToList();
+            var active = customerPolicies.Where(p => CustomerFamilyQueries.IsCurrentInsurance(p.Status, p.StartDate, p.EndDate, today)).ToList();
             var activeTypes = active.Select(p => p.PolicyType.ToString()).ToHashSet();
             var assets = customerNeeds.Where(n => n.HasAsset).Select(n => n.Kind).Distinct().Order().ToArray();
             var partners = customerPolicies.Where(p => p.ProducerId.HasValue && producers.ContainsKey(p.ProducerId.Value))
@@ -84,8 +85,10 @@ public sealed class GetProductionGrowthHandler(IAppDbContext db, ICurrentUser cu
                 {
                     "NoAsset" => "Η περιουσία / ανάγκη έχει δηλωθεί ως μη διαθέσιμη.",
                     "DeclaredInsured" => "Η ανάγκη έχει δηλωθεί ως ήδη ασφαλισμένη.",
-                    "ActivePolicy" => "Υπάρχει ενεργό συμβόλαιο του ίδιου κλάδου. Επιβεβαιώστε ότι αφορά τη συγκεκριμένη περιουσία.",
-                    _ => "Καταχωρημένη ανάγκη χωρίς δηλωμένη κάλυψη ή ενεργό συμβόλαιο του αντίστοιχου κλάδου. Προς διερεύνηση με τον πελάτη."
+                    "ActivePolicy" => "Υπάρχει συμβόλαιο ίδιου κλάδου σε ισχύ. Δεν τεκμηριώνεται αντιστοίχιση με τη συγκεκριμένη περιουσία· απαιτείται έλεγχος πριν από νέα πρόταση.",
+                    _ => CustomerNeedCatalog.PolicyTypeFor(need.Kind) is null
+                        ? "Καταχωρημένη ανάγκη χωρίς δηλωμένη ασφάλιση. Δεν υπάρχει ακριβής αντιστοίχιση με τους βασικούς κλάδους· απαιτείται έλεγχος των συμβολαίων πριν από πρόταση."
+                        : "Καταχωρημένη ανάγκη χωρίς δηλωμένη ασφάλιση ή συμβόλαιο του αντίστοιχου κλάδου σε ισχύ σήμερα. Προς διερεύνηση για πρόταση ασφάλισης."
                 };
                 rows.Add(Row(need.Id.ToString(), need.Id, need.Kind, need.Title, need.HasAsset, need.IsInsured,
                     need.Priority, need.NextContactAt, need.Notes, opportunity, state, reason));

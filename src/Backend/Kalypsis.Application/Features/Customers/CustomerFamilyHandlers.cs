@@ -129,7 +129,8 @@ public class GetCustomerFamilyProfileHandler : IRequestHandler<GetCustomerFamily
 {
     private readonly IAppDbContext _db;
     private readonly ICurrentUser _current;
-    public GetCustomerFamilyProfileHandler(IAppDbContext db, ICurrentUser current) { _db = db; _current = current; }
+    private readonly IDateTimeProvider _clock;
+    public GetCustomerFamilyProfileHandler(IAppDbContext db, ICurrentUser current, IDateTimeProvider clock) { _db = db; _current = current; _clock = clock; }
 
     public async Task<CustomerFamilyProfileDto> Handle(GetCustomerFamilyProfileQuery request, CancellationToken ct)
     {
@@ -167,7 +168,7 @@ public class GetCustomerFamilyProfileHandler : IRequestHandler<GetCustomerFamily
             }).ToList();
 
         var opportunities = CustomerFamilyQueries.BuildOpportunities(
-            people, relationships, needs, policies);
+            people, relationships, needs, policies, DateOnly.FromDateTime(_clock.UtcNow));
 
         return new CustomerFamilyProfileDto(
             profile,
@@ -410,10 +411,10 @@ internal static class CustomerFamilyQueries
         IReadOnlyDictionary<Guid, Customer> people,
         IReadOnlyList<CustomerRelationship> relationships,
         IReadOnlyList<CustomerInsuranceNeed> needs,
-        IReadOnlyList<Policy> policies)
+        IReadOnlyList<Policy> policies, DateOnly today)
     {
         var relationByCustomer = relationships.ToDictionary(r => r.RelatedCustomerId, r => r.RelationshipType.ToString());
-        var activePolicies = policies.Where(p => p.Status == PolicyStatus.Active)
+        var activePolicies = policies.Where(p => IsCurrentInsurance(p.Status, p.StartDate, p.EndDate, today))
             .GroupBy(p => p.CustomerId)
             .ToDictionary(g => g.Key, g => g.Select(p => p.PolicyType.ToString()).ToHashSet());
         return needs.Where(n => people.ContainsKey(n.CustomerId)
@@ -430,6 +431,9 @@ internal static class CustomerFamilyQueries
     }
 
     // Shared by the individual customer card and the office-wide growth list.
+    public static bool IsCurrentInsurance(PolicyStatus status, DateOnly start, DateOnly end, DateOnly today) =>
+        start <= today && end >= today && status is (PolicyStatus.Active or PolicyStatus.PendingRenewal or PolicyStatus.Renewed or PolicyStatus.Undelivered);
+
     public static bool IsOpportunity(CustomerInsuranceNeed need, IReadOnlySet<string> activePolicyTypes)
     {
         var policyType = CustomerNeedCatalog.PolicyTypeFor(need.Kind);

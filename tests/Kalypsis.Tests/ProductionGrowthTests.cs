@@ -12,6 +12,39 @@ namespace Kalypsis.Tests;
 
 public sealed class ProductionGrowthTests
 {
+    [Theory]
+    [InlineData(PolicyStatus.Active, -1, 1, true)]
+    [InlineData(PolicyStatus.Active, 0, 0, true)]
+    [InlineData(PolicyStatus.Active, 1, 10, false)]
+    [InlineData(PolicyStatus.Active, -10, -1, false)]
+    [InlineData(PolicyStatus.PendingRenewal, -10, 10, true)]
+    [InlineData(PolicyStatus.Renewed, -10, 10, true)]
+    [InlineData(PolicyStatus.Undelivered, -10, 10, true)]
+    [InlineData(PolicyStatus.Renewed, -10, -1, false)]
+    [InlineData(PolicyStatus.Cancelled, -10, 10, false)]
+    [InlineData(PolicyStatus.Expired, -10, 10, false)]
+    [InlineData(PolicyStatus.Prospect, -10, 10, false)]
+    [InlineData(PolicyStatus.Draft, -10, 10, false)]
+    [InlineData(PolicyStatus.AwaitingIssue, -10, 10, false)]
+    public async Task Dates_and_statuses_agree_between_customer_card_and_growth_without_mutating_records(PolicyStatus status, int start, int end, bool insured)
+    {
+        var current = TestScaffold.AgencyStaff(Guid.NewGuid()); var clock = TestScaffold.Clock;
+        var today = DateOnly.FromDateTime(clock.UtcNow);
+        await using var db = TestScaffold.NewDb(current, clock);
+        var customer = Customer(current.TenantId!.Value,"C-DATES");
+        var need = Need(customer,"Home","Κύρια κατοικία");
+        var policy = Policy(customer,PolicyType.Home,status); policy.StartDate = today.AddDays(start); policy.EndDate = today.AddDays(end);
+        db.AddRange(customer,need,policy); await db.SaveChangesAsync(); db.ChangeTracker.Clear();
+        var growth = Assert.Single(await new GetProductionGrowthHandler(db,current,clock).Handle(new(),default));
+        var profile = await new GetCustomerFamilyProfileHandler(db,current,clock).Handle(new(customer.Id),default);
+        Assert.Equal(!insured,growth.IsOpportunity); Assert.Equal(insured ? 1 : 0,growth.ActivePolicyCount);
+        Assert.Equal(insured ? "ActivePolicy" : "Uncovered",growth.CoverageState);
+        Assert.Equal(insured ? 0 : 1,profile.Opportunities.Count);
+        Assert.Equal(status,(await db.Policies.SingleAsync()).Status);
+        Assert.False((await db.CustomerInsuranceNeeds.SingleAsync()).IsInsured);
+        Assert.All(db.ChangeTracker.Entries(),entry=>Assert.Equal(EntityState.Unchanged,entry.State));
+    }
+
     [Fact]
     public async Task Office_list_reuses_customer_card_opportunities_without_duplicating_family_members()
     {
@@ -31,8 +64,8 @@ public sealed class ProductionGrowthTests
             Relation(parent, child), Relation(child, parent));
         await db.SaveChangesAsync();
 
-        var rows = await new GetProductionGrowthHandler(db, current).Handle(new(), default);
-        var profile = await new GetCustomerFamilyProfileHandler(db, current).Handle(new(parent.Id), default);
+        var rows = await new GetProductionGrowthHandler(db, current, TestScaffold.Clock).Handle(new(), default);
+        var profile = await new GetCustomerFamilyProfileHandler(db, current, TestScaffold.Clock).Handle(new(parent.Id), default);
 
         Assert.Equal(4, rows.Count);
         Assert.Equal(rows.Count, rows.Select(r => r.Id).Distinct().Count());
@@ -69,7 +102,7 @@ public sealed class ProductionGrowthTests
         unavailable.HasAsset = false;
         db.AddRange(empty, owner, first, second, unavailable);
         await db.SaveChangesAsync();
-        var rows = await new GetProductionGrowthHandler(db, current).Handle(new(), default);
+        var rows = await new GetProductionGrowthHandler(db, current, TestScaffold.Clock).Handle(new(), default);
         var unknown = Assert.Single(rows, r => r.CustomerId == empty.Id);
         Assert.Null(unknown.NeedId);
         Assert.Null(unknown.HasAsset);
@@ -109,7 +142,7 @@ public sealed class ProductionGrowthTests
         }
         var current = new OfficeUser(tenant, office);
         await using var db = TestScaffold.NewDb(current, TestScaffold.Clock, database);
-        var rows = await new GetProductionGrowthHandler(db, current).Handle(new(), default);
+        var rows = await new GetProductionGrowthHandler(db, current, TestScaffold.Clock).Handle(new(), default);
         var visible = Assert.Single(rows);
         Assert.Equal(targetId, visible.CustomerId);
         Assert.Equal("VISIBLE", visible.NeedTitle);
