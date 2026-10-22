@@ -1,11 +1,11 @@
 import { DetailProfileTabs } from "./profile/DetailProfileTabs";
 import { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback, profileDialogPaperSx, profileFieldGridSx, useProfileFieldEditor, type ProfileFieldSession } from "./profile/ProfileFieldEditor";
-import { PRODUCER_FIELDS, producerUpdatePayload } from "./profile/producerProfile";
+import { PRODUCER_FIELDS, producerGeneralColumns, producerUpdatePayload } from "./profile/producerProfile";
 import { useEffect, useState } from "react";
 import {
   Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
   DialogTitle, IconButton, LinearProgress, Stack, Table, TableBody,
-  TableCell, TableHead, TableRow, Typography
+  TableCell, TableHead, TableRow, Typography, useMediaQuery, useTheme
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import EmailIcon from "@mui/icons-material/Email";
@@ -145,11 +145,14 @@ export function ProducerDetailDrawer({ producerId, open, onClose, onEdit }: {
             </Stack>}
             {tab === 2 && <Stack gap={1.25}>
               <ProducerBalancesPanel key={p.id} producerId={p.id} />
-              <Card variant="outlined" sx={{ p: 1.25 }}><Typography fontWeight={800} mb={.75}>{t("producerDetail.financials")}</Typography><Box sx={profileFieldGridSx}>
-                <KV label={t("producerDetail.premiumYtd")} value={`${p.totalPremiumYtd.toFixed(2)} €`} />
-                <KV label={t("producerDetail.premiumLastYear")} value={`${p.totalPremiumLastYear.toFixed(2)} €`} />
-                <KV label={t("producerDetail.commissionsAll")} value={`${p.totalCommissionsEarned.toFixed(2)} €`} />
-                <KV label={t("producerDetail.commissionsYtd")} value={`${p.commissionsThisYear.toFixed(2)} €`} />
+              <Card variant="outlined" sx={{ p: 1.25 }}><Typography fontWeight={800} mb={.75}>{t("producerDetail.financials")}</Typography><Box sx={{ ...profileFieldGridSx, gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))" }, alignItems: "start" }}>
+                <Stack spacing={.5} sx={{ minWidth: 0 }}>
+                  <KV label={t("producerDetail.premiumYtd")} value={`${p.totalPremiumYtd.toFixed(2)} €`} />
+                  <KV label={t("producerDetail.premiumLastYear")} value={`${p.totalPremiumLastYear.toFixed(2)} €`} />
+                </Stack><Stack spacing={.5} sx={{ minWidth: 0 }}>
+                  <KV label={t("producerDetail.commissionsAll")} value={`${p.totalCommissionsEarned.toFixed(2)} €`} />
+                  <KV label={t("producerDetail.commissionsYtd")} value={`${p.commissionsThisYear.toFixed(2)} €`} />
+                </Stack>
               </Box></Card>
             </Stack>}
             {tab === 3 && <Card variant="outlined" sx={{ p: 1.25 }}><Stack direction="row" justifyContent="space-between" alignItems="center" mb={.75}><Typography fontWeight={800}>Ιστορικό επικοινωνίας</Typography><Chip size="small" label={`${communications.data?.length ?? 0}`} /></Stack>{communications.isLoading ? <CircularProgress size={20} /> : (communications.data ?? []).length === 0 ? <Typography variant="body2" color="text.secondary">Δεν έχει καταγραφεί ακόμη επικοινωνία με τον συνεργάτη.</Typography> : <Stack spacing={.75}>{(communications.data ?? []).map(item => <Box key={item.id} sx={{ p: 1, borderRadius: 1.25, bgcolor: "background.default", border: "1px solid", borderColor: "divider" }}><Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={.5}><Typography variant="body2" fontWeight={700}>{COMM_KIND[item.kind] ?? "Επικοινωνία"} · {item.subject}</Typography><Typography variant="caption" color="text.secondary">{new Date(item.occurredAt).toLocaleString("el-GR")}</Typography></Stack><Typography variant="caption" color="text.secondary">{COMM_OUTCOME[item.outcome] ?? ""}</Typography>{item.body && <Typography variant="body2" sx={{ mt: .35, whiteSpace: "pre-wrap" }}>{item.body}</Typography>}</Box>)}</Stack>}</Card>}
@@ -197,6 +200,10 @@ function KV({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export function ProducerProfileFields({ session, values, parents = [] }: { session?: ProfileFieldSession; values: Record<string, string>; parents?: {id: string; name: string}[] }) {
+  const theme = useTheme();
+  const wide = useMediaQuery(theme.breakpoints.up("lg"));
+  const medium = useMediaQuery(theme.breakpoints.up("md"));
+  const columnCount = wide ? 3 : medium ? 2 : 1;
   const enums: Record<string, { value: string; label: string }[]> = {
     status: [{value:"Active",label:"Ενεργός"}, {value:"Prospect",label:"Πιθανός συνεργάτης"}, {value:"Suspended",label:"Σε αναστολή"}, {value:"Terminated",label:"Τερματισμένος"}],
     hasContract: [{value:"true",label:"Ναι"}, {value:"false",label:"Όχι"}],
@@ -205,8 +212,14 @@ export function ProducerProfileFields({ session, values, parents = [] }: { sessi
     parentProducerId: [{value:"",label:"Χωρίς προϊστάμενο"}, ...parents.map(row => ({value:row.id,label:row.name}))],
   };
   if (values.parentProducerId && !enums.parentProducerId.some(option => option.value === values.parentProducerId)) enums.parentProducerId.push({value: values.parentProducerId, label:"Τρέχων προϊστάμενος"});
-  return <Box sx={profileFieldGridSx}>{PRODUCER_FIELDS.map(([key,label]) =>
+  const fields = new Map(PRODUCER_FIELDS.map(([key, label]) => [key,
     <ProfileEditableField key={key} label={label} field={session ? key : undefined} session={session} value={values[key]} options={enums[key]}
       type={/Date$/.test(key) ? "date" : /email/i.test(key) ? "email" : "text"} multiline={key === "notes" || key === "additionalInfoJson"} />
-  )}</Box>;
+  ]));
+  return <Box data-producer-general-columns={columnCount} sx={{ ...profileFieldGridSx,
+    gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`, columnGap: 1, alignItems: "start" }}>
+    {producerGeneralColumns(columnCount).map((keys, index) => <Stack key={index} data-producer-column={index + 1} spacing={.5} sx={{ minWidth: 0 }}>
+      {keys.map(key => fields.get(key))}
+    </Stack>)}
+  </Box>;
 }

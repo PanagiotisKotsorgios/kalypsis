@@ -25,7 +25,8 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
     const { ProducerProfileFields } = await server.ssrLoadModule("/src/components/ProducerDetailDrawer.tsx");
     const { ClaimProfileFields } = await server.ssrLoadModule("/src/components/ClaimDetailDrawer.tsx");
     const { mergeVehicleSpecs, VEHICLE_SPEC_FIELDS, VEHICLE_GENERAL_COLUMNS, vehicleGeneralColumns } = await server.ssrLoadModule("/src/components/profile/vehicleProfile.ts");
-    const { producerUpdatePayload, PRODUCER_FIELDS } = await server.ssrLoadModule("/src/components/profile/producerProfile.ts");
+    const { producerUpdatePayload, PRODUCER_FIELDS, PRODUCER_GENERAL_COLUMNS, producerGeneralColumns } = await server.ssrLoadModule("/src/components/profile/producerProfile.ts");
+    const { ThemeProvider, createTheme } = await server.ssrLoadModule("@mui/material/styles");
     const { claimUpdatePayload } = await server.ssrLoadModule("/src/components/profile/claimProfile.ts");
     const { policyCorePayload, policyPreservedAmounts } = await server.ssrLoadModule("/src/components/profile/policyProfile.ts");
     const layout = (Component, props) => {
@@ -83,6 +84,39 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
       const values = Object.fromEntries(PRODUCER_FIELDS.map(([key])=>[key,""])); Object.assign(values,{name:"Συνεργάτης",code:"P1",status:"Active",hasContract:"false",tier:"None",hierarchyLevel:"Producer"});
       const {view,edit}=layout(ProducerProfileFields,{values,session:session(values)});
       assert.equal(ids(view).length,PRODUCER_FIELDS.length); assert.equal(view.includes("Επεξεργασία Ονοματεπώνυμο"),true); assert.equal(edit.includes("Αποθήκευση Ονοματεπώνυμο"),true);
+    });
+    await t.test("producer fields read top-to-bottom in responsive columns with identical view/edit placement", () => {
+      const expected = PRODUCER_FIELDS.map(([key]) => key);
+      assert.deepEqual(PRODUCER_GENERAL_COLUMNS.flat(), expected);
+      assert.equal(new Set(expected).size, expected.length);
+      for (const count of [1, 2, 3]) {
+        const columns = producerGeneralColumns(count);
+        assert.equal(columns.length, count);
+        assert.deepEqual(columns.flat(), expected);
+        assert.ok(columns.every(column => column.length));
+      }
+      assert.deepEqual(PRODUCER_GENERAL_COLUMNS[1], ["email", "secondaryEmail", "phone", "secondaryPhone", "address", "city", "postalCode", "website"]);
+      const values = Object.fromEntries(PRODUCER_FIELDS.map(([key]) => [key, ""]));
+      Object.assign(values, { name: "Συνεργάτης", code: "P1", email: "info@example.gr", phone: "2101234567", status: "Active", hasContract: "true" });
+      for (const width of [360, 768, 1024, 1280, 1920]) {
+        const count = width >= 1200 ? 3 : width >= 900 ? 2 : 1;
+        const theme = createTheme({ components: { MuiUseMediaQuery: { defaultProps: { ssrMatchMedia: query => {
+          const min = query.match(/min-width:\s*([\d.]+)px/);
+          return { matches: !min || width >= Number(min[1]) };
+        } } } } });
+        for (const editAll of [false, true]) {
+          const html = renderToStaticMarkup(createElement(ThemeProvider, { theme }, createElement(ProducerProfileFields,
+            { values, session: { ...session(values), editAll } })));
+          assert.ok(html.includes(`data-producer-general-columns="${count}"`));
+          assert.deepEqual(ids(html), expected);
+          const columns = html.split(/data-producer-column="\d+"/).slice(1);
+          assert.deepEqual(columns.map(ids), producerGeneralColumns(count));
+          for (const key of expected) assert.equal(ids(html).filter(id => id === key).length, 1, `${width}px: ${key}`);
+          if (!editAll) assert.ok(html.includes("Αντιγραφή Ονοματεπώνυμο"));
+          assert.ok(html.includes(editAll ? "Αποθήκευση Ονοματεπώνυμο" : "Επεξεργασία Ονοματεπώνυμο"));
+          assert.ok(html.includes("info@example.gr"));
+        }
+      }
     });
     await t.test("producer update preserves hierarchy, contract, unknown JSON and unchanged legacy values", () => {
       const current={code:"P1",name:"Old",tier:"E",hierarchyLevel:"Agency",parentProducerId:"parent",hasContract:true,contractNumber:"C1",email:"legacy",additionalInfoJson:'{"future":{"a":1}}'};

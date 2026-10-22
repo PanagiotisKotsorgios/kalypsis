@@ -10,11 +10,15 @@ interface ProducerBalances { producerId: string; currencies: Balance[]; entries:
 const amount = (value: number, currency: string) => value.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " " + currency;
 
 export function ProducerBalanceSummary({ currencies }: { currencies: Balance[] }) {
-  return <Stack gap={.75}>{currencies.map(balance => <Box key={balance.currency} sx={profileFieldGridSx}>
-    <ProfileEditableField label="Προμήθειες" value={amount(balance.earned, balance.currency)} mono />
-    <ProfileEditableField label="Καταβλήθηκαν" value={amount(balance.paid, balance.currency)} mono />
-    <ProfileEditableField label="Οφειλή προς συνεργάτη" value={amount(balance.toProducer, balance.currency)} mono />
-    <ProfileEditableField label="Από συνεργάτη / πιστωτικό" value={amount(balance.fromProducer, balance.currency)} mono />
+  return <Stack gap={.75}>{currencies.map(balance => <Box key={balance.currency} sx={{ ...profileFieldGridSx,
+    gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))" }, alignItems: "start" }}>
+    <Stack spacing={.5} sx={{ minWidth: 0 }}>
+      <ProfileEditableField label="Προμήθειες" value={amount(balance.earned, balance.currency)} mono />
+      <ProfileEditableField label="Καταβλήθηκαν" value={amount(balance.paid, balance.currency)} mono />
+    </Stack><Stack spacing={.5} sx={{ minWidth: 0 }}>
+      <ProfileEditableField label="Οφειλή προς συνεργάτη" value={amount(balance.toProducer, balance.currency)} mono />
+      <ProfileEditableField label="Από συνεργάτη / πιστωτικό" value={amount(balance.fromProducer, balance.currency)} mono />
+    </Stack>
   </Box>)}</Stack>;
 }
 

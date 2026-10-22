@@ -11,6 +11,24 @@ export const PRODUCER_FIELDS = [
   ["iban", "IBAN"], ["bankName", "Τράπεζα"], ["paymentMethod", "Τρόπος πληρωμής"], ["notes", "Σημειώσεις"], ["additionalInfoJson", "Πρόσθετες πληροφορίες"],
 ] as const;
 
+type ProducerFieldKey = (typeof PRODUCER_FIELDS)[number][0];
+
+/** Read each group top-to-bottom before moving to the next column. */
+export const PRODUCER_GENERAL_COLUMNS = [
+  ["code", "name", "status", "taxId", "taxOffice", "businessType", "professionalCategory", "identityNumber",
+    "tier", "hierarchyLevel", "parentProducerId"],
+  ["email", "secondaryEmail", "phone", "secondaryPhone", "address", "city", "postalCode", "website"],
+  ["hasContract", "contractNumber", "contractStartDate", "contractEndDate", "professionalLicenseNumber", "licenseExpiryDate",
+    "iban", "bankName", "paymentMethod", "notes", "additionalInfoJson"],
+] as const satisfies readonly (readonly ProducerFieldKey[])[];
+
+export function producerGeneralColumns(count: 1 | 2 | 3): readonly (readonly ProducerFieldKey[])[] {
+  if (count === 3) return PRODUCER_GENERAL_COLUMNS;
+  const fields = PRODUCER_GENERAL_COLUMNS.flat();
+  const size = Math.ceil(fields.length / count);
+  return Array.from({ length: count }, (_, index) => fields.slice(index * size, (index + 1) * size));
+}
+
 export function producerUpdatePayload(current: Record<string, unknown>, changes: Record<string, string>) {
   const body: Record<string, unknown> = Object.fromEntries(PRODUCER_FIELDS.map(([key]) => [key, current[key] ?? null]));
   for (const [key, value] of Object.entries(changes)) {
