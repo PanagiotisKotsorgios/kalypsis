@@ -1,3 +1,4 @@
+import { FinancialFilters } from "../components/FinancialFilters";
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, CardContent, Chip, CircularProgress, MenuItem, Stack, Table, TableBody, TableCell,
@@ -173,7 +174,7 @@ export function FinancialMovementsPage() {
       {/* Filter card — mirrors the pattern used on the other list pages.
           The year + kind selectors moved from the header into the grid so
           they wrap alongside search + date-window controls. */}
-      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+      <FinancialFilters title="Φίλτρα οικονομικών κινήσεων">
         <Box sx={{
           display: "grid", gap: 1,
           gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
@@ -202,7 +203,7 @@ export function FinancialMovementsPage() {
             Καθαρισμός φίλτρων
           </Button>
         </Box>
-      </Card>
+      </FinancialFilters>
 
       {q.isLoading ? <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box> : (
         <Card variant="outlined" sx={{ overflowX: "auto" }}>

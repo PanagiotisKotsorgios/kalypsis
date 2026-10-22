@@ -1,3 +1,4 @@
+import { FinancialFilters } from "../components/FinancialFilters";
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
@@ -76,7 +77,7 @@ export function SecuritiesPage() {
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
 
       {/* Filter card — same dense grid pattern used across the app. */}
-      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+      <FinancialFilters title="Φίλτρα αξιογράφων">
         <Box sx={{
           display: "grid", gap: 1,
           gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
@@ -105,7 +106,7 @@ export function SecuritiesPage() {
             Καθαρισμός φίλτρων
           </Button>
         </Box>
-      </Card>
+      </FinancialFilters>
 
       {q.isLoading ? <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box> : (
         <Card variant="outlined" sx={{ overflowX: "auto" }}>

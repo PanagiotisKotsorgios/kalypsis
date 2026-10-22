@@ -1,8 +1,9 @@
+import { FinancialFilters } from "../components/FinancialFilters";
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TablePagination,
-  TableRow, TextField, Typography
+  TableRow, TextField, Typography, Snackbar
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -15,7 +16,7 @@ import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import SouthWestIcon from "@mui/icons-material/SouthWest";
 import NorthEastIcon from "@mui/icons-material/NorthEast";
-import { advanceBalances, advanceDirectionLabel } from "./advancePaymentModel";
+import { advanceAllocationPreview, advanceBalances, advanceDirectionLabel } from "./advancePaymentModel";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
@@ -57,6 +58,7 @@ export function AdvancePaymentsPage() {
   const [directionFilter, setDirectionFilter] = useState("");
   const [directionAdvance, setDirectionAdvance] = useState<AdvanceRow | null>(null);
   const [allocationAdvance, setAllocationAdvance] = useState<AdvanceRow | null>(null);
+  const [notice, setNotice] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const q = useQuery<AdvanceRow[]>({ queryKey: ["advance-payments", filter, directionFilter], queryFn: async () =>
@@ -102,7 +104,7 @@ export function AdvancePaymentsPage() {
       </Stack>
 
       {/* Filter card — search + status + party in one compact grid. */}
-      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+      <FinancialFilters title="Φίλτρα προκαταβολών">
         <Box sx={{
           display: "grid", gap: 1,
           gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", lg: "minmax(220px, 2fr) repeat(3, minmax(145px, 1fr)) auto" },
@@ -131,7 +133,7 @@ export function AdvancePaymentsPage() {
             Καθαρισμός φίλτρων
           </Button>
         </Box>
-      </Card>
+      </FinancialFilters>
 
       {(q.data ?? []).some(row => !row.direction) && <Alert severity="warning" sx={{ mb: 1.5 }}>Οι παλιές προκαταβολές δεν έχουν κατεύθυνση. Χαρακτηρίστε τις από το μολύβι στη γραμμή τους· τα ποσά και οι υπάρχουσες κατανομές διατηρούνται.</Alert>}
       {q.data?.length === 500 && <Alert severity="info" sx={{ mb: 1.5 }}>Η λίστα εμφανίζει έως 500 πρόσφατες εγγραφές ανά επιλογή φίλτρων.</Alert>}
@@ -196,7 +198,10 @@ export function AdvancePaymentsPage() {
       <CreateAdvanceDialog open={open} onClose={() => setOpen(false)} onSaved={() => { invalidate(); setOpen(false); }} />
       <AdvanceDirectionDialog advance={directionAdvance} onClose={() => setDirectionAdvance(null)} onSaved={() => { invalidate(); setDirectionAdvance(null); }} />
       <AllocateAdvanceDialog advance={allocationAdvance} onClose={() => setAllocationAdvance(null)}
-        onSaved={() => { invalidate(); setAllocationAdvance(null); }} />
+        onSaved={updated => { invalidate(); setAllocationAdvance(updated); setNotice("Η κατανομή αποθηκεύτηκε επιτυχώς."); }} />
+      <Snackbar open={!!notice} autoHideDuration={4000} onClose={() => setNotice("")} anchorOrigin={{ vertical: "bottom", horizontal: "right" }}>
+        <Alert severity="success" onClose={() => setNotice("")}>{notice}</Alert>
+      </Snackbar>
     </Box>
   );
 }
@@ -297,7 +302,8 @@ function CreateAdvanceDialog({ open, onClose, onSaved }: { open: boolean; onClos
             />
           )}
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField type="number" required label={t("advance.amount")} value={form.amount} inputProps={{ min: .01, step: .01 }} onChange={e => setForm({ ...form, amount: Number(e.target.value) })} fullWidth />
+            <TextField type="number" required label="Ποσό προκαταβολής" value={form.amount || ""} inputProps={{ min: .01, max: 9999999999.99, step: .01 }} onChange={e => setForm({ ...form, amount: Number(e.target.value) })} fullWidth
+              helperText="Μόνο το ποσό που δόθηκε / λήφθηκε, όχι υποχρεωτικά ολόκληρη η οφειλή." />
             <TextField label={t("common.currency")} value={form.currency} inputProps={{ maxLength: 3 }} onChange={e => setForm({ ...form, currency: e.target.value.toUpperCase() })} sx={{ width: { xs: "100%", sm: 110 }, flexShrink: 0 }} />
             <SearchableTextField label={t("advance.method")} value={form.paymentMethod} onChange={e => setForm({ ...form, paymentMethod: e.target.value })} sx={{ width: { xs: "100%", sm: 180 }, flexShrink: 0 }}>
               {["Cash", "BankTransfer", "Cheque", "Card", "Other"].map(m => <MenuItem key={m} value={m}>{t(`paymentMethod.${m}`, m)}</MenuItem>)}
@@ -310,7 +316,7 @@ function CreateAdvanceDialog({ open, onClose, onSaved }: { open: boolean; onClos
       </DialogContent>
       <DialogActions>
         <Button color="error" onClick={onClose} disabled={save.isPending}>{t("common.cancel")}</Button>
-        <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending || !form.direction || !form.number.trim() || !form.receivedOn || form.currency.length !== 3 || !Number.isFinite(form.amount) || form.amount <= 0
+        <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending || !form.direction || !form.number.trim() || !form.receivedOn || !/^[A-Z]{3}$/.test(form.currency) || !advanceAllocationPreview(9999999999.99, String(form.amount)).valid
           || (form.partyType === "Customer" && !form.customerId)
           || (form.partyType === "Producer" && !form.producerId)
           || (form.partyType === "Carrier" && !form.insuranceCompanyId)}>
@@ -322,14 +328,15 @@ function CreateAdvanceDialog({ open, onClose, onSaved }: { open: boolean; onClos
 }
 
 function AllocateAdvanceDialog({ advance, onClose, onSaved }: {
-  advance: AdvanceRow | null; onClose: () => void; onSaved: () => void;
+  advance: AdvanceRow | null; onClose: () => void; onSaved: (updated: AdvanceRow) => void;
 }) {
   const [policyId, setPolicyId] = useState("");
   const [targetType, setTargetType] = useState("Policy");
-  const [amount, setAmount] = useState(0);
+  const [amount, setAmount] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const available = advance && advance.status !== "Refunded" && advance.status !== "FullyAllocated" ? Math.max(0, advance.amount - advance.allocatedAmount) : 0;
+  const available = advance && advance.status !== "Refunded" && advance.status !== "FullyAllocated" ? Math.max(0, Math.round((advance.amount - advance.allocatedAmount) * 100) / 100) : 0;
   const canAllocate = !!advance?.direction && available > 0 && advance.status !== "FullyAllocated";
+  const preview = advanceAllocationPreview(available, amount);
   const supportsRuns = advance?.direction === "Outgoing" && advance.partyType === "Producer";
   const runs = useQuery<{ id: string; reference: string; commissionAmount: number; currency: string }[]>({
     queryKey: ["advance-commission-runs", advance?.id], enabled: !!advance && supportsRuns,
@@ -355,13 +362,13 @@ function AllocateAdvanceDialog({ advance, onClose, onSaved }: {
   useEffect(() => {
     setPolicyId("");
     setTargetType("Policy");
-    setAmount(available);
+    setAmount("");
     setError(null);
   }, [advance?.id, available]);
   const allocate = useMutation({
-    mutationFn: async () => api.post(`/advance-payments/${advance!.id}/allocate`, {
+    mutationFn: async () => (await api.post<AdvanceRow>(`/advance-payments/${advance!.id}/allocate`, {
       policyId, targetType, amount: Number(amount)
-    }),
+    })).data,
     onSuccess: onSaved,
     onError: err => setError(extractErrorMessage(err))
   });
@@ -420,8 +427,13 @@ function AllocateAdvanceDialog({ advance, onClose, onSaved }: {
                 options={(runs.data ?? []).map(run => ({ value: run.id, label: run.reference, hint: `Προμήθειες συνεργάτη: ${money(run.commissionAmount, run.currency)}` }))} />}
               <TextField type="number" size="small" label="Ποσό κατανομής" value={amount}
                 inputProps={{ min: 0.01, max: available, step: 0.01 }}
-                onChange={event => setAmount(Number(event.target.value))} />
+                error={!!amount && !preview.valid} helperText={amount && !preview.valid ? "Θετικό ποσό με έως 2 δεκαδικά, μέχρι το διαθέσιμο υπόλοιπο." : "Μπορείτε να συνδέσετε μόνο μέρος του ποσού."}
+                onChange={event => setAmount(event.target.value)} />
             </Box>
+            <Stack direction="row" gap={1} alignItems="center" useFlexGap flexWrap="wrap" sx={{ mt: 1.5 }}>
+              <Button variant="outlined" size="small" onClick={() => setAmount(available.toFixed(2))}>Όλο το διαθέσιμο</Button>
+              <Typography variant="body2" color="text.secondary" aria-live="polite">Υπόλοιπο μετά την κατανομή: <strong>{money(preview.remaining, advance.currency)}</strong></Typography>
+            </Stack>
             {targetType === "Policy" && eligiblePolicies.length === 0 && !policies.isLoading && (
               <Alert severity="info" sx={{ mt: 1 }}>Δεν βρέθηκαν συμβόλαια του ίδιου αντισυμβαλλόμενου και νομίσματος.</Alert>
             )}
@@ -433,7 +445,7 @@ function AllocateAdvanceDialog({ advance, onClose, onSaved }: {
       <DialogActions>
         <Button color="error" onClick={onClose} disabled={allocate.isPending}>Κλείσιμο</Button>
         {canAllocate && <Button variant="contained" startIcon={<LinkIcon />} onClick={() => allocate.mutate()}
-          disabled={!policyId || !Number.isFinite(amount) || amount <= 0 || amount > available || allocate.isPending}>
+          disabled={!policyId || !preview.valid || allocate.isPending || (targetType === "Policy" ? !eligiblePolicies.some(policy => policy.id === policyId) : !runs.data?.some(run => run.id === policyId))}>
           {allocate.isPending ? <CircularProgress size={18} color="inherit" /> : "Κατανομή ποσού"}
         </Button>}
       </DialogActions>

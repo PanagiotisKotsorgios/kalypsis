@@ -1,3 +1,4 @@
+import { FinancialFilters } from "../components/FinancialFilters";
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Autocomplete, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions,
@@ -181,7 +182,7 @@ export function GeneralFinancialEntriesPage() {
       </Box>
 
       {/* Filters — compact 4-col grid, single row on desktop. */}
-      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+      <FinancialFilters title="Φίλτρα εσόδων / εξόδων">
         <Box sx={{
           display: "grid", gap: 1,
           gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
@@ -210,7 +211,7 @@ export function GeneralFinancialEntriesPage() {
             Καθαρισμός φίλτρων
           </Button>
         </Box>
-      </Card>
+      </FinancialFilters>
 
       {/* Rollup chips */}
       {rollup.length > 0 && (

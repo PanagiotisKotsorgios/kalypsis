@@ -1,3 +1,4 @@
+import { FinancialFilters } from "../components/FinancialFilters";
 import { useEffect, useMemo, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
 import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
@@ -19,7 +20,6 @@ import { useColumnPreferences } from "../hooks/useColumnPreferences";
 import { ColumnPreferencesButton } from "../components/ColumnPreferencesButton";
 import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import { QuickFilterBar } from "../components/QuickFilterBar";
-import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
 import { SavedReportsButton } from "../components/SavedReportsButton";
 import { UnifiedActionsMenu } from "../components/UnifiedActionsMenu";
 
@@ -174,7 +174,7 @@ export function PaymentsPage() {
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
         <Box><Stack direction="row" alignItems="center" spacing={0.5}><Typography variant="h4" sx={{ fontWeight: 800 }}>{t("payments.title")}</Typography><HelpHint id="page.payments" /></Stack>
           <Typography color="text.secondary">{t("payments.subtitle")}</Typography></Box>
-        <Stack direction="row" spacing={2} alignItems="center">
+        <Stack direction="row" spacing={2} alignItems="center" useFlexGap flexWrap="wrap" sx={{ minWidth: 0, maxWidth: "100%" }}>
           <Box sx={{ textAlign: "right" }}>
             <Typography variant="caption" color="text.secondary">Σύνολο · Συμψηφισμός · Καθαρή εκροή</Typography>
             <Typography variant="body1" fontWeight={800}>
@@ -212,7 +212,10 @@ export function PaymentsPage() {
         </Box>
       )}
 
-      <ResponsiveFilterPanel
+      <FinancialFilters savedFilters={<SavedReportsButton entity="payments" currentFilters={{ search, methodFilter, benFilter, fromDate, toDate, amountMin, amountMax }}
+            onLoad={filters => { setSearch(filters.search ?? ""); setMethodFilter(filters.methodFilter ?? ""); setBenFilter(filters.benFilter ?? ""); setFromDate(filters.fromDate ?? ""); setToDate(filters.toDate ?? ""); setAmountMin(filters.amountMin ?? ""); setAmountMax(filters.amountMax ?? ""); }}
+            onClear={clearPaymentFilters} clearRequestToken={clearSavedFilterRequest}
+            saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />}
         activeCount={paymentFilterCount}
         title="Φίλτρα πληρωμών"
         quickFilters={<QuickFilterBar
@@ -264,12 +267,8 @@ export function PaymentsPage() {
           <Button size="small" onClick={() => {
             clearPaymentFilters();
           }} color="error" variant="contained">Καθαρισμός</Button>
-          <SavedReportsButton entity="payments" currentFilters={{ search, methodFilter, benFilter, fromDate, toDate, amountMin, amountMax }}
-            onLoad={filters => { setSearch(filters.search ?? ""); setMethodFilter(filters.methodFilter ?? ""); setBenFilter(filters.benFilter ?? ""); setFromDate(filters.fromDate ?? ""); setToDate(filters.toDate ?? ""); setAmountMin(filters.amountMin ?? ""); setAmountMax(filters.amountMax ?? ""); }}
-            onClear={clearPaymentFilters} clearRequestToken={clearSavedFilterRequest}
-            saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />
         </Stack>
-      </ResponsiveFilterPanel>
+      </FinancialFilters>
 
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
       {q.isLoading ? <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box> : (

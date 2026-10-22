@@ -1,3 +1,4 @@
+import { FinancialFilters } from "../components/FinancialFilters";
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Divider,
@@ -144,7 +145,7 @@ function ProducerStatementReport({ embedded = false }: { embedded?: boolean }) {
           the statement fits comfortably in memory. Layout matches the
           rest of the app so operators see the same controls in the same
           spots. */}
-      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+      <FinancialFilters title="Φίλτρα εκκαθαριστικού συνεργάτη">
         <Box sx={{
           display: "grid", gap: 1,
           gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
@@ -167,7 +168,7 @@ function ProducerStatementReport({ embedded = false }: { embedded?: boolean }) {
           <Button size="small" variant="contained" startIcon={<DownloadIcon />} sx={exportActionSx}
             disabled={!producerId || !data?.lines.length} onClick={downloadCsv}>Εξαγωγή CSV</Button>
         </Stack>
-      </Card>
+      </FinancialFilters>
 
       {!producerId ? (
         <Alert severity="info">Επιλέξτε συνεργάτη για να δείτε την κατάσταση.</Alert>

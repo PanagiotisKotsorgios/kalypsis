@@ -1,3 +1,4 @@
+import { FinancialFilters } from "../components/FinancialFilters";
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
@@ -157,7 +158,7 @@ function EntriesPanel() {
       </Stack>
 
       {/* Filters — same 4-col dense grid pattern used elsewhere. */}
-      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+      <FinancialFilters title="Φίλτρα λογιστικής">
         <Box sx={{
           display: "grid", gap: 1,
           gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
@@ -189,7 +190,7 @@ function EntriesPanel() {
             Καθαρισμός φίλτρων
           </Button>
         </Box>
-      </Card>
+      </FinancialFilters>
 
       {q.isLoading ? <CircularProgress /> : (
         <Card variant="outlined" sx={{ overflowX: "auto" }}>

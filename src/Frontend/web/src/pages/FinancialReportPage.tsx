@@ -1,3 +1,4 @@
+import { FinancialFilters } from "../components/FinancialFilters";
 import { useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, CardContent, CircularProgress, Stack, Table, TableBody,
@@ -74,7 +75,7 @@ export function FinancialReportPage() {
         Κάτω-κάτω βλέπετε τι απομένει ανοιχτό σε πελάτες και εταιρείες.
       </Typography>
 
-      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+      <FinancialFilters title="Φίλτρα οικονομικής αναφοράς">
         <Box sx={{
           display: "grid", gap: 1,
           gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(3, 1fr)" },
@@ -90,7 +91,7 @@ export function FinancialReportPage() {
           <Button size="small" variant="contained" startIcon={<DownloadIcon />} sx={exportActionSx}
             disabled={!months.length} onClick={downloadCsv}>Εξαγωγή CSV</Button>
         </Stack>
-      </Card>
+      </FinancialFilters>
 
       {report.isLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>

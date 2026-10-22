@@ -1,3 +1,4 @@
+import { FinancialFilters } from "../components/FinancialFilters";
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
@@ -158,7 +159,7 @@ export function CommissionRunsPage({ embedded = false }: { embedded?: boolean })
           filter block never eats more than a strip of vertical space.
           4-col grid on md+ (7 fields + clear button = 2 rows), 2-col on
           tablet, 1-col on phones. */}
-      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+      <FinancialFilters title="Φίλτρα εκκαθαρίσεων προμηθειών">
         <Box sx={{
           display: "grid",
           gap: 1,
@@ -228,7 +229,7 @@ export function CommissionRunsPage({ embedded = false }: { embedded?: boolean })
             setCarrierFilter(""); setProducerFilter("");
           }} color="error" variant="contained">Καθαρισμός</Button>
         </Box>
-      </Card>
+      </FinancialFilters>
 
       {/* KPI strip (filter-aware) */}
       <Stack direction={{ xs: "column", md: "row" }} spacing={2} mb={2}>

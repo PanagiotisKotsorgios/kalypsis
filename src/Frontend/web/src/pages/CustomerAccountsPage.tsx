@@ -1,9 +1,9 @@
+import { FinancialFilters } from "../components/FinancialFilters";
 import { useState } from "react";
 import { Alert, Box, Card, Chip, CircularProgress, FormControlLabel, Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { QuickFilterBar } from "../components/QuickFilterBar";
-import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
 
 interface AccountRow {
   customerId: string; customerName: string; charges: number; credits: number;
@@ -28,7 +28,7 @@ export function CustomerAccountsPage() {
   const fmt = (n: number) => n.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return (
     <Stack spacing={2}>
-      <ResponsiveFilterPanel
+      <FinancialFilters
         activeCount={[from, to, onlyDebtors ? "debtors" : "", onlyOverdue ? "overdue" : "", onlyCreditors ? "creditors" : ""].filter(Boolean).length}
         title="Φίλτρα υπολοίπων"
         quickFilters={<QuickFilterBar
@@ -48,7 +48,7 @@ export function CustomerAccountsPage() {
           <FormControlLabel control={<Switch checked={onlyDebtors} onChange={e => setOnlyDebtors(e.target.checked)} />} label="Μόνο χρεωστικά υπόλοιπα" />
           <FormControlLabel control={<Switch checked={onlyOverdue} onChange={e => setOnlyOverdue(e.target.checked)} />} label="Μόνο ληξιπρόθεσμα" />
         </Stack>
-      </ResponsiveFilterPanel>
+      </FinancialFilters>
       {q.isLoading && <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}><CircularProgress /></Box>}
       {q.isError && <Alert severity="error">{extractErrorMessage(q.error)}</Alert>}
       {!q.isLoading && !q.isError && (q.data ?? []).length === 0 && <Alert severity="info">Δεν υπάρχουν οφειλές με τα επιλεγμένα φίλτρα.</Alert>}

@@ -106,6 +106,38 @@ public sealed class AdvancePaymentDirectionTests
         await Assert.ThrowsAsync<AppException>(() => handler.Handle(new(advance.Id, seed.Policy.Id, .01m), default));
     }
 
+    [Theory]
+    [InlineData("Incoming", "Customer")]
+    [InlineData("Outgoing", "Customer")]
+    [InlineData("Incoming", "Producer")]
+    [InlineData("Outgoing", "Producer")]
+    [InlineData("Incoming", "Carrier")]
+    [InlineData("Outgoing", "Carrier")]
+    public async Task Partial_advance_can_be_split_across_policies_without_settling_whole_debts(string direction, string party)
+    {
+        var current = TestScaffold.AgencyStaff(Guid.NewGuid()); using var db = TestScaffold.NewDb(current, TestScaffold.Clock);
+        var seed = Seed(db, current.TenantId!.Value);
+        seed.Policy.Premium = 1000;
+        var second = new Policy { Id = Guid.NewGuid(), TenantId = current.TenantId.Value, PolicyNumber = "POL2",
+            CustomerId = seed.Customer.Id, Customer = seed.Customer, InsuranceCompanyId = seed.Company.Id, InsuranceCompany = seed.Company,
+            ProducerId = seed.Producer.Id, Producer = seed.Producer, Premium = 2000, Currency = "EUR", Status = PolicyStatus.Active };
+        db.Policies.Add(second); await db.SaveChangesAsync();
+        var body = Body(seed.Customer.Id, direction, 125.55m) with { PartyType = party, ProducerId = seed.Producer.Id, InsuranceCompanyId = seed.Company.Id };
+        var advance = await new CreateAdvancePaymentHandler(db).Handle(new(body), default);
+        var handler = new AllocateAdvanceHandler(db);
+        var first = await handler.Handle(new(advance.Id, seed.Policy.Id, 25.25m), default);
+        Assert.Equal("PartiallyAllocated", first.Status);
+        Assert.Equal(100.30m, first.Amount - first.AllocatedAmount);
+        await Assert.ThrowsAsync<AppException>(() => handler.Handle(new(advance.Id, second.Id, 100.31m), default));
+        var last = await handler.Handle(new(advance.Id, second.Id, 100.30m), default);
+        Assert.Equal("FullyAllocated", last.Status);
+        Assert.Equal(125.55m, last.Allocations.Sum(row => row.Amount));
+        Assert.Equal(2, last.Allocations.Count);
+        Assert.Equal(1000, seed.Policy.Premium); Assert.Equal(2000, second.Premium);
+        Assert.Equal(PolicyStatus.Active, seed.Policy.Status);
+        Assert.Empty(db.Receipts); Assert.Empty(db.Payments); Assert.Empty(db.FinancialMovements);
+    }
+
     [Fact]
     public async Task List_filters_and_cross_tenant_access_are_enforced()
     {

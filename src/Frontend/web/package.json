@@ -15,6 +15,7 @@
     "test:over-commissions": "node --experimental-strip-types --test src/pages/overCommissionTable.test.mjs src/pages/partnerResponsive.test.mjs src/utils/tableExportSnapshot.test.mjs",
     "test:production-lists": "node --experimental-strip-types --test src/pages/productionListsSimplification.test.mjs",
     "test:advance-payments": "node --experimental-strip-types --test src/pages/advancePaymentsAllocation.test.mjs",
+    "test:financial-layout": "node --experimental-strip-types --test src/pages/financialResponsive.test.mjs",
     "test:unified-actions": "node --experimental-strip-types --test src/pages/unifiedActionsMenus.test.mjs",
     "test:customer-filters": "node --experimental-strip-types --test src/pages/customerListFilters.test.mjs src/pages/customerTableAppearance.test.mjs",
     "test:financial-claim-actions": "node --experimental-strip-types --test src/pages/financialAndClaimsActions.test.mjs",

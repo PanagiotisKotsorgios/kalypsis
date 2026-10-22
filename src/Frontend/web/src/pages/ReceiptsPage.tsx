@@ -1,8 +1,10 @@
+import { FinancialFilters } from "../components/FinancialFilters";
+import { ClaimListTableFrame } from "../components/ClaimListLayout";
 import { useEffect, useMemo, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
 import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
 import {
-  Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
+  Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -24,7 +26,6 @@ import { useUndoable } from "../components/UndoToast";
 import { useColumnPreferences } from "../hooks/useColumnPreferences";
 import { ColumnPreferencesButton } from "../components/ColumnPreferencesButton";
 import { SavedReportsButton } from "../components/SavedReportsButton";
-import { InlineValueField } from "../components/InlineValueField";
 import { UnifiedActionsMenu } from "../components/UnifiedActionsMenu";
 
 const METHODS = ["Cash","Card","BankTransfer","Cheque","PromissoryNote","Other"] as const;
@@ -193,14 +194,14 @@ export function ReceiptsPage() {
             <ChevronRightIcon fontSize="small" sx={{ flexShrink: 0, mx: 0.25, color: "primary.main" }} />
             <Typography variant="caption" sx={{ fontWeight: 800, color: "primary.dark", whiteSpace: "nowrap" }}>Εισπράξεις</Typography>
           </Stack>
-          <Stack direction="row" alignItems="center" spacing={0.5}>
+          <Stack direction="row" alignItems="center" spacing={0.5} useFlexGap flexWrap="wrap">
             <Typography variant="h4" sx={{ fontWeight: 800 }}>{t("receipts.title")}</Typography>
             <HelpHint id="page.receipts" />
             <RecordCountChip count={table.filtered.length} />
           </Stack>
           <Typography color="text.secondary">{t("receipts.subtitle")}</Typography>
         </Box>
-        <Stack direction="row" spacing={2} alignItems="center">
+        <Stack direction="row" spacing={2} alignItems="center" useFlexGap flexWrap="wrap" sx={{ minWidth: 0, maxWidth: "100%" }}>
           <Box sx={{ textAlign: "right" }}>
             <Typography variant="caption" color="text.secondary">{t("receipts.totalShown")}</Typography>
             <Typography variant="h5" fontWeight={800}>{money(total)}</Typography>
@@ -213,7 +214,14 @@ export function ReceiptsPage() {
         </Stack>
       </Stack>
 
-      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+      <FinancialFilters title="Φίλτρα εισπράξεων" savedFilters={<SavedReportsButton
+            entity="receipts"
+            currentFilters={savedReceiptFilters}
+            onLoad={loadSavedReceiptFilters}
+            onClear={clearReceiptFilters} clearRequestToken={clearSavedFilterRequest}
+            saveRequestToken={saveFilterRequest}
+            showSaveMenuItem={false}
+          />}>
         <Stack direction={{ xs: "column", md: "row" }} spacing={1} flexWrap="wrap" alignItems={{ md: "center" }} useFlexGap>
           <TextField size="small" placeholder="Αναζήτηση…"
             value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 200 }}
@@ -242,22 +250,14 @@ export function ReceiptsPage() {
               value={toDate} onChange={(e) => setToDate(e.target.value)} sx={{ minWidth: 140, width: "100%" }} />
           </FilterFieldWrap>
           <Button size="small" onClick={clearReceiptFilters} color="error" variant="contained">Καθαρισμός</Button>
-          <SavedReportsButton
-            entity="receipts"
-            currentFilters={savedReceiptFilters}
-            onLoad={loadSavedReceiptFilters}
-            onClear={clearReceiptFilters} clearRequestToken={clearSavedFilterRequest}
-            saveRequestToken={saveFilterRequest}
-            showSaveMenuItem={false}
-          />
         </Stack>
-      </Card>
+      </FinancialFilters>
 
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
 
       {q.isLoading ? <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box> : (
-        <Card variant="outlined" sx={{ overflowX: "auto" }}>
-          <Table size="small">
+        <ClaimListTableFrame label="Λίστα εισπράξεων" pagination={<NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage} totalRows={table.filtered.length} pageSize={table.pageSize} onPageSize={table.setPageSize} />}>
+          <Table size="small" stickyHeader>
             <TableHead><TableRow>
               {receiptCols.visibleColumns.map(c => (
                 <TableCell
@@ -290,21 +290,21 @@ export function ReceiptsPage() {
                   {receiptCols.visibleColumns.map(c => {
                     switch (c.key) {
                       case "number":
-                        return <TableCell key={c.key}><InlineValueField compact hideLabel label="Αριθμός απόδειξης" value={r.number} displayValue={<Typography fontWeight={700} sx={{ fontFamily: "monospace", fontSize: 13 }}>{r.number}</Typography>} onRequestEdit={() => setEditingReceipt(r)} /></TableCell>;
+                        return <TableCell key={c.key} sx={{ fontWeight: 700, fontFamily: "monospace" }}>{r.number}</TableCell>;
                       case "date":
-                        return <TableCell key={c.key}><InlineValueField compact hideLabel label="Ημερομηνία" value={r.receivedOn.slice(0, 10)} displayValue={date(r.receivedOn)} onRequestEdit={() => setEditingReceipt(r)} /></TableCell>;
+                        return <TableCell key={c.key}>{date(r.receivedOn)}</TableCell>;
                       case "customer":
-                        return <TableCell key={c.key}><InlineValueField compact hideLabel label="Πελάτης" value={r.customerName} onRequestEdit={() => setEditingReceipt(r)} /></TableCell>;
+                        return <TableCell key={c.key}>{r.customerName}</TableCell>;
                       case "policy":
-                        return <TableCell key={c.key}><InlineValueField compact hideLabel label="Συμβόλαιο" value={r.policyNumber ?? "—"} onRequestEdit={() => setEditingReceipt(r)} /></TableCell>;
+                        return <TableCell key={c.key}>{r.policyNumber ?? "—"}</TableCell>;
                       case "policyStatus":
                         return <TableCell key={c.key}><PaidChip policyId={r.policyId} /></TableCell>;
                       case "method":
-                        return <TableCell key={c.key}><InlineValueField compact hideLabel label="Τρόπος" value={r.method} displayValue={t(`paymentMethod.${r.method}`)} onRequestEdit={() => setEditingReceipt(r)} /></TableCell>;
+                        return <TableCell key={c.key}>{t(`paymentMethod.${r.method}`)}</TableCell>;
                       case "txRef":
-                        return <TableCell key={c.key}><InlineValueField compact hideLabel label="Αναφορά συναλλαγής" value={r.transactionReference ?? "—"} mono onRequestEdit={() => setEditingReceipt(r)} /></TableCell>;
+                        return <TableCell key={c.key} sx={{ fontFamily: "monospace" }}>{r.transactionReference ?? "—"}</TableCell>;
                       case "amount":
-                        return <TableCell key={c.key} align="right"><InlineValueField compact hideLabel label="Ποσό" value={String(r.amount)} displayValue={<Typography fontWeight={700} sx={{ fontSize: 13 }}>{money(r.amount, r.currency)}</Typography>} onRequestEdit={() => setEditingReceipt(r)} /></TableCell>;
+                        return <TableCell key={c.key} align="right" sx={{ fontWeight: 700 }}>{money(r.amount, r.currency)}</TableCell>;
                       default: return <TableCell key={c.key}>—</TableCell>;
                     }
                   })}
@@ -320,10 +320,7 @@ export function ReceiptsPage() {
               ))}
             </TableBody>
           </Table>
-          <Box sx={{ display: "flex", justifyContent: "center", px: 2, py: 1 }}>
-            <NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage} totalRows={table.filtered.length} pageSize={table.pageSize} onPageSize={table.setPageSize} />
-          </Box>
-        </Card>
+        </ClaimListTableFrame>
       )}
       {headerMenu.menu}
       {rowMenu.menu}

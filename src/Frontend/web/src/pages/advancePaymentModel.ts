@@ -2,6 +2,15 @@ export type AdvanceDirection = "Incoming" | "Outgoing";
 export const advanceDirectionLabels = { Incoming: "Εισερχόμενη", Outgoing: "Εξερχόμενη" };
 export const advanceDirectionLabel = (direction?: string | null) => direction === "Incoming" || direction === "Outgoing" ? advanceDirectionLabels[direction] : "Χωρίς χαρακτηρισμό";
 
+/** Work in cents; never silently round invalid input into a different allocation. */
+export function advanceAllocationPreview(available: number, input: string) {
+  const amount = Number(input);
+  const cents = Math.round(amount * 100);
+  const validPrecision = cents / 100 === amount;
+  const valid = input.trim() !== "" && Number.isFinite(amount) && Number.isFinite(available) && cents > 0 && validPrecision && cents <= Math.round(available * 100);
+  return { valid, amount, remaining: valid ? (Math.round(available * 100) - cents) / 100 : available };
+}
+
 export function advanceBalances(rows: ReadonlyArray<{ direction?: string | null; amount: number; allocatedAmount: number; currency: string; status: string }>) {
   const result = new Map<string, { currency: string; incoming: number; outgoing: number; incomingAvailable: number; outgoingAvailable: number; unspecified: number }>();
   for (const row of rows) {

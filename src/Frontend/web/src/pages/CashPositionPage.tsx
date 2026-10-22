@@ -1,3 +1,5 @@
+import { FinancialFilters } from "../components/FinancialFilters";
+import { CashAccountSelector } from "../components/CashAccountSelector";
 import { useEffect, useMemo, useState } from "react";
 import { FilterHelp } from "../components/FilterHelp";
 import {
@@ -143,7 +145,7 @@ export function CashPositionPage() {
             <Typography color="text.secondary">{t("cash.subtitle")}</Typography>
           </Box>
         </Stack>
-        <Stack direction="row" spacing={2}>
+        <Stack direction="row" spacing={2} useFlexGap flexWrap="wrap" alignItems="center" sx={{ minWidth: 0 }}>
           <Box sx={{ textAlign: "right" }}>
             <Typography variant="caption" color="text.secondary">{t("cash.totalLabel")}</Typography>
             <Typography variant="h5" fontWeight={800} color="success.main">{money(totalCash)}</Typography>
@@ -159,17 +161,8 @@ export function CashPositionPage() {
         Για ασφάλιστρα που ο πελάτης πλήρωσε απευθείας στην ασφαλιστική, ενεργοποιήστε την αντίστοιχη επιλογή από την καταχώρηση ή την καρτέλα του συμβολαίου. Δεν καταχωρείται κίνηση στο ταμείο και η οφειλή προς την ασφαλιστική δεν εμφανίζεται ως εκκρεμής.
       </Alert>
 
-      <Stack direction={{ xs: "column", md: "row" }} spacing={2} mb={3}>
-        {(accounts.data ?? []).map(a => (
-          <Card key={a.id} variant="outlined" sx={{ p: 2, flex: 1, cursor: "pointer", borderColor: filter === a.id ? "primary.main" : undefined, borderWidth: filter === a.id ? 2 : 1 }} onClick={() => setFilter(filter === a.id ? "" : a.id)}>
-            <Typography variant="caption" color="text.secondary">{a.code}</Typography>
-            <Typography fontWeight={700}>{a.name}</Typography>
-            <Typography variant="h5" fontWeight={800} color={a.currentBalance >= 0 ? "success.main" : "error.main"}>
-              {money(a.currentBalance, a.currency)}
-            </Typography>
-          </Card>
-        ))}
-      </Stack>
+      <CashAccountSelector accounts={accounts.data ?? []} value={filter} onChange={setFilter} loading={accounts.isLoading} />
+      {accounts.isError && <Alert severity="error" sx={{ mb: 1.5 }}>{extractErrorMessage(accounts.error)}</Alert>}
 
       {/* KPI strip */}
       <Stack direction={{ xs: "column", md: "row" }} spacing={2} mb={3}>
@@ -216,7 +209,7 @@ export function CashPositionPage() {
       )}
 
       {/* Filters — 4-col grid, 2 rows max on desktop. */}
-      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+      <FinancialFilters title="Φίλτρα ταμείου">
         <Box sx={{
           display: "grid", gap: 1,
           gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
@@ -251,7 +244,7 @@ export function CashPositionPage() {
             Καθαρισμός φίλτρων
           </Button>
         </Box>
-      </Card>
+      </FinancialFilters>
 
       <Card variant="outlined" sx={{ overflowX: "auto" }}>
         <Table size="small">
