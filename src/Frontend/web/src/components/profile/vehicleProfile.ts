@@ -39,6 +39,26 @@ export const VEHICLE_SPEC_FIELDS = [
   ["vehicleNotes", "Σημειώσεις οχήματος"],
 ] as const;
 
+/** Vertical reading order for General only; JSON keys and creation inputs stay unchanged. */
+export const VEHICLE_GENERAL_COLUMNS = [
+  ["vehicleRegistrationPlate", "spec:make", "spec:model", "spec:year", "spec:vin",
+    "spec:registrationCertificateNumber", "spec:firstRegistrationDate", "vehicleUseCategory", "reasonForCirculation",
+    "owner", "ownerVat", "spec:ownerCount", "spec:purchaseDate", "spec:transferDate"],
+  ["spec:bodyType", "spec:color", "spec:seats", "spec:doors", "spec:fuelType", "spec:engineCapacity",
+    "spec:enginePowerKw", "spec:taxableHorsepower", "spec:emissionsCo2", "spec:wheelbaseMm", "spec:wheelCount",
+    "spec:rearDualWheels", "spec:grossWeightKg", "spec:tonnage"],
+  ["spec:condition", "spec:mileage", "spec:estimatedValue", "spec:sunroof", "spec:alarm", "spec:immobilizer",
+    "spec:storageLocation", "spec:youngDriver", "spec:specialLicense", "spec:inspectionCertificateNumber",
+    "spec:inspectionDate", "spec:nextInspectionDate", "spec:emissionsCardNumber", "spec:emissionsCardExpiry", "spec:vehicleNotes"],
+] as const;
+
+export function vehicleGeneralColumns(count: 1 | 2 | 3): readonly (readonly string[])[] {
+  if (count === 3) return VEHICLE_GENERAL_COLUMNS;
+  const fields = VEHICLE_GENERAL_COLUMNS.flat();
+  const size = Math.ceil(fields.length / count);
+  return Array.from({ length: count }, (_, index) => fields.slice(index * size, (index + 1) * size));
+}
+
 /** Update only requested vehicle properties; never flatten or erase insurer JSON. */
 export function mergeVehicleSpecs(raw: string | null | undefined, changes: Record<string, string>) {
   let specs: Record<string, unknown> = {};

@@ -27,7 +27,7 @@ export function VehicleOwnershipInputs({ count: rawCount, values, onChange, prim
   </Box>;
 }
 
-export function VehicleOwnershipFields({ values, session }: { values: Record<string, string>; session?: ProfileFieldSession }) {
+export function VehicleOwnershipFields({ values, session, vertical = false }: { values: Record<string, string>; session?: ProfileFieldSession; vertical?: boolean }) {
   let count = 1;
   try { count = vehicleOwnerCount(session?.drafts["spec:ownerCount"] ?? values["spec:ownerCount"]); } catch { return null; }
   if (count <= 1) return null;
@@ -37,7 +37,8 @@ export function VehicleOwnershipFields({ values, session }: { values: Record<str
   return <Box sx={{ gridColumn: "1 / -1", minWidth: 0 }}>
     <Typography variant="subtitle2" fontWeight={800} sx={{ px: .75, pt: .75 }}>Συνιδιοκτησία · {count} ιδιοκτήτες</Typography>
     <Typography variant="caption" color="text.secondary" sx={{ px: .75 }}>Τρέχοντες συνιδιοκτήτες, όχι προηγούμενοι ιδιοκτήτες από το ιστορικό. Συμπληρώστε το πραγματικό ποσοστό του καθενός.</Typography>
-    {Array.from({ length: count }, (_, index) => <Box key={index} sx={{ ...profileFieldGridSx, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", mt: .5 }}>
+    <Box sx={vertical ? { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))", gap: .5, alignItems: "start" } : undefined}>
+    {Array.from({ length: count }, (_, index) => <Box key={index} sx={{ ...profileFieldGridSx, gridTemplateColumns: vertical ? "minmax(0, 1fr)" : "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", mt: .5 }}>
       {(["name", "vatNumber", "percentage"] as const).map(key => {
         const field = `owner:${index}:${key}`;
         const label = key === "name" ? `Ιδιοκτήτης ${index + 1}` : key === "vatNumber" ? "ΑΦΜ συνιδιοκτήτη" : "Ποσοστό ιδιοκτησίας (%)";
@@ -45,6 +46,7 @@ export function VehicleOwnershipFields({ values, session }: { values: Record<str
           value={values[field] ?? ""} type={key === "percentage" ? "number" : "text"} mono={key !== "name"} />;
       })}
     </Box>)}
+    </Box>
     <Typography variant="caption" color={Math.abs(total - 100) < .001 && percentages.every(Boolean) ? "success.dark" : "text.secondary"} sx={{ display: "block", px: .75, py: .5 }}>
       Καταχωρημένο σύνολο: {total.toLocaleString("el-GR", { maximumFractionDigits: 2 })}% · {percentages.every(Boolean) ? "Στόχος 100%." : "Υπάρχουν ποσοστά που δεν έχουν συμπληρωθεί."}
     </Typography>

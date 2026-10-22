@@ -24,7 +24,7 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
     const { vehicleOwnerHistory } = await server.ssrLoadModule("/src/components/profile/vehicleHistory.ts");
     const { ProducerProfileFields } = await server.ssrLoadModule("/src/components/ProducerDetailDrawer.tsx");
     const { ClaimProfileFields } = await server.ssrLoadModule("/src/components/ClaimDetailDrawer.tsx");
-    const { mergeVehicleSpecs, VEHICLE_SPEC_FIELDS } = await server.ssrLoadModule("/src/components/profile/vehicleProfile.ts");
+    const { mergeVehicleSpecs, VEHICLE_SPEC_FIELDS, VEHICLE_GENERAL_COLUMNS, vehicleGeneralColumns } = await server.ssrLoadModule("/src/components/profile/vehicleProfile.ts");
     const { producerUpdatePayload, PRODUCER_FIELDS } = await server.ssrLoadModule("/src/components/profile/producerProfile.ts");
     const { claimUpdatePayload } = await server.ssrLoadModule("/src/components/profile/claimProfile.ts");
     const { policyCorePayload, policyPreservedAmounts } = await server.ssrLoadModule("/src/components/profile/policyProfile.ts");
@@ -43,6 +43,23 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
       assert.equal(view.includes("Αντιγραφή Μάρκα"), true); assert.equal(view.includes("Επεξεργασία Ηλιοροφή"), true);
       assert.equal(edit.includes("Αποθήκευση Ηλιοροφή"), true); assert.equal(edit.includes("Αποθήκευση ΑΦΜ ιδιοκτήτη"), false); assert.equal(view.includes("012345678"), true);
       for (const text of ["Χαρακτηριστικό", "Απαλλαγή", "Θέση / spot", "Τρόπος είσπραξης", "Πληρωμή απευθείας"]) assert.equal(view.includes(text), false);
+      const fieldOrder = VEHICLE_GENERAL_COLUMNS.flat();
+      const expectedIds = fieldOrder.map(key => key === "owner" ? "Ιδιοκτήτης / πελάτης" : key === "ownerVat" ? "ΑΦΜ ιδιοκτήτη (αυτόματο)" : key);
+      assert.deepEqual(ids(view), expectedIds);
+      assert.deepEqual(ids(edit), expectedIds);
+      assert.equal(new Set(fieldOrder).size, VEHICLE_SPEC_FIELDS.length + 5);
+      for (const count of [1, 2, 3]) {
+        const columns = vehicleGeneralColumns(count);
+        assert.equal(columns.length, count);
+        assert.deepEqual(columns.flat(), fieldOrder);
+        assert.ok(columns.every(column => column.length > 0));
+      }
+      assert.deepEqual(fieldOrder.slice(0, 5), ["vehicleRegistrationPlate", "spec:make", "spec:model", "spec:year", "spec:vin"]);
+      assert.equal(fieldOrder.indexOf("spec:enginePowerKw"), fieldOrder.indexOf("spec:engineCapacity") + 1);
+      assert.equal(fieldOrder.indexOf("spec:nextInspectionDate"), fieldOrder.indexOf("spec:inspectionDate") + 1);
+      assert.equal(fieldOrder.at(-1), "spec:vehicleNotes");
+      assert.ok(view.includes('data-vehicle-general-columns="1"'));
+      assert.ok(view.includes('data-vehicle-column="1"'));
     });
     await t.test("multiple owners get individual percentage fields in view/edit and creation; single owners do not", () => {
       const values = { "spec:ownerCount": "2", "owner:0:name": "Άννα", "owner:0:percentage": "60", "owner:1:name": "Γιάννης", "owner:1:percentage": "40" };

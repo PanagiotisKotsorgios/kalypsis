@@ -4,12 +4,12 @@ import ReportProblemOutlinedIcon from "@mui/icons-material/ReportProblemOutlined
 import { usePermission } from "../auth/permissions";
 import { DetailProfileTabs } from "../components/profile/DetailProfileTabs";
 import { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback, profileDialogPaperSx, profileFieldGridSx, useProfileFieldEditor, type ProfileFieldSession } from "../components/profile/ProfileFieldEditor";
-import { VEHICLE_SPEC_FIELDS, mergeVehicleSpecs } from "../components/profile/vehicleProfile";
+import { VEHICLE_SPEC_FIELDS, mergeVehicleSpecs, vehicleGeneralColumns } from "../components/profile/vehicleProfile";
 import { vehicleOwnerHistory } from "../components/profile/vehicleHistory";
 import { vehicleCoOwners, ownershipFieldValues, mergeVehicleOwnership, ownershipCreationChanges } from "../components/profile/vehicleOwnership";
 import { VehicleOwnershipFields, VehicleOwnershipInputs } from "../components/profile/VehicleOwnershipFields";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, InputAdornment, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Tooltip, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, InputAdornment, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Tooltip, Typography, useMediaQuery, useTheme } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import DownloadIcon from "@mui/icons-material/Download";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
@@ -260,21 +260,32 @@ export function VehicleDetailDialog({ open, plate, policyIds: suppliedPolicyIds,
 }
 
 export function VehicleProfileFields({ session, values, owner, ownerVat }: { session?: ProfileFieldSession; values: Record<string, string>; owner?: string; ownerVat?: string | null }) {
+  const theme = useTheme();
+  const wide = useMediaQuery(theme.breakpoints.up("lg"));
+  const medium = useMediaQuery(theme.breakpoints.up("md"));
+  const columnCount = wide ? 3 : medium ? 2 : 1;
   const field = (key: string, label: string, extra: Partial<React.ComponentProps<typeof ProfileEditableField>> = {}) =>
     <ProfileEditableField key={key} field={session ? key : undefined} session={session} value={values[key]} label={label} {...extra} />;
   const booleanVehicleFields = new Set(["sunroof", "youngDriver", "rearDualWheels", "alarm", "immobilizer"]);
   const dateVehicleFields = new Set(["purchaseDate", "firstRegistrationDate", "transferDate", "emissionsCardExpiry", "inspectionDate", "nextInspectionDate"]);
-  return <Box sx={{ ...profileFieldGridSx, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))" }}>
-    {field("vehicleRegistrationPlate", "Πινακίδα", { mono: true })}
-    <ProfileEditableField label="Ιδιοκτήτης / πελάτης" value={owner} />
-    <ProfileEditableField label="ΑΦΜ ιδιοκτήτη (αυτόματο)" value={ownerVat} mono />
-    {field("vehicleUseCategory", "Χρήση / κατηγορία")}
-    {field("reasonForCirculation", "Λόγος κυκλοφορίας")}
-    {VEHICLE_SPEC_FIELDS.map(([key, label]) => field("spec:" + key, label, {
+  const fields = new Map<string, React.ReactNode>([
+    ["vehicleRegistrationPlate", field("vehicleRegistrationPlate", "Πινακίδα", { mono: true })],
+    ["owner", <ProfileEditableField key="owner" label="Ιδιοκτήτης / πελάτης" value={owner} />],
+    ["ownerVat", <ProfileEditableField key="ownerVat" label="ΑΦΜ ιδιοκτήτη (αυτόματο)" value={ownerVat} mono />],
+    ["vehicleUseCategory", field("vehicleUseCategory", "Χρήση / κατηγορία")],
+    ["reasonForCirculation", field("reasonForCirculation", "Λόγος κυκλοφορίας")],
+    ...VEHICLE_SPEC_FIELDS.map(([key, label]): [string, React.ReactNode] => ["spec:" + key, field("spec:" + key, label, {
       multiline: key === "vehicleNotes", type: key === "ownerCount" ? "number" : dateVehicleFields.has(key) ? "date" : "text",
       options: booleanVehicleFields.has(key) ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Ναι", label: "Ναι" }, { value: "Όχι", label: "Όχι" }, { value: "true", label: "Ναι" }, { value: "false", label: "Όχι" }] : key === "condition" ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Καινούργιο", label: "Καινούργιο" }, { value: "Μεταχειρισμένο", label: "Μεταχειρισμένο" }] : key === "fuelType" ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Βενζίνη", label: "Βενζίνη" }, { value: "Πετρέλαιο", label: "Πετρέλαιο" }, { value: "Υβριδικό", label: "Υβριδικό" }, { value: "Ηλεκτρικό", label: "Ηλεκτρικό" }, { value: "Υγραέριο", label: "Υγραέριο (LPG)" }, { value: "Φυσικό αέριο", label: "Φυσικό αέριο (CNG)" }] : key === "bodyType" ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Hatchback", label: "Hatchback" }, { value: "Sedan", label: "Sedan" }, { value: "SUV", label: "SUV" }, { value: "Station Wagon", label: "Station Wagon" }, { value: "Coupe", label: "Coupe" }, { value: "Cabrio", label: "Cabrio" }, { value: "Van", label: "Van" }, { value: "Pickup", label: "Pickup" }] : undefined,
-    }))}
-    <VehicleOwnershipFields values={values} session={session} />
+    })]),
+  ]);
+  return <Box sx={{ ...profileFieldGridSx, display: "block" }}>
+    <Box data-vehicle-general-columns={columnCount} sx={{ display: "grid", gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`, columnGap: 1, alignItems: "start" }}>
+      {vehicleGeneralColumns(columnCount).map((keys, index) => <Stack key={index} data-vehicle-column={index + 1} spacing={.25} sx={{ minWidth: 0 }}>
+        {keys.map(key => fields.get(key))}
+      </Stack>)}
+    </Box>
+    <VehicleOwnershipFields values={values} session={session} vertical />
   </Box>;
 }
 
