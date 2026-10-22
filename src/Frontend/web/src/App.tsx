@@ -34,6 +34,7 @@ import EventIcon from "@mui/icons-material/Event";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import LeaderboardIcon from "@mui/icons-material/Leaderboard";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import EngineeringIcon from "@mui/icons-material/Engineering";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import HomeWorkIcon from "@mui/icons-material/HomeWork";
@@ -129,6 +130,7 @@ import { IntelligenceChatPage } from "./pages/IntelligenceChatPage";
 import { IntelligenceHistoryPage } from "./pages/IntelligenceHistoryPage";
 import { IntelligenceAutomationsPage } from "./pages/IntelligenceAutomationsPage";
 import { IntelligenceStatsPage } from "./pages/IntelligenceStatsPage";
+import { ProductionGrowthPage } from "./pages/ProductionGrowthPage";
 import { ProductionReportPage } from "./pages/ProductionReportPage";
 import { CommissionDistributionPage } from "./pages/CommissionDistributionPage";
 import { FinancialReportPage } from "./pages/FinancialReportPage";
@@ -330,6 +332,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     // Sidebar consolidation: /production-report (ετήσια παραγωγή) is
     // reachable as a button inside /production-lists.
     { to: "/production-lists", labelKey: "nav.productionLists", icon: <LeaderboardIcon />, package: "BackOffice", group: "production" },
+    { to: "/production-growth", labelKey: "nav.productionGrowth", icon: <TrendingUpIcon />, package: "BackOffice", group: "production", permission: "customers.read" },
     { to: "/production-companies-agencies", labelKey: "nav.companiesAgencies", icon: <BusinessIcon />, package: "BackOffice", group: "production" },
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice", group: "production" },
     { to: "/vehicles", labelKey: "nav.vehicleRegistry", icon: <DirectionsCarIcon />, package: "BackOffice", group: "production" },
@@ -502,6 +505,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/bookkeeping", labelKey: "nav.bookkeeping", icon: <FolderIcon />,
       workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
     // BackOffice
+    { to: "/production-growth", labelKey: "nav.productionGrowth", icon: <TrendingUpIcon />, package: "BackOffice", group: "production", permission: "customers.read" },
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice" },
     { to: "/vehicles", labelKey: "nav.vehicleRegistry", icon: <DirectionsCarIcon />, package: "BackOffice" },
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice" },
@@ -539,6 +543,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/ermes-app", labelKey: "nav.ermes", icon: <MailOutlineIcon />, package: "Ermes", openInNewTab: true, workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations","Ermes"] },
     { to: "/agency-and-profile?tab=documentation", labelKey: "nav.documentation", icon: <MenuBookIcon />, workspaces: ["BackOffice"] },
     { to: "/bookkeeping", labelKey: "nav.bookkeeping", icon: <FolderIcon />, workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
+    { to: "/production-growth", labelKey: "nav.productionGrowth", icon: <TrendingUpIcon />, package: "BackOffice", group: "production", permission: "customers.read" },
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice" },
     { to: "/vehicles", labelKey: "nav.vehicleRegistry", icon: <DirectionsCarIcon />, package: "BackOffice" },
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice" },
@@ -1200,6 +1205,7 @@ export default function App() {
                   <Route path="collection-files-bridges" element={<PackageGate package="BackOffice"><CollectionFilesBridgesPage /></PackageGate>} />
                   <Route path="bridge-code-mappings" element={<PackageGate package="BackOffice"><BridgeCodeMappingsPage /></PackageGate>} />
                   <Route path="production-lists" element={<ProductionListsPage />} />
+                  <Route path="production-growth" element={<PackageGate package="BackOffice"><ProductionGrowthPage /></PackageGate>} />
                   <Route path="producer-production" element={<ProducerProductionPage />} />
                   <Route path="producer-statistics" element={<ProducerProductionAnalyticsPage />} />
                   <Route path="producer-goals" element={<ProducerGoalsPage />} />

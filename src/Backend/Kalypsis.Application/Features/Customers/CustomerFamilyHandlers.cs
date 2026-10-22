@@ -416,12 +416,8 @@ internal static class CustomerFamilyQueries
         var activePolicies = policies.Where(p => p.Status == PolicyStatus.Active)
             .GroupBy(p => p.CustomerId)
             .ToDictionary(g => g.Key, g => g.Select(p => p.PolicyType.ToString()).ToHashSet());
-        return needs.Where(n => n.HasAsset && !n.IsInsured && people.ContainsKey(n.CustomerId))
-            .Where(n =>
-            {
-                var policyType = CustomerNeedCatalog.PolicyTypeFor(n.Kind);
-                return policyType is null || !activePolicies.GetValueOrDefault(n.CustomerId, new HashSet<string>()).Contains(policyType);
-            })
+        return needs.Where(n => people.ContainsKey(n.CustomerId)
+                && IsOpportunity(n, activePolicies.GetValueOrDefault(n.CustomerId, new HashSet<string>())))
             .OrderByDescending(n => n.Priority)
             .Select(n =>
             {
@@ -431,5 +427,12 @@ internal static class CustomerFamilyQueries
                     n.Kind, n.Title,
                     $"Υπάρχει καταχωρημένο {n.Kind} χωρίς ενεργή κάλυψη.", n.Priority);
             }).ToList();
+    }
+
+    // Shared by the individual customer card and the office-wide growth list.
+    public static bool IsOpportunity(CustomerInsuranceNeed need, IReadOnlySet<string> activePolicyTypes)
+    {
+        var policyType = CustomerNeedCatalog.PolicyTypeFor(need.Kind);
+        return need.HasAsset && !need.IsInsured && (policyType is null || !activePolicyTypes.Contains(policyType));
     }
 }
