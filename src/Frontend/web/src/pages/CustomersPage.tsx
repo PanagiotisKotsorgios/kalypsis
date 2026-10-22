@@ -70,6 +70,7 @@ import { SavedReportsButton } from "../components/SavedReportsButton";
 import { customerDraftErrors, customerFieldError } from "../components/customer/customerValidation";
 import { CustomerDesktopFiltersDialog, CustomerMultiSelect, type CustomerFilterOption } from "../components/customer/CustomerDesktopFilters";
 import { activeCustomerFilterCount, customerMatchesFilters, EMPTY_CUSTOMER_LIST_FILTERS, type CustomerListFilters } from "./customerListFilters";
+import { customerTableRowSx, customerTableSx } from "./customerTableAppearance";
 import { CustomerBulkDeleteDialog } from "../components/customer/CustomerBulkDeleteDialog";
 import { deleteSelectedCustomers, selectCustomerPage, type CustomerDeletionTarget, type CustomerDeletionResult } from "../components/customer/customerBulkDelete";
 
@@ -635,9 +636,9 @@ export function CustomersPage() {
           <CircularProgress />
         </Box>
       ) : (
-        <Card data-tour="customers-table">
-          <TableContainer>
-            <Table>
+        <Card data-tour="customers-table" variant="outlined" sx={theme => ({ borderColor: theme.palette.mode === "dark" ? "#344E6B" : "#D5E0EC", borderRadius: 1.5, overflow: "hidden" })}>
+          <TableContainer sx={{ overflowX: "auto", maxWidth: "100%" }}>
+            <Table size="small" aria-label="Λίστα πελατών" sx={theme => customerTableSx(theme.palette.mode === "dark")}>
               <TableHead>
                 <TableRow>
                   <TableCell padding="checkbox">
@@ -674,17 +675,12 @@ export function CustomersPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {customers.map((c) => (
+                {customers.map((c, index) => (
                   <TableRow
                     key={c.id}
                     hover
                     selected={selectedIds.has(c.id)}
-                    sx={c.status === "Prospect" ? {
-                      cursor: "pointer",
-                      bgcolor: "rgba(245, 158, 11, 0.12)",
-                      "&:hover": { bgcolor: "rgba(245, 158, 11, 0.20)" },
-                      "&.Mui-selected, &.Mui-selected:hover": { bgcolor: "#dcebfa" }
-                    } : { cursor: "pointer" }}
+                    sx={theme => customerTableRowSx(index, c.status === "Prospect", theme.palette.mode === "dark")}
                     onClick={() => setSelectedCustomer({ customer: c, editMode: false })}
                     onContextMenu={(e) => rowMenu.open(e, c)}
                   >
@@ -780,7 +776,7 @@ export function CustomersPage() {
               </TableBody>
             </Table>
           </TableContainer>
-          <Box sx={{ display: "flex", justifyContent: "center", px: 2, py: 1 }}>
+          <Box sx={theme => ({ display: "flex", justifyContent: "center", px: 1, py: .65, bgcolor: theme.palette.mode === "dark" ? "#17283E" : "#EDF2F7", borderTop: "1px solid", borderColor: theme.palette.mode === "dark" ? "#344E6B" : "#DFE5ED", overflowX: "auto" })}>
             <NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage}
               totalRows={table.filtered.length} pageSize={table.pageSize} onPageSize={table.setPageSize} />
           </Box>
