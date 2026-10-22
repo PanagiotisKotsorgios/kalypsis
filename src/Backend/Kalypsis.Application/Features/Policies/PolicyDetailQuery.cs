@@ -163,6 +163,8 @@ public sealed class UpdatePolicyVehicleHandler : IRequestHandler<UpdatePolicyVeh
         var policy = await _db.Policies.FirstOrDefaultAsync(x => x.Id == request.Id && x.TenantId == tenantId, ct)
             ?? throw AppException.NotFound("Συμβόλαιο");
         var body = request.Body;
+        VehicleDeletionProtection.EnsureCanClearPlate(policy, body.ClearVehicleRegistrationPlate
+            || body.VehicleRegistrationPlate is not null && string.IsNullOrWhiteSpace(body.VehicleRegistrationPlate));
         if (body.ReplaceDetails)
         {
             try { VehicleOwnershipRules.Validate(body.SpecsJson); }
@@ -515,6 +517,7 @@ public class UpdatePolicyExtendedHandler : IRequestHandler<UpdatePolicyExtendedC
             ?? throw AppException.NotFound("Συμβόλαιο");
 
         var b = r.Body;
+        VehicleDeletionProtection.EnsureCanClearPlate(p, string.IsNullOrWhiteSpace(b.VehicleRegistrationPlate));
         // Cross-tenant FK guards. Every nullable Guid the operator can plant
         // via the body MUST be validated against tenant scope; otherwise a
         // second office's Producer / Customer / InsuranceCompany id could

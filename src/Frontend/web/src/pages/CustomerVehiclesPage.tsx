@@ -9,7 +9,7 @@ import { vehicleOwnerHistory } from "../components/profile/vehicleHistory";
 import { vehicleCoOwners, ownershipFieldValues, mergeVehicleOwnership, ownershipCreationChanges } from "../components/profile/vehicleOwnership";
 import { VehicleOwnershipFields, VehicleOwnershipInputs } from "../components/profile/VehicleOwnershipFields";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, InputAdornment, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Tooltip, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, InputAdornment, ListItemIcon, ListItemText, Menu, MenuItem, Snackbar, Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Tooltip, Typography, useMediaQuery, useTheme } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import DownloadIcon from "@mui/icons-material/Download";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
@@ -27,6 +27,8 @@ import { Link as RouterLink } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { SavedReportsButton } from "../components/SavedReportsButton";
+import { BulkDeleteDialog } from "../components/BulkDeleteDialog";
+import { deleteSelectedRecords, selectPageRecords, type DeletionTarget, type DeletionResult } from "../utils/bulkDeletion";
 
 interface VehiclePolicyRow {
   id: string;
@@ -253,7 +255,7 @@ export function VehicleDetailDialog({ open, plate, policyIds: suppliedPolicyIds,
       {first && tab === 3 && <Box sx={{ overflowX: "auto" }}>        <Card variant="outlined" sx={{ p: 1.25 }}><Typography variant="subtitle1" fontWeight={800} sx={{ mb: 0.75 }}>Ζημιές</Typography>{(claimsQ.data ?? []).length === 0 ? <Typography color="text.secondary">Δεν υπάρχουν καταχωρημένες ζημιές για το όχημα.</Typography> : <Table size="small"><TableHead><TableRow><TableCell>Αρ. ζημιάς</TableCell><TableCell>Ημερομηνία</TableCell><TableCell>Κατάσταση</TableCell><TableCell align="right">Διεκδίκηση</TableCell><TableCell align="right">Έγκριση</TableCell></TableRow></TableHead><TableBody>{(claimsQ.data ?? []).map(claim => <TableRow key={claim.id}><TableCell>{claim.claimNumber ?? "—"}</TableCell><TableCell>{claim.incidentDate ?? "—"}</TableCell><TableCell><Chip size="small" label={claimStatusLabel(claim.status)} /></TableCell><TableCell align="right">{money(claim.claimedAmount, first.currency)}</TableCell><TableCell align="right">{money(claim.approvedAmount, first.currency)}</TableCell></TableRow>)}</TableBody></Table>}</Card></Box>}
     </DialogContent>
     <DialogActions sx={{ px: 1.25, py: .6, justifyContent: "space-between", flexWrap: "wrap", gap: .75 }}>
-      {canWrite && <Button color="error" startIcon={<DeleteOutlineIcon />} disabled={!first || session.dirty || session.busy || removeAllVehicle.isPending} onClick={() => { if (window.confirm("Να αφαιρεθεί η συσχέτιση οχήματος; Τα συμβόλαια και οι ζημιές δεν διαγράφονται.")) removeAllVehicle.mutate(); }}>Αφαίρεση συσχέτισης</Button>}
+      {canWrite && <Button color="error" startIcon={<DeleteOutlineIcon />} disabled={!first || session.dirty || session.busy || removeAllVehicle.isPending} onClick={() => { if (window.confirm("Να γίνει έλεγχος και διαγραφή του οχήματος; Η διαγραφή δεν επιτρέπεται αν υπάρχει συνδεδεμένο συμβόλαιο ή ιστορικό.")) removeAllVehicle.mutate(); }}>Διαγραφή οχήματος</Button>}
       {canWrite && first ? <ProfileEditorActions session={session} label="οχήματος" /> : <Button color="error" variant="contained" onClick={session.requestClose}>Κλείσιμο</Button>}
     </DialogActions>
   </Dialog>;
@@ -437,6 +439,7 @@ void LegacyCustomerVehiclesPage;
 
 export function CustomerVehiclesPage() {
   const qc = useQueryClient();
+  const canWrite = usePermission("policies.write");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [companyFilter, setCompanyFilter] = useState("");
@@ -448,9 +451,10 @@ export function CustomerVehiclesPage() {
   const [statsOpen, setStatsOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [statsFocus, setStatsFocus] = useState<string | null>(null);
-  const [deleteIds, setDeleteIds] = useState<string[]>([]);
-  const [deleteText, setDeleteText] = useState("");
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTargets, setDeleteTargets] = useState<DeletionTarget[] | null>(null);
+  const [deleteResult, setDeleteResult] = useState<DeletionResult | null>(null);
+  const [deleteCompleted, setDeleteCompleted] = useState(0);
+  const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
   const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
   const [saveFilterRequest, setSaveFilterRequest] = useState(0);
   const [clearSavedFilterRequest, setClearSavedFilterRequest] = useState(0);
@@ -465,6 +469,7 @@ export function CustomerVehiclesPage() {
     const term = search.trim().toLocaleLowerCase("el-GR");
     const now = Date.now();
     return sourceRows.filter(row => {
+      if (!row.vehicleRegistrationPlate?.trim()) return false;
       const haystack = [row.vehicleRegistrationPlate, row.customerDisplay, row.policyNumber, row.insuranceCompanyName, row.policyType].join(" ").toLocaleLowerCase("el-GR");
       if (term && !haystack.includes(term)) return false;
       if (statusFilter && row.status !== statusFilter) return false;
@@ -480,7 +485,16 @@ export function CustomerVehiclesPage() {
     });
   }, [sourceRows, search, statusFilter, companyFilter, renewalFilter]);
   useEffect(() => { setPage(0); }, [search, statusFilter, companyFilter, renewalFilter, rowsPerPage]);
-  const pageRows = filteredRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  const filteredIdsKey = JSON.stringify(filteredRows.map(row => row.id));
+  useEffect(() => {
+    const visible = new Set<string>(JSON.parse(filteredIdsKey));
+    setSelectedIds(previous => {
+      const next = new Set([...previous].filter(id => visible.has(id)));
+      return next.size === previous.size ? previous : next;
+    });
+  }, [filteredIdsKey]);
+  const visiblePage = Math.min(page, Math.max(0, Math.ceil(filteredRows.length / rowsPerPage) - 1));
+  const pageRows = filteredRows.slice(visiblePage * rowsPerPage, visiblePage * rowsPerPage + rowsPerPage);
   const uniquePlates = new Set(filteredRows.map(row => row.vehicleRegistrationPlate).filter(Boolean)).size;
   const expiring = filteredRows.filter(row => {
     const days = (new Date(row.endDate).getTime() - Date.now()) / 86400000;
@@ -488,7 +502,9 @@ export function CustomerVehiclesPage() {
   }).length;
   const totalPremium = filteredRows.reduce((sum, row) => sum + (Number(row.premium) || 0), 0);
   const allPageSelected = pageRows.length > 0 && pageRows.every(row => selectedIds.has(row.id));
-  const selectedCount = selectedIds.size;
+  const somePageSelected = pageRows.some(row => selectedIds.has(row.id));
+  const selectedRows = filteredRows.filter(row => selectedIds.has(row.id));
+  const selectedCount = selectedRows.length;
   const companyStats = useMemo(() => {
     const map = new Map<string, { contracts: number; plates: Set<string> }>();
     for (const row of filteredRows) {
@@ -551,17 +567,25 @@ export function CustomerVehiclesPage() {
     setStatsFocus(`${kind}:${value}`);
   };
   const clearVehicle = useMutation({
-    mutationFn: async (ids: string[]) => Promise.all(ids.map(id => api.patch(`/policies/${id}/vehicle`, { clearVehicleRegistrationPlate: true }))),
-    onSuccess: () => {
-      setSelectedIds(new Set());
-      setDeleteOpen(false);
-      setDeleteText("");
-      setDeleteIds([]);
-      void qc.invalidateQueries({ queryKey: ["customer-vehicles-all"] });
-      void qc.invalidateQueries({ queryKey: ["customer-vehicles"] });
+    mutationFn: (targets: DeletionTarget[]) => deleteSelectedRecords(targets,
+      id => api.patch(`/policies/${id}/vehicle`, { clearVehicleRegistrationPlate: true }), extractErrorMessage, setDeleteCompleted),
+    onSuccess: result => {
+      setSelectedIds(previous => selectPageRecords(previous, result.deletedIds, false));
+      if (result.deletedIds.length) {
+        setDeleteSuccess(`Διαγράφηκαν επιτυχώς ${result.deletedIds.length} εγγραφές οχημάτων.`);
+        for (const key of [["customer-vehicles-all"], ["customer-vehicles"], ["vehicle-detail"], ["policies"], ["policy-detail"]]) void qc.invalidateQueries({ queryKey: key });
+      }
+      if (result.failures.length) setDeleteResult(result);
+      else setDeleteTargets(null);
     }
   });
-  const requestDelete = (ids: string[]) => { setDeleteIds(ids); setDeleteText(""); setDeleteOpen(true); };
+  const requestDelete = (ids: string[]) => {
+    if (!canWrite || clearVehicle.isPending) return;
+    const targets = filteredRows.filter(row => ids.includes(row.id)).map(row => ({ id: row.id,
+      label: `${row.vehicleRegistrationPlate} · ${row.policyNumber} · ${row.customerDisplay ?? "Πελάτης"}` }));
+    if (!targets.length) return;
+    clearVehicle.reset(); setDeleteResult(null); setDeleteCompleted(0); setDeleteTargets(targets);
+  };
   const exportCsv = (dataset = filteredRows) => {
     const header = ["Πινακίδα", "Πελάτης", "Αριθμός συμβολαίου", "Ασφαλιστική", "Έναρξη", "Λήξη", "Ασφάλιστρο", "Κατάσταση"];
     const body = dataset.map(row => [row.vehicleRegistrationPlate ?? "", row.customerDisplay ?? "", row.policyNumber, row.insuranceCompanyName, row.startDate, row.endDate, String(row.premium ?? ""), vehicleStatusLabel(row.status)]);
@@ -600,9 +624,9 @@ export function CustomerVehiclesPage() {
           <MenuItem onClick={() => { setActionsAnchor(null); window.print(); }} sx={{ color: "#456b91", "&:hover": { bgcolor: "#edf2f7" } }}>
             <ListItemIcon sx={{ color: "#456b91" }}><PrintIcon fontSize="small" /></ListItemIcon><ListItemText primary="Εκτύπωση" />
           </MenuItem>
-          {selectedCount > 0 && <><Divider /><MenuItem onClick={() => { setActionsAnchor(null); requestDelete([...selectedIds]); }} sx={{ color: "#c73545", "&:hover": { bgcolor: "#fdecef" } }}>
-            <ListItemIcon sx={{ color: "#c73545" }}><DeleteOutlineIcon fontSize="small" /></ListItemIcon><ListItemText primary={`Διαγραφή (${selectedCount})`} />
-          </MenuItem></>}
+          <Divider /><MenuItem disabled={!canWrite || !selectedCount || clearVehicle.isPending} onClick={() => { setActionsAnchor(null); requestDelete(selectedRows.map(row => row.id)); }} sx={{ color: "#c73545", "&:hover": { bgcolor: "#fdecef" } }}>
+            <ListItemIcon sx={{ color: "#c73545" }}><DeleteOutlineIcon fontSize="small" /></ListItemIcon><ListItemText primary={`Διαγραφή επιλεγμένων (${selectedCount})`} secondary="Με έλεγχο συσχετίσεων και ιστορικού" />
+          </MenuItem>
         </Menu>
       </Box>
     </Stack>
@@ -619,11 +643,17 @@ export function CustomerVehiclesPage() {
         <Button size="small" color="error" variant="contained" onClick={resetFilters}>Καθαρισμός</Button>
       </Stack>
     </Card>
+    {selectedCount > 0 && <Stack direction="row" flexWrap="wrap" useFlexGap spacing={1} alignItems="center">
+      <Chip size="small" label={`${selectedCount} επιλεγμένα`} sx={{ bgcolor: "#102d55", color: "#fff", fontWeight: 750 }} />
+      <Button size="small" variant="contained" color="error" startIcon={<DeleteOutlineIcon />} disabled={!canWrite || clearVehicle.isPending} onClick={() => requestDelete(selectedRows.map(row => row.id))}>Διαγραφή επιλεγμένων ({selectedCount})</Button>
+      <Button size="small" disabled={clearVehicle.isPending} onClick={() => setSelectedIds(new Set())}>Καθαρισμός επιλογής</Button>
+      {selectedCount < filteredRows.length && <Button size="small" disabled={clearVehicle.isPending} onClick={() => setSelectedIds(new Set(filteredRows.map(row => row.id)))}>Επιλογή όλων των αποτελεσμάτων ({filteredRows.length})</Button>}
+    </Stack>}
     {filteredRows.length === 0 ? <Alert severity="info"><DirectionsCarIcon sx={{ verticalAlign: "middle", mr: 1 }} />Δεν βρέθηκαν οχήματα με τα συγκεκριμένα φίλτρα.</Alert> : <Card variant="outlined" sx={{ overflowX: "auto" }}>
       <Table size="small">
-        <TableHead><TableRow><TableCell padding="checkbox"><Checkbox size="small" checked={allPageSelected} onChange={event => { const checked = event.target.checked; setSelectedIds(previous => { const next = new Set(previous); pageRows.forEach(row => checked ? next.add(row.id) : next.delete(row.id)); return next; }); }} /></TableCell><TableCell>Πινακίδα</TableCell><TableCell>Πελάτης</TableCell><TableCell>Συμβόλαιο</TableCell><TableCell>Ασφαλιστική</TableCell><TableCell>Έναρξη</TableCell><TableCell>Λήξη</TableCell><TableCell align="right">Ασφάλιστρο</TableCell><TableCell>Κατάσταση</TableCell><TableCell align="right">Ενέργειες</TableCell></TableRow></TableHead>
-        <TableBody>{pageRows.map(row => <TableRow key={row.id} hover onClick={() => setSelectedVehicle({ plate: row.vehicleRegistrationPlate ?? "", edit: false })} sx={{ cursor: "pointer" }}>
-          <TableCell padding="checkbox"><Checkbox size="small" checked={selectedIds.has(row.id)} onClick={event => event.stopPropagation()} onChange={event => setSelectedIds(previous => { const next = new Set(previous); event.target.checked ? next.add(row.id) : next.delete(row.id); return next; })} /></TableCell>
+        <TableHead><TableRow><TableCell padding="checkbox"><Checkbox size="small" checked={allPageSelected} indeterminate={somePageSelected && !allPageSelected} disabled={!pageRows.length || clearVehicle.isPending} inputProps={{ "aria-label": "Επιλογή όλων των οχημάτων αυτής της σελίδας" }} onChange={(_event, checked) => setSelectedIds(previous => selectPageRecords(previous, pageRows.map(row => row.id), checked))} /></TableCell><TableCell>Πινακίδα</TableCell><TableCell>Πελάτης</TableCell><TableCell>Συμβόλαιο</TableCell><TableCell>Ασφαλιστική</TableCell><TableCell>Έναρξη</TableCell><TableCell>Λήξη</TableCell><TableCell align="right">Ασφάλιστρο</TableCell><TableCell>Κατάσταση</TableCell><TableCell align="right">Ενέργειες</TableCell></TableRow></TableHead>
+        <TableBody>{pageRows.map(row => <TableRow key={row.id} hover selected={selectedIds.has(row.id)} onClick={() => setSelectedVehicle({ plate: row.vehicleRegistrationPlate ?? "", edit: false })} sx={{ cursor: "pointer" }}>
+          <TableCell padding="checkbox" onClick={event => event.stopPropagation()}><Checkbox size="small" checked={selectedIds.has(row.id)} disabled={clearVehicle.isPending} inputProps={{ "aria-label": `Επιλογή οχήματος ${row.vehicleRegistrationPlate} · ${row.policyNumber}` }} onChange={(_event, checked) => setSelectedIds(previous => selectPageRecords(previous, [row.id], checked))} /></TableCell>
           <TableCell sx={{ fontFamily: "monospace", fontWeight: 800 }}>{row.vehicleRegistrationPlate ?? "—"}</TableCell>
           <TableCell>
             <Tooltip title="Άνοιγμα καρτέλας πελάτη — δεν ανοίγει την καρτέλα οχήματος" arrow>
@@ -663,10 +693,10 @@ export function CustomerVehiclesPage() {
           </TableCell>
           <TableCell>{row.insuranceCompanyName}</TableCell><TableCell>{row.startDate}</TableCell><TableCell>{row.endDate}</TableCell>
           <TableCell align="right">{row.premium?.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {row.currency}</TableCell><TableCell><Chip size="small" label={vehicleStatusLabel(row.status)} /></TableCell>
-          <TableCell align="right"><Stack direction="row" justifyContent="flex-end" spacing={0.25}><Tooltip title="Προεπισκόπηση καρτέλας οχήματος" arrow><IconButton size="small" color="info" onClick={event => { event.stopPropagation(); setSelectedVehicle({ plate: row.vehicleRegistrationPlate ?? "", edit: false }); }}><VisibilityIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Επεξεργασία οχήματος" arrow><IconButton size="small" color="success" onClick={event => { event.stopPropagation(); setSelectedVehicle({ plate: row.vehicleRegistrationPlate ?? "", edit: true }); }}><EditIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Αφαίρεση οχήματος από το συμβόλαιο" arrow><IconButton size="small" color="error" onClick={event => { event.stopPropagation(); requestDelete([row.id]); }}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip></Stack></TableCell>
+          <TableCell align="right"><Stack direction="row" justifyContent="flex-end" spacing={0.25}><Tooltip title="Προεπισκόπηση καρτέλας οχήματος" arrow><IconButton size="small" color="info" onClick={event => { event.stopPropagation(); setSelectedVehicle({ plate: row.vehicleRegistrationPlate ?? "", edit: false }); }}><VisibilityIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Επεξεργασία οχήματος" arrow><IconButton size="small" color="success" onClick={event => { event.stopPropagation(); setSelectedVehicle({ plate: row.vehicleRegistrationPlate ?? "", edit: true }); }}><EditIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Διαγραφή οχήματος — έλεγχος συσχετίσεων" arrow><IconButton size="small" color="error" disabled={!canWrite || clearVehicle.isPending} onClick={event => { event.stopPropagation(); requestDelete([row.id]); }}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip></Stack></TableCell>
         </TableRow>)}</TableBody>
       </Table>
-      <TablePagination component="div" count={filteredRows.length} page={page} onPageChange={(_, next) => setPage(next)} rowsPerPage={rowsPerPage} onRowsPerPageChange={event => { setRowsPerPage(Number(event.target.value)); setPage(0); }} rowsPerPageOptions={[10, 25, 50, 100]} labelRowsPerPage="Ανά σελίδα" labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`} />
+      <TablePagination component="div" count={filteredRows.length} page={visiblePage} onPageChange={(_, next) => setPage(next)} rowsPerPage={rowsPerPage} onRowsPerPageChange={event => { setRowsPerPage(Number(event.target.value)); setPage(0); }} rowsPerPageOptions={[10, 25, 50, 100]} labelRowsPerPage="Ανά σελίδα" labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`} />
     </Card>}
     <VehicleDetailDialog open={selectedVehicle !== null} plate={selectedVehicle?.plate ?? ""} initialEditing={selectedVehicle?.edit ?? false} policyIds={sourceRows.filter(row => (row.vehicleRegistrationPlate ?? "") === (selectedVehicle?.plate ?? "")).map(row => row.id)} onClose={() => setSelectedVehicle(null)} />
     <AddVehicleDialog open={addOpen} rows={sourceRows} onClose={() => setAddOpen(false)} onSaved={plate => { setAddOpen(false); setSelectedVehicle({ plate, edit: false }); void qc.invalidateQueries({ queryKey: ["customer-vehicles-all"] }); void qc.invalidateQueries({ queryKey: ["customer-vehicles"] }); }} />
@@ -719,6 +749,11 @@ export function CustomerVehiclesPage() {
       </DialogContent>
       <DialogActions><Button startIcon={<DownloadIcon />} onClick={() => exportCsv()}>Εξαγωγή CSV</Button><Button onClick={() => window.print()}>Εκτύπωση</Button><Button variant="contained" color="error" sx={{ color: "#fff" }} onClick={() => setStatsOpen(false)}>Κλείσιμο</Button></DialogActions>
     </Dialog>
-    <Dialog open={deleteOpen} onClose={() => !clearVehicle.isPending && setDeleteOpen(false)} fullWidth maxWidth="xs"><DialogTitle>Επιβεβαίωση αφαίρεσης</DialogTitle><DialogContent><Typography variant="body2" sx={{ mb: 1 }}>Θα αφαιρεθεί η σύνδεση οχήματος από {deleteIds.length} συμβόλαιο/α. Δεν διαγράφεται το συμβόλαιο. Πληκτρολόγησε <strong>ΔΙΑΓΡΑΦΗ</strong> για επιβεβαίωση.</Typography><TextField autoFocus fullWidth label="Πληκτρολόγησε ΔΙΑΓΡΑΦΗ" value={deleteText} onChange={event => setDeleteText(event.target.value)} /></DialogContent><DialogActions><Button color="inherit" onClick={() => setDeleteOpen(false)} disabled={clearVehicle.isPending}>Ακύρωση</Button><Button color="error" variant="contained" onClick={() => clearVehicle.mutate(deleteIds)} disabled={deleteText.trim().toUpperCase() !== "ΔΙΑΓΡΑΦΗ" || clearVehicle.isPending}>{clearVehicle.isPending ? "Αφαιρείται..." : "Αφαίρεση"}</Button></DialogActions></Dialog>
+    <BulkDeleteDialog entity="vehicles" targets={deleteTargets} pending={clearVehicle.isPending} completed={deleteCompleted} result={deleteResult}
+      onClose={() => { if (!clearVehicle.isPending) { setDeleteTargets(null); setDeleteResult(null); } }}
+      onConfirm={() => { if (deleteTargets && !clearVehicle.isPending) clearVehicle.mutate(deleteTargets); }} />
+    <Snackbar open={deleteSuccess !== null} autoHideDuration={4000} onClose={() => setDeleteSuccess(null)} anchorOrigin={{ vertical: "bottom", horizontal: "right" }}>
+      <Alert severity="success" variant="filled" onClose={() => setDeleteSuccess(null)}>{deleteSuccess}</Alert>
+    </Snackbar>
   </Stack>;
 }

@@ -476,6 +476,7 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
             ?? throw AppException.NotFound("Συμβόλαιο");
 
         var b = request.Body;
+        VehicleDeletionProtection.EnsureCanClearPlate(p, string.IsNullOrWhiteSpace(b.VehicleRegistrationPlate));
         // Cross-tenant FK guards — same rules as CreatePolicyCommand. See
         // TenantFkGuard docs for the attack this blocks.
         var carrierOk = await _db.InsuranceCompanies.IgnoreQueryFilters()
