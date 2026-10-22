@@ -7,6 +7,7 @@ import {
   Box,
   Button,
   Card,
+  Checkbox,
   Chip,
   CircularProgress,
   Dialog,
@@ -21,6 +22,7 @@ import {
   Menu,
   MenuItem,
   Stack,
+  Snackbar,
   Switch,
   Tab,
   Tabs,
@@ -75,6 +77,8 @@ import { SavedReportsButton } from "../components/SavedReportsButton";
 import { customerDraftErrors, customerFieldError } from "../components/customer/customerValidation";
 import { CustomerDesktopFiltersDialog, CustomerMultiSelect, type CustomerFilterOption } from "../components/customer/CustomerDesktopFilters";
 import { activeCustomerFilterCount, customerMatchesFilters, EMPTY_CUSTOMER_LIST_FILTERS, type CustomerListFilters } from "./customerListFilters";
+import { CustomerBulkDeleteDialog } from "../components/customer/CustomerBulkDeleteDialog";
+import { deleteSelectedCustomers, selectCustomerPage, type CustomerDeletionTarget, type CustomerDeletionResult } from "../components/customer/customerBulkDelete";
 
 type CustomerType = "Individual" | "Company";
 type CustomerStatus = "Prospect" | "Active" | "Inactive" | "Churned" | "Blocked";
@@ -249,6 +253,11 @@ export function CustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDto | null>(null);
   const [toolbarAction, setToolbarAction] = useState<{ token: number; action: "csv" | "xlsx" | "pdf" | "print" | "columns" }>({ token: 0, action: "csv" });
   const [error, setError] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [deleteTargets, setDeleteTargets] = useState<CustomerDeletionTarget[] | null>(null);
+  const [deleteResult, setDeleteResult] = useState<CustomerDeletionResult | null>(null);
+  const [deleteCompleted, setDeleteCompleted] = useState(0);
+  const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
 
   const customersQuery = useQuery({
     queryKey: ["customers", "desktop-parity-filter-list"],
@@ -337,6 +346,17 @@ export function CustomersPage() {
     pageSize: 25
   });
   const customers = table.paged;
+  // Selection spans pages of the current result, never hidden/filtered-out rows.
+  const filteredIdsKey = JSON.stringify(table.filtered.map(customer => customer.id));
+  useEffect(() => {
+    const allowed = new Set<string>(JSON.parse(filteredIdsKey));
+    setSelectedIds(previous => {
+      const next = new Set([...previous].filter(id => allowed.has(id)));
+      return next.size === previous.size ? previous : next;
+    });
+  }, [filteredIdsKey]);
+  const selectedCustomers = table.filtered.filter(customer => selectedIds.has(customer.id));
+  const pageSelectedCount = customers.filter(customer => selectedIds.has(customer.id)).length;
   const customerFilterCount = activeCustomerFilterCount(filters) + (search ? 1 : 0);
   const clearFilters = () => {
     setClearSavedFilterRequest(value => value + 1);
@@ -399,14 +419,40 @@ export function CustomersPage() {
   // every customer with operational/history links returns an actionable 409.
   const del = useMutation({
     mutationFn: async (id: string) => api.delete(`/customers/${id}`),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["customers"] }),
+    onSuccess: (_response, id) => {
+      setSelectedIds(previous => selectCustomerPage(previous, [id], false));
+      setDeleteSuccess("Ο πελάτης διαγράφηκε επιτυχώς.");
+      void qc.invalidateQueries({ queryKey: ["customers"] });
+    },
     onError: e => setError(extractErrorMessage(e))
   });
+  const bulkDelete = useMutation({
+    mutationFn: (targets: CustomerDeletionTarget[]) => deleteSelectedCustomers(
+      targets, id => api.delete(`/customers/${id}`), extractErrorMessage, setDeleteCompleted),
+    onSuccess: result => {
+      setSelectedIds(previous => selectCustomerPage(previous, result.deletedIds, false));
+      if (result.deletedIds.length) {
+        setDeleteSuccess(`Διαγράφηκαν επιτυχώς ${result.deletedIds.length} πελάτες.`);
+        void qc.invalidateQueries({ queryKey: ["customers"] });
+        void qc.invalidateQueries({ queryKey: ["customer-accounts"] });
+      }
+      if (result.failures.length) setDeleteResult(result);
+      else setDeleteTargets(null);
+    },
+    onError: e => setError(extractErrorMessage(e)),
+  });
+  const requestSelectedDeletion = () => {
+    if (!selectedCustomers.length || bulkDelete.isPending || del.isPending) return;
+    setDeleteResult(null); setDeleteCompleted(0); setError(null);
+    setDeleteTargets(selectedCustomers.map(customer => ({ id: customer.id,
+      label: `${customer.customerNumber} · ${customer.type === "Company" ? customer.companyName || customer.customerNumber : `${customer.firstName ?? ""} ${customer.lastName ?? ""}`.trim() || customer.customerNumber}` })));
+  };
 
   const rowMenu = useRowContextMenu<CustomerDto>({
     entityLabel: "πελάτη",
     onEdit: (c) => { setError(null); setEditingCustomer(c); },
     onDelete: (c) => {
+      if (bulkDelete.isPending || del.isPending) return;
       const label = c.type === "Individual"
         ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() || c.customerNumber
         : c.companyName || c.customerNumber;
@@ -417,10 +463,11 @@ export function CustomersPage() {
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={{ xs: 1.5, md: 3 }} gap={1.25} flexWrap="wrap">
-        <Stack direction="row" alignItems="center" spacing={0.5}>
+        <Stack direction="row" alignItems="center" spacing={0.5} flexWrap="wrap" useFlexGap>
           <Typography variant="h4" sx={{ fontSize: { xs: "1.55rem", sm: "2rem" }, fontWeight: 800 }}>{t("customers.title")}</Typography>
           <HelpHint id="page.customers" />
           <RecordCountChip count={table.filtered.length} />
+          {selectedCustomers.length > 0 && <Chip size="small" label={`${selectedCustomers.length} επιλεγμένοι`} sx={{ bgcolor: "#102d55", color: "#fff", fontWeight: 750 }} />}
         </Stack>
         <Stack direction="row" spacing={.75} useFlexGap flexWrap="wrap" sx={{ width: { xs: "100%", sm: "auto" }, alignItems: "center" }}>
         <SavedReportsButton entity="customers" currentFilters={savedCustomerFilters} onLoad={loadSavedCustomerFilters}
@@ -449,6 +496,13 @@ export function CustomersPage() {
             sx={{ color: "#a45b00", "&:hover": { bgcolor: "#fff3df", color: "#814700" } }}>
             <ListItemIcon sx={{ color: "#a45b00" }}><PersonAddAltOutlinedIcon fontSize="small" /></ListItemIcon>
             <ListItemText primary="Πιθανός πελάτης" secondary="Καταχώρηση υποψήφιου πελάτη" />
+          </MenuItem>
+          <Divider />
+          <MenuItem disabled={!selectedCustomers.length || bulkDelete.isPending || del.isPending}
+            onClick={() => { setActionsAnchor(null); requestSelectedDeletion(); }}
+            sx={{ color: "error.main", "&:hover": { bgcolor: "#fdecef" } }}>
+            <ListItemIcon sx={{ color: "error.main" }}><DeleteIcon fontSize="small" /></ListItemIcon>
+            <ListItemText primary={`Διαγραφή επιλεγμένων (${selectedCustomers.length})`} secondary="Με έλεγχο συσχετίσεων και ιστορικού" />
           </MenuItem>
           <Divider />
           <MenuItem onClick={() => { setActionsAnchor(null); setImportOpen(true); }}
@@ -549,6 +603,15 @@ export function CustomersPage() {
         </Alert>
       )}
 
+      {selectedCustomers.length > 0 && <Stack direction="row" flexWrap="wrap" useFlexGap spacing={1} alignItems="center" sx={{ mb: 1 }}>
+        <Button size="small" variant="contained" color="error" startIcon={<DeleteIcon />} onClick={requestSelectedDeletion} disabled={bulkDelete.isPending || del.isPending}>
+          Διαγραφή επιλεγμένων ({selectedCustomers.length})
+        </Button>
+        <Button size="small" onClick={() => setSelectedIds(new Set())} disabled={bulkDelete.isPending}>Καθαρισμός επιλογής</Button>
+        {selectedCustomers.length < table.filtered.length && <Button size="small" onClick={() => setSelectedIds(new Set(table.filtered.map(customer => customer.id)))} disabled={bulkDelete.isPending}>
+          Επιλογή όλων των αποτελεσμάτων ({table.filtered.length})
+        </Button>}
+      </Stack>}
       <Box sx={{ mb: 0 }}>
         <TableToolbar<CustomerListRow>
           query={search} onQuery={(value) => { setSearch(value); table.setQuery(value); }}
@@ -594,6 +657,15 @@ export function CustomersPage() {
             <Table>
               <TableHead>
                 <TableRow>
+                  <TableCell padding="checkbox">
+                    <Tooltip title="Επιλογή όλων των πελατών αυτής της σελίδας">
+                      <Checkbox checked={customers.length > 0 && pageSelectedCount === customers.length}
+                        indeterminate={pageSelectedCount > 0 && pageSelectedCount < customers.length}
+                        disabled={customers.length === 0 || bulkDelete.isPending}
+                        inputProps={{ "aria-label": "Επιλογή όλων των πελατών αυτής της σελίδας" }}
+                        onChange={(_event, checked) => setSelectedIds(previous => selectCustomerPage(previous, customers.map(customer => customer.id), checked))} />
+                    </Tooltip>
+                  </TableCell>
                   {customerCols.visibleColumns.map(c => (
                     <TableCell
                       key={c.key}
@@ -623,14 +695,21 @@ export function CustomersPage() {
                   <TableRow
                     key={c.id}
                     hover
+                    selected={selectedIds.has(c.id)}
                     sx={c.status === "Prospect" ? {
                       cursor: "pointer",
                       bgcolor: "rgba(245, 158, 11, 0.12)",
-                      "&:hover": { bgcolor: "rgba(245, 158, 11, 0.20)" }
+                      "&:hover": { bgcolor: "rgba(245, 158, 11, 0.20)" },
+                      "&.Mui-selected, &.Mui-selected:hover": { bgcolor: "#dcebfa" }
                     } : { cursor: "pointer" }}
                     onClick={() => setSelectedCustomer(c)}
                     onContextMenu={(e) => rowMenu.open(e, c)}
                   >
+                    <TableCell padding="checkbox" onClick={event => event.stopPropagation()} onContextMenu={event => event.stopPropagation()}>
+                      <Checkbox checked={selectedIds.has(c.id)} disabled={bulkDelete.isPending}
+                        inputProps={{ "aria-label": `Επιλογή πελάτη ${c.customerNumber}` }}
+                        onChange={(_event, checked) => setSelectedIds(previous => selectCustomerPage(previous, [c.id], checked))} />
+                    </TableCell>
                     {customerCols.visibleColumns.map(col => {
                       switch (col.key) {
                         case "number":
@@ -693,12 +772,12 @@ export function CustomersPage() {
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Διαγραφή">
-                        <IconButton size="small" color="error"
+                        <IconButton size="small" color="error" disabled={bulkDelete.isPending || del.isPending}
                           onClick={() => {
                             const label = c.type === "Individual"
                               ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() || c.customerNumber
                               : c.companyName || c.customerNumber;
-                            if (confirm(`Διαγραφή πελάτη «${label}»;\n\nΘα αποτύχει αν έχει συμβόλαια ή αποδείξεις.`)) del.mutate(c.id);
+                            if (confirm(`Διαγραφή πελάτη «${label}»;\n\nΗ διαγραφή επιτρέπεται μόνο αν δεν υπάρχει συνδεδεμένο ιστορικό ή άλλη διασύνδεση.`)) del.mutate(c.id);
                           }}>
                           <DeleteIcon fontSize="small" />
                         </IconButton>
@@ -708,7 +787,7 @@ export function CustomersPage() {
                 ))}
                 {customers.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={customerCols.visibleColumns.length + 1}>
+                    <TableCell colSpan={customerCols.visibleColumns.length + 2}>
                       <Typography color="text.secondary" textAlign="center" py={4}>
                         {t("customers.noCustomers")}
                       </Typography>
@@ -726,6 +805,12 @@ export function CustomersPage() {
       )}
       {headerMenu.menu}
       {rowMenu.menu}
+      <CustomerBulkDeleteDialog targets={deleteTargets} pending={bulkDelete.isPending} completed={deleteCompleted} result={deleteResult}
+        onClose={() => { if (!bulkDelete.isPending) { setDeleteTargets(null); setDeleteResult(null); } }}
+        onConfirm={() => { if (deleteTargets && !bulkDelete.isPending) bulkDelete.mutate(deleteTargets); }} />
+      <Snackbar open={deleteSuccess !== null} autoHideDuration={4000} onClose={() => setDeleteSuccess(null)} anchorOrigin={{ vertical: "bottom", horizontal: "right" }}>
+        <Alert severity="success" variant="filled" onClose={() => setDeleteSuccess(null)}>{deleteSuccess}</Alert>
+      </Snackbar>
       {selectedCustomer && <CustomerDetailPage key={selectedCustomer.id} customerId={selectedCustomer.id}
         initialCustomer={selectedCustomer} onClose={() => setSelectedCustomer(null)} />}
 

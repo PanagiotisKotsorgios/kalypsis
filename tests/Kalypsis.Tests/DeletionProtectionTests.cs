@@ -59,6 +59,43 @@ public sealed class DeletionProtectionTests
     }
 
     [Fact]
+    public async Task Mixed_customer_selection_deletes_only_empty_records_and_preserves_policy_and_relationship_history()
+    {
+        var tenant = Guid.NewGuid();
+        var current = TestScaffold.AgencyStaff(tenant);
+        var clock = TestScaffold.Clock;
+        await using var db = TestScaffold.NewDb(current, clock);
+        var empty = NewCustomer(tenant, "C-EMPTY-SELECTED");
+        var linked = NewCustomer(tenant, "C-POLICY-SELECTED");
+        var family = NewCustomer(tenant, "C-FAMILY-SELECTED");
+        var unselected = NewCustomer(tenant, "C-NOT-SELECTED");
+        var policy = NewPolicy(tenant, linked.Id, null, clock.UtcNow);
+        db.AddRange(empty, linked, family, unselected, policy);
+        db.CustomerRelationships.Add(new CustomerRelationship
+        {
+            Id = Guid.NewGuid(), TenantId = tenant, CustomerId = unselected.Id,
+            RelatedCustomerId = family.Id, RelationshipType = CustomerRelationshipType.Spouse, CreatedAt = clock.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var handler = new DeleteCustomerCommandHandler(db, current, clock);
+        await handler.Handle(new DeleteCustomerCommand(empty.Id), default);
+        var policyError = await Assert.ThrowsAsync<AppException>(() => handler.Handle(new DeleteCustomerCommand(linked.Id), default));
+        var familyError = await Assert.ThrowsAsync<AppException>(() => handler.Handle(new DeleteCustomerCommand(family.Id), default));
+
+        Assert.Equal(clock.UtcNow, empty.DeletedAt);
+        Assert.Equal(409, policyError.StatusCode);
+        Assert.Contains("συμβόλαια", policyError.Message);
+        Assert.Equal(409, familyError.StatusCode);
+        Assert.Contains("οικογενειακές σχέσεις", familyError.Message);
+        Assert.Null(linked.DeletedAt);
+        Assert.Null(family.DeletedAt);
+        Assert.Null(unselected.DeletedAt);
+        Assert.Null(policy.DeletedAt);
+        Assert.Equal(linked.Id, policy.CustomerId);
+    }
+
+    [Fact]
     public async Task Producer_with_policy_is_not_deleted()
     {
         var tenant = Guid.NewGuid();
