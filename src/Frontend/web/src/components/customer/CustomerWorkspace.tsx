@@ -203,7 +203,6 @@ export function CustomerObligations({ customerId }: { customerId: string }) {
             <TableCell sx={{ color: "error.dark", fontWeight: 800 }}>{money(p.amount, p.currency)}</TableCell>
           </TableRow>)}
         </DataTable>}
-    <Typography variant="caption" color="text.secondary">Τα πιστωτικά και οι δόσεις αναφέρονται χωριστά. Δεν προστίθενται ξανά στα υπόλοιπα κινήσεων.</Typography>
     <Typography fontWeight={800}>Ανεξόφλητες δόσεις</Typography>
     {!account.isError && !account.isLoading && (installments.length === 0 ? <Typography color="text.secondary">Δεν υπάρχουν ανεξόφλητες δόσεις.</Typography> :
       <DataTable headings={["Συμβόλαιο", "Προθεσμία", "Ποσό", "Κατάσταση"]}>

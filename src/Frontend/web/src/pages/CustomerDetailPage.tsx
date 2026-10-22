@@ -242,9 +242,10 @@ function CustomerTabLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function CustomerDetailPage({ customerId, initialCustomer, onClose }: {
+export function CustomerDetailPage({ customerId, initialCustomer, initialEditMode = false, onClose }: {
   customerId?: string;
   initialCustomer?: CustomerDto;
+  initialEditMode?: boolean;
   onClose?: () => void;
 } = {}) {
   const { id: routeId = "" } = useParams<{ id: string }>();
@@ -255,7 +256,7 @@ export function CustomerDetailPage({ customerId, initialCustomer, onClose }: {
   const qc = useQueryClient();
   const [tab, setTab] = useState(0);
   const [popup, setPopup] = useState<"communications" | "producers" | "statistics" | "family" | null>(null);
-  const [editAll, setEditAll] = useState(false);
+  const [editAll, setEditAll] = useState(initialEditMode);
   const [drafts, setDrafts] = useState<CustomerDrafts>({});
   const [discardAction, setDiscardAction] = useState<"close" | "cancel" | null>(null);
   const [toast, setToast] = useState("");
@@ -273,7 +274,7 @@ export function CustomerDetailPage({ customerId, initialCustomer, onClose }: {
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [hasUnsavedChanges]);
-  useEffect(() => { setDrafts({}); setEditAll(false); setDiscardAction(null); }, [id]);
+  useEffect(() => { setDrafts({}); setEditAll(initialEditMode); setDiscardAction(null); }, [id, initialEditMode]);
 
   const saveFields = useMutation({
     mutationFn: async ({ changes }: { changes: CustomerDrafts; finish?: boolean }) => {
