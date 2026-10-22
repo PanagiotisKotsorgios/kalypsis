@@ -1450,7 +1450,7 @@
   },
   "policies": {
     "agencyTitle": "Policies",
-    "agencyLead": "All policies for your agency. Create, renew, cancel.",
+    "agencyLead": "All policies for your agency.",
     "customerTitle": "My policies",
     "customerLead": "All active and previous policies, kept up to date by your agency.",
     "create": "New policy",

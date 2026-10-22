@@ -32,6 +32,7 @@ import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
 import { greenCardVehicleDefaults } from "./profile/greenCardVehicleDefaults";
+import { issueAndRecordGreenCardDelivery } from "./profile/greenCardWorkflow";
 import { CatalogueItemDialog } from "./CompanyCatalogueDialog";
 import { useAuth } from "../auth/AuthContext";
 import { ThemeProvider, type Theme } from "@mui/material/styles";
@@ -1457,6 +1458,7 @@ function PolicyContractPdf({ policyId, readOnly = false }: { policyId: string; r
   const [previewName, setPreviewName] = useState<string | null>(null);
   const [greenCardDialog, setGreenCardDialog] = useState(false);
   const [greenCardEditingId, setGreenCardEditingId] = useState<string | null>(null);
+  const [autoCompleteGreenCard, setAutoCompleteGreenCard] = useState(false);
   const [greenCardForm, setGreenCardForm] = useState<GreenCardFormState>(GREEN_CARD_EMPTY);
   const [greenCardError, setGreenCardError] = useState<string | null>(null);
   const [prefillingGreenCard, setPrefillingGreenCard] = useState(false);
@@ -1481,6 +1483,7 @@ function PolicyContractPdf({ policyId, readOnly = false }: { policyId: string; r
   });
 
   const openGreenCard = async (card?: GreenCard) => {
+    setAutoCompleteGreenCard(!card);
     if (card) {
       setGreenCardEditingId(card.id);
       setGreenCardForm({
@@ -1503,7 +1506,7 @@ function PolicyContractPdf({ policyId, readOnly = false }: { policyId: string; r
       setGreenCardForm({
         ...GREEN_CARD_EMPTY, validFrom: p?.startDate?.slice(0, 10) ?? "",
         validTo: p?.endDate?.slice(0, 10) ?? "", holderName: customerName,
-        insuredName: customerName, ...greenCardVehicleDefaults(p)
+        insuredName: customerName, deliveryMethod: "Παράδοση από το γραφείο", ...greenCardVehicleDefaults(p)
       });
     }
     setGreenCardError(null);
@@ -1524,6 +1527,7 @@ function PolicyContractPdf({ policyId, readOnly = false }: { policyId: string; r
     mutationFn: async ({ body, issueAfterSave }: { body: GreenCardFormState; issueAfterSave: boolean }) => {
       const payload = {
         ...body,
+        status: autoCompleteGreenCard ? "Draft" : body.status,
         cardNumber: body.cardNumber.trim() || null,
         holderName: body.holderName.trim() || null,
         insuredName: body.insuredName.trim() || null,
@@ -1538,12 +1542,21 @@ function PolicyContractPdf({ policyId, readOnly = false }: { policyId: string; r
       const card = greenCardEditingId
         ? (await api.put<GreenCard>(`/policies/${policyId}/green-cards/${greenCardEditingId}`, payload)).data
         : (await api.post<GreenCard>(`/policies/${policyId}/green-cards`, payload)).data;
+      // Retain the saved ID if a later stage fails; retry must update this card,
+      // not create a second one. Do not close the dialog before delivery succeeds.
+      setGreenCardEditingId(card.id);
+      if (autoCompleteGreenCard) {
+        return issueAndRecordGreenCardDelivery(card,
+          async id => (await api.post<GreenCard>(`/policies/${policyId}/green-cards/${id}/issue`)).data,
+          async id => (await api.post<GreenCard>(`/policies/${policyId}/green-cards/${id}/deliver`, { deliveryMethod: body.deliveryMethod.trim() || "Παράδοση από το γραφείο" })).data,
+          progress => setGreenCardForm(current => ({ ...current, status: progress.status })));
+      }
       return issueAfterSave ? issue.mutateAsync(card.id) : card;
     },
-    onSuccess: () => {
+    onSuccess: () => setGreenCardDialog(false),
+    onSettled: () => {
       void qc.invalidateQueries({ queryKey: ["policy-green-cards", policyId] });
       void qc.invalidateQueries({ queryKey: ["policy-documents", policyId] });
-      setGreenCardDialog(false);
     },
     onError: e => setGreenCardError(extractErrorMessage(e))
   });
@@ -1663,7 +1676,7 @@ function PolicyContractPdf({ policyId, readOnly = false }: { policyId: string; r
         <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "stretch", sm: "center" }} spacing={1}>
           <Box>
             <Typography fontWeight={800} sx={{ fontSize: 14 }}>Πράσινες κάρτες</Typography>
-            <Typography variant="caption" color="text.secondary">Δημιουργήστε χειροκίνητα, εκδώστε PDF και καταγράψτε την παράδοση.</Typography>
+            <Typography variant="caption" color="text.secondary">Με τη νέα κάρτα δημιουργείται PDF και καταγράφεται αυτόματα η παράδοση στο σύστημα.</Typography>
           </Box>
           {!readOnly && <Button size="small" variant="contained" color="success" disabled={prefillingGreenCard} onClick={() => void openGreenCard()}>{prefillingGreenCard ? "Συμπλήρωση στοιχείων…" : "Νέα πράσινη κάρτα"}</Button>}
         </Stack>
@@ -1688,15 +1701,15 @@ function PolicyContractPdf({ policyId, readOnly = false }: { policyId: string; r
       </Box>
 
       <Dialog open={greenCardDialog} onClose={() => saveGreenCard.isPending ? undefined : setGreenCardDialog(false)} fullWidth maxWidth="md">
-        <DialogTitle>{greenCardEditingId ? "Επεξεργασία πράσινης κάρτας" : "Νέα πράσινη κάρτα"}</DialogTitle>
+        <DialogTitle>{autoCompleteGreenCard || !greenCardEditingId ? "Νέα πράσινη κάρτα" : "Επεξεργασία πράσινης κάρτας"}</DialogTitle>
         <DialogContent dividers>
           {greenCardError && <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setGreenCardError(null)}>{greenCardError}</Alert>}
           <Stack spacing={1.25} sx={{ pt: .5 }}>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>
               <TextField size="small" label="Αριθμός κάρτας" value={greenCardForm.cardNumber} onChange={e => setGreenCardForm({ ...greenCardForm, cardNumber: e.target.value })} fullWidth />
-              <TextField select size="small" label="Κατάσταση" value={greenCardForm.status} onChange={e => setGreenCardForm({ ...greenCardForm, status: e.target.value })} sx={{ minWidth: 170 }}>
+              {!autoCompleteGreenCard && <TextField select size="small" label="Κατάσταση" value={greenCardForm.status} onChange={e => setGreenCardForm({ ...greenCardForm, status: e.target.value })} sx={{ minWidth: 170 }}>
                 {Object.entries(GREEN_CARD_STATUS_LABELS).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
-              </TextField>
+              </TextField>}
             </Stack>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>
               <TextField size="small" type="date" label="Έναρξη ισχύος" value={greenCardForm.validFrom} onChange={e => setGreenCardForm({ ...greenCardForm, validFrom: e.target.value })} InputLabelProps={{ shrink: true }} fullWidth required />
@@ -1714,17 +1727,19 @@ function PolicyContractPdf({ policyId, readOnly = false }: { policyId: string; r
             <TextField size="small" label="Χώρες ισχύος" placeholder="π.χ. GR, AL, BG, IT" value={greenCardForm.territories} onChange={e => setGreenCardForm({ ...greenCardForm, territories: e.target.value })} fullWidth helperText="Χωρίστε τις χώρες με κόμμα." />
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>
               <TextField size="small" label="Γραφείο έκδοσης" value={greenCardForm.issuingOffice} onChange={e => setGreenCardForm({ ...greenCardForm, issuingOffice: e.target.value })} fullWidth />
-              <TextField size="small" label="Τρόπος παράδοσης" placeholder="Email, έντυπη παράδοση..." value={greenCardForm.deliveryMethod} onChange={e => setGreenCardForm({ ...greenCardForm, deliveryMethod: e.target.value })} fullWidth />
+              <TextField size="small" label="Τρόπος παράδοσης" placeholder="Email, έντυπη παράδοση..." value={greenCardForm.deliveryMethod} onChange={e => setGreenCardForm({ ...greenCardForm, deliveryMethod: e.target.value })} fullWidth helperText={autoCompleteGreenCard ? "Καταγραφή παράδοσης στο σύστημα — δεν αποστέλλεται αυτόματα email." : undefined} />
             </Stack>
             <TextField size="small" label="Παρατηρήσεις" value={greenCardForm.notes} onChange={e => setGreenCardForm({ ...greenCardForm, notes: e.target.value })} multiline minRows={2} fullWidth />
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button color="error" variant="contained" onClick={() => setGreenCardDialog(false)} disabled={saveGreenCard.isPending || issue.isPending}>Ακύρωση</Button>
-          {!readOnly && <>
+          {!readOnly && (autoCompleteGreenCard ?
+            <Button variant="contained" color="success" onClick={() => saveGreenCard.mutate({ body: greenCardForm, issueAfterSave: true })} disabled={saveGreenCard.isPending || !greenCardForm.validFrom || !greenCardForm.validTo}>{saveGreenCard.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}</Button>
+          : <>
             <Button variant="outlined" onClick={() => saveGreenCard.mutate({ body: greenCardForm, issueAfterSave: false })} disabled={saveGreenCard.isPending || issue.isPending || !greenCardForm.validFrom || !greenCardForm.validTo}>Αποθήκευση</Button>
             <Button variant="contained" color="success" onClick={() => saveGreenCard.mutate({ body: greenCardForm, issueAfterSave: true })} disabled={saveGreenCard.isPending || issue.isPending || !greenCardForm.validFrom || !greenCardForm.validTo}>{saveGreenCard.isPending || issue.isPending ? <CircularProgress size={18} /> : "Αποθήκευση & έκδοση PDF"}</Button>
-          </>}
+          </>)}
         </DialogActions>
       </Dialog>
 
@@ -2075,7 +2090,7 @@ function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string
         <DialogActions><Button startIcon={<CloseIcon />} color="error" variant="contained" disabled={add.isPending || update.isPending} onClick={cancelEdit}>Κλείσιμο</Button></DialogActions>
       </Dialog>
       <CatalogueItemDialog open={catalogueCreateOpen} onClose={() => setCatalogueCreateOpen(false)} insuranceCompanyId={detail.data?.insuranceCompanyId ?? null}
-        defaultKind="Coverage" lockKind editing={null}
+        defaultKind="Coverage" lockKind simpleCoverage editing={null}
         onCreated={item => setForm(previous => ({ ...previous, coverCode: item.code, coverName: item.name }))}
         onSaved={() => { for (const key of ["company-parameters-catalogue", "company-parameters", "production-company-parameters"]) void qc.invalidateQueries({ queryKey: [key] }); }} />
       <Typography variant="caption" color="text.secondary">

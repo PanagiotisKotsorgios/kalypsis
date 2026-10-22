@@ -142,7 +142,6 @@ export function ClaimIndemnitiesPage() {
               <HelpHint id="page.indemnities" />
               <RecordCountChip count={filteredRows.length} />
             </Stack>
-            <Typography color="text.secondary">{t("indemnities.subtitle")}</Typography>
           </Box>
         </Stack>
         <Stack direction="row" spacing={2} alignItems="center">

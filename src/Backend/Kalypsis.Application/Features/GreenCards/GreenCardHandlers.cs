@@ -282,11 +282,22 @@ public sealed class IssueGreenCardCommandHandler : IRequestHandler<IssueGreenCar
             ?? throw AppException.NotFound("GreenCard");
         CreateGreenCardCommandHandler.ValidateDates(card.ValidFrom, card.ValidTo);
         var tenant = await _db.Tenants.FirstOrDefaultAsync(x => x.Id == tenantId, ct) ?? throw AppException.NotFound("Tenant");
-        var bytes = GreenCardPdfRenderer.Render(card, card.Policy, card.Policy.Customer, tenant);
+        var now = _clock.UtcNow;
+        var previousStatus = card.Status;
+        var previousIssuedAt = card.IssuedAt;
+        byte[] bytes;
+        // Render issuance metadata into the PDF, but leave the entity unchanged
+        // until storage succeeds. A failed upload must not mark it as issued.
+        try
+        {
+            card.Status = GreenCardStatus.Issued;
+            card.IssuedAt = now;
+            bytes = GreenCardPdfRenderer.Render(card, card.Policy, card.Policy.Customer, tenant);
+        }
+        finally { card.Status = previousStatus; card.IssuedAt = previousIssuedAt; }
         await using var content = new MemoryStream(bytes, writable: false);
         var fileName = $"green-card-{card.CardNumber}.pdf";
         var path = await _storage.UploadAsync($"green-cards/{tenantId}/{card.Id}", fileName, "application/pdf", content, ct);
-        var now = _clock.UtcNow;
         if (card.PolicyDocumentId.HasValue)
         {
             var existing = await _db.PolicyDocuments.FirstOrDefaultAsync(x => x.Id == card.PolicyDocumentId.Value && x.DeletedAt == null, ct);

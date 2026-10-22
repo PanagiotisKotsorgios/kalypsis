@@ -375,7 +375,7 @@ function DeleteButton({ id, onDeleted }: { id: string; onDeleted: () => void }) 
 }
 
 export function CatalogueItemDialog({
-  open, onClose, insuranceCompanyId, defaultKind, editing, onSaved, onCreated, lockKind = false
+  open, onClose, insuranceCompanyId, defaultKind, editing, onSaved, onCreated, lockKind = false, simpleCoverage = false
 }: {
   open: boolean;
   onClose: () => void;
@@ -385,8 +385,10 @@ export function CatalogueItemDialog({
   onSaved: () => void;
   onCreated?: (item: { id: string; code: string; name: string }) => void;
   lockKind?: boolean;
+  simpleCoverage?: boolean;
 }) {
   const isEdit = !!editing;
+  const compactCoverage = simpleCoverage && !isEdit && defaultKind === "Coverage";
   const initial = useMemo(() => ({
     kind: editing?.kind ?? defaultKind,
     code: editing?.code ?? "",
@@ -443,44 +445,44 @@ export function CatalogueItemDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth slotProps={{ paper: { sx: { borderRadius: 2 } } }}>
-      <DialogTitle>{isEdit ? "Επεξεργασία εγγραφής" : "Νέα εγγραφή"}</DialogTitle>
+      <DialogTitle>{compactCoverage ? "Νέα κάλυψη" : isEdit ? "Επεξεργασία εγγραφής" : "Νέα εγγραφή"}</DialogTitle>
       <DialogContent dividers>
         {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 1.5 }}>{error}</Alert>}
         <Stack spacing={1.5} sx={{ pt: 1 }}>
-          <TextField select size="small" label="Τύπος" value={form.kind}
+          {!compactCoverage && <TextField select size="small" label="Τύπος" value={form.kind}
             onChange={(e) => setForm({ ...form, kind: e.target.value as Kind })}
             disabled={isEdit || lockKind}>
             {(["Branch","Use","Coverage","Package"] as Kind[]).map(k => (
               <MenuItem key={k} value={k}>{KIND_LABEL[k]}</MenuItem>
             ))}
-          </TextField>
+          </TextField>}
           <Stack direction="row" spacing={1.5}>
             <TextField size="small" label="Κωδικός" value={form.code} required fullWidth
               onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} />
-            <TextField size="small" label="Σειρά" type="number" sx={{ width: 100 }} value={form.displayOrder}
-              onChange={(e) => setForm({ ...form, displayOrder: Number(e.target.value) || 0 })} />
+            {!compactCoverage && <TextField size="small" label="Σειρά" type="number" sx={{ width: 100 }} value={form.displayOrder}
+              onChange={(e) => setForm({ ...form, displayOrder: Number(e.target.value) || 0 })} />}
           </Stack>
           <TextField size="small" label="Όνομα" value={form.name} required fullWidth
             onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <TextField size="small" label="Κλάδος / τύπος συμβολαίου (προαιρετικό)" value={form.policyType ?? ""}
+          {!compactCoverage && <TextField size="small" label="Κλάδος / τύπος συμβολαίου (προαιρετικό)" value={form.policyType ?? ""}
             helperText="Ελεύθερη τιμή γραφείου — δεν περιορίζεται σε προκαθορισμένες επιλογές."
-            onChange={(e) => setForm({ ...form, policyType: e.target.value })} />
+            onChange={(e) => setForm({ ...form, policyType: e.target.value })} />}
           {form.kind === "Use" && (
             <TextField size="small" label="Κατηγορία χρήσης οχήματος (προαιρετικό)" value={form.vehicleUseCategory ?? ""}
               helperText="Πληκτρολογήστε την ονομασία που χρησιμοποιεί το γραφείο."
               onChange={(e) => setForm({ ...form, vehicleUseCategory: e.target.value })} />
           )}
-          {form.kind === "Coverage" || form.kind === "Package" ? (
+          {!compactCoverage && (form.kind === "Coverage" || form.kind === "Package") ? (
             <TextField size="small" label="Parent code (π.χ. branch / package)" value={form.parentCode}
               onChange={(e) => setForm({ ...form, parentCode: e.target.value.toUpperCase() })} />
           ) : null}
-          <Stack direction="row" spacing={1.5}>
+          {!compactCoverage && <Stack direction="row" spacing={1.5}>
             <TextField size="small" label="Bridge system" fullWidth value={form.bridgeSystem}
               placeholder="ERGO / GRAND_COVER / ..."
               onChange={(e) => setForm({ ...form, bridgeSystem: e.target.value.toUpperCase() })} />
             <TextField size="small" label="Bridge code" fullWidth value={form.bridgeCode}
               onChange={(e) => setForm({ ...form, bridgeCode: e.target.value })} />
-          </Stack>
+          </Stack>}
           <TextField size="small" label="Σημείωση" value={form.notes} multiline minRows={2}
             onChange={(e) => setForm({ ...form, notes: e.target.value })} />
         </Stack>

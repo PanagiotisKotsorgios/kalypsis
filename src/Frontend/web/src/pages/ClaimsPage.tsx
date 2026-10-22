@@ -302,9 +302,7 @@ export function ClaimsPage() {
             <HelpHint id="page.claims" />
             <RecordCountChip count={table.filtered.length} />
           </Stack>
-          <Typography color="text.secondary">
-            {isCustomer ? t("claims.customerLead") : t("claims.agencyLead")}
-          </Typography>
+          {isCustomer && <Typography color="text.secondary">{t("claims.customerLead")}</Typography>}
         </Box>
         <UnifiedActionsMenu createLabel={t("claims.create")}
           onCreate={canEdit ? () => { setError(null); setCreateOpen(true); } : undefined}

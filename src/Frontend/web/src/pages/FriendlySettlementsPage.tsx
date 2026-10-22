@@ -121,7 +121,6 @@ export function FriendlySettlementsPage() {
               <HelpHint id="page.friendly" />
               <RecordCountChip count={filteredRows.length} />
             </Stack>
-            <Typography color="text.secondary">{t("friendly.subtitle")}</Typography>
           </Box>
         </Stack>
         <UnifiedActionsMenu createLabel={t("friendly.create")} onCreate={() => setCreateOpen(true)}
