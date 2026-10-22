@@ -128,9 +128,9 @@ export function FriendlySettlementsPage() {
           <TextField select size="small" label="Κατάσταση" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} sx={{ minWidth: 150 }}>
             <MenuItem value="all">Όλες</MenuItem>{STATUSES.map(v => <MenuItem key={v} value={v}>{settlementStatusLabel(v)}</MenuItem>)}
           </TextField>
-          <TextField select size="small" label="Ασφαλιστική" value={insurerFilter} onChange={e => setInsurerFilter(e.target.value)} sx={{ minWidth: 170 }}>
+          <SearchableTextField select size="small" label="Ασφαλιστική" value={insurerFilter} onChange={e => setInsurerFilter(e.target.value)} sx={{ minWidth: 170 }}>
             <MenuItem value="all">Όλες</MenuItem>{insurers.map(v => <MenuItem key={v} value={v}>{v}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
           <TextField type="date" size="small" label="Από" InputLabelProps={{ shrink: true }} value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
           <TextField type="date" size="small" label="Έως" InputLabelProps={{ shrink: true }} value={dateTo} onChange={e => setDateTo(e.target.value)} />
           <SavedReportsButton entity="friendly-settlements" currentFilters={{ search, statusFilter, insurerFilter, dateFrom, dateTo }}

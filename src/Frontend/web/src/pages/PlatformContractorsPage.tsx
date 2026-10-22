@@ -1,3 +1,4 @@
+import { SearchableTextField } from "../components/SearchableTextField";
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
@@ -528,18 +529,18 @@ function AssignmentDialog({ open, assignment, defaultContractorId, contractors, 
       <DialogTitle>{assignment ? "Επεξεργασία ανάθεσης" : "Νέα ανάθεση συνεργάτη σε γραφείο"}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} mt={1}>
-          <TextField select label="Συνεργάτης" required fullWidth
+          <SearchableTextField select label="Συνεργάτης" required fullWidth
             value={form.contractorId} onChange={(e) => setForm({ ...form, contractorId: e.target.value })}>
             {contractors.filter(c => c.active).map(c => (
               <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
             ))}
-          </TextField>
-          <TextField select label="Γραφείο" required fullWidth
+          </SearchableTextField>
+          <SearchableTextField select label="Γραφείο" required fullWidth
             value={form.tenantId} onChange={(e) => setForm({ ...form, tenantId: e.target.value })}>
             {tenants.map(t => (
               <MenuItem key={t.id} value={t.id}>{t.name} ({t.code})</MenuItem>
             ))}
-          </TextField>
+          </SearchableTextField>
           <Stack direction="row" spacing={2} alignItems="center">
             <TextField label="Μηνιαία τιμή (€)" required type="number" fullWidth
               value={form.monthlyPrice}

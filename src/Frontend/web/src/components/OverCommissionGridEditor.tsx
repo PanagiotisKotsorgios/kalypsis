@@ -1,3 +1,4 @@
+import { SearchableTextField } from "./SearchableTextField";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert, Autocomplete, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions,
@@ -1160,12 +1161,12 @@ export function OverCommissionGridEditor({
           <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mb: 2 }}>
             <TextField size="small" label="Φύλλο εργασίας" value={importPreview?.activeSheet ?? ""}
               disabled sx={{ minWidth: 200 }} />
-            <TextField select size="small" label="Ασφαλιστική για όλες τις γραμμές"
+            <SearchableTextField select size="small" label="Ασφαλιστική για όλες τις γραμμές"
               value={importCarrierId} onChange={(e) => setImportCarrierId(e.target.value)}
               sx={{ minWidth: 260 }}>
               <MenuItem value="">— επιλέξτε —</MenuItem>
               {carriers.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
             <Box sx={{ flex: 1 }} />
             {(() => {
               const alreadyCount = (importPreview?.parsed ?? []).filter(p =>

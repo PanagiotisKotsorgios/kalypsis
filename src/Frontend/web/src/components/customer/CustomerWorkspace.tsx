@@ -1,3 +1,4 @@
+import { SearchableTextField } from "../SearchableTextField";
 import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import { Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Pagination, Snackbar, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Tooltip, Typography } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
@@ -154,11 +155,11 @@ function CommunicationEditor({ customerId, row, onClose, onSaved }: { customerId
             </TextField>)}
           <TextField required size="small" type="datetime-local" label="Ημερομηνία & ώρα" value={form.occurredAt} onChange={e => update("occurredAt", e.target.value)} InputLabelProps={{ shrink: true }} />
           <TextField size="small" type="number" label="Διάρκεια (δευτερόλεπτα)" value={form.durationSeconds ?? ""} inputProps={{ min: 0, step: 1 }} onChange={e => update("durationSeconds", e.target.value === "" ? null : Number(e.target.value))} />
-          <TextField select size="small" label="Συμβόλαιο" value={form.relatedPolicyId ?? ""} onChange={e => update("relatedPolicyId", e.target.value)}>
+          <SearchableTextField select size="small" label="Συμβόλαιο" value={form.relatedPolicyId ?? ""} onChange={e => update("relatedPolicyId", e.target.value)}>
             <MenuItem value="">Χωρίς σύνδεση</MenuItem>
             {form.relatedPolicyId && !policies.data?.some(p => p.id === form.relatedPolicyId) && <MenuItem value={form.relatedPolicyId}>{form.relatedPolicyNumber || "Τρέχον συμβόλαιο"}</MenuItem>}
             {policies.data?.map(p => <MenuItem key={p.id} value={p.id}>{p.policyNumber}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
         </Box>
         <TextField multiline minRows={4} label="Σημειώσεις" value={form.body ?? ""} inputProps={{ maxLength: 4000 }} onChange={e => update("body", e.target.value)} />
         {save.isError && <Alert severity="error">{extractErrorMessage(save.error)}</Alert>}

@@ -1,3 +1,4 @@
+import { SearchableTextField } from "../components/SearchableTextField";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -420,20 +421,20 @@ export function OverCommissionStatementsPage() {
             <MenuItem value="">Όλοι</MenuItem>
             {MONTHS.map(m => <MenuItem key={m.v} value={m.v}>{m.n}</MenuItem>)}
           </TextField>
-          <TextField select size="small" label="Ασφαλιστική" fullWidth value={carrierFilter}
+          <SearchableTextField select size="small" label="Ασφαλιστική" fullWidth value={carrierFilter}
             onChange={(e) => setCarrierFilter(e.target.value)}>
             <MenuItem value="">Όλες</MenuItem>
             {(carriersQ.data ?? []).map(c => (
               <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
             ))}
-          </TextField>
-          <TextField select size="small" label="Παραγωγός" fullWidth value={producerFilter}
+          </SearchableTextField>
+          <SearchableTextField select size="small" label="Παραγωγός" fullWidth value={producerFilter}
             onChange={(e) => setProducerFilter(e.target.value)}>
             <MenuItem value="">Όλοι</MenuItem>
             {(producersQ.data ?? []).map(p => (
               <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
             ))}
-          </TextField>
+          </SearchableTextField>
           <TextField size="small" label="Αναζήτηση" fullWidth value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="όνομα / κωδικός / reference"
@@ -780,21 +781,21 @@ function EntryDialog({ open, entry, defaultYear, defaultMonth, carriers, produce
         {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
         <Stack spacing={2.5} mt={1}>
           <Stack direction="row" spacing={2}>
-            <TextField select label="Ασφαλιστική εταιρεία" required fullWidth
+            <SearchableTextField select label="Ασφαλιστική εταιρεία" required fullWidth
               value={form.insuranceCompanyId}
               onChange={(e) => setForm({ ...form, insuranceCompanyId: e.target.value })}>
               {carriers.map(c => (
                 <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
               ))}
-            </TextField>
+            </SearchableTextField>
           </Stack>
-          <TextField select label="Παραγωγός" required fullWidth
+          <SearchableTextField select label="Παραγωγός" required fullWidth
             value={form.producerId}
             onChange={(e) => setForm({ ...form, producerId: e.target.value })}>
             {producers.map(p => (
               <MenuItem key={p.id} value={p.id}>{p.name}{p.code ? ` (${p.code})` : ""}</MenuItem>
             ))}
-          </TextField>
+          </SearchableTextField>
           <Stack direction="row" spacing={2}>
             <TextField type="number" label="Έτος" required value={form.year}
               onChange={(e) => setForm({ ...form, year: Number(e.target.value) || form.year })}

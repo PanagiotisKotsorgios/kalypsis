@@ -1,3 +1,4 @@
+import { SearchableTextField } from "../components/SearchableTextField";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import ReportProblemOutlinedIcon from "@mui/icons-material/ReportProblemOutlined";
@@ -359,9 +360,9 @@ function AddVehicleDialog({ open, rows, loading = false, error: loadError, onClo
         {loading ? <Box sx={{ p: 3, textAlign: "center" }}><CircularProgress /></Box> : loadError ? <Alert severity="error">{loadError}</Alert> : rows.length === 0 ? <Alert severity="info">Δεν υπάρχουν καταχωρημένα ασφαλιστήρια αυτοκινήτου για σύνδεση οχήματος.</Alert> : (
           <Stack spacing={1.25} sx={{ pt: 0.25 }}>
             <Alert severity="info" sx={{ py: 0.5 }}>Το όχημα συνδέεται με το επιλεγμένο ασφαλιστήριο. Τα στοιχεία μπορούν να συμπληρωθούν και αργότερα από την καρτέλα οχήματος.</Alert>
-            <TextField select fullWidth label="Συμβόλαιο σύνδεσης" value={form.policyId} onChange={e => set("policyId", e.target.value)}>
+            <SearchableTextField select fullWidth label="Συμβόλαιο σύνδεσης" value={form.policyId} onChange={e => set("policyId", e.target.value)}>
               {rows.map(row => <MenuItem key={row.id} value={row.id}>{row.policyNumber} · {row.customerDisplay ?? "Πελάτης"} · {row.insuranceCompanyName}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" }, gap: 1 }}>
               <TextField required label="Αριθμός κυκλοφορίας" value={form.plate} onChange={e => set("plate", e.target.value)} />
               <TextField label="Μάρκα" value={form.make} onChange={e => set("make", e.target.value)} />

@@ -3,6 +3,7 @@ import { Autocomplete, Box, Chip, InputAdornment, Stack, TextField, Typography, 
 import type { TextFieldProps, AutocompleteProps } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
+import { filterSearchOptions } from "./searchableOptions";
 
 /**
  * Option shape for SearchableSelect. `hint` is shown as secondary text
@@ -39,7 +40,7 @@ type Props<V> = {
   /** Cap the shown option list — huge lists (5k+) tank rendering otherwise. */
   maxShown?: number;
   /** Escape hatch for any Autocomplete prop we haven't proxied. */
-  autocompleteProps?: Partial<AutocompleteProps<SearchOption<V>, false, false, false>>;
+  autocompleteProps?: Partial<AutocompleteProps<SearchOption<V>, false, boolean, false>>;
   textFieldProps?: Partial<TextFieldProps>;
   sx?: TextFieldProps["sx"];
   /** Free-text callback so the caller can debounce a server search. */
@@ -54,33 +55,6 @@ type Props<V> = {
   /** Label for the create row. Defaults to `+ Νέος πελάτης` when onCreateNew is set. */
   createNewLabel?: string;
 };
-
-/**
- * Fuzzy scorer — Levenshtein-ish subsequence weight. Returns a positive
- * score for a match, 0 for no match. Higher = better. Used only when the
- * caller opts in via fuzzyMinChars; substring matches otherwise (faster
- * and clearer for short queries).
- */
-function fuzzyScore(hay: string, needle: string): number {
-  hay = hay.toLowerCase();
-  needle = needle.toLowerCase();
-  if (!needle) return 1;
-  let hi = 0, ni = 0, score = 0, streak = 0;
-  while (hi < hay.length && ni < needle.length) {
-    if (hay[hi] === needle[ni]) {
-      score += 2 + streak; // reward consecutive matches heavily
-      streak++;
-      ni++;
-    } else {
-      streak = 0;
-    }
-    hi++;
-  }
-  if (ni < needle.length) return 0;
-  // Prefer matches that start closer to the beginning of the string.
-  const positionPenalty = Math.min(hay.length, 30) * 0.1;
-  return Math.max(0, score - positionPenalty);
-}
 
 /**
  * SearchableSelect — one-liner drop-in for `<TextField select>` with a
@@ -124,40 +98,23 @@ export function SearchableSelect<V = string>({
   // resolve the current selection every render.
   const current = useMemo(() => {
     if (value === "" || value === null || value === undefined) {
-      return emptyLabel ? augmented[0] : null;
+      return augmented.find(o => o.value === "") ?? null;
     }
     return augmented.find(o => o.value === value) ?? null;
   }, [augmented, value, emptyLabel]);
 
-  const filterOptions = (opts: SearchOption<V>[], state: { inputValue: string }) => {
-    const q = state.inputValue.trim();
-    if (!q) return opts.slice(0, maxShown);
-    // Short queries → substring match on label + hint (cheap, predictable).
-    if (q.length < fuzzyMinChars) {
-      const needle = q.toLowerCase();
-      return opts.filter(o =>
-        o.label.toLowerCase().includes(needle)
-        || (o.hint ?? "").toLowerCase().includes(needle)
-      ).slice(0, maxShown);
-    }
-    // Longer queries → fuzzy scoring on label + hint concat, ranked desc.
-    const scored: Array<{ o: SearchOption<V>; s: number }> = [];
-    for (const o of opts) {
-      const s = Math.max(
-        fuzzyScore(o.label, q),
-        (o.hint ? fuzzyScore(o.hint, q) : 0),
-      );
-      if (s > 0) scored.push({ o, s });
-    }
-    scored.sort((a, b) => b.s - a.s);
-    return scored.slice(0, maxShown).map(x => x.o);
-  };
+  const filterOptions = (opts: SearchOption<V>[], state: { inputValue: string }) => filterSearchOptions(opts, state.inputValue, maxShown, fuzzyMinChars);
 
   return (
     <Autocomplete
       size={size}
       fullWidth={fullWidth}
       disabled={disabled}
+      sx={sx}
+      noOptionsText="Δεν βρέθηκαν αποτελέσματα"
+      openText="Άνοιγμα επιλογών"
+      closeText="Κλείσιμο επιλογών"
+      clearText="Καθαρισμός επιλογής"
       options={augmented}
       value={current}
       onChange={(_, v) => onChange((v?.value ?? "") as V | "")}
@@ -186,7 +143,7 @@ export function SearchableSelect<V = string>({
               <Typography sx={{
                 fontSize: 14, fontWeight: o.value === "" ? 400 : 600,
                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
-              }}>
+              }} title={o.label}>
                 {o.label}
               </Typography>
               {o.hint && (
@@ -243,12 +200,12 @@ export function SearchableSelect<V = string>({
       renderInput={(params) => (
         <TextField
           {...params}
+          {...textFieldProps}
           label={label}
           placeholder={placeholder}
           required={required}
-          helperText={helperText}
-          sx={sx}
-          {...textFieldProps}
+          helperText={helperText ?? textFieldProps?.helperText}
+          inputProps={{ ...params.inputProps, ...textFieldProps?.inputProps }}
           InputProps={{
             ...textFieldProps?.InputProps,
             ...params.InputProps,

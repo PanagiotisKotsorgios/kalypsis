@@ -1,3 +1,4 @@
+import { SearchableTextField } from "../components/SearchableTextField";
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
@@ -184,7 +185,7 @@ export function AgencyCompanyParametricsPage() {
 
       <Card variant="outlined" sx={{ p: 2, mb: 2 }}>
         <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-          <TextField
+          <SearchableTextField
             select label="Ασφαλιστική εταιρεία" value={selectedCarrierId}
             onChange={e => { setSelectedCarrierId(e.target.value); }}
             sx={{ minWidth: 260, flex: 1 }} size="small"
@@ -193,7 +194,7 @@ export function AgencyCompanyParametricsPage() {
             {carriers.map(c => (
               <MenuItem key={c.id} value={c.id}>{c.name} · {c.code}</MenuItem>
             ))}
-          </TextField>
+          </SearchableTextField>
           <Button size="small" onClick={() => setInlineCarrierCreate("")}
             variant="outlined" startIcon={<AddIcon />}>
             Νέα ασφαλιστική

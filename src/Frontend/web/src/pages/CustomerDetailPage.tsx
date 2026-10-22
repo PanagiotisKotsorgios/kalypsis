@@ -784,9 +784,9 @@ function AddCustomerVehicleDialog({ open, rows, onClose, onSaved }: { open: bool
     <DialogContent dividers>
       {rows.length === 0 ? <Alert severity="info">Για να συνδεθεί όχημα χρειάζεται πρώτα ένα συμβόλαιο αυτοκινήτου στην καρτέλα του πελάτη.</Alert> : <Stack spacing={1.25} sx={{ pt: 0.25 }}>
         <Alert severity="info" sx={{ py: 0.5 }}>Το όχημα συνδέεται με το επιλεγμένο συμβόλαιο και όλα τα στοιχεία του παραμένουν επεξεργάσιμα από την καρτέλα οχήματος.</Alert>
-        <TextField select fullWidth label="Συμβόλαιο σύνδεσης" value={form.policyId} onChange={e => set("policyId", e.target.value)}>
+        <SearchableTextField select fullWidth label="Συμβόλαιο σύνδεσης" value={form.policyId} onChange={e => set("policyId", e.target.value)}>
           {rows.map(row => <MenuItem key={row.id} value={row.id}>{row.policyNumber} · {row.insuranceCompanyName} · {row.startDate}</MenuItem>)}
-        </TextField>
+        </SearchableTextField>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" }, gap: 1 }}>
           <TextField required label="Πινακίδα" value={form.plate} onChange={e => set("plate", e.target.value)} />
           <TextField label="Μάρκα" value={form.make} onChange={e => set("make", e.target.value)} />
@@ -1872,7 +1872,7 @@ function CustomerGdprFormSigningPanel({ customerId }: { customerId: string }) {
     {create.isError && <Alert severity="error" sx={{ mb: 1 }}>{extractErrorMessage(create.error)}</Alert>}
     {sendAdditional.isError && <Alert severity="error" sx={{ mb: 1 }}>{extractErrorMessage(sendAdditional.error)}</Alert>}
     {resend.isError && <Alert severity="error" sx={{ mb: 1 }}>{extractErrorMessage(resend.error)}</Alert>}
-    <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2 }}><TextField select size="small" label="Συμβόλαιο (προαιρετικό, για ασφαλιστική)" value={policyId} onChange={e => setPolicyId(e.target.value)} sx={{ minWidth: { sm: 340 } }}><MenuItem value="">Χωρίς συγκεκριμένο συμβόλαιο</MenuItem>{(policiesQ.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.policyNumber || "—"} · {p.insuranceCompanyName}</MenuItem>)}</TextField></Stack>
+    <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2 }}><SearchableTextField select size="small" label="Συμβόλαιο (προαιρετικό, για ασφαλιστική)" value={policyId} onChange={e => setPolicyId(e.target.value)} sx={{ minWidth: { sm: 340 } }}><MenuItem value="">Χωρίς συγκεκριμένο συμβόλαιο</MenuItem>{(policiesQ.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.policyNumber || "—"} · {p.insuranceCompanyName}</MenuItem>)}</SearchableTextField></Stack>
     {q.isLoading ? <CircularProgress size={20} /> : q.isError ? <Alert severity="error">{extractErrorMessage(q.error)}</Alert> : q.data?.length === 0 ? <Typography variant="body2" color="text.secondary">Δεν έχει δημιουργηθεί έντυπο για αυτόν τον πελάτη.</Typography> : <Stack spacing={1}>{q.data?.map(row => <Box key={row.id} sx={{ p: 1.5, border: "1px solid", borderColor: "divider", borderRadius: 1 }}><Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1}><Box><Typography fontWeight={700}>{row.status === "Completed" ? "Ολοκληρωμένο" : row.status === "Declined" ? "Δεν συναινεί" : row.status === "PendingCustomer" ? "Αναμονή πελάτη" : row.status === "PendingOffice" ? "Αναμονή γραφείου" : row.status === "PendingInsurer" ? "Αναμονή ασφαλιστικής" : row.status}</Typography><Typography variant="caption" color="text.secondary">Δημιουργήθηκε {formatDate(row.createdAt)} · Λήξη {formatDate(row.expiresAt)}</Typography></Box><Stack direction="row" spacing={1}>{row.status === "PendingCustomer" && <Button size="small" onClick={() => resend.mutate(row.id)}>Επανάληψη email</Button>}{row.hasFinalDocument && <Button size="small" startIcon={<DownloadIcon />} onClick={() => void download(row.id)}>PDF</Button>}</Stack></Stack></Box>)}</Stack>}
     </Card><CustomerNeedsFormDialog open={needsOpen} customerId={customerId} policies={policiesQ.data ?? []} onClose={() => setNeedsOpen(false)} onPreview={(fields, selectedPolicyId) => preview("customer-needs", fields, selectedPolicyId)} onSaved={() => { setNeedsOpen(false); void qc.invalidateQueries({ queryKey: ["customer-form-signings", customerId] }); }} /><IntermediaryInformationDialog open={intermediaryOpen} onClose={() => setIntermediaryOpen(false)} onPreview={fields => preview("intermediary-information", fields)} onSend={fields => sendAdditional.mutate({ formCode: "intermediary-information", fields }, { onSuccess: () => setIntermediaryOpen(false) })} sending={sendAdditional.isPending} /><DocumentReceiptDialog open={receiptOpen} onClose={() => setReceiptOpen(false)} onPreview={fields => preview("document-receipt", fields, policyId)} onSend={fields => sendAdditional.mutate({ formCode: "document-receipt", fields }, { onSuccess: () => setReceiptOpen(false) })} sending={sendAdditional.isPending} /></>;
 }
@@ -1946,10 +1946,10 @@ function CustomerNeedsFormDialog({ open, customerId, policies, onClose, onPrevie
     <DialogTitle>Έντυπο Αναγκών Πελάτη</DialogTitle>
     <DialogContent dividers>
       <Alert severity="info" sx={{ mb: 2 }}>Τα στοιχεία πελάτη, επικοινωνίας, γραφείου, λογοτύπου και τυχόν συμβολαίου συμπληρώνονται αυτόματα από την καρτέλα. Συμπληρώστε μόνο τα πρόσθετα στοιχεία του ερωτηματολογίου.</Alert>
-      <TextField select fullWidth label="Σύνδεση με συμβόλαιο (προαιρετικό)" value={policyId} onChange={e => setPolicyId(e.target.value)} sx={{ mb: 2 }}>
+      <SearchableTextField select fullWidth label="Σύνδεση με συμβόλαιο (προαιρετικό)" value={policyId} onChange={e => setPolicyId(e.target.value)} sx={{ mb: 2 }}>
         <MenuItem value="">Χωρίς συγκεκριμένο συμβόλαιο</MenuItem>
         {policies.map(p => <MenuItem key={p.id} value={p.id}>{p.policyNumber || "Χωρίς αριθμό"} · {p.insuranceCompanyName}</MenuItem>)}
-      </TextField>
+      </SearchableTextField>
       <Stack spacing={1.25}>
        {CUSTOMER_NEEDS_FIELDS.map(field => <TextField key={field.key} label={field.label} value={fields[field.key] ?? ""} onChange={e => setFields(prev => ({ ...prev, [field.key]: e.target.value }))} multiline={field.multiline} minRows={field.multiline ? 2 : undefined} fullWidth />)}
        </Stack>

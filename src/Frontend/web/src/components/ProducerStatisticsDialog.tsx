@@ -1,3 +1,4 @@
+import { SearchableTextField } from "./SearchableTextField";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress, MenuItem, Stack, TextField, Typography } from "@mui/material";
@@ -102,7 +103,7 @@ export function ProducerStatisticsDialog({ producerId, name, open, onClose }: { 
         <TextField select size="small" label="Πεδίο ημερομηνίας" value={filters.dateField} onChange={e => set("dateField", e.target.value)}><MenuItem value="start">Ημερομηνία έναρξης</MenuItem><MenuItem value="issued">Ημερομηνία έκδοσης</MenuItem><MenuItem value="created">Ημερομηνία καταχώρησης</MenuItem></TextField>
         <TextField fullWidth size="small" type="date" label="Από" InputLabelProps={{ shrink: true }} value={filters.from} onChange={e => set("from", e.target.value)} />
         <TextField fullWidth size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }} value={filters.to} onChange={e => set("to", e.target.value)} />
-        <TextField select fullWidth size="small" label="Ασφαλιστική" value={filters.insuranceCompanyId} onChange={e => set("insuranceCompanyId", e.target.value)}><MenuItem value="">Όλες</MenuItem>{carriers.map(row => <MenuItem key={row.value} value={row.value}>{row.label}</MenuItem>)}</TextField>
+        <SearchableTextField select fullWidth size="small" label="Ασφαλιστική" value={filters.insuranceCompanyId} onChange={e => set("insuranceCompanyId", e.target.value)}><MenuItem value="">Όλες</MenuItem>{carriers.map(row => <MenuItem key={row.value} value={row.value}>{row.label}</MenuItem>)}</SearchableTextField>
         <TextField select fullWidth size="small" label="Κλάδος" value={filters.policyType} onChange={e => set("policyType", e.target.value)}><MenuItem value="">Όλοι</MenuItem>{Object.entries(TYPE_LABELS).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}</TextField>
         <TextField select fullWidth size="small" label="Νόμισμα" value={filters.currency} onChange={e => set("currency", e.target.value)}><MenuItem value="">Αυτόματο ({q.data?.currency ?? options.currency})</MenuItem>{Array.from(new Set([...currencies, filters.currency].filter(Boolean))).map(currency => <MenuItem key={currency} value={currency}>{currency}</MenuItem>)}</TextField>
       </Box>

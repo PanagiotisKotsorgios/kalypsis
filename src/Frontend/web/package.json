@@ -11,6 +11,7 @@
     "test:customer-edit": "node --experimental-strip-types --test src/components/customer/customerEditSession.test.mjs src/components/customer/customerInlineFields.test.mjs src/components/customer/customerValidation.test.mjs",
     "test:profile-edit": "node --experimental-strip-types --test --test-concurrency=1 src/components/profile/profileDrafts.test.mjs src/components/profile/profileComponents.test.mjs src/components/profile/recordProfiles.test.mjs src/components/profile/vehicleOwnership.test.mjs src/components/profile/policyRiskProfile.test.mjs src/components/profile/producerWorkspace.test.mjs",
     "test:producer-statement": "node --experimental-strip-types --test src/pages/producerStatementNavigation.test.mjs",
+    "test:searchable-options": "node --experimental-strip-types --test src/components/searchableOptions.test.mjs",
     "test:over-commissions": "node --experimental-strip-types --test src/pages/overCommissionTable.test.mjs src/pages/partnerResponsive.test.mjs src/utils/tableExportSnapshot.test.mjs",
     "test:production-lists": "node --experimental-strip-types --test src/pages/productionListsSimplification.test.mjs",
     "test:advance-payments": "node --experimental-strip-types --test src/pages/advancePaymentsAllocation.test.mjs",

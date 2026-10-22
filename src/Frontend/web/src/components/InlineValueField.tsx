@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
-import { Autocomplete, Box, IconButton, MenuItem, TextField, Tooltip, Typography } from "@mui/material";
+import { Autocomplete, Box, IconButton, TextField, Tooltip, Typography } from "@mui/material";
+import { SearchableSelect } from "./SearchableSelect";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -9,6 +10,8 @@ import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 export interface InlineValueOption {
   value: string;
   label: string;
+  hint?: string;
+  disabled?: boolean;
 }
 
 interface InlineValueFieldProps {
@@ -213,24 +216,28 @@ export function InlineValueField({
       <Box sx={{ flex: 1, minWidth: 0 }}>
       {editing ? (
         options ? (
-          <TextField
-            select
+          <SearchableSelect
+            label=""
             disabled={disabled}
-            inputProps={{ "aria-label": label }}
             size="small"
             fullWidth
             value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") cancelEdit();
-              if (event.key === "Enter") { event.preventDefault(); void saveEdit(); }
+            options={options.some(option => option.value === draft) ? options : [{ value: draft, label: draft === raw && typeof displayValue === "string" ? displayValue : draft || "—" }, ...options]}
+            onChange={setDraft}
+            placeholder="Αναζήτηση…"
+            showSearchIcon={false}
+            autocompleteProps={{
+              clearOnBlur: true,
+              disableClearable: !options.some(option => option.value === "" && !option.disabled),
+              onKeyDown: event => {
+                const open = inputRef.current?.getAttribute("aria-expanded") === "true";
+                if (event.key === "Escape") { event.stopPropagation(); if (!open) cancelEdit(); }
+                if (event.key === "Enter") { event.stopPropagation(); if (!open) { event.preventDefault(); void saveEdit(); } }
+              },
             }}
-            inputRef={inputRef}
-            sx={{ "& .MuiInputBase-root": { minHeight: compact ? 30 : 32 }, "& .MuiSelect-select": { py: .45, fontSize: ".8rem" } }}
-          >
-            {!options.some(option => option.value === draft) && <MenuItem value={draft}>{draft === raw ? displayValue ?? (draft || "—") : draft}</MenuItem>}
-            {options.map(option => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
-          </TextField>
+            textFieldProps={{ inputRef, inputProps: { "aria-label": label }, error: !!validationError, helperText: validationError }}
+            sx={{ "& .MuiInputBase-root": { minHeight: compact ? 30 : 32, py: 0 }, "& input": { fontSize: ".8rem" } }}
+          />
         ) : suggestions ? (
           <Autocomplete freeSolo options={suggestions} inputValue={draft} value={draft || null}
             disabled={disabled} onInputChange={(_, next) => setDraft(next)}

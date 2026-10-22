@@ -1,3 +1,4 @@
+import { SearchableTextField } from "../components/SearchableTextField";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
@@ -473,9 +474,9 @@ function CopyParametricsDialog({ open, offices, sourceId, onSourceChange, target
   return <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
     <DialogTitle sx={{ fontWeight: 800 }}><Stack direction="row" spacing={1} alignItems="center"><ContentCopyIcon color="secondary" />Αντιγραφή παραμετρικών</Stack></DialogTitle>
     <DialogContent dividers>
-      <TextField select fullWidth size="small" label="Γραφείο προέλευσης" value={sourceId} onChange={event => onSourceChange(event.target.value)} sx={{ mb: 2 }}>
+      <SearchableTextField select fullWidth size="small" label="Γραφείο προέλευσης" value={sourceId} onChange={event => onSourceChange(event.target.value)} sx={{ mb: 2 }}>
         {offices.filter(office => office.id !== target?.id).map(office => <MenuItem key={office.id} value={office.id}>{office.name} · {office.code}{office.isHeadquarters ? " · Κεντρικό" : ""}</MenuItem>)}
-      </TextField>
+      </SearchableTextField>
       <Typography variant="body2">
         Θα αντιγραφούν στο <strong>{target?.name}</strong> οι κλάδοι, οι κανόνες προμηθειών και ανανέωσης,
         τα πρότυπα, οι γέφυρες εταιρειών, οι αντιστοιχίσεις κωδικών, οι ρυθμίσεις διασυνδέσεων,

@@ -1,3 +1,4 @@
+import { SearchableTextField } from "../components/SearchableTextField";
 import { useEffect, useState } from "react";
 import { ensureE2EKeypair, buildEnvelopesForRecipients, decryptEnvelopePayload,
   getStoredPrivateKey, generateFileKeyB64, encryptFileBlob, encryptFileNameB64,
@@ -2106,16 +2107,16 @@ function ProductionListInsertDialog({
               value={to} onChange={e => setTo(e.target.value)} />
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-            <TextField select size="small" label="Ασφαλιστική" fullWidth
+            <SearchableTextField select size="small" label="Ασφαλιστική" fullWidth
               value={carrierId} onChange={e => setCarrierId(e.target.value)}>
               <MenuItem value="">Όλες</MenuItem>
               {(carriers.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
-            </TextField>
-            <TextField select size="small" label="Συνεργάτης" fullWidth
+            </SearchableTextField>
+            <SearchableTextField select size="small" label="Συνεργάτης" fullWidth
               value={producerId} onChange={e => setProducerId(e.target.value)}>
               <MenuItem value="">Όλοι</MenuItem>
               {(producers.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
           </Stack>
           <Stack direction="row" spacing={1} alignItems="center">
             <Button variant="outlined" onClick={fetchData} disabled={loading}>

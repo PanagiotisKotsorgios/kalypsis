@@ -2403,13 +2403,13 @@ function NewTicketDialog({ open, busy, onClose, onCreate }: {
       <DialogTitle>Νέο support ticket</DialogTitle>
       <DialogContent>
         <Stack spacing={2} mt={1}>
-          <TextField select label="Γραφείο" required fullWidth
+          <SearchableTextField select label="Γραφείο" required fullWidth
             value={form.tenantId}
             onChange={(e) => setForm({ ...form, tenantId: e.target.value })}>
             {(tenantsQ.data ?? []).map(t => (
               <MenuItem key={t.id} value={t.id}>{t.name} ({t.code})</MenuItem>
             ))}
-          </TextField>
+          </SearchableTextField>
           <TextField label="Θέμα" required fullWidth
             value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
           <TextField label="Περιγραφή" required fullWidth multiline minRows={3}

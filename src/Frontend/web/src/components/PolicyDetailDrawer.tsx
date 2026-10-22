@@ -320,7 +320,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   const customersLookup = useQuery({
     queryKey: ["customers-lookup"],
     enabled: open,
-    queryFn: async () => (await api.get<Array<{ id: string; firstName?: string; lastName?: string; companyName?: string; vatNumber?: string }>>("/customers")).data
+    queryFn: async () => (await api.get<Array<{ id: string; customerNumber?: string; firstName?: string; lastName?: string; companyName?: string; vatNumber?: string }>>("/customers")).data
   });
   const carriersLookup = useQuery({
     queryKey: ["carriers-lookup"],
@@ -2914,12 +2914,14 @@ function PolicyBooleanField({profileKey, label}: {profileKey: string; label: str
 
 export function PolicyProfileFields({session, values, policy, companies, customers, producerCommissionPercent}: {
   session?: ProfileFieldSession; values: Record<string,string>; policy: PolicyDetail;
-  companies: {id:string; name:string}[]; customers: {id:string; firstName?:string|null; lastName?:string|null; companyName?:string|null}[];
+  companies: {id:string; name:string}[]; customers: {id:string; customerNumber?:string|null; vatNumber?:string|null; firstName?:string|null; lastName?:string|null; companyName?:string|null}[];
   producerCommissionPercent?: number;
 }) {
   const field = (key:string,label:string,extra: Partial<React.ComponentProps<typeof ProfileEditableField>> = {}) =>
     <ProfileEditableField key={key} label={label} field={session ? key : undefined} session={session} value={values[key]} {...extra} />;
   const carrierOptions = companies.map(row => ({value:row.id,label:row.name}));
+  const partyOptions = customers.map(row => ({ value: row.id, label: row.companyName || [row.firstName, row.lastName].filter(Boolean).join(" "), hint: [row.customerNumber, row.vatNumber].filter(Boolean).join(" · ") }));
+  if (policy.contractPartyCustomerId && !partyOptions.some(option => option.value === policy.contractPartyCustomerId)) partyOptions.push({ value: policy.contractPartyCustomerId, label: policy.contractPartyDisplay || policy.contractPartyCustomerId, hint: policy.contractPartyVat || "" });
   if (!carrierOptions.some(option => option.value === policy.insuranceCompanyId)) carrierOptions.push({value:policy.insuranceCompanyId,label:policy.insuranceCompanyName});
   const types = ["Auto","Home","Health","Life","Business","Travel","Other"].map(value => ({value,label:policyTypeLabel(value)}));
   if (values.policyType && !types.some(option => option.value === values.policyType)) types.push({value:values.policyType,label:values.policyType});
@@ -2935,7 +2937,7 @@ export function PolicyProfileFields({session, values, policy, companies, custome
       <ProfileEditableField key="customerVat" label="ΑΦΜ πελάτη" value={policy.customerVat} mono />,
       <ProfileEditableField key="customerEmail" label="Email ασφαλισμένου" value={policy.customerEmail} />,
       <ProfileEditableField key="customerPhone" label="Τηλέφωνο ασφαλισμένου" value={policy.customerPhone} />,
-      field("contractPartyCustomerId","Συμβαλλόμενος",{options:[{value:"",label:"Ίδιος με τον ασφαλιζόμενο"}, ...customers.map(row=>({value:row.id,label:row.companyName || [row.firstName,row.lastName].filter(Boolean).join(" ")}))]}),
+      field("contractPartyCustomerId","Συμβαλλόμενος",{options:[{value:"",label:"Ίδιος με τον ασφαλιζόμενο"}, ...partyOptions]}),
       <ProfileEditableField key="partyVat" label="ΑΦΜ συμβαλλομένου" value={policy.contractPartyVat ?? (!policy.contractPartyCustomerId ? policy.customerVat : null)} mono />,
       <ProfileEditableField key="partyEmail" label="Email συμβαλλομένου" value={policy.contractPartyEmail ?? (!policy.contractPartyCustomerId ? policy.customerEmail : null)} />,
       <ProfileEditableField key="partyPhone" label="Τηλέφωνο συμβαλλομένου" value={policy.contractPartyPhone ?? (!policy.contractPartyCustomerId ? policy.customerPhone : null)} />],

@@ -1,8 +1,9 @@
+import { SearchableTextField } from "./SearchableTextField";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Alert, Box, Button, Card, CardContent, CircularProgress, Divider,
   FormControlLabel, List, ListItem, ListItemIcon, ListItemText, MenuItem,
-  Stack, Switch, TextField, Typography
+  Stack, Switch, Typography
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import FolderIcon from "@mui/icons-material/Folder";
@@ -485,7 +486,7 @@ export function TenantSidebarVisibilityTab({ tenantId, onError }: {
                 χωρίς είσοδο ή impersonation ως χρήστης.
               </Typography>
               {previewUsers.length > 0 ? (
-                <TextField
+                <SearchableTextField
                   select
                   fullWidth
                   label="Χρήστης για προεπισκόπηση"
@@ -498,7 +499,7 @@ export function TenantSidebarVisibilityTab({ tenantId, onError }: {
                       {user.firstName} {user.lastName} — {user.email}
                     </MenuItem>
                   ))}
-                </TextField>
+                </SearchableTextField>
               ) : (
                 <Alert severity="warning">Δεν υπάρχει ενεργός χρήστης αυτού του γραφείου για προεπισκόπηση.</Alert>
               )}

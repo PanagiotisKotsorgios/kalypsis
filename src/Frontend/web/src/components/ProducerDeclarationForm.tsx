@@ -1,3 +1,4 @@
+import { SearchableTextField } from "./SearchableTextField";
 import { useMemo, useState } from "react";
 import {
   Alert,
@@ -136,7 +137,7 @@ export function ProducerDeclarationForm() {
         {success && <Alert severity="success" onClose={() => setSuccess(null)} sx={{ mb: 2 }}>{success}</Alert>}
 
         <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "flex-start" }}>
-          <TextField
+          <SearchableTextField
             select size="small" label="Συμβόλαιο"
             value={policyId} onChange={(e) => setPolicyId(e.target.value)}
             sx={{ flex: 1, minWidth: 280 }}
@@ -149,7 +150,7 @@ export function ProducerDeclarationForm() {
                 : policies.map(p => (
                     <MenuItem key={p.id} value={p.id}>{p.policyNumber} · {p.customerDisplay} · {p.insuranceCompanyName}</MenuItem>
                   ))}
-          </TextField>
+          </SearchableTextField>
           <TextField
             size="small" label="Αναμενόμενο ποσό (€)"
             value={amount} onChange={(e) => setAmount(e.target.value)}

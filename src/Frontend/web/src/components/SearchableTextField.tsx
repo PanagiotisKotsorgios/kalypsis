@@ -1,4 +1,4 @@
-import { Children, isValidElement, useMemo } from "react";
+import { Children, Fragment, isValidElement, useMemo } from "react";
 import type { ReactNode } from "react";
 import { MenuItem } from "@mui/material";
 import { SearchableSelect } from "./SearchableSelect";
@@ -16,8 +16,7 @@ import type { TextFieldProps } from "@mui/material";
  *   </SearchableTextField>
  *
  * The wrapper extracts `<MenuItem value=... />` children into an options
- * array so mechanical sweeps across the codebase don't have to touch the
- * option-list authoring shape. Any non-MenuItem children are ignored.
+ * array, including fragments and native option/optgroup lists.
  * `onChange` is emitted with a synthetic event so existing handlers of the
  * form `e => set(e.target.value)` keep working unchanged.
  */
@@ -59,35 +58,19 @@ export function SearchableTextField({
   const options = useMemo<SearchOption<string>[]>(() => {
     const out: SearchOption<string>[] = [];
     Children.forEach(children, (child) => {
-      if (!isValidElement(child)) return;
-      // Only real MenuItem entries — <Divider/> and friends get skipped.
-      if (child.type !== MenuItem) return;
-      const props = child.props as { value?: unknown; children?: ReactNode };
-      const rawValue = props.value;
-      if (rawValue === undefined || rawValue === null) return;
-      const stringValue = String(rawValue);
-      const label = collectText(props.children);
-      out.push({ value: stringValue, label: label || stringValue });
+      collectOptions(child, out);
     });
     return out;
   }, [children]);
 
-  // Preserve the "empty first row" pattern (`<MenuItem value="">—</MenuItem>`)
-  // by promoting it to SearchableSelect's `emptyLabel`, then dropping it from
-  // the options list so it doesn't appear twice.
-  const emptyIx = options.findIndex((o) => o.value === "");
-  const emptyLabel = emptyIx >= 0 ? options[emptyIx].label : undefined;
-  const cleanOptions = emptyIx >= 0
-    ? options.filter((_, i) => i !== emptyIx)
-    : options;
-
+  // Empty and disabled rows stay real options, including native <option> lists.
   return (
     <SearchableSelect
       label={typeof label === "string" ? label : ""}
       value={value === null || value === undefined ? "" : String(value)}
       onChange={(v) => onChange?.({ target: { value: v } })}
-      options={cleanOptions}
-      emptyLabel={emptyLabel}
+      options={options}
+      autocompleteProps={{ disableClearable: !!required || !options.some(option => option.value === "" && !option.disabled) }}
       fullWidth={fullWidth}
       size={size}
       required={required}
@@ -98,6 +81,22 @@ export function SearchableTextField({
       sx={sx as never}
     />
   );
+}
+
+/** Keep identifiers and disabled states intact; never search or submit JSX. */
+export function collectOptions(node: ReactNode, out: SearchOption<string>[] = [], group?: string, disabled = false): SearchOption<string>[] {
+  Children.forEach(node, child => {
+    if (!isValidElement(child)) return;
+    const props = child.props as { value?: unknown; children?: ReactNode; disabled?: boolean; label?: string };
+    if (child.type === Fragment || child.type === "optgroup") {
+      collectOptions(props.children, out, child.type === "optgroup" ? props.label : group, disabled || !!props.disabled);
+    } else if (child.type === MenuItem || child.type === "option") {
+      const label = collectText(props.children);
+      const rawValue = props.value ?? (child.type === "option" ? label : undefined);
+      if (rawValue !== undefined && rawValue !== null) out.push({ value: String(rawValue), label: label || String(rawValue), disabled: disabled || !!props.disabled, group });
+    }
+  });
+  return out;
 }
 
 /** Turn a MenuItem's children (which may be a mix of strings and elements

@@ -128,11 +128,11 @@ export function GroupPoliciesPage({ embedded = false }: GroupPoliciesPageProps =
           <TextField size="small" placeholder="Αναζήτηση: αρ. ομάδας, ονομασία, συμβαλλόμενος…" fullWidth
             value={search} onChange={(e) => setSearch(e.target.value)}
             sx={{ gridColumn: { md: "span 2" } }} />
-          <TextField select size="small" label="Ασφαλιστική" fullWidth
+          <SearchableTextField select size="small" label="Ασφαλιστική" fullWidth
             value={carrierFilter} onChange={(e) => setCarrierFilter(e.target.value)}>
             <MenuItem value="">Όλες</MenuItem>
             {carriersInSet.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
           <TextField select size="small" label="Κατάσταση" fullWidth
             value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <MenuItem value="">Όλες</MenuItem>
