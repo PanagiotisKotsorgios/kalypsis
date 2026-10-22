@@ -51,6 +51,25 @@ test("real vehicle list and shared confirmation show selectable vehicle rows and
     for (const text of ["Ασφαλιστική", "Συμβόλαιο", "Πελάτης", "Έναρξη", "Λήξη", "Ασφάλιστρο"]) assert.ok(!header.includes(text), text);
     for (const text of ["Δοκιμή Ιδιοκτήτη", "Toyota", "Yaris", "1490", "TESTVIN123"]) assert.ok(body.includes(text), text);
     assert.ok(!body.includes("renewal-1"));
+    for (const width of [360, 768, 1024, 1280, 1536, 1920]) {
+      const screenTheme = createTheme({ components: { MuiUseMediaQuery: { defaultProps: { ssrMatchMedia: query => {
+        const max = query.match(/max-width:\s*([\d.]+)px/);
+        const min = query.match(/min-width:\s*([\d.]+)px/);
+        return { matches: (!max || width <= Number(max[1])) && (!min || width >= Number(min[1])) };
+      } } } } });
+      const screen = renderToStaticMarkup(createElement(ThemeProvider, { theme: screenTheme }, createElement(QueryClientProvider, { client }, createElement(AuthProvider, null, createElement(MemoryRouter, null, createElement(CustomerVehiclesPage))))));
+      const filterButton = screen.match(/<button\b[^>]*aria-haspopup="dialog"[^>]*>[\s\S]*?<\/button>/)?.[0];
+      if (width < 1536) {
+        assert.ok(filterButton?.includes("Φίλτρα"), `compact trigger at ${width}px`);
+        assert.ok(screen.includes("background-color:#159b59"), "green background");
+        assert.ok(screen.includes("color:#fff"), "white foreground");
+        assert.ok(!screen.includes("Αναζήτηση οχήματος ή ιδιοκτήτη"), "compact filters are hidden until requested");
+      } else {
+        assert.equal(filterButton, undefined, `no duplicate compact trigger at ${width}px`);
+        assert.ok(screen.includes("Αναζήτηση οχήματος ή ιδιοκτήτη"), "desktop filters stay inline");
+      }
+      assert.ok(screen.includes('aria-label="Μητρώο οχημάτων"'), "table remains available at every width");
+    }
     const theme = createTheme({ components: { MuiDialog: { defaultProps: { disablePortal: true } } } });
     const props = { entity: "vehicles", targets: [{ id: "p1", label: "ABC1234 · P-1" }], pending: false, completed: 1, result: { deletedIds: [], failures: [{ id: "p1", label: "ABC1234 · P-1", reason: "Δεν επιτρέπεται η διαγραφή λόγω συσχετίσεων με το συμβόλαιο P-1" }] }, onConfirm() {}, onClose() {} };
     const blocked = renderToStaticMarkup(createElement(ThemeProvider, { theme }, createElement(BulkDeleteDialog, props)));
@@ -69,6 +88,7 @@ test("real vehicle list and shared confirmation show selectable vehicle rows and
     assert.ok(!list.includes("companyFilter"));
     assert.ok(!list.includes("renewalFilter"));
     assert.ok(!list.includes("totalPremium"));
+    for (const text of ['compactAt="xl"', 'compactButtonPlacement="external"', 'compactOpen={filtersOpen}', 'onCompactOpenChange={setFiltersOpen}', 'setFiltersOpen(true)', 'if (!compactFilters) setFiltersOpen(false)']) assert.ok(list.includes(text), text);
     assert.ok(source.includes("vehicleStatusLabel(detail.status)"), "linked-policy tabs keep their own contract status");
     assert.ok(source.includes('value={form.condition}'), "actual vehicle condition is preserved");
   } finally { client.clear(); await server.close(); }

@@ -26,6 +26,8 @@ import GridOnIcon from "@mui/icons-material/GridOn";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import ViewColumnIcon from "@mui/icons-material/ViewColumn";
 import { TableToolbar, RecordCountChip } from "../components/TableToolbar";
+import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
+import FilterListIcon from "@mui/icons-material/FilterList";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 import { Link as RouterLink } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -395,8 +397,13 @@ function AddVehicleDialog({ open, rows, loading = false, error: loadError, onClo
 export function CustomerVehiclesPage() {
   const qc = useQueryClient();
   const canWrite = usePermission("policies.write");
+  const theme = useTheme();
+  const compactFilters = useMediaQuery(theme.breakpoints.down("xl"));
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const defaults = { search: "", make: "", fuelType: "", use: "" };
   const [filters, setFilters] = useState(defaults);
+  const activeFilterCount = Object.values(filters).filter(value => value.trim()).length;
+  useEffect(() => { if (!compactFilters) setFiltersOpen(false); }, [compactFilters]);
   const [selectedVehicle, setSelectedVehicle] = useState<{ plate: string; policyIds: string[]; edit: boolean } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
@@ -493,7 +500,12 @@ export function CustomerVehiclesPage() {
   return <Stack spacing={1}>
     <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" gap={1} alignItems={{ sm: "center" }}>
       <Stack direction="row" alignItems="center" gap={1}><DirectionsCarIcon color="primary" /><Typography variant="h5" fontWeight={800}>Οχήματα</Typography><RecordCountChip count={filteredRows.length} /></Stack>
-      <Box>
+      <Stack direction="row" gap={.75} flexWrap="wrap" useFlexGap>
+        {compactFilters && <Button variant="contained" startIcon={<FilterListIcon />} onClick={() => setFiltersOpen(true)}
+          aria-haspopup="dialog" aria-expanded={filtersOpen}
+          sx={{ bgcolor: "#159b59", color: "#fff", whiteSpace: "nowrap", flexShrink: 0, "&:hover": { bgcolor: "#107b46", color: "#fff" } }}>
+          Φίλτρα{activeFilterCount ? ` (${activeFilterCount})` : ""}
+        </Button>}
         <Button variant="contained" startIcon={<MoreHorizIcon />} endIcon={<KeyboardArrowDownIcon />}
           onClick={event => setActionsAnchor(event.currentTarget)} aria-haspopup="menu" aria-expanded={Boolean(actionsAnchor)}>Ενέργειες</Button>
         <Menu anchorEl={actionsAnchor} open={Boolean(actionsAnchor)} onClose={() => setActionsAnchor(null)}
@@ -515,15 +527,17 @@ export function CustomerVehiclesPage() {
             <ListItemIcon sx={{ color: "inherit" }}><DeleteOutlineIcon fontSize="small" /></ListItemIcon><ListItemText primary={`Διαγραφή επιλεγμένων (${selectedCount})`} secondary="Με έλεγχο συσχετίσεων και ιστορικού" />
           </MenuItem>
         </Menu>
-      </Box>
+      </Stack>
     </Stack>
-    <Card variant="outlined" sx={{ p: 1, bgcolor: "#edf2f7" }}>
-      <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }} flexWrap="wrap" useFlexGap>
+    <ResponsiveFilterPanel title="Φίλτρα οχημάτων" activeCount={activeFilterCount} compactAt="xl"
+      compactButtonPlacement="external" compactOpen={filtersOpen} onCompactOpenChange={setFiltersOpen}
+      cardSx={{ p: 1, mb: 0, bgcolor: "#edf2f7", border: "1px solid #d5e0ec", boxShadow: "none" }}>
+      <Stack direction={compactFilters ? "column" : "row"} spacing={1} alignItems={compactFilters ? "stretch" : "center"} flexWrap="wrap" useFlexGap sx={{ pt: .5 }}>
         <TextField size="small" value={filters.search} onChange={event => update("search", event.target.value)} label="Αναζήτηση οχήματος ή ιδιοκτήτη"
           placeholder="Πινακίδα, ιδιοκτήτης, μάρκα, μοντέλο, VIN, ΑΦΜ…"
-          InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }} sx={{ flex: { xs: "0 0 auto", md: "1 1 260px" }, minWidth: 0, width: { xs: "100%", md: "auto" } }} />
+          InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }} sx={{ flex: compactFilters ? "0 0 auto" : "1 1 260px", minWidth: 0, width: compactFilters ? "100%" : "auto" }} />
         {([["make", "Μάρκα"], ["fuelType", "Καύσιμο"], ["use", "Χρήση"]] as const).map(([key, label]) =>
-          <TextField key={key} select size="small" label={label} value={filters[key]} onChange={event => update(key, event.target.value)} sx={{ width: { xs: "100%", md: 150 }, flexShrink: 0 }}>
+          <TextField key={key} select size="small" label={label} value={filters[key]} onChange={event => update(key, event.target.value)} sx={{ width: compactFilters ? "100%" : 150, flexShrink: 0 }}>
             <MenuItem value="">Όλα</MenuItem>{options(key).map(value => <MenuItem key={value} value={value}>{key === "use" ? vehicleUseLabel(value) : value}</MenuItem>)}
           </TextField>)}
         <SavedReportsButton entity="vehicles" currentFilters={filters}
@@ -531,7 +545,7 @@ export function CustomerVehiclesPage() {
           onClear={resetFilters} clearRequestToken={clearSavedFilterRequest} saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />
         <Button size="small" color="error" variant="contained" onClick={resetFilters}>Καθαρισμός</Button>
       </Stack>
-    </Card>
+    </ResponsiveFilterPanel>
     <TableToolbar<VehicleRow> query="" onQuery={() => {}} count={sourceRows.length} filteredCount={filteredRows.length}
       pageSize={rowsPerPage} onPageSize={setRowsPerPage} hideSearch hideCount hidePageSize hideActionButtons snapshotExport
       exportRows={filteredRows} exportColumns={vehicleRegisterColumns} exportFileName="vehicles" printTitle="Οχήματα"
