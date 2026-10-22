@@ -4,7 +4,7 @@ import { PRODUCER_FIELDS, producerGeneralColumns, producerUpdatePayload } from "
 import { useEffect, useState } from "react";
 import {
   Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
-  DialogTitle, IconButton, LinearProgress, Stack, Table, TableBody,
+  DialogTitle, IconButton, Stack, Table, TableBody,
   TableCell, TableHead, TableRow, Typography, useMediaQuery, useTheme
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
@@ -17,8 +17,10 @@ import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import ContactPhoneIcon from "@mui/icons-material/ContactPhone";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { api } from "../api/client";
+import { api, extractErrorMessage } from "../api/client";
 import { ProducerBalancesPanel } from "./ProducerBalancesPanel";
+import { ProducerStatisticsDialog } from "./ProducerStatisticsDialog";
+import { ProducerContactFields, producerContactError, type ProducerContactField } from "./ProducerContactFields";
 
 interface ProducerDetail {
   id: string; code: string; name: string; email: string | null; phone: string | null; notes: string | null; status: string;
@@ -40,19 +42,6 @@ interface ProducerDetail {
   performanceGrade: string;
 }
 
-interface ProducerCommunication {
-  id: string;
-  kind: number;
-  direction: number;
-  outcome: number;
-  occurredAt: string;
-  subject: string;
-  body: string | null;
-}
-
-const COMM_KIND: Record<number, string> = { 1: "Σημείωση", 2: "Τηλέφωνο", 3: "Email", 4: "Συνάντηση", 5: "SMS", 6: "Επίσκεψη" };
-const COMM_OUTCOME: Record<number, string> = { 0: "Χωρίς αποτέλεσμα", 1: "Ολοκληρώθηκε", 2: "Απαιτείται follow-up", 3: "Δεν απάντησε", 4: "Ακυρώθηκε" };
-
 const GRADE_COLOR: Record<string, string> = {
   A: "#1b873f", B: "#3aa56b", C: "#c98a1d", D: "#d65f2d", F: "#c43838"
 };
@@ -69,28 +58,44 @@ export function ProducerDetailDrawer({ producerId, open, onClose, onEdit }: {
     enabled: open && !!producerId,
     queryFn: async () => (await api.get<ProducerDetail>(`/producers/${producerId}/detail`)).data
   });
-  const communications = useQuery({
-    queryKey: ["producer-communications", producerId],
+  const contactFields = useQuery({
+    queryKey: ["producer-contact-fields", producerId],
     enabled: open && !!producerId,
-    queryFn: async () => (await api.get<ProducerCommunication[]>(`/crm/producers/${producerId}/communications`)).data
+    queryFn: async () => (await api.get<ProducerContactField[]>(`/producers/${producerId}/contact-fields`)).data
   });
 
   const p = q.data;
   const [tab, setTab] = useState(0);
-  useEffect(() => { if (open) setTab(0); }, [open, producerId]);
+  const [statisticsOpen, setStatisticsOpen] = useState(false);
+  useEffect(() => { if (open) { setTab(0); setStatisticsOpen(false); } }, [open, producerId]);
 
   const qc = useQueryClient();
   const producerOptions = useQuery({ queryKey: ["producers"], enabled: open && !!onEdit,
     queryFn: async () => (await api.get<{ id: string; name: string }[]>("/producers")).data });
   const session = useProfileFieldEditor({
-    sessionKey: open ? producerId ?? "" : "", values: Object.fromEntries(PRODUCER_FIELDS.map(([key]) => [key, String(p?.[key] ?? "")])), onClose,
-    refresh: () => { void qc.invalidateQueries({ queryKey: ["producer-detail", producerId] }); void qc.invalidateQueries({ queryKey: ["producers"] }); },
+    sessionKey: open ? producerId ?? "" : "", values: {
+      ...Object.fromEntries(PRODUCER_FIELDS.map(([key]) => [key, String(p?.[key] ?? "")])),
+      ...Object.fromEntries((contactFields.data ?? []).map(row => ["contact:" + row.id, row.value])),
+    }, onClose,
+    refresh: () => { void qc.invalidateQueries({ queryKey: ["producer-detail", producerId] }); void qc.invalidateQueries({ queryKey: ["producers"] }); void qc.invalidateQueries({ queryKey: ["producer-contact-fields", producerId] }); void qc.invalidateQueries({ queryKey: ["producer-statistics", producerId] }); },
     write: async (changes, accept) => {
       if (!onEdit || !p) throw new Error("Δεν επιτρέπεται η επεξεργασία συνεργάτη.");
       if (!Object.keys(changes).length) return;
-      const current = qc.getQueryData<ProducerDetail>(["producer-detail", producerId]) ?? p;
-      const saved = (await api.put("/producers/" + producerId, producerUpdatePayload({ ...current }, changes))).data;
-      qc.setQueryData(["producer-detail", producerId], { ...current, ...saved }); accept(Object.keys(changes));
+      const core = Object.fromEntries(Object.entries(changes).filter(([key]) => !key.startsWith("contact:")));
+      if (Object.keys(core).length) {
+        const current = qc.getQueryData<ProducerDetail>(["producer-detail", producerId]) ?? p;
+        const saved = (await api.put("/producers/" + producerId, producerUpdatePayload({ ...current }, core))).data;
+        qc.setQueryData(["producer-detail", producerId], { ...current, ...saved }); accept(Object.keys(core));
+      }
+      for (const [key, value] of Object.entries(changes).filter(([key]) => key.startsWith("contact:"))) {
+        const row = (contactFields.data ?? []).find(field => field.id === key.slice(8));
+        if (!row) throw new Error("Το πεδίο επικοινωνίας δεν βρέθηκε. Φορτώστε ξανά την καρτέλα.");
+        const error = producerContactError(row.kind, value);
+        if (error) throw new Error(error);
+        const saved = (await api.put<ProducerContactField>(`/producers/${producerId}/contact-fields/${row.id}`, { value })).data;
+        qc.setQueryData<ProducerContactField[]>(["producer-contact-fields", producerId], previous => (previous ?? []).map(field => field.id === row.id ? saved : field));
+        accept([key]);
+      }
     }
   });
   const statusLabel = p?.status === "Active" ? "Ενεργός" : p?.status === "Prospect" ? "Πιθανός συνεργάτης" : p?.status === "Suspended" ? "Σε αναστολή" : p?.status === "Terminated" ? "Τερματισμένος" : p?.status ?? "—";
@@ -119,25 +124,13 @@ export function ProducerDetailDrawer({ producerId, open, onClose, onEdit }: {
         {q.isError && <Typography color="error">Δεν ήταν δυνατή η φόρτωση της καρτέλας συνεργάτη.</Typography>}
         {p && <>
           <DetailProfileTabs value={tab} onChange={setTab} items={[
-            {label: "Γενικά", icon: <InfoOutlinedIcon />}, {label: "Παραγωγή & συμβόλαια", icon: <DescriptionIcon />},
+            {label: "Γενικά", icon: <InfoOutlinedIcon />}, {label: "Παραγωγή", icon: <DescriptionIcon />},
             {label: "Οικονομικά", icon: <AccountBalanceWalletIcon />}, {label: "Επικοινωνία", icon: <ContactPhoneIcon />},
-            {label: "Στατιστικά", icon: <BarChartIcon />},
           ]} />
           <ProfileEditorFeedback session={session} />
 
           <Stack spacing={1.25}>
             {tab === 0 && <ProducerProfileFields session={onEdit ? session : undefined} values={session.values} parents={(producerOptions.data ?? []).filter(row => row.id !== producerId)} />}
-            {tab === 4 && <Stack spacing={.75}>
-              <PerfBar label={t("producerDetail.renewalRate")} value={p.renewalRate} target={70} unit="%" />
-              <PerfBar label={t("producerDetail.premiumGrowth")} value={p.premiumGrowthPercent} target={10} unit="%" allowNegative />
-              <PerfBar label={t("producerDetail.claimRatio")} value={p.claimRatio} target={25} unit="%" inverted />
-              <Box sx={{ display: "grid", gap: .8, gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(4, 1fr)" } }}>
-                <KPI label={t("producerDetail.totalPolicies")} value={p.totalPolicies} hint={`${p.activePolicies} ${t("producerDetail.active").toLowerCase()}`} />
-                <KPI label={t("producerDetail.customers")} value={p.customerCount} />
-                <KPI label={t("producerDetail.newThisYear")} value={p.newPoliciesThisYear} />
-                <KPI label={t("producerDetail.renewalsDue")} value={p.renewalsDueNext60Days} hint="επόμενες 60 ημέρες" />
-              </Box>
-</Stack>}
             {tab === 1 && <Stack spacing={1.25}>
               {p.byCarrier.length > 0 && <Card variant="outlined" sx={{ p: 1.25 }}><Typography fontWeight={800} mb={.75}>{t("producerDetail.byCarrier")}</Typography><Table size="small"><TableHead><TableRow><TableCell>{t("producerDetail.carrier")}</TableCell><TableCell align="right">{t("producerDetail.policies")}</TableCell><TableCell align="right">{t("producerDetail.premium")}</TableCell></TableRow></TableHead><TableBody>{p.byCarrier.map(c => <TableRow key={c.carrierName}><TableCell>{c.carrierName}</TableCell><TableCell align="right">{c.policyCount}</TableCell><TableCell align="right" sx={{ fontWeight: 700 }}>{c.totalPremium.toFixed(2)} €</TableCell></TableRow>)}</TableBody></Table></Card>}
               {p.byPolicyType.length > 0 && <Card variant="outlined" sx={{ p: 1.25 }}><Typography fontWeight={800} mb={.75}>{t("producerDetail.byType")}</Typography><Table size="small"><TableHead><TableRow><TableCell>{t("producerDetail.type")}</TableCell><TableCell align="right">{t("producerDetail.policies")}</TableCell><TableCell align="right">{t("producerDetail.premium")}</TableCell></TableRow></TableHead><TableBody>{p.byPolicyType.map(item => <TableRow key={item.policyType}><TableCell>{item.policyType}</TableCell><TableCell align="right">{item.policyCount}</TableCell><TableCell align="right" sx={{ fontWeight: 700 }}>{item.totalPremium.toFixed(2)} €</TableCell></TableRow>)}</TableBody></Table></Card>}
@@ -145,58 +138,19 @@ export function ProducerDetailDrawer({ producerId, open, onClose, onEdit }: {
             </Stack>}
             {tab === 2 && <Stack gap={1.25}>
               <ProducerBalancesPanel key={p.id} producerId={p.id} />
-              <Card variant="outlined" sx={{ p: 1.25 }}><Typography fontWeight={800} mb={.75}>{t("producerDetail.financials")}</Typography><Box sx={{ ...profileFieldGridSx, gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))" }, alignItems: "start" }}>
-                <Stack spacing={.5} sx={{ minWidth: 0 }}>
-                  <KV label={t("producerDetail.premiumYtd")} value={`${p.totalPremiumYtd.toFixed(2)} €`} />
-                  <KV label={t("producerDetail.premiumLastYear")} value={`${p.totalPremiumLastYear.toFixed(2)} €`} />
-                </Stack><Stack spacing={.5} sx={{ minWidth: 0 }}>
-                  <KV label={t("producerDetail.commissionsAll")} value={`${p.totalCommissionsEarned.toFixed(2)} €`} />
-                  <KV label={t("producerDetail.commissionsYtd")} value={`${p.commissionsThisYear.toFixed(2)} €`} />
-                </Stack>
-              </Box></Card>
             </Stack>}
-            {tab === 3 && <Card variant="outlined" sx={{ p: 1.25 }}><Stack direction="row" justifyContent="space-between" alignItems="center" mb={.75}><Typography fontWeight={800}>Ιστορικό επικοινωνίας</Typography><Chip size="small" label={`${communications.data?.length ?? 0}`} /></Stack>{communications.isLoading ? <CircularProgress size={20} /> : (communications.data ?? []).length === 0 ? <Typography variant="body2" color="text.secondary">Δεν έχει καταγραφεί ακόμη επικοινωνία με τον συνεργάτη.</Typography> : <Stack spacing={.75}>{(communications.data ?? []).map(item => <Box key={item.id} sx={{ p: 1, borderRadius: 1.25, bgcolor: "background.default", border: "1px solid", borderColor: "divider" }}><Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={.5}><Typography variant="body2" fontWeight={700}>{COMM_KIND[item.kind] ?? "Επικοινωνία"} · {item.subject}</Typography><Typography variant="caption" color="text.secondary">{new Date(item.occurredAt).toLocaleString("el-GR")}</Typography></Stack><Typography variant="caption" color="text.secondary">{COMM_OUTCOME[item.outcome] ?? ""}</Typography>{item.body && <Typography variant="body2" sx={{ mt: .35, whiteSpace: "pre-wrap" }}>{item.body}</Typography>}</Box>)}</Stack>}</Card>}
+            {tab === 3 && <ProducerContactFields key={p.id} producerId={p.id} values={session.values} session={onEdit ? session : undefined}
+              fields={contactFields.data ?? []} loading={contactFields.isLoading} error={contactFields.isError ? extractErrorMessage(contactFields.error) : undefined} retry={() => void contactFields.refetch()} />}
           </Stack>
         </>}
       </DialogContent>
-      <DialogActions sx={{ px: 1.25, py: .6 }}>{onEdit ? <ProfileEditorActions session={session} label="συνεργάτη" /> : <Button color="error" variant="contained" onClick={session.requestClose}>Κλείσιμο</Button>}</DialogActions>
+      <DialogActions sx={{ px: 1.25, py: .6, gap: .75, flexWrap: "wrap" }}>
+        <Button size="small" variant="contained" startIcon={<BarChartIcon />} disabled={!p} onClick={() => setStatisticsOpen(true)} sx={{ bgcolor: "#087ceb", color: "#fff", "&:hover": { bgcolor: "#0767c4" } }}>Στατιστικά</Button>
+        {onEdit ? <ProfileEditorActions session={session} label="συνεργάτη" /> : <Button color="error" variant="contained" onClick={session.requestClose}>Κλείσιμο</Button>}
+      </DialogActions>
+      {p && <ProducerStatisticsDialog key={p.id} producerId={p.id} name={p.name} open={open && statisticsOpen} onClose={() => setStatisticsOpen(false)} />}
     </Dialog>
   );
-}
-
-function KPI({ label, value, hint }: { label: string; value: number | string; hint?: string }) {
-  return (
-    <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: "rgba(11,37,69,0.04)", border: "1px solid", borderColor: "divider" }}>
-      <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>{label}</Typography>
-      <Typography variant="h5" fontWeight={800}>{value}</Typography>
-      {hint && <Typography variant="caption" color="text.secondary">{hint}</Typography>}
-    </Box>
-  );
-}
-
-function PerfBar({ label, value, target, unit, inverted, allowNegative }: {
-  label: string; value: number; target: number; unit: string; inverted?: boolean; allowNegative?: boolean;
-}) {
-  const display = value.toFixed(1);
-  // If inverted (lower is better), success when value <= target.
-  const ok = inverted ? value <= target : value >= target;
-  const color: "success" | "warning" | "error" = ok ? "success" : (inverted ? (value <= target * 1.5 ? "warning" : "error") : (value >= target * 0.5 ? "warning" : "error"));
-  const percent = allowNegative
-    ? Math.max(0, Math.min(100, value + 50))
-    : Math.max(0, Math.min(100, value));
-  return (
-    <Box sx={{ mb: 1.5 }}>
-      <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
-        <Typography variant="body2">{label}</Typography>
-        <Typography variant="body2" fontWeight={700} color={`${color}.main`}>{display}{unit}</Typography>
-      </Stack>
-      <LinearProgress variant="determinate" value={percent} color={color} sx={{ height: 8, borderRadius: 1 }} />
-    </Box>
-  );
-}
-
-function KV({ label, value }: { label: string; value: React.ReactNode }) {
-  return <ProfileEditableField label={label} value={String(value ?? "")} />;
 }
 
 export function ProducerProfileFields({ session, values, parents = [] }: { session?: ProfileFieldSession; values: Record<string, string>; parents?: {id: string; name: string}[] }) {

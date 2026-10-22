@@ -1,0 +1,81 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { createServer } from "vite";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { readFile } from "node:fs/promises";
+
+test("producer workspace keeps contact editing, red debts and filtered live statistics", async context => {
+  globalThis.sessionStorage ??= { getItem: () => null, setItem() {}, removeItem() {} };
+  globalThis.localStorage ??= { getItem: () => null, setItem() {}, removeItem() {} };
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, ssr: { noExternal: [/@mui\//] }, appType: "custom" });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const render = (Component, props) => renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(Component, props)));
+  try {
+    const { ProducerDebtField, ProducerBalancesPanel } = await server.ssrLoadModule("/src/components/ProducerBalancesPanel.tsx");
+    const { ProducerContactFields, PRODUCER_CONTACT_FIELDS, producerContactError } = await server.ssrLoadModule("/src/components/ProducerContactFields.tsx");
+    const { ProducerStatisticsDashboard, producerStatisticsParams, producerStatisticsCharts, producerStatisticsRefreshMs } = await server.ssrLoadModule("/src/components/ProducerStatisticsDialog.tsx");
+    await context.test("positive debt has red value/copy controls with white foreground; zero is not falsely highlighted as debt", () => {
+      const debt = render(ProducerDebtField, { value: 60, currency: "EUR" });
+      assert.ok(debt.includes('data-producer-debt="outstanding"')); assert.ok(debt.includes("#D00000")); assert.ok(debt.includes("#fff"));
+      assert.ok(debt.includes("60,00 EUR")); assert.ok(debt.includes("Αντιγραφή Οφειλή προς συνεργάτη"));
+      assert.ok(!render(ProducerDebtField, { value: 0, currency: "EUR" }).includes("#D00000"));
+    });
+    await context.test("financials retain summaries and all paginated records without a contract/payment search bar", () => {
+      client.setQueryData(["producer-balances", "P1"], { producerId: "P1", currencies: [{ currency: "EUR", earned: 100, paid: 40, toProducer: 60, fromProducer: 0 }],
+        entries: Array.from({ length: 12 }, (_, i) => ({ id: String(i), date: "2026-01-01", kind: "Commission", reference: `REF-${i}`, policyNumber: `POL-${i}`, earned: i, paid: 0, currency: "EUR" })) });
+      const html = render(ProducerBalancesPanel, { producerId: "P1" });
+      assert.ok(html.includes("Αναλυτικές οικονομικές κινήσεις")); assert.ok(html.includes("100,00 EUR")); assert.ok(html.includes("60,00 EUR"));
+      assert.ok(!html.includes("Αναζήτηση συμβολαίου ή πληρωμής")); assert.ok(html.includes("από 12"));
+      const body = html.match(/<tbody\b[^>]*>[\s\S]*?<\/tbody>/)?.[0] ?? "";
+      assert.equal((body.match(/<tr\b/g) ?? []).length, 10); assert.ok(html.includes("background-color:#f0f2f5"));
+    });
+    await context.test("base and additional contact fields keep copy, pencil/save and parent-owned drafts", () => {
+      const fields = [{ id: "field-1", label: "Γραμματεία", kind: "Email", value: "secretary@example.gr" }];
+      const values = { email: "base@example.gr", phone: "2101234567", "contact:field-1": "secretary@example.gr" };
+      const session = { values, drafts: {}, editAll: false, busy: false, dirty: false, change() {}, commit: async () => {} };
+      const props = { producerId: "P1", values, session, fields, loading: false, retry() {} };
+      const view = render(ProducerContactFields, props);
+      for (const [key] of PRODUCER_CONTACT_FIELDS) assert.ok(view.includes(`data-profile-field="${key}"`));
+      assert.ok(view.includes('data-profile-field="contact:field-1"')); assert.ok(view.includes("Προσθήκη πεδίου επικοινωνίας")); assert.ok(view.includes("Ιστορικό επικοινωνίας"));
+      assert.ok(view.includes("Αντιγραφή Γραμματεία")); assert.ok(view.includes("Επεξεργασία Γραμματεία"));
+      const edit = render(ProducerContactFields, { ...props, session: { ...session, editAll: true, drafts: { "contact:field-1": "new@example.gr" } } });
+      assert.ok(edit.includes("Αποθήκευση Γραμματεία")); assert.ok(edit.includes('value="new@example.gr"'));
+      const readOnly = render(ProducerContactFields, { ...props, session: undefined });
+      assert.ok(!readOnly.includes("Προσθήκη πεδίου επικοινωνίας"));
+      const editButton = [...readOnly.matchAll(/<button\b[^>]*>/g)].map(match => match[0]).find(button => button.includes('aria-label="Επεξεργασία Γραμματεία"'));
+      assert.match(editButton, /\bdisabled/);
+      assert.ok(producerContactError("Email", "bad email")); assert.ok(producerContactError("Phone", "abc")); assert.ok(producerContactError("Url", "javascript:alert(1)"));
+      assert.equal(producerContactError("Phone", "2631028971"), undefined);
+    });
+    await context.test("all statistics filters participate in the request/cache identity and charts use the returned real data", () => {
+      const filters = { from: "2026-01-01", to: "2026-02-28", dateField: "issued", insuranceCompanyId: "C1", policyType: "Auto", currency: "USD" };
+      assert.deepEqual(producerStatisticsParams(filters), filters);
+      assert.equal(producerStatisticsParams({ ...filters, currency: "", insuranceCompanyId: "", policyType: "" }).currency, undefined);
+      assert.equal(producerStatisticsRefreshMs, 30_000);
+      const data = { producerId: "P1", from: filters.from, to: filters.to, dateField: "issued", currency: "USD", currencies: ["USD"], carriers: [],
+        totalPolicies: 3, activePolicies: 1, renewedPolicies: 1, cancelledPolicies: 1, customers: 1, claims: 2, premium: 300, netPremium: null, recordedCommissions: 45,
+        monthly: [{ month: "2026-01", policies: 1, premium: 100, recordedCommissions: 15 }, { month: "2026-02", policies: 2, premium: 200, recordedCommissions: 30 }],
+        byCarrier: [{ key: "C1", name: "Ασφαλιστική", policies: 3, premium: 300 }], byType: [{ key: "Auto", name: "Auto", policies: 3, premium: 300 }], byStatus: [{ key: "Active", name: "Active", policies: 3, premium: 300 }] };
+      const original = structuredClone(data);
+      const charts = producerStatisticsCharts(data);
+      assert.equal(charts.monthly[0].name, "Ιαν 26"); assert.equal(charts.byType[0].name, "Αυτοκίνητο"); assert.equal(charts.byStatus[0].name, "Ενεργά"); assert.deepEqual(data, original);
+      const html = render(ProducerStatisticsDashboard, { data });
+      for (const label of ["300,00 USD", "45,00 USD", "Δεν έχει οριστεί", "Εξέλιξη παραγωγής", "Συμβόλαια ανά μήνα", "Παραγωγή ανά ασφαλιστική", "Συμβόλαια ανά κλάδο", "Κατάσταση συμβολαίων"]) assert.ok(html.includes(label), label);
+      assert.ok(!html.includes("300,00 EUR"));
+      const empty = render(ProducerStatisticsDashboard, { data: { ...data, totalPolicies: 0, premium: 0, monthly: [], byCarrier: [], byType: [], byStatus: [] } });
+      assert.ok(empty.includes("Δεν υπάρχουν δεδομένα"));
+    });
+    await context.test("statistics are a footer button before edit, not a nav tab; contacts use persisted endpoints", async () => {
+      const source = await readFile(new URL("../ProducerDetailDrawer.tsx", import.meta.url), "utf8");
+      const nav = source.slice(source.indexOf("<DetailProfileTabs"), source.indexOf("<ProfileEditorFeedback"));
+      assert.ok(nav.includes('label: "Παραγωγή"')); assert.ok(!nav.includes('label: "Στατιστικά"')); assert.ok(!source.includes('Παραγωγή & συμβόλαια'));
+      const footer = source.slice(source.indexOf("<DialogActions"));
+      assert.ok(footer.indexOf(">Στατιστικά</Button>") < footer.indexOf("<ProfileEditorActions"));
+      assert.ok(source.includes('accept([key])')); assert.ok(source.includes('"contact:" + row.id')); assert.ok(source.includes('<ProducerContactFields'));
+      const stats = await readFile(new URL("../ProducerStatisticsDialog.tsx", import.meta.url), "utf8");
+      assert.ok(stats.includes('["producer-statistics", producerId, params]')); assert.ok(stats.includes('refetchInterval: open && valid ? producerStatisticsRefreshMs : false'));
+    });
+  } finally { client.clear(); await server.close(); }
+});
