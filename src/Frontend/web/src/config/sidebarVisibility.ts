@@ -83,7 +83,8 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
       { path: "/bookkeeping", label: "Μηχανογράφιση" },
       { path: "/agency-and-profile", label: "Ρυθμίσεις γραφείου & προφίλ" },
       { path: "/profile", label: "Προφίλ" },
-      { path: "/notifications", label: "Ειδοποιήσεις" }
+      { path: "/notifications", label: "Ειδοποιήσεις" },
+      { path: "/affiliate-program", label: "Πρόγραμμα συνεργατών", detail: "Το μπλε κουμπί στο κάτω μέρος του sidebar. Κλείστε τον διακόπτη για να κρυφτεί από τους χρήστες του γραφείου." }
     ]
   },
   {

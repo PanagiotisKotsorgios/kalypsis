@@ -6,6 +6,19 @@ namespace Kalypsis.Tests;
 public class TenantSidebarVisibilityTests
 {
     [Fact]
+    public void Affiliate_button_can_be_hidden_and_restored_without_changing_other_office_preferences()
+    {
+        const string key = "item:/affiliate-program";
+        var hidden = TenantSidebarVisibility.Parse(TenantSidebarVisibility.Serialize([key, "item:/customers"]));
+        Assert.Contains(key, hidden);
+        Assert.Contains("item:/customers", hidden);
+        var restored = TenantSidebarVisibility.Parse(TenantSidebarVisibility.Serialize(hidden.Where(item => item != key)));
+        Assert.DoesNotContain(key, restored);
+        Assert.Equal(["item:/customers"], restored);
+        Assert.Empty(TenantSidebarVisibility.Parse(null));
+    }
+
+    [Fact]
     public void Normalize_keeps_sidebar_and_page_container_keys_only()
     {
         var result = TenantSidebarVisibility.Normalize([
