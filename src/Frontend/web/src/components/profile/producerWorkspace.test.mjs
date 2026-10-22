@@ -22,17 +22,32 @@ test("producer workspace keeps contact editing, red debts and filtered live stat
       assert.ok(debt.includes("60,00 EUR")); assert.ok(debt.includes("Αντιγραφή Οφειλή προς συνεργάτη"));
       assert.ok(!render(ProducerDebtField, { value: 0, currency: "EUR" }).includes("#D00000"));
     });
-    await context.test("financials show monthly carry-forward before explicitly all-history totals without a contract/payment search bar", () => {
-      const monthly = Array.from({ length: 12 }, (_, i) => ({ month: `2026-${String(12 - i).padStart(2, "0")}-01`, currency: "EUR", openingBalance: (11 - i) * 5,
-        earned: 10, paid: 5, closingBalance: (12 - i) * 5, entryCount: 2 }));
+    await context.test("monthly commissions never carry forward and their footer reconciles all months beyond pagination", () => {
+      const monthly = Array.from({ length: 12 }, (_, i) => ({ month: `2026-${String(12 - i).padStart(2, "0")}-01`, currency: "EUR", earned: 10, paid: 5, entryCount: 2 }));
       client.setQueryData(["producer-balances", "P1"], { producerId: "P1", currencies: [{ currency: "EUR", earned: 120, paid: 60, toProducer: 60, fromProducer: 0 }], monthly, entries: [] });
       const html = render(ProducerBalancesPanel, { producerId: "P1" });
-      for (const text of ["ανά μήνα", "Εκ μεταφοράς", "Προμήθειες μήνα", "Καταβλήθηκαν μήνα", "Υπόλοιπο τέλους μήνα", "μήνας έναρξης συμβολαίου", "μήνας πληρωμής", "Δεκέμβριος 2026", "120,00 EUR", "60,00 EUR", "Συνολικές προμήθειες", "Συνολικά καταβλήθηκαν"]) assert.ok(html.includes(text), text);
+      for (const text of ["ανά μήνα", "Προμήθειες συμβολαίων μήνα", "Καταβολές μέσα στον μήνα", "έναρξη μέσα σε αυτόν", "μήνα πληρωμής", "Δεκέμβριος 2026", "120,00 EUR", "60,00 EUR", "Συνολικές προμήθειες", "Συνολικά καταβλήθηκαν"]) assert.ok(html.includes(text), text);
+      assert.ok(!html.includes("Εκ μεταφοράς")); assert.ok(!html.includes("Υπόλοιπο τέλους μήνα"));
       assert.ok(html.indexOf("Σύνολα όλου του καταχωρημένου ιστορικού") > html.indexOf("</table>"));
       assert.ok(html.includes('aria-label="Κινήσεις Δεκέμβριος 2026 EUR"'));
       assert.ok(!html.includes("Αναζήτηση συμβολαίου ή πληρωμής")); assert.ok(html.includes("από 12"));
       const body = html.match(/<tbody\b[^>]*>[\s\S]*?<\/tbody>/)?.[0] ?? "";
       assert.equal((body.match(/<tr\b/g) ?? []).length, 10); assert.ok(html.includes("background-color:#f0f2f5"));
+      const footer = html.match(/<tfoot\b[^>]*>[\s\S]*?<\/tfoot>/)?.[0] ?? "";
+      assert.ok(footer.includes("120,00 EUR")); assert.ok(footer.includes("60,00 EUR"));
+      assert.ok(html.includes("όχι μόνο την τρέχουσα σελίδα"));
+    });
+    await context.test("May/June/July remain 68.30/63.22/46.50 while the separate total debt is 178.02, not a sum of cumulative balances", () => {
+      const monthly = [{ month: "2026-07-01", earned: 46.50, paid: 0 }, { month: "2026-06-01", earned: 63.22, paid: 0 },
+        { month: "2026-05-01", earned: 68.30, paid: 0 }, { month: "2025-11-01", earned: 80.85, paid: 80.85 }].map(row => ({ ...row, currency: "EUR", entryCount: row.paid ? 2 : 1 }));
+      client.setQueryData(["producer-balances", "SUMMER"], { producerId: "SUMMER", currencies: [{ currency: "EUR", earned: 258.87, paid: 80.85, toProducer: 178.02, fromProducer: 0 }], monthly, entries: [] });
+      const html = render(ProducerBalancesPanel, { producerId: "SUMMER" });
+      const body = html.match(/<tbody\b[^>]*>[\s\S]*?<\/tbody>/)?.[0] ?? "";
+      for (const value of ["46,50 EUR", "63,22 EUR", "68,30 EUR", "80,85 EUR"]) assert.ok(body.includes(value), value);
+      assert.ok(!body.includes("178,02 EUR")); assert.ok(!body.includes("131,52 EUR"));
+      assert.equal((body.match(/<td\b/g) ?? []).length, 16, "four independent rows, four columns each");
+      const summary = html.slice(html.indexOf("Σύνολα όλου του καταχωρημένου ιστορικού"));
+      for (const value of ["258,87 EUR", "80,85 EUR", "178,02 EUR"]) assert.ok(summary.includes(value), value);
     });
     await context.test("monthly details retain every entry with pagination and isolate both month and currency", () => {
       const entries = Array.from({ length: 12 }, (_, i) => ({ id: String(i), date: "2026-01-15", kind: i % 2 ? "Payment" : "Commission", reference: `REF-${i}`, policyNumber: `POL-${i}`, earned: i % 2 ? 0 : 10, paid: i % 2 ? 5 : 0, currency: "EUR" }));

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, Table, TableBody, TableCell, TableFooter, TableHead, TablePagination, TableRow, TextField, Typography } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import { useQuery } from "@tanstack/react-query";
@@ -8,7 +8,7 @@ import { ProfileEditableField, profileFieldGridSx } from "./profile/ProfileField
 
 interface Balance { currency: string; earned: number; paid: number; toProducer: number; fromProducer: number }
 interface Entry { id: string; date: string; kind: string; reference: string; policyNumber?: string | null; earned: number; paid: number; currency: string }
-interface BalanceMonth { month: string; currency: string; openingBalance: number; earned: number; paid: number; closingBalance: number; entryCount: number }
+interface BalanceMonth { month: string; currency: string; earned: number; paid: number; entryCount: number }
 interface ProducerBalances { producerId: string; currencies: Balance[]; entries: Entry[]; monthly: BalanceMonth[] }
 const amount = (value: number, currency: string) => value.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " " + currency;
 const monthLabel = (value: string) => new Date(value.slice(0, 7) + "-01T00:00:00Z").toLocaleDateString("el-GR", { month: "long", year: "numeric", timeZone: "UTC" });
@@ -36,14 +36,6 @@ export function ProducerBalanceSummary({ currencies }: { currencies: Balance[] }
   </Box>)}</Stack>;
 }
 
-function BalanceValue({ value, currency, highlight = false }: { value: number; currency: string; highlight?: boolean }) {
-  return <Box sx={{ display: "inline-block", whiteSpace: "nowrap", borderRadius: 1, px: .65, py: .15,
-    bgcolor: highlight && value > 0 ? "#D00000" : undefined, color: highlight && value > 0 ? "#fff" : "#102c55" }}>
-    <Typography component="span" variant="body2" fontWeight={700}>{amount(Math.abs(value), currency)}</Typography>
-    <Typography component="span" variant="caption" color="inherit" sx={{ ml: .65 }}>{value > 0 ? "Προς συνεργάτη" : value < 0 ? "Πιστωτικό" : "Μηδενικό υπόλοιπο"}</Typography>
-  </Box>;
-}
-
 export function ProducerBalanceEntriesTable({ entries }: { entries: Entry[] }) {
   const [page, setPage] = useState(0);
   const visiblePage = Math.min(page, Math.max(0, Math.ceil(entries.length / 10) - 1));
@@ -68,37 +60,43 @@ export function ProducerBalancesPanel({ producerId }: { producerId: string }) {
   const [currency, setCurrency] = useState("");
   const [page, setPage] = useState(0);
   const [selectedMonth, setSelectedMonth] = useState<BalanceMonth | null>(null);
-  const q = useQuery({ queryKey: ["producer-balances", producerId], queryFn: async () => (await api.get<ProducerBalances>(`/producers/${producerId}/balances`)).data });
+  const q = useQuery({ queryKey: ["producer-balances", producerId], queryFn: async () => (await api.get<ProducerBalances>(`/producers/${producerId}/balances`)).data,
+    staleTime: 0, refetchOnMount: "always", refetchOnWindowFocus: true, refetchInterval: 30_000 });
   const rows = (q.data?.monthly ?? []).filter(row => !currency || row.currency === currency);
+  const totals = (q.data?.currencies ?? []).filter(row => !currency || row.currency === currency);
   const visiblePage = Math.min(page, Math.max(0, Math.ceil(rows.length / 10) - 1));
   if (q.isLoading) return <Box sx={{ p: 2, textAlign: "center" }}><CircularProgress size={24} /></Box>;
   if (q.isError) return <Alert severity="error" action={<Button onClick={() => void q.refetch()}>Επανάληψη</Button>}>{extractErrorMessage(q.error)}</Alert>;
   return <Stack gap={1} sx={{ minWidth: 0 }}>
     <Stack direction="row" gap={1} flexWrap="wrap" alignItems="center">
-      <Typography fontWeight={800}>Οφειλές & υπόλοιπα συνεργάτη ανά μήνα</Typography><Box sx={{ flex: 1 }} />
+      <Typography fontWeight={800}>Προμήθειες συνεργάτη ανά μήνα</Typography><Box sx={{ flex: 1 }} />
       {(q.data?.currencies.length ?? 0) > 1 && <TextField select size="small" label="Νόμισμα" value={currency} onChange={event => { setCurrency(event.target.value); setPage(0); }} sx={{ minWidth: 150 }}>
         <MenuItem value="">Όλα</MenuItem>{q.data?.currencies.map(row => <MenuItem key={row.currency} value={row.currency}>{row.currency}</MenuItem>)}
       </TextField>}
     </Stack>
-    <Typography variant="caption" color="text.secondary">Προμήθειες: μήνας έναρξης συμβολαίου. Καταβολές: μήνας πληρωμής. Το υπόλοιπο μεταφέρεται στους επόμενους μήνες, ξεχωριστά ανά νόμισμα.</Typography>
+    <Typography variant="caption" color="text.secondary">Κάθε μήνας δείχνει μόνο τις προμήθειες των συμβολαίων με έναρξη μέσα σε αυτόν. Οι καταβολές εμφανίζονται στον μήνα πληρωμής και μπορεί να αφορούν άλλους μήνες.</Typography>
     <Box sx={{ overflowX: "auto", border: "1px solid #d5e0ec", borderRadius: 1.5 }}>
-      <Table size="small" aria-label="Μηνιαία υπόλοιπα συνεργάτη" sx={{ ...tableSx, minWidth: 780, "& td": { py: .45, px: 1, lineHeight: 1.3 }, "& th": { ...tableSx["& th"], py: .7, px: 1, lineHeight: 1.3 } }}>
-        <TableHead><TableRow><TableCell>Μήνας</TableCell><TableCell align="right">Εκ μεταφοράς</TableCell><TableCell align="right">Προμήθειες μήνα</TableCell><TableCell align="right">Καταβλήθηκαν μήνα</TableCell><TableCell align="right">Υπόλοιπο τέλους μήνα</TableCell><TableCell>Ανάλυση</TableCell></TableRow></TableHead>
+      <Table size="small" aria-label="Μηνιαίες προμήθειες συνεργάτη" sx={{ ...tableSx, minWidth: 590, "& td": { py: .45, px: 1, lineHeight: 1.3 }, "& th": { ...tableSx["& th"], py: .7, px: 1, lineHeight: 1.3 } }}>
+        <TableHead><TableRow><TableCell>Μήνας</TableCell><TableCell align="right">Προμήθειες συμβολαίων μήνα</TableCell><TableCell align="right">Καταβολές μέσα στον μήνα</TableCell><TableCell>Ανάλυση</TableCell></TableRow></TableHead>
         <TableBody>{rows.slice(visiblePage * 10, visiblePage * 10 + 10).map((row, index) => <TableRow key={row.month + row.currency} sx={{ bgcolor: index % 2 ? "#f0f2f5" : "#f8fafc" }}>
           <TableCell sx={{ whiteSpace: "nowrap", fontWeight: 700 }}>{monthLabel(row.month)}</TableCell>
-          <TableCell align="right"><BalanceValue value={row.openingBalance} currency={row.currency} /></TableCell>
           <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>{amount(row.earned, row.currency)}</TableCell>
           <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>{amount(row.paid, row.currency)}</TableCell>
-          <TableCell align="right"><BalanceValue value={row.closingBalance} currency={row.currency} highlight /></TableCell>
           <TableCell><Button size="small" variant="contained" startIcon={<ReceiptLongIcon />} onClick={() => setSelectedMonth(row)} aria-label={`Κινήσεις ${monthLabel(row.month)} ${row.currency}`}
             sx={{ whiteSpace: "nowrap", minHeight: 28, py: .25, bgcolor: "#159B59", color: "#fff", "&:hover": { bgcolor: "#107B46", color: "#fff" } }}>{row.entryCount} {row.entryCount === 1 ? "κίνηση" : "κινήσεις"}</Button></TableCell>
         </TableRow>)}</TableBody>
+        <TableFooter>{totals.map(total => <TableRow key={total.currency} sx={{ bgcolor: "#e8f5e9", "& td": { fontWeight: 800, color: "#102c55", borderTop: "2px solid #b4d7bf", fontSize: 13 } }}>
+          <TableCell>Σύνολα {total.currency} · όλοι οι μήνες</TableCell>
+          <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>{amount(total.earned, total.currency)}</TableCell>
+          <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>{amount(total.paid, total.currency)}</TableCell><TableCell />
+        </TableRow>)}</TableFooter>
       </Table>
     </Box>
     {!rows.length && <Typography color="text.secondary">Δεν υπάρχουν καταχωρημένες κινήσεις για αυτή την επιλογή.</Typography>}
     <TablePagination component="div" count={rows.length} page={visiblePage} onPageChange={(_, next) => setPage(next)} rowsPerPage={10} rowsPerPageOptions={[10]} getItemAriaLabel={type => type === "next" ? "Επόμενη σελίδα μηνών" : "Προηγούμενη σελίδα μηνών"} labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count} μήνες / νομίσματα`} />
     <Typography fontWeight={800}>Σύνολα όλου του καταχωρημένου ιστορικού</Typography>
-    <ProducerBalanceSummary currencies={(q.data?.currencies ?? []).filter(row => !currency || row.currency === currency)} />
+    <ProducerBalanceSummary currencies={totals} />
+    <Typography variant="caption" color="text.secondary">Τα σύνολα αθροίζουν όλους τους μήνες, όχι μόνο την τρέχουσα σελίδα. Συνολικό υπόλοιπο = συνολικές προμήθειες − συνολικές καταβολές, ξεχωριστά ανά νόμισμα.</Typography>
     <Typography variant="caption" color="text.secondary">Οφειλές καταχωρημένων προμηθειών μετά τις πληρωμές. Το πιστωτικό από υπερπληρωμή είναι διαθέσιμο για συμψηφισμό. Ανεξάρτητες προκαταβολές και λοιποί διακανονισμοί δεν συμψηφίζονται αυτόματα εδώ.</Typography>
     <Dialog open={!!selectedMonth} onClose={() => setSelectedMonth(null)} fullWidth maxWidth="md" scroll="paper">
       <DialogTitle>Αναλυτικές οικονομικές κινήσεις · {selectedMonth && `${monthLabel(selectedMonth.month)} · ${selectedMonth.currency}`}</DialogTitle>

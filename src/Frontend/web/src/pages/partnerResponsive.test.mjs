@@ -47,12 +47,12 @@ test("partner-related list layouts use compact filters at narrow widths and reta
       const laptop = render(OverCommissionStatementsPage, 1366);
       assert.ok(laptop.includes("Φίλτρα υπερπρομηθειών")); assert.ok(!laptop.includes('placeholder="όνομα / κωδικός / reference"'));
     });
-    await context.test("monthly balance rows keep compact single-line values and green/white movement buttons", () => {
+    await context.test("monthly commissions keep compact independent amounts and green/white movement buttons", () => {
       client.setQueryData(["producer-balances", "P1"], { currencies: [{ currency: "EUR", earned: 100, paid: 40, toProducer: 60, fromProducer: 0 }], entries: [],
-        monthly: [{ month: "2026-10-01", currency: "EUR", openingBalance: 0, earned: 100, paid: 40, closingBalance: 60, entryCount: 2 }] });
+        monthly: [{ month: "2026-10-01", currency: "EUR", earned: 100, paid: 40, entryCount: 2 }] });
       const html = render(ProducerBalancesPanel, 1024, { producerId: "P1" });
       assert.ok(html.includes("2 κινήσεις")); assert.ok(html.includes("#159B59")); assert.ok(html.includes("#107B46"));
-      assert.match(html, /<span[^>]*>60,00 EUR<\/span>/); assert.ok(html.includes("padding-top:3.6px"));
+      assert.ok(html.includes("100,00 EUR")); assert.ok(!html.includes("Εκ μεταφοράς")); assert.ok(html.includes("padding-top:3.6px"));
     });
     await context.test("network tables scroll internally and detail dialogs wrap long content, tabs, member actions and statistics", async () => {
       const source = await readFile(new URL("./PartnerNetworksPage.tsx", import.meta.url), "utf8");
