@@ -138,7 +138,6 @@ export function ProductionGrowthPage() {
         <Stack direction="row" gap={.75}><Button variant="contained" color="error" size="small" startIcon={<FilterAltOffIcon />} onClick={reset}>Καθαρισμός</Button><FilterVisibilityPicker filters={FILTERS} {...visibility} /></Stack>
       </Box>
     </ResponsiveFilterPanel>
-    <Stack direction="row" alignItems="center" flexWrap="wrap" useFlexGap gap={.75} mb={1}><Chip size="small" label={filters.view === "opportunities" ? "Προτεινόμενες καλύψεις" : "Όλα τα καταχωρημένα στοιχεία"} color="info" /><Typography variant="caption" color="text.secondary">Οι προτάσεις βασίζονται μόνο σε καταχωρημένες ανάγκες και χρειάζονται επιβεβαίωση με τον πελάτη.</Typography></Stack>
     <TableToolbar<ProductionGrowthRow> query="" onQuery={() => {}} hideSearch hideCount hidePageSize hideActionButtons snapshotExport
       count={allRows.length} filteredCount={displayRows.length} pageSize={table.pageSize} onPageSize={table.setPageSize}
       exportRows={displayRows} exportFileName="production-growth" columnSelectionId="production-growth" printTitle="Λίστες αύξησης παραγωγής"
