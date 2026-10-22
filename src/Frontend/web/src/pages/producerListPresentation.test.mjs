@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { readFile } from "node:fs/promises";
 import { buildTableExportSnapshot } from "../utils/tableExportSnapshot.ts";
+import { printTable } from "../utils/printableTable.ts";
 
 test("producer list shares the compact gray table, responsive filters and exact-table exports", async context => {
   globalThis.sessionStorage ??= { getItem: () => null, setItem() {}, removeItem() {} };
@@ -66,6 +67,37 @@ test("producer list shares the compact gray table, responsive filters and exact-
       assert.ok(!snapshot.headers.includes("Email"));
     });
 
+    await context.test("partner print document keeps the complete sorted table, selected columns and office heading", () => {
+      const previousDocument = globalThis.document;
+      const events = new Map();
+      let frame, printCount = 0;
+      globalThis.document = {
+        createElement: () => (frame = { style: {}, setAttribute() {}, addEventListener: (name, handler) => events.set(name, handler),
+          contentWindow: { document: { body: { children: [{}] } }, focus() {}, addEventListener() {}, print() { printCount++; } } }),
+        body: { appendChild(value) { assert.equal(value, frame); } },
+      };
+      try {
+        const rows = Array.from({ length: 61 }, (_, i) => ({ ...producer, code: `P-${i}`, policyCount: i }))
+          .sort((a, b) => b.policyCount - a.policyCount);
+        const columns = producerListExportColumns(key => i18n.t(key)).filter(column => ["code", "name", "policyCount"].includes(column.key));
+        printTable({ title: "Γραφείο Πατρών", subtitle: "Συνεργάτες · Κατηγορία: Α", columns, rows,
+          office: { name: null, code: "PATRA", address: "Κορίνθου 10, Πάτρα", email: "patra@example.gr" } });
+        const html = frame.srcdoc;
+        assert.ok(html.includes("Γραφείο Πατρών"));
+        assert.ok(html.includes("patra@example.gr"));
+        assert.ok(html.includes("Συνεργάτες · Κατηγορία: Α"));
+        const body = html.match(/<tbody>[\s\S]*?<\/tbody>/)?.[0] ?? "";
+        assert.equal((body.match(/<tr\b/g) ?? []).length, 61);
+        assert.ok(body.indexOf("P-60") < body.indexOf("P-0"));
+        assert.ok(!body.includes("maria@example.gr"));
+        assert.ok(body.includes(producer.name));
+        assert.ok(html.includes("Kalypsis"));
+        events.get("load")();
+        events.get("load")();
+        assert.equal(printCount, 1);
+      } finally { globalThis.document = previousDocument; }
+    });
+
     await context.test("actual partner page keeps 25 rows visible and moves filters into a green compact-screen popup", () => {
       client.setQueryData(["producers"], Array.from({ length: 61 }, (_, index) => ({ ...producer, id: `p-${index}`, code: `P-${index}`, status: index === 0 ? "Prospect" : "Active" })));
       for (const width of [360, 768, 1024, 1280, 1536, 1920]) {
@@ -97,6 +129,10 @@ test("producer list shares the compact gray table, responsive filters and exact-
       for (const value of ["snapshotExport", "exportRows={table.filtered}", "exportColumns={producerExportColumns}", 'printTitle="Συνεργάτες"', "visibleColumnKeys={producerExportColumns.map(column => column.key)}", "{renderProducerFilters(true)}"]) assert.ok(source.includes(value), value);
       assert.ok(!source.includes('serverEntity="producers"'));
       assert.ok(!source.includes("serverParams="));
+      assert.ok(source.includes('printOfficeSource="export"'));
+      const toolbarSource = await readFile(new URL("../components/TableToolbar.tsx", import.meta.url), "utf8");
+      assert.ok(toolbarSource.includes('"/table-exports/office"'));
+      assert.ok(toolbarSource.includes('officeQuery.refetch({ throwOnError: true })'));
       assert.ok(source.indexOf("<TableToolbar<ProducerDto>") < source.indexOf("{q.isLoading ?"));
       assert.equal((source.match(/<SavedReportsButton/g) ?? []).length, 1);
     });

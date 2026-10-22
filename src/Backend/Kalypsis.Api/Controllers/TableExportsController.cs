@@ -20,6 +20,33 @@ namespace Kalypsis.Api.Controllers;
 public sealed class TableExportsController(IAppDbContext db, ICurrentUser current) : ControllerBase
 {
     public record TableSnapshot(string Title, string[] Headers, string?[][] Rows, string? Subtitle = null, int? RecordCount = null);
+    public record ExportOfficeIdentity(string Name, string? Code, string? ContactEmail, string? ContactPhone,
+        string? AddressLine, string? VatNumber);
+
+    // Printing needs the very same selected-office identity as downloaded files.
+    // Expose only the branding already present in exports, under the same permissions.
+    [HttpGet("office")]
+    public async Task<ActionResult<ExportOfficeIdentity>> Office(CancellationToken ct = default)
+        => Ok(await ResolveOffice(ct));
+
+    private async Task<ExportOfficeIdentity> ResolveOffice(CancellationToken ct)
+    {
+        var tenantId = current.TenantId ?? throw AppException.Forbidden();
+        var tenant = await db.Tenants.AsNoTracking().Where(x => x.Id == tenantId)
+            .Select(x => new { x.Name, x.Code, x.AddressLine, x.ContactPhone, x.ContactEmail, x.VatNumber })
+            .FirstOrDefaultAsync(ct);
+        var office = current.AgencyOfficeId.HasValue
+            ? await db.AgencyOffices.AsNoTracking()
+                .Where(x => x.Id == current.AgencyOfficeId.Value && x.TenantId == tenantId && x.DeletedAt == null)
+                .Select(x => new { x.Name, x.Code, x.Address, x.City, x.PostalCode, x.Phone, x.Email })
+                .FirstOrDefaultAsync(ct)
+            : null;
+        if (current.AgencyOfficeId.HasValue && office is null) throw AppException.NotFound("Γραφείο");
+        var address = office is null ? tenant?.AddressLine
+            : string.Join(", ", new[] { office.Address, office.City, office.PostalCode }.Where(value => !string.IsNullOrWhiteSpace(value)));
+        return new(office?.Name ?? tenant?.Name ?? "Γραφείο", office?.Code ?? tenant?.Code,
+            office?.Email ?? tenant?.ContactEmail, office?.Phone ?? tenant?.ContactPhone, address, tenant?.VatNumber);
+    }
 
     [HttpPost]
     [RequestSizeLimit(10_000_000)]
@@ -36,28 +63,17 @@ public sealed class TableExportsController(IAppDbContext db, ICurrentUser curren
             || body.Rows.Any(row => row is null || row.Length != body.Headers.Length
                 || row.Any(value => value?.Length > 20_000)))
             throw AppException.Validation("Ο πίνακας εξαγωγής δεν είναι έγκυρος ή υπερβαίνει τα όρια εξαγωγής.");
-        var tenantId = current.TenantId ?? throw AppException.Forbidden();
-        var tenant = await db.Tenants.AsNoTracking().Where(x => x.Id == tenantId)
-            .Select(x => new { x.Name, x.AddressLine, x.ContactPhone, x.ContactEmail, x.VatNumber })
-            .FirstOrDefaultAsync(ct);
-        var office = current.AgencyOfficeId.HasValue
-            ? await db.AgencyOffices.AsNoTracking()
-                .Where(x => x.Id == current.AgencyOfficeId.Value && x.TenantId == tenantId)
-                .Select(x => new { x.Name, x.Address, x.City, x.PostalCode, x.Phone, x.Email })
-                .FirstOrDefaultAsync(ct)
-            : null;
-        var officeName = office?.Name ?? tenant?.Name ?? "Γραφείο";
+        var office = await ResolveOffice(ct);
         var details = new[]
         {
-            office is null ? tenant?.AddressLine : string.Join(", ", new[] { office.Address, office.City, office.PostalCode }.Where(value => !string.IsNullOrWhiteSpace(value))),
-            office?.Phone ?? tenant?.ContactPhone, office?.Email ?? tenant?.ContactEmail,
-            string.IsNullOrWhiteSpace(tenant?.VatNumber) ? null : $"ΑΦΜ: {tenant!.VatNumber}"
+            office.AddressLine, office.ContactPhone, office.ContactEmail,
+            string.IsNullOrWhiteSpace(office.VatNumber) ? null : $"ΑΦΜ: {office.VatNumber}"
         }.Where(value => !string.IsNullOrWhiteSpace(value));
         var title = string.IsNullOrWhiteSpace(body.Title) ? "Λίστα" : body.Title.Trim()[..Math.Min(body.Title.Trim().Length, 200)];
         var subtitle = string.Join(" · ", new[] { title, body.Subtitle, $"{body.RecordCount ?? body.Rows.Length} εγγραφές" }.Where(value => !string.IsNullOrWhiteSpace(value)));
         var sheet = new Sheet(title, body.Headers,
             body.Rows.Select(row => (IReadOnlyList<string>)row.Select(value => value ?? "").ToArray()).ToArray(),
-            subtitle, officeName, string.Join(" · ", details), HeaderTitle: officeName);
+            subtitle, office.Name, string.Join(" · ", details), HeaderTitle: office.Name);
         var bytes = normalizedFormat switch
         {
             "csv" => ExportFormatter.BuildCsv(sheet),

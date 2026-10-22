@@ -127,6 +127,7 @@ export function TableToolbar<T>({
   hidePageSize = false,
   snapshotExport = false,
   exportGroupBy,
+  printOfficeSource = "agency-profile",
 }: {
   query: string;
   onQuery: (s: string) => void;
@@ -179,15 +180,17 @@ export function TableToolbar<T>({
   snapshotExport?: boolean;
   /** Mirror the visible group headings in every snapshot format and printout. */
   exportGroupBy?: (row: T) => string;
+  /** Fetch the same validated selected-office heading used by snapshot files. */
+  printOfficeSource?: "agency-profile" | "export";
 }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const officeQuery = useQuery({
-    queryKey: ["agency-profile"],
+    queryKey: printOfficeSource === "export" ? ["table-export-office", user?.tenantId, user?.userId] : ["agency-profile"],
     queryFn: async () => (await api.get<{
       name?: string | null; code?: string | null; contactEmail?: string | null;
       contactPhone?: string | null; addressLine?: string | null; vatNumber?: string | null;
-    }>("/agency-profile")).data,
+    }>(printOfficeSource === "export" ? "/table-exports/office" : "/agency-profile")).data,
     enabled: Boolean(user),
     staleTime: 5 * 60 * 1000,
   });
@@ -337,26 +340,37 @@ export function TableToolbar<T>({
     else if (serverEntity) void downloadFromServer("pdf");
   };
 
-  // Print is always client-side — even when a serverEntity is defined we
-  // don't round-trip to the backend, because the visible column selection
-  // and any pending filters live only in the browser.
-  const openPrint = () => {
+  // Print rows and columns always come from the browser's table snapshot.
+  // Office branding may be refreshed from the same endpoint as file exports.
+  const openPrint = async () => {
+    setExportError(null);
     if (snapshotExport && !effectiveColumns.length) {
       setExportError("Επιλέξτε τουλάχιστον μία στήλη για την εκτύπωση.");
       return;
     }
-    printTable({
-      title: snapshotExport ? officeInfo.name || "Γραφείο" : printTitle ?? exportFileName,
-      subtitle: snapshotExport ? [printTitle, printSubtitle].filter(Boolean).join(" · ") : printSubtitle,
-      columns: effectiveColumns.map(c => ({
-        key: String(c.key),
-        label: c.label,
-        map: c.map ? (r: T) => c.map!(r) : undefined,
-      })),
-      rows: exportRows,
-      groups: groupTableExportRows(exportRows, exportGroupBy),
-      office: snapshotExport ? { ...officeInfo, name: null } : officeInfo,
-    });
+    // Capture the table at the click, before awaiting office branding.
+    const printRows = exportRows;
+    const printColumns = effectiveColumns.map(c => ({
+      key: String(c.key), label: c.label, map: c.map ? (r: T) => c.map!(r) : undefined,
+    }));
+    const groups = groupTableExportRows(printRows, exportGroupBy);
+    try {
+      let printOffice = officeInfo;
+      if (printOfficeSource === "export") {
+        const result = await officeQuery.refetch({ throwOnError: true });
+        if (!result.data?.name?.trim()) throw new Error("Δεν φορτώθηκαν τα στοιχεία του γραφείου. Δοκιμάστε ξανά.");
+        printOffice = { name: result.data.name, code: result.data.code, email: result.data.contactEmail,
+          phone: result.data.contactPhone, address: result.data.addressLine, vatNumber: result.data.vatNumber };
+      }
+      printTable({
+        title: snapshotExport ? printOffice.name || "Γραφείο" : printTitle ?? exportFileName,
+        subtitle: snapshotExport ? [printTitle, printSubtitle].filter(Boolean).join(" · ") : printSubtitle,
+        columns: printColumns,
+        rows: printRows,
+        groups,
+        office: snapshotExport ? { ...printOffice, name: null } : printOffice,
+      });
+    } catch (error) { setExportError(extractErrorMessage(error)); }
   };
 
   async function downloadFromServer(format: "csv" | "xlsx" | "pdf") {

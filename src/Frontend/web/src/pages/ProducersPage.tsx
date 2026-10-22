@@ -390,6 +390,7 @@ export function ProducersPage() {
           exportRows={table.filtered}
           exportFileName={`producers-${new Date().toISOString().slice(0, 10)}`}
           snapshotExport
+          printOfficeSource="export"
           printTitle="Συνεργάτες" printSubtitle={producerExportSubtitle} columnSelectionId="producers"
           visibleColumnKeys={producerExportColumns.map(column => column.key)}
           hideSearch
