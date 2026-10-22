@@ -1,4 +1,17 @@
 export const CLAIM_FIELDS = [["incidentDate", "Ημερομηνία συμβάντος"], ["reportedDate", "Ημερομηνία δήλωσης"], ["claimedAmount", "Αιτούμενο ποσό"], ["approvedAmount", "Εγκεκριμένο ποσό"], ["status", "Κατάσταση"], ["description", "Περιγραφή"]] as const;
+
+/** Related fields are read down each column, not across rows. */
+export const CLAIM_PROFILE_GROUPS = [
+  ["claimNumber", "status", "description"],
+  ["incidentDate", "reportedDate"],
+  ["claimedAmount", "approvedAmount"],
+] as const satisfies readonly (readonly ("claimNumber" | typeof CLAIM_FIELDS[number][0])[])[];
+
+export function claimInformationGroups<T>(fields: readonly T[]): readonly (readonly T[])[] {
+  const size = Math.max(1, Math.ceil(fields.length / 3));
+  return Array.from({ length: Math.ceil(fields.length / size) }, (_, index) => fields.slice(index * size, (index + 1) * size));
+}
+
 export function claimUpdatePayload(current: Record<string, unknown>, changes: Record<string, string>) {
   for (const key of Object.keys(changes)) if (!CLAIM_FIELDS.some(([field]) => field === key)) throw new Error("Μη υποστηριζόμενο πεδίο ζημιάς.");
   const next = { ...current, ...changes };

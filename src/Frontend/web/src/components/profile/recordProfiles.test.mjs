@@ -23,11 +23,12 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
     const { PolicyProfileFields, PolicyPremiumFields, PolicyContractFields, PolicyOutstandingField, policyOverlayTheme } = await server.ssrLoadModule("/src/components/PolicyDetailDrawer.tsx");
     const { vehicleOwnerHistory } = await server.ssrLoadModule("/src/components/profile/vehicleHistory.ts");
     const { ProducerProfileFields } = await server.ssrLoadModule("/src/components/ProducerDetailDrawer.tsx");
-    const { ClaimProfileFields } = await server.ssrLoadModule("/src/components/ClaimDetailDrawer.tsx");
+    const { ClaimProfileFields, ClaimInfoFields } = await server.ssrLoadModule("/src/components/ClaimDetailDrawer.tsx");
+    const { ProfileEditableField } = await server.ssrLoadModule("/src/components/profile/ProfileFieldEditor.tsx");
     const { mergeVehicleSpecs, VEHICLE_SPEC_FIELDS, VEHICLE_GENERAL_COLUMNS, vehicleGeneralColumns } = await server.ssrLoadModule("/src/components/profile/vehicleProfile.ts");
     const { producerUpdatePayload, PRODUCER_FIELDS, PRODUCER_GENERAL_COLUMNS, producerGeneralColumns } = await server.ssrLoadModule("/src/components/profile/producerProfile.ts");
     const { ThemeProvider, createTheme } = await server.ssrLoadModule("@mui/material/styles");
-    const { claimUpdatePayload } = await server.ssrLoadModule("/src/components/profile/claimProfile.ts");
+    const { CLAIM_FIELDS, CLAIM_PROFILE_GROUPS, claimInformationGroups, claimUpdatePayload } = await server.ssrLoadModule("/src/components/profile/claimProfile.ts");
     const { policyCorePayload, policyPreservedAmounts } = await server.ssrLoadModule("/src/components/profile/policyProfile.ts");
     const layout = (Component, props) => {
       const view = render(Component, props), edit = render(Component, { ...props, session: { ...props.session, editAll: true } });
@@ -136,6 +137,49 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
       const result=claimUpdatePayload(current,{claimedAmount:"0",description:""});
       assert.equal(result.claimedAmount,0); assert.equal(result.description,null); assert.equal(result.approvedAmount,null);
       for(const changes of [{claimedAmount:"NaN"},{approvedAmount:"-1"},{incidentDate:"2026-02-30"},{policyId:"other"}]) assert.throws(()=>claimUpdatePayload(current,changes));
+    });
+    await t.test("claim fields and every related-info section read down responsive columns in identical view/edit order", async () => {
+      const { policyFieldColumns } = await server.ssrLoadModule("/src/components/profile/PolicyFieldColumns.tsx");
+      const claim = { claimNumber: "CL-1", incidentDate: "2026-10-01", reportedDate: "2026-10-02", claimedAmount: 0, approvedAmount: 150.5, status: "Reported", description: "Αναλυτική περιγραφή ζημιάς" };
+      const values = Object.fromEntries(Object.entries(claim).map(([key, value]) => [key, String(value)]));
+      const expectedGroups = CLAIM_PROFILE_GROUPS.map(group => group.map(key => key === "claimNumber" ? "Αριθμός ζημιάς" : key));
+      assert.deepEqual(new Set(CLAIM_PROFILE_GROUPS.flat()), new Set(["claimNumber", ...CLAIM_FIELDS.map(([key]) => key)]));
+      assert.equal(CLAIM_PROFILE_GROUPS.flat().length, 7);
+      assert.deepEqual(CLAIM_PROFILE_GROUPS[1], ["incidentDate", "reportedDate"]);
+      assert.deepEqual(CLAIM_PROFILE_GROUPS[2], ["claimedAmount", "approvedAmount"]);
+      for (const width of [320, 360, 768, 1024, 1280, 1920]) {
+        const count = width >= 1200 ? 3 : width >= 900 ? 2 : 1;
+        const theme = createTheme({ components: { MuiUseMediaQuery: { defaultProps: { ssrMatchMedia: query => {
+          const min = query.match(/min-width:\s*([\d.]+)px/); return { matches: !min || width >= Number(min[1]) };
+        } } } } });
+        const themedRender = (Component, props) => renderToStaticMarkup(createElement(ThemeProvider, { theme }, createElement(I18nextProvider, { i18n }, createElement(Component, props))));
+        for (const editAll of [false, true]) {
+          const html = themedRender(ClaimProfileFields, { claim, session: { ...session(values), editAll } });
+          const expected = policyFieldColumns(expectedGroups, count);
+          assert.ok(html.includes('data-policy-layout="claim-general"'));
+          assert.ok(html.includes(`data-policy-columns="${count}"`));
+          assert.deepEqual(html.split(/data-policy-column="\d+"/).slice(1).map(ids), expected);
+          assert.deepEqual(ids(html), expectedGroups.flat());
+          assert.equal(new Set(ids(html)).size, 7);
+          assert.ok(html.includes(editAll ? "Αποθήκευση Περιγραφή" : "Αντιγραφή Περιγραφή"));
+          assert.ok(!html.includes("Αποθήκευση Αριθμός ζημιάς"));
+        }
+        for (const length of [1, 2, 6, 9, 10]) {
+          const keys = Array.from({ length }, (_, index) => `Related field ${index}`);
+          const groups = claimInformationGroups(keys);
+          assert.deepEqual(groups.flat(), keys); assert.ok(groups.every(group => group.length));
+          const children = keys.map(key => createElement(ProfileEditableField, { key, label: key, value: "Πλήρες κείμενο" }));
+          const html = themedRender(ClaimInfoFields, { children });
+          assert.ok(html.includes('data-policy-layout="claim-related"'));
+          assert.deepEqual(html.split(/data-policy-column="\d+"/).slice(1).map(ids), policyFieldColumns(groups, count));
+        }
+      }
+      const source = await readFile(new URL("../ClaimDetailDrawer.tsx", import.meta.url), "utf8");
+      assert.equal((source.match(/<ClaimInfoFields>/g) ?? []).length, 7);
+      assert.ok(!source.includes("InfoGrid"));
+      assert.ok(!source.includes("profileFieldGridSx"));
+      const item = source.slice(source.indexOf("function InfoItem("), source.indexOf("function KPI("));
+      assert.ok(!item.includes("<Grid")); assert.ok(item.includes("minWidth: 0"));
     });
     await t.test("policy General retains field order, readonly computed values and actual edit/save controls", () => {
       const policy={policyNumber:"POL1",customerDisplay:"Πελάτης",customerVat:"012345678",insuranceCompanyId:"carrier",insuranceCompanyName:"Ασφαλιστική",producerName:"Συνεργάτης",startDate:"2026-01-01",endDate:"2026-12-31"};

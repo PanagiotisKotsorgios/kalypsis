@@ -1,7 +1,8 @@
 import { DetailProfileTabs } from "./profile/DetailProfileTabs";
-import { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback, profileDialogPaperSx, profileFieldGridSx, useProfileFieldEditor, type ProfileFieldSession } from "./profile/ProfileFieldEditor";
-import { CLAIM_FIELDS, claimUpdatePayload } from "./profile/claimProfile";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback, profileDialogPaperSx, useProfileFieldEditor, type ProfileFieldSession } from "./profile/ProfileFieldEditor";
+import { CLAIM_FIELDS, CLAIM_PROFILE_GROUPS, claimInformationGroups, claimUpdatePayload } from "./profile/claimProfile";
+import { PolicyFieldColumns } from "./profile/PolicyFieldColumns";
+import { Children, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Alert,
   Box,
@@ -566,15 +567,11 @@ function Panel({
     </Card>
   );
 }
-function InfoGrid({ children }: { children: ReactNode }) {
-  return (
-    <Grid container spacing={1}>
-      {children}
-    </Grid>
-  );
+export function ClaimInfoFields({ children }: { children: ReactNode }) {
+  return <PolicyFieldColumns section="claim-related" groups={claimInformationGroups(Children.toArray(children))} />;
 }
 function InfoItem({ label, value, color }: { label: string; value: ReactNode; color?: string }) {
-  return <Grid item xs={12} md={6}><Box sx={{ color }}><ProfileEditableField label={label} value={typeof value === "string" || typeof value === "number" ? String(value) : undefined} /></Box></Grid>;
+  return <Box sx={{ color, minWidth: 0 }}><ProfileEditableField label={label} value={typeof value === "string" || typeof value === "number" ? String(value) : undefined} /></Box>;
 }
 function KPI({
   label,
@@ -666,7 +663,7 @@ function SummaryTab({
           </Button>
         }
       >
-        <InfoGrid>
+        <ClaimInfoFields>
           <InfoItem label="Αριθμός ζημιάς" value={claim.claimNumber} />
           <InfoItem label="Αριθμός συμβολαίου" value={claim.policyNumber} />
           <InfoItem label="Πελάτης / ασφαλισμένος" value={customerName} />
@@ -682,7 +679,7 @@ function SummaryTab({
             label="Όχημα / πινακίδα"
             value={policy?.vehicleRegistrationPlate ?? "Δεν έχει συνδεθεί"}
           />
-        </InfoGrid>
+        </ClaimInfoFields>
       </Panel>
       <Panel
         title="Πελάτης και στοιχεία επικοινωνίας"
@@ -700,7 +697,7 @@ function SummaryTab({
           ) : undefined
         }
       >
-        <InfoGrid>
+        <ClaimInfoFields>
           <InfoItem label="Ονοματεπώνυμο / επωνυμία" value={customerName} />
           <InfoItem label="ΑΦΜ" value={customer?.vatNumber} />
           <InfoItem label="Email" value={customer?.email} />
@@ -712,7 +709,7 @@ function SummaryTab({
               .filter(Boolean)
               .join(", ")}
           />
-        </InfoGrid>
+        </ClaimInfoFields>
       </Panel>
       <Panel title="Περιγραφή" icon={<InfoOutlinedIcon />}>
         {claim.description ? (
@@ -734,7 +731,7 @@ function ClaimFieldsTab({ claim, session }: { claim: ClaimRow; session?: Profile
         title="ΥΣΑΕ και ασφαλιστική διαχείριση"
         icon={<InfoOutlinedIcon />}
       >
-        <InfoGrid>
+        <ClaimInfoFields>
           <InfoItem
             label="Επηρεάζει Bonus-Malus"
             value={claim.affectsBonusMalus === false ? "Όχι" : "Ναι"}
@@ -771,7 +768,7 @@ function ClaimFieldsTab({ claim, session }: { claim: ClaimRow; session?: Profile
             label="Φιλικός διακανονισμός"
             value={claim.isFriendlySettlement ? "Ναι" : "Όχι"}
           />
-        </InfoGrid>
+        </ClaimInfoFields>
       </Panel>
       <Panel title="Περιγραφή ζημιάς" icon={<InfoOutlinedIcon />}>
         {claim.description ? (
@@ -821,7 +818,7 @@ function PolicyVehicleTab({
           </Button>
         }
       >
-        <InfoGrid>
+        <ClaimInfoFields>
           <InfoItem
             label="Αριθμός συμβολαίου"
             value={policy.policyNumber || claim.policyNumber}
@@ -849,7 +846,7 @@ function PolicyVehicleTab({
             label="Προηγούμενη ασφαλιστική"
             value={policy.previousInsuranceCompanyName}
           />
-        </InfoGrid>
+        </ClaimInfoFields>
       </Panel>
       <Panel
         title="Όχημα και σύνδεση"
@@ -862,7 +859,7 @@ function PolicyVehicleTab({
           )
         }
       >
-        <InfoGrid>
+        <ClaimInfoFields>
           <InfoItem
             label="Αριθμός κυκλοφορίας"
             value={policy.vehicleRegistrationPlate}
@@ -893,7 +890,7 @@ function PolicyVehicleTab({
               policy.officeReceivedAt ? date(policy.officeReceivedAt) : "—"
             }
           />
-        </InfoGrid>
+        </ClaimInfoFields>
         {policy.policyNotes && (
           <Typography sx={{ mt: 1.5, whiteSpace: "pre-wrap" }}>
             <strong>Σημειώσεις:</strong> {policy.policyNotes}
@@ -963,7 +960,7 @@ function FinancialTab({
 }) {
   return (
     <Stack spacing={1}>
-      <InfoGrid>
+      <Grid container spacing={1}>
         <Grid item xs={12} sm={6} md={3}>
           <KPI
             label="Αιτούμενο"
@@ -988,12 +985,12 @@ function FinancialTab({
             color="#0b5cad"
           />
         </Grid>
-      </InfoGrid>
+      </Grid>
       <Panel
         title="Οικονομική εικόνα συμβολαίου"
         icon={<AccountBalanceWalletOutlinedIcon />}
       >
-        <InfoGrid>
+        <ClaimInfoFields>
           <InfoItem
             label="Ασφάλιστρο συμβολαίου"
             value={fmt(policy?.premium)}
@@ -1011,7 +1008,7 @@ function FinancialTab({
           />
           <InfoItem label="Πληρωμένο σε παθόντες" value={fmt(victimPaid)} />
           <InfoItem label="Προμήθειες" value={fmt(policy?.totalCommissions)} />
-        </InfoGrid>
+        </ClaimInfoFields>
       </Panel>
       <Panel
         title={`Προβλέψεις (${provisions.length})`}
@@ -1185,7 +1182,7 @@ function HistoryTab({
   return (
     <Stack spacing={1}>
       <Panel title="Σύνδεσμοι και αρχεία" icon={<DescriptionOutlinedIcon />}>
-        <InfoGrid>
+        <ClaimInfoFields>
           <InfoItem
             label="Αριθμός εγγράφων συμβολαίου"
             value={policy?.documentCount ?? 0}
@@ -1211,7 +1208,7 @@ function HistoryTab({
             label="Επόμενη ανανέωση"
             value={policy?.nextRenewalDate ? date(policy.nextRenewalDate) : "—"}
           />
-        </InfoGrid>
+        </ClaimInfoFields>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} mt={1}>
           <Button
             variant="outlined"
@@ -1246,10 +1243,12 @@ function HistoryTab({
 export function ClaimProfileFields({ claim, session }: { claim: ClaimRow; session?: ProfileFieldSession }) {
   const statuses = ["Reported", "UnderReview", "Approved", "Rejected", "Paid", "Closed"];
   const { t } = useTranslation();
-  return <Box sx={profileFieldGridSx}>
-    <ProfileEditableField label="Αριθμός ζημιάς" value={claim.claimNumber} mono />
-    {CLAIM_FIELDS.map(([key, label]) => <ProfileEditableField key={key} field={session ? key : undefined} session={session} label={label} value={String(claim[key] ?? "")}
-      type={key.endsWith("Date") ? "date" : key.endsWith("Amount") ? "number" : "text"} multiline={key === "description"}
-      options={key === "status" ? statuses.map(value => ({value, label: claimStatusLabel(value, t)})) : undefined} />)}
-  </Box>;
+  const fields = new Map<string, ReactNode>([
+    ["claimNumber", <ProfileEditableField key="claimNumber" label="Αριθμός ζημιάς" value={claim.claimNumber} mono />],
+    ...CLAIM_FIELDS.map(([key, label]): [string, ReactNode] => [key,
+      <ProfileEditableField key={key} field={session ? key : undefined} session={session} label={label} value={String(claim[key] ?? "")}
+        type={key.endsWith("Date") ? "date" : key.endsWith("Amount") ? "number" : "text"} multiline={key === "description"}
+        options={key === "status" ? statuses.map(value => ({value, label: claimStatusLabel(value, t)})) : undefined} />]),
+  ]);
+  return <PolicyFieldColumns section="claim-general" groups={CLAIM_PROFILE_GROUPS.map(group => group.map(key => fields.get(key)))} />;
 }
