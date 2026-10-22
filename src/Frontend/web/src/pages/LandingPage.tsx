@@ -351,6 +351,7 @@ export function LandingPage() {
               >
                 Σύνδεση
               </Box>
+              <Stack direction="row" spacing={1} alignItems="center" data-nav-slot="registration">
               <Box
                 component={RouterLink}
                 to="/register"
@@ -365,6 +366,8 @@ export function LandingPage() {
               >
                 Εγγραφή
               </Box>
+              <CliProjectLink />
+              </Stack>
             </Stack>
             {/* Desktop-only right cluster — Contact button + LanguageToggle. */}
             <Stack
@@ -423,7 +426,6 @@ export function LandingPage() {
               <LanguageToggle />
             </Stack>
 
-            <CliProjectLink />
             {/* Mobile-only hamburger — opens the right-hand drawer with
               Σύνδεση / Εγγραφή / Επικοινωνία. */}
             <IconButton
@@ -585,6 +587,7 @@ export function LandingPage() {
             </Button>
 
             {/* Secondary — Εγγραφή. Identical spec to the hero CTA. */}
+            <Stack direction="row" spacing={1} alignItems="center" data-nav-slot="mobile-registration">
             <Button
               component={RouterLink}
               to="/register"
@@ -593,6 +596,8 @@ export function LandingPage() {
               variant="outlined"
               endIcon={<ArrowForwardIcon sx={{ fontSize: 20 }} />}
               sx={{
+                flex: 1,
+                minWidth: 0,
                 height: 52,
                 borderRadius: "14px",
                 justifyContent: "space-between",
@@ -620,6 +625,8 @@ export function LandingPage() {
             >
               Εγγραφή
             </Button>
+            <CliProjectLink />
+            </Stack>
           </Stack>
 
           <Divider sx={{ borderColor: "rgba(148,191,230,0.35)", mx: 2.5 }} />

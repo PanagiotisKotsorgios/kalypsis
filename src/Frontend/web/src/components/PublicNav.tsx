@@ -234,6 +234,7 @@ export function PublicNav({ modern = false }: PublicNavProps = {}) {
                 <LoginIcon style={{ fontSize: 17 }} />
                 <span>{t("publicNav.signIn")}</span>
               </RouterLink>
+              <Stack direction="row" spacing={1} alignItems="center" data-nav-slot="registration">
               <RouterLink
                 to="/register"
                 className={modern ? undefined : "ink-button"}
@@ -256,9 +257,10 @@ export function PublicNav({ modern = false }: PublicNavProps = {}) {
                 <span>{t("publicNav.tryFree")}</span>
                 <ArrowOutwardIcon style={{ fontSize: 17 }} />
               </RouterLink>
+              <CliProjectLink />
+              </Stack>
             </Stack>
 
-            <CliProjectLink />
             {/* Mobile hamburger — bigger touch target */}
             <IconButton
               onClick={() => setOpen(true)}
@@ -390,6 +392,7 @@ export function PublicNav({ modern = false }: PublicNavProps = {}) {
               <LoginIcon style={{ fontSize: 19 }} />
               <span>{t("publicNav.signIn")}</span>
             </RouterLink>
+            <Stack direction="row" spacing={1} alignItems="center" data-nav-slot="mobile-registration">
             <RouterLink
               to="/register"
               className={modern ? undefined : "ink-button"}
@@ -398,7 +401,8 @@ export function PublicNav({ modern = false }: PublicNavProps = {}) {
                 fontSize: 15,
                 fontWeight: 700,
                 padding: "17px 26px",
-                width: "100%",
+                flex: 1,
+                minWidth: 0,
                 boxSizing: "border-box",
                 ...(modern
                   ? { border: "1px solid #0b2545", borderRadius: "999px", color: "#fff", background: "#0b2545" }
@@ -408,6 +412,8 @@ export function PublicNav({ modern = false }: PublicNavProps = {}) {
               <span>{t("publicNav.tryFree")}</span>
               <ArrowOutwardIcon style={{ fontSize: 19 }} />
             </RouterLink>
+            <CliProjectLink />
+            </Stack>
             <Box pt={3} sx={{ borderTop: "1px solid var(--rule)", mt: 2 }}>
               <LanguageToggle />
             </Box>

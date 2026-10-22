@@ -58,8 +58,11 @@ test("public pricing, contract form, disclosure and bilingual CLI links render w
     const {CliProjectLink,CLI_REPOSITORY,cliContributionUrl} = await server.ssrLoadModule("/src/components/CliProjectLink.tsx");
     const {AgencyAnalyticsPanel} = await server.ssrLoadModule("/src/components/AgencyAnalyticsPanel.tsx");
     const {PricingPage} = await server.ssrLoadModule("/src/pages/PricingPage.tsx");
+    const {LandingNavbar} = await server.ssrLoadModule("/src/components/LandingNavbar.tsx");
+    const {PublicNav} = await server.ssrLoadModule("/src/components/PublicNav.tsx");
+    const {LandingPage} = await server.ssrLoadModule("/src/pages/LandingPage.tsx");
     client.setQueryData(["public-pricing"], {version:1,plans:[{code:"test",name:"Πλάνο δοκιμής",description:"Δοκιμή",tagline:"",pricePerYear:100,includedOffices:1,includedUsers:1,includedPackages:1,extraOfficePerYear:20,extraUserPerYear:10,packages:["core"],isFeatured:true,isActive:true,sortOrder:1,buttonText:"Επιλογή",buttonUrl:"/register"}],addons:[],services:[],features:[{key:"core",label:"Πελάτες",sortOrder:1,isActive:true}],settings:{currency:"EUR",pricesIncludeVat:false,vatRate:24,publicTitle:"Τιμές",publicSubtitle:"",vatLabel:"ΦΠΑ"}});
-    const render = (child,width) => renderToStaticMarkup(h(QueryClientProvider,{client},h(I18nextProvider,{i18n},h(ThemeProvider,{theme:createTheme({components:{MuiDialog:{defaultProps:{disablePortal:true}},MuiUseMediaQuery:{defaultProps:{ssrMatchMedia:()=>({matches:width<600})}}}})},h(MemoryRouter,null,child)))));
+    const render = (child,width,mountDrawers=false) => renderToStaticMarkup(h(QueryClientProvider,{client},h(I18nextProvider,{i18n},h(ThemeProvider,{theme:createTheme({components:{MuiDialog:{defaultProps:{disablePortal:true}},...(mountDrawers ? {MuiModal:{defaultProps:{keepMounted:true,disablePortal:true}},MuiDrawer:{defaultProps:{ModalProps:{keepMounted:true,disablePortal:true}}}} : {}),MuiUseMediaQuery:{defaultProps:{ssrMatchMedia:()=>({matches:width<600})}}}})},h(MemoryRouter,null,child)))));
     await context.test("contract modal has all screenshot fields, optional region/message, consent and accessible controls at six widths", () => {
       for (const width of [320,360,600,900,1280,1920]) {
         const html = render(h(ContractRequestDialog,{open:true,onClose(){}}),width);
@@ -88,6 +91,19 @@ test("public pricing, contract form, disclosure and bilingual CLI links render w
       assert.ok(cliContributionUrl(false).endsWith("CONTRIBUTING.el.md"));
       assert.ok(cliContributionUrl(true).endsWith("CONTRIBUTING.md"));
       for (const path of ["./LandingNavbar.tsx","./PublicNav.tsx","../pages/LandingPage.tsx"]) assert.ok((await read(path)).includes("<CliProjectLink />"),path);
+    });
+    await context.test("GitHub is grouped immediately after registration in every public desktop header and mobile drawer, not beside the contact/language controls", () => {
+      for (const Component of [LandingNavbar,PublicNav,LandingPage]) {
+        const html = render(h(Component),360,true);
+        for (const slot of ["registration","mobile-registration"]) {
+          const group = html.match(new RegExp(`<div[^>]*data-nav-slot="${slot}"[^>]*>([\\s\\S]*?)</div>`))?.[1];
+          assert.ok(group,`${Component.name}: ${slot} exists`);
+          const anchors = [...group.matchAll(/<a\b[^>]*href="([^"]+)"/g)].map(match=>match[1]);
+          assert.deepEqual(anchors,["/register",CLI_REPOSITORY],`${Component.name}: ${slot} links stay adjacent`);
+          assert.ok(group.includes("GitHubIcon"));
+          assert.ok(group.includes('target="_blank"')); assert.ok(group.includes('rel="noopener noreferrer"'));
+        }
+      }
     });
   } finally {client.clear();await server.close();}
 });

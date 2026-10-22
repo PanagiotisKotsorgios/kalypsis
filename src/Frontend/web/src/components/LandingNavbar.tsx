@@ -60,7 +60,10 @@ export function LandingNavbar() {
               </Box>
               <Box aria-hidden sx={{ display: { md: "none", xl: "block" }, width: 1, height: 22, bgcolor: "rgba(11,37,69,0.18)" }} />
               <Box component={RouterLink} to="/login" sx={{ color: NAVY, textDecoration: "none", fontSize: { md: 14.5, lg: 15.5 }, fontWeight: 700, letterSpacing: "0.01em", "&:hover": { color: ACCENT } }}>Σύνδεση</Box>
-              <Box component={RouterLink} to="/register" sx={{ color: NAVY, textDecoration: "none", fontSize: { md: 14.5, lg: 15.5 }, fontWeight: 700, letterSpacing: "0.01em", "&:hover": { color: ACCENT } }}>Εγγραφή</Box>
+              <Stack direction="row" spacing={1} alignItems="center" data-nav-slot="registration">
+                <Box component={RouterLink} to="/register" sx={{ color: NAVY, textDecoration: "none", fontSize: { md: 14.5, lg: 15.5 }, fontWeight: 700, letterSpacing: "0.01em", "&:hover": { color: ACCENT } }}>Εγγραφή</Box>
+                <CliProjectLink />
+              </Stack>
             </Stack>
             <Stack direction="row" spacing={{ md: 1.25, lg: 1.75 }} alignItems="center" sx={{ ml: "auto", display: { xs: "none", md: "flex" }, flexShrink: 0, whiteSpace: "nowrap" }}>
               <Button component={RouterLink} to="/contact" variant="outlined" startIcon={<ChatBubbleOutlineIcon sx={{ fontSize: 20, color: ACCENT }} />} sx={{ borderRadius: 999, px: { md: 2, lg: 2.75 }, py: { md: .85, lg: 1 }, fontSize: { md: 13.5, lg: 14.5 }, fontWeight: 700, letterSpacing: "0.01em", textTransform: "none", whiteSpace: "nowrap", color: NAVY, bgcolor: "rgba(30,167,225,0.06)", borderColor: "rgba(30,167,225,0.35)", "& .MuiButton-startIcon": { mr: 1 }, "&:hover": { borderColor: ACCENT, bgcolor: "rgba(30,167,225,0.12)" } }}>
@@ -69,7 +72,6 @@ export function LandingNavbar() {
               </Button>
               <LanguageToggle />
             </Stack>
-            <CliProjectLink />
             <IconButton aria-label="Άνοιγμα μενού" onClick={() => setMenuOpen(true)} sx={{ display: { xs: "inline-flex", md: "none" }, color: NAVY, bgcolor: "rgba(30,167,225,0.06)", border: "1px solid rgba(30,167,225,0.35)", borderRadius: 2, p: 1.15, "&:hover": { bgcolor: "rgba(30,167,225,0.14)" } }}>
               <MenuIcon sx={{ fontSize: 26 }} />
             </IconButton>
@@ -84,7 +86,10 @@ export function LandingNavbar() {
         <Stack spacing={1.5} sx={{ p: 2.5 }}>
           <Typography sx={{ fontSize: 10, letterSpacing: "0.28em", textTransform: "uppercase", color: NAVY_SOFT, fontWeight: 700 }}>Λογαριασμός</Typography>
           <Button component={RouterLink} to="/login" fullWidth onClick={() => setMenuOpen(false)} variant="contained" disableElevation endIcon={<ArrowForwardIcon sx={{ fontSize: 20 }} />} sx={{ height: 52, borderRadius: "14px", justifyContent: "space-between", px: 2.25, fontSize: 15, fontWeight: 800, letterSpacing: "0.02em", textTransform: "uppercase", color: "#fff", background: "linear-gradient(180deg, #2f6bd6 0%, #17417f 55%, #0b2545 100%)", boxShadow: "0 10px 22px rgba(11,37,69,0.28)", "&:hover": { background: "linear-gradient(180deg, #3d7be0 0%, #1c4f95 55%, #0e2b52 100%)" } }}>Σύνδεση</Button>
-          <Button component={RouterLink} to="/register" fullWidth onClick={() => setMenuOpen(false)} variant="outlined" endIcon={<ArrowForwardIcon sx={{ fontSize: 20 }} />} sx={{ height: 52, borderRadius: "14px", justifyContent: "space-between", px: 2.25, fontSize: 15, fontWeight: 800, letterSpacing: "0.02em", textTransform: "uppercase", color: "#17417f", bgcolor: "#fff", borderColor: "#2f6bd6", borderWidth: "1.8px", "&:hover": { borderWidth: "1.8px", borderColor: "#17417f", bgcolor: "#eef4ff" } }}>Εγγραφή</Button>
+          <Stack direction="row" spacing={1} alignItems="center" data-nav-slot="mobile-registration">
+            <Button component={RouterLink} to="/register" fullWidth onClick={() => setMenuOpen(false)} variant="outlined" endIcon={<ArrowForwardIcon sx={{ fontSize: 20 }} />} sx={{ flex: 1, minWidth: 0, height: 52, borderRadius: "14px", justifyContent: "space-between", px: 2.25, fontSize: 15, fontWeight: 800, letterSpacing: "0.02em", textTransform: "uppercase", color: "#17417f", bgcolor: "#fff", borderColor: "#2f6bd6", borderWidth: "1.8px", "&:hover": { borderWidth: "1.8px", borderColor: "#17417f", bgcolor: "#eef4ff" } }}>Εγγραφή</Button>
+            <CliProjectLink />
+          </Stack>
         </Stack>
         <Divider sx={{ borderColor: "rgba(148,191,230,0.35)", mx: 2.5 }} />
         <Stack spacing={1.5} sx={{ p: 2.5 }}>
