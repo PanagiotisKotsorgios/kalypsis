@@ -62,6 +62,8 @@ test("public pricing, contract form, disclosure and bilingual CLI links render w
     const {PublicNav} = await server.ssrLoadModule("/src/components/PublicNav.tsx");
     const {LandingPage} = await server.ssrLoadModule("/src/pages/LandingPage.tsx");
     const {PublicWorkflowSection} = await server.ssrLoadModule("/src/components/PublicWorkflowSection.tsx");
+    const {PublicOfferingsSection} = await server.ssrLoadModule("/src/components/PublicOfferingsSection.tsx");
+    const {PublicPricingCooperationSection} = await server.ssrLoadModule("/src/components/PublicPricingCooperationSection.tsx");
     client.setQueryData(["public-pricing"], {version:1,plans:[{code:"test",name:"Πλάνο δοκιμής",description:"Δοκιμή",tagline:"",pricePerYear:100,includedOffices:1,includedUsers:1,includedPackages:1,extraOfficePerYear:20,extraUserPerYear:10,packages:["core"],isFeatured:true,isActive:true,sortOrder:1,buttonText:"Επιλογή",buttonUrl:"/register"}],addons:[],services:[],features:[{key:"core",label:"Πελάτες",sortOrder:1,isActive:true}],settings:{currency:"EUR",pricesIncludeVat:false,vatRate:24,publicTitle:"Τιμές",publicSubtitle:"",vatLabel:"ΦΠΑ"}});
     const render = (child,width,mountDrawers=false) => renderToStaticMarkup(h(QueryClientProvider,{client},h(I18nextProvider,{i18n},h(ThemeProvider,{theme:createTheme({components:{MuiDialog:{defaultProps:{disablePortal:true}},...(mountDrawers ? {MuiModal:{defaultProps:{keepMounted:true,disablePortal:true}},MuiDrawer:{defaultProps:{ModalProps:{keepMounted:true,disablePortal:true}}}} : {}),MuiUseMediaQuery:{defaultProps:{ssrMatchMedia:()=>({matches:width<600})}}}})},h(MemoryRouter,null,child)))));
     await context.test("contract modal has all screenshot fields, optional region/message, consent and accessible controls at six widths", () => {
@@ -127,6 +129,48 @@ test("public pricing, contract form, disclosure and bilingual CLI links render w
       assert.ok((await read("../pages/LandingPage.tsx")).includes("<PublicWorkflowSection />"));
       const tooltip = await read("./CliProjectLink.tsx");
       for (const obsolete of ["υπό προετοιμασία","not available yet","planned Windows"]) assert.ok(!tooltip.includes(obsolete));
+    });
+    await context.test("offerings match the reference hierarchy with six readable cards, a schematic and six accessible contact links", async () => {
+      for (const language of ["el","en"]) {
+        i18n.addResourceBundle(language,"translation",JSON.parse(await read(`../i18n/locales/${language}.json`)),true,true);
+        await i18n.changeLanguage(language);
+        for (const width of [320,360,600,900,1280,1920]) {
+          const html = render(h(PublicOfferingsSection),width);
+          assert.equal((html.match(/<article\b/g)??[]).length,6);
+          assert.equal((html.match(/<h3\b/g)??[]).length,6);
+          assert.equal((html.match(/href="\/contact"/g)??[]).length,6);
+          assert.ok(html.includes('id="features"')); assert.ok(html.includes('aria-labelledby="public-offerings-title"'));
+          for(const key of ["bridges","prod","network","cash","access","portal"]) {
+            assert.ok(html.includes(`id="offering-${key}-title"`));
+            const title=i18n.t(`landing.v2.feat.${key}T`);
+            assert.ok(html.includes(title.replaceAll("&","&amp;")),title);
+          }
+          assert.ok(html.includes('viewBox="0 0 420 255"'));
+          for(const token of ["AIG","INTERAMERICAN","Groupama","KALYPSIS","minmax(0,1fr)","1200px","1536px","prefers-reduced-motion"]) assert.ok(html.includes(token),token);
+          assert.ok(!html.includes('opacity:0;'));
+        }
+      }
+      const page = await read("../pages/LandingPage.tsx");
+      assert.ok(page.includes("<PublicOfferingsSection />"));
+      assert.ok(!page.includes("<FeatureGrid />"));
+    });
+    await context.test("the table is replaced with exactly two clear next steps, preserving the actual pricing page and contract form", async () => {
+      for (const language of ["el","en"]) {
+        await i18n.changeLanguage(language);
+        for(const width of [320,360,600,900,1280,1920]) {
+          const html=render(h(PublicPricingCooperationSection),width);
+          assert.ok(!html.includes("<table"));
+          assert.equal((html.match(/href="\/pricing"/g)??[]).length,1);
+          assert.equal((html.match(/<button\b/g)??[]).length,1);
+          assert.ok(html.includes('aria-haspopup="dialog"')); assert.ok(html.includes('aria-expanded="false"'));
+          for (const text of language === "el" ? ["Αναλυτική τιμολόγηση","Αίτημα σύμβασης συνεργασίας"] : ["Detailed pricing","Request a cooperation agreement"]) assert.ok(html.includes(text));
+          for(const token of ['#EDF3F9','#0B305C','flex-direction:column','900px']) assert.ok(html.includes(token),token);
+        }
+      }
+      const landing=render(h(LandingPage),1920);
+      assert.ok(!landing.includes('<table'));
+      assert.ok(landing.includes('public-pricing-cooperation-title'));
+      assert.equal((landing.match(/id="offering-[a-z]+-title"/g)??[]).length,6);
     });
   } finally {client.clear();await server.close();}
 });
