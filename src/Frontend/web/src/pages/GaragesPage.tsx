@@ -1,5 +1,6 @@
 import { ClaimListFilters, ClaimListTableFrame } from "../components/ClaimListLayout";
 import { ClaimSupportDetailDialog } from "../components/ClaimSupportDetailDialog";
+import { claimSupportUpdate } from "../components/profile/claimSupportProfile";
 import { RecordCountChip } from "../components/TableToolbar";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -161,7 +162,7 @@ export function GaragesPage() {
   );
 }
 
-function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: () => void; item: GarageDto | null; onSaved: () => void }) {
+export function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: () => void; item: GarageDto | null; onSaved: () => void }) {
   const { t } = useTranslation();
   const editing = !!item;
   const [form, setForm] = useState({
@@ -170,6 +171,7 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
   });
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
+    setErr(null);
     if (item) setForm({
       code: item.code, name: item.name, afm: item.afm ?? "", address: item.address ?? "",
       city: item.city ?? "", postalCode: item.postalCode ?? "", phone: item.phone ?? "",
@@ -184,12 +186,7 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
 
   const save = useMutation({
     mutationFn: async () => {
-      const body = {
-        code: form.code.trim(), name: form.name.trim(), afm: form.afm || null,
-        address: form.address || null, city: form.city || null, postalCode: form.postalCode || null,
-        phone: form.phone || null, email: form.email || null, specialty: form.specialty || null,
-        isApproved: form.isApproved, iban: form.iban || null, isActive: form.isActive, notes: form.notes || null
-      };
+      const body = claimSupportUpdate("garages", form, Object.fromEntries(Object.entries(form).map(([key, value]) => [key, String(value)])), { allowGeneratedGarageCode: !editing });
       if (editing) return (await api.put(`/garages/${item!.id}`, body)).data;
       return (await api.post("/garages", body)).data;
     },
@@ -203,7 +200,7 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={2} mt={1}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField required label={t("garages.code")} value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} fullWidth />
+            <TextField required={editing} label={t("garages.code")} value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} fullWidth helperText={!editing ? "Κενό: αυτόματη δημιουργία κωδικού." : undefined} inputProps={{ maxLength: 40 }} />
             <TextField required label={t("garages.name")} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} fullWidth sx={{ flex: 2 }} />
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
@@ -235,7 +232,7 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>{t("common.cancel")}</Button>
-        <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending || !form.code.trim() || !form.name.trim()}>
+        <Button variant="contained" onClick={() => { setErr(null); save.mutate(); }} disabled={save.isPending}>
           {save.isPending ? <CircularProgress size={18} /> : t("common.save")}
         </Button>
       </DialogActions>

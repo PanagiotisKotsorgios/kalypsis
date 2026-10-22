@@ -97,6 +97,10 @@ public class ClaimIndemnitiesController : ControllerBase
     public async Task<ActionResult<ClaimIndemnityDto>> Create([FromBody] ClaimIndemnityBody body, CancellationToken ct)
         => Ok(await _mediator.Send(new CreateClaimIndemnityCommand(body), ct));
 
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<ClaimIndemnityDto>> Update(Guid id, [FromBody] ClaimIndemnityBody body, CancellationToken ct)
+        => Ok(await _mediator.Send(new UpdateClaimIndemnityCommand(id, body), ct));
+
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {

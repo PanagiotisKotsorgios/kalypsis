@@ -15,13 +15,12 @@ export const CLAIM_SUPPORT_SECTIONS: Record<ClaimSupportKind, { label: string; f
     { label: "Λοιπά", fields: [{ key: "otherPartyInsurer", label: "Ασφαλιστική άλλου μέρους" }, { key: "otherPartyPolicy", label: "Συμβόλαιο άλλου μέρους" }, { key: "appraisorName", label: "Πραγματογνώμονας" }, { key: "appraisalDate", label: "Ημερομηνία πραγματογνωμοσύνης", type: "date" }, { key: "victimCount", label: "Παθόντες", readonly: true }, { key: "notes", label: "Σημειώσεις", multiline: true }] },
   ],
   indemnities: [
-    { label: "Γενικά", fields: [{ key: "paymentNumber", label: "Αριθμός πληρωμής" }, { key: "claimNumber", label: "Αριθμός ζημιάς" }, { key: "paidOn", label: "Ημερομηνία πληρωμής", type: "date" }, { key: "amount", label: "Ποσό", type: "number" }, { key: "currency", label: "Νόμισμα" }, { key: "payeeType", label: "Τύπος δικαιούχου", options: [{ value: "Customer", label: "Πελάτης" }, { value: "Garage", label: "Συνεργείο" }, { value: "Hospital", label: "Νοσοκομείο" }, { value: "Other", label: "Άλλος" }] }, { key: "payeeName", label: "Δικαιούχος" }, { key: "garageName", label: "Συνεργείο" }, { key: "paymentMethod", label: "Τρόπος πληρωμής", options: [{ value: "Cash", label: "Μετρητά" }, { value: "BankTransfer", label: "Τραπεζική μεταφορά" }, { value: "Cheque", label: "Επιταγή" }, { value: "Card", label: "Κάρτα" }, { value: "Other", label: "Άλλος" }] }, { key: "reference", label: "Αναφορά" }, { key: "notes", label: "Σημειώσεις", multiline: true }] },
+    { label: "Γενικά", fields: [{ key: "paymentNumber", label: "Αριθμός πληρωμής" }, { key: "claimId", label: "Αριθμός ζημιάς" }, { key: "paidOn", label: "Ημερομηνία πληρωμής", type: "date" }, { key: "amount", label: "Ποσό", type: "number" }, { key: "currency", label: "Νόμισμα" }, { key: "payeeType", label: "Τύπος δικαιούχου", options: [{ value: "Customer", label: "Πελάτης" }, { value: "Garage", label: "Συνεργείο" }, { value: "Hospital", label: "Νοσοκομείο" }, { value: "Other", label: "Άλλος" }] }, { key: "payeeName", label: "Δικαιούχος" }, { key: "garageId", label: "Συνεργείο" }, { key: "paymentMethod", label: "Τρόπος πληρωμής", options: [{ value: "Cash", label: "Μετρητά" }, { value: "BankTransfer", label: "Τραπεζική μεταφορά" }, { value: "Cheque", label: "Επιταγή" }, { value: "Card", label: "Κάρτα" }, { value: "Other", label: "Άλλος" }] }, { key: "reference", label: "Αναφορά" }, { key: "notes", label: "Σημειώσεις", multiline: true }] },
   ],
 };
 
 /** Preserve hidden historical values and associations; only existing PUT endpoints are supported. */
-export function claimSupportUpdate(kind: ClaimSupportKind, current: Record<string, unknown>, changes: Record<string, string>) {
-  if (kind === "indemnities") throw new Error("Η μεταβολή καταχωρημένης αποζημίωσης δεν υποστηρίζεται.");
+export function claimSupportUpdate(kind: ClaimSupportKind, current: Record<string, unknown>, changes: Record<string, string>, { allowGeneratedGarageCode = false } = {}) {
   const fields = CLAIM_SUPPORT_SECTIONS[kind].flatMap(section => section.fields).filter(field => !field.readonly);
   const next = { ...current };
   for (const [key, raw] of Object.entries(changes)) {
@@ -43,10 +42,19 @@ export function claimSupportUpdate(kind: ClaimSupportKind, current: Record<strin
       next[key] = value || null;
     }
   }
-  for (const key of kind === "garages" ? ["code", "name"] : ["claimId", "settlementFileNumber", "declarationDate", "currency", "status"]) if (!String(next[key] ?? "").trim()) throw new Error("Συμπληρώστε τα υποχρεωτικά στοιχεία.");
+  const required = kind === "garages" ? (allowGeneratedGarageCode ? ["name"] : ["code", "name"]) : kind === "indemnities" ? ["claimId", "paymentNumber", "paidOn", "amount", "currency", "payeeType", "paymentMethod"] : ["claimId", "settlementFileNumber", "declarationDate", "currency", "status"];
+  for (const key of required) if (!String(next[key] ?? "").trim()) throw new Error(`Συμπληρώστε το πεδίο «${fields.find(field => field.key === key)?.label ?? key}».`);
+  if (kind === "indemnities") {
+    if (!(Number(next.amount) > 0)) throw new Error("Το ποσό αποζημίωσης πρέπει να είναι μεγαλύτερο από μηδέν.");
+    if (next.payeeType === "Garage" && !next.garageId) throw new Error("Επιλέξτε συνεργείο.");
+    if (next.payeeType !== "Garage") next.garageId = null;
+    else next.payeeName = null;
+    for (const [key, limit] of Object.entries({ paymentNumber: 40, payeeName: 200, reference: 80, notes: 2000 })) if (String(next[key] ?? "").length > limit) throw new Error(`Το πεδίο «${fields.find(field => field.key === key)?.label}» δέχεται έως ${limit} χαρακτήρες.`);
+  }
+  if (kind !== "garages" && !/^[A-Za-z]{3}$/.test(String(next.currency))) throw new Error("Συμπληρώστε νόμισμα με 3 γράμματα, π.χ. EUR.");
   const keys = fields.map(field => field.key);
   if (kind === "friendly-settlements") keys.push("claimId", "vatAmount");
   const payload = Object.fromEntries(keys.map(key => [key, next[key] ?? null]));
-  if (kind === "friendly-settlements") payload.currency = String(payload.currency).toUpperCase();
+  if (kind !== "garages") payload.currency = String(payload.currency).toUpperCase();
   return payload;
 }

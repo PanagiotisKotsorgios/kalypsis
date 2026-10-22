@@ -1,6 +1,7 @@
 import { ClaimListFilters, ClaimListTableFrame } from "../components/ClaimListLayout";
 import { ClaimSupportDetailDialog } from "../components/ClaimSupportDetailDialog";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import EditIcon from "@mui/icons-material/Edit";
 import { RecordCountChip } from "../components/TableToolbar";
 import { useEffect, useMemo, useState } from "react";
 import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
@@ -41,6 +42,8 @@ export function ClaimIndemnitiesPage() {
   const [err, setErr] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [detail, setDetail] = useState<IndemnityDto | null>(null);
+  const [detailEditing, setDetailEditing] = useState(false);
+  const openIndemnityCard = (record: IndemnityDto, edit = false) => { setDetailEditing(edit); setDetail(record); };
   const [search, setSearch] = useState("");
   const [payeeTypeFilter, setPayeeTypeFilter] = useState("all");
   const [methodFilter, setMethodFilter] = useState("all");
@@ -124,6 +127,7 @@ export function ClaimIndemnitiesPage() {
   });
   const rowMenu = useRowContextMenu<IndemnityDto>({
     entityLabel: "αποζημίωσης",
+    onEdit: record => openIndemnityCard(record, true),
     onDelete: (i) => { if (confirm(t("common.confirmDelete"))) del.mutate(i.id); },
   });
 
@@ -194,7 +198,7 @@ export function ClaimIndemnitiesPage() {
                 <TableRow><TableCell colSpan={7} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("indemnities.empty")}</TableCell></TableRow>
               )}
               {pageRows.map(i => (
-                <TableRow key={i.id} hover sx={{ cursor: "pointer" }} onClick={event => { if (!(event.target as HTMLElement).closest("button, a")) setDetail(i); }} onContextMenu={(e) => rowMenu.open(e, i)}>
+                <TableRow key={i.id} hover sx={{ cursor: "pointer" }} onClick={event => { if (!(event.target as HTMLElement).closest("button, a")) openIndemnityCard(i); }} onContextMenu={(e) => rowMenu.open(e, i)}>
                   <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{i.paymentNumber}</TableCell>
                   <TableCell>{i.claimNumber}</TableCell>
                   <TableCell>{i.paidOn}</TableCell>
@@ -205,7 +209,8 @@ export function ClaimIndemnitiesPage() {
                   <TableCell>{t(`paymentMethod.${i.paymentMethod}`, i.paymentMethod)}</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700, color: "error.main" }}>{money(i.amount, i.currency)}</TableCell>
                   <TableCell align="right">
-                    <IconButton size="small" color="primary" onClick={() => setDetail(i)} aria-label="Προβολή αποζημίωσης"><VisibilityIcon fontSize="small" /></IconButton>
+                    <IconButton size="small" color="primary" onClick={() => openIndemnityCard(i)} aria-label="Προβολή αποζημίωσης"><VisibilityIcon fontSize="small" /></IconButton>
+                    <IconButton size="small" color="success" onClick={() => openIndemnityCard(i, true)} aria-label="Επεξεργασία αποζημίωσης"><EditIcon fontSize="small" /></IconButton>
                     <IconButton size="small" color="error" onClick={() => { if (confirm(t("common.confirmDelete"))) del.mutate(i.id); }}>
                       <DeleteIcon fontSize="small" />
                     </IconButton>
@@ -218,7 +223,7 @@ export function ClaimIndemnitiesPage() {
       )}
       {headerMenu.menu}
       {rowMenu.menu}
-      {detail && <ClaimSupportDetailDialog key={detail.id} kind="indemnities" record={detail} onClose={() => setDetail(null)} />}
+      {detail && <ClaimSupportDetailDialog key={`${detail.id}:${detailEditing ? "edit" : "view"}`} kind="indemnities" record={detail} initialEditing={detailEditing} canEdit onClose={() => setDetail(null)} />}
       <CreateDialog open={createOpen} onClose={() => setCreateOpen(false)}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["indemnities"] }); setCreateOpen(false); }} />
     </Box>

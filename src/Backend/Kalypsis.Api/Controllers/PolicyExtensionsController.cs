@@ -118,7 +118,7 @@ public class PolicyExtensionsController : ControllerBase
         decimal GrossPremium, decimal NetPremium, decimal? CoverageAmount,
         decimal? CommissionPercent, decimal? AgencyCommissionPercent);
     public record CoverBody(Guid? PolicyObjectId, string CoverCode, string? CoverName,
-        decimal GrossPremium, decimal NetPremium, decimal? CoverageAmount,
+        decimal? GrossPremium, decimal NetPremium, decimal? CoverageAmount,
         decimal? CommissionPercent, decimal? AgencyCommissionPercent);
 
     [HttpGet("covers")]
@@ -145,7 +145,7 @@ public class PolicyExtensionsController : ControllerBase
             PolicyObjectId = body.PolicyObjectId,
             CoverCode = body.CoverCode.Trim().ToUpperInvariant(),
             CoverName = body.CoverName?.Trim(),
-            GrossPremium = body.GrossPremium,
+            GrossPremium = body.GrossPremium ?? 0m,
             NetPremium = body.NetPremium,
             CoverageAmount = body.CoverageAmount,
             CommissionPercent = body.CommissionPercent,
@@ -154,7 +154,7 @@ public class PolicyExtensionsController : ControllerBase
         };
         _db.PolicyCovers.Add(c);
         await _db.SaveChangesAsync(ct);
-        await SyncPolicyPremiumFromCoversAsync(tenantId, policyId, ct);
+        if (body.GrossPremium.HasValue) await SyncPolicyPremiumFromCoversAsync(tenantId, policyId, ct);
         return Ok(MapCoverDto(c));
     }
 
@@ -170,14 +170,15 @@ public class PolicyExtensionsController : ControllerBase
         c.PolicyObjectId = body.PolicyObjectId;
         c.CoverCode = body.CoverCode.Trim().ToUpperInvariant();
         c.CoverName = body.CoverName?.Trim();
-        c.GrossPremium = body.GrossPremium;
+        // Net-only editing must not overwrite historical gross or the policy's own premium.
+        if (body.GrossPremium.HasValue) c.GrossPremium = body.GrossPremium.Value;
         c.NetPremium = body.NetPremium;
         c.CoverageAmount = body.CoverageAmount;
         c.CommissionPercent = body.CommissionPercent;
         c.AgencyCommissionPercent = body.AgencyCommissionPercent;
         c.UpdatedAt = _clock.UtcNow;
         await _db.SaveChangesAsync(ct);
-        await SyncPolicyPremiumFromCoversAsync(tenantId, policyId, ct);
+        if (body.GrossPremium.HasValue) await SyncPolicyPremiumFromCoversAsync(tenantId, policyId, ct);
         return Ok(MapCoverDto(c));
     }
 
@@ -190,7 +191,7 @@ public class PolicyExtensionsController : ControllerBase
             ?? throw AppException.NotFound("Κάλυψη");
         c.DeletedAt = _clock.UtcNow;
         await _db.SaveChangesAsync(ct);
-        await SyncPolicyPremiumFromCoversAsync(tenantId, policyId, ct);
+        if (c.GrossPremium != 0m) await SyncPolicyPremiumFromCoversAsync(tenantId, policyId, ct);
         return NoContent();
     }
 

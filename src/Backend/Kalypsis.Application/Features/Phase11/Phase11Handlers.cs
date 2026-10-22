@@ -328,17 +328,11 @@ public record CreateClaimIndemnityCommand(ClaimIndemnityBody Body) : IRequest<Cl
 public class CreateClaimIndemnityHandler : IRequestHandler<CreateClaimIndemnityCommand, ClaimIndemnityDto>
 {
     private readonly IAppDbContext _db;
-    public CreateClaimIndemnityHandler(IAppDbContext db) => _db = db;
+    private readonly ICurrentUser _current;
+    public CreateClaimIndemnityHandler(IAppDbContext db, ICurrentUser current) { _db = db; _current = current; }
     public async Task<ClaimIndemnityDto> Handle(CreateClaimIndemnityCommand r, CancellationToken ct)
     {
-        var b = r.Body;
-        if (await _db.ClaimIndemnities.AnyAsync(x => x.PaymentNumber == b.PaymentNumber, ct))
-            throw new AppException("payment_number_taken",
-                $"Υπάρχει ήδη αποζημίωση με αρ. {b.PaymentNumber}.", 409,
-                title: "Αριθμός σε χρήση",
-                why: "Ο αριθμός πληρωμής αποζημίωσης πρέπει να είναι μοναδικός.",
-                fix: "Επιλέξτε άλλο αριθμό ή αφήστε το σύστημα να τον γεννήσει αυτόματα.",
-                fixLink: "/app/indemnities");
+        var b = await ClaimIndemnityRules.Prepare(_db, _current, r.Body, null, ct);
         var entity = new ClaimIndemnity
         {
             Id = Guid.NewGuid(),
@@ -383,7 +377,7 @@ public record GarageDto(
     bool IsApproved, string? Iban, bool IsActive, string? Notes);
 
 public record GarageBody(
-    string Code, string Name, string? Afm, string? Address, string? City,
+    string? Code, string Name, string? Afm, string? Address, string? City,
     string? PostalCode, string? Phone, string? Email, string? Specialty,
     bool IsApproved, string? Iban, bool IsActive, string? Notes);
 
@@ -408,6 +402,15 @@ public class GarageBodyValidator : AbstractValidator<GarageBody>
     {
         RuleFor(x => x.Code).NotEmpty().MaximumLength(40);
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
+        RuleFor(x => x.Afm).MaximumLength(20).Must(value => ContactValueRules.Error("vatNumber", value) is null).WithMessage("Το ΑΦΜ πρέπει να περιέχει 9 ψηφία.");
+        RuleFor(x => x.Address).MaximumLength(300);
+        RuleFor(x => x.City).MaximumLength(120);
+        RuleFor(x => x.PostalCode).MaximumLength(20).Must(value => ContactValueRules.Error("postalCode", value) is null).WithMessage("Ο ταχυδρομικός κώδικας πρέπει να περιέχει 5 ψηφία.");
+        RuleFor(x => x.Phone).MaximumLength(40).Must(value => ContactValueRules.Error("phone", value) is null).WithMessage("Μη έγκυρο τηλέφωνο.");
+        RuleFor(x => x.Email).MaximumLength(160).Must(value => ContactValueRules.Error("email", value) is null).WithMessage("Μη έγκυρο email.");
+        RuleFor(x => x.Specialty).MaximumLength(80);
+        RuleFor(x => x.Iban).MaximumLength(40);
+        RuleFor(x => x.Notes).MaximumLength(2000);
     }
 }
 
@@ -415,21 +418,15 @@ public record CreateGarageCommand(GarageBody Body) : IRequest<GarageDto>;
 public class CreateGarageHandler : IRequestHandler<CreateGarageCommand, GarageDto>
 {
     private readonly IAppDbContext _db;
-    public CreateGarageHandler(IAppDbContext db) => _db = db;
+    private readonly ICurrentUser _current;
+    public CreateGarageHandler(IAppDbContext db, ICurrentUser current) { _db = db; _current = current; }
     public async Task<GarageDto> Handle(CreateGarageCommand r, CancellationToken ct)
     {
-        var b = r.Body;
-        if (await _db.Garages.AnyAsync(x => x.Code == b.Code, ct))
-            throw new AppException("garage_code_taken",
-                "Υπάρχει ήδη συνεργείο με αυτόν τον κωδικό.", 409,
-                title: "Κωδικός σε χρήση",
-                why: $"Ο κωδικός συνεργείου «{b.Code}» χρησιμοποιείται ήδη.",
-                fix: "Διαλέξτε διαφορετικό κωδικό για το νέο συνεργείο.",
-                fixLink: "/app/garages");
+        var b = await GarageInput.Prepare(_db, _current, r.Body, null, ct);
         var g = new Garage
         {
             Id = Guid.NewGuid(),
-            Code = b.Code.Trim(), Name = b.Name.Trim(), Afm = b.Afm,
+            Code = b.Code!.Trim(), Name = b.Name.Trim(), Afm = b.Afm,
             Address = b.Address, City = b.City, PostalCode = b.PostalCode,
             Phone = b.Phone, Email = b.Email, Specialty = b.Specialty,
             IsApproved = b.IsApproved, Iban = b.Iban, IsActive = b.IsActive, Notes = b.Notes
@@ -444,13 +441,15 @@ public record UpdateGarageCommand(Guid Id, GarageBody Body) : IRequest<GarageDto
 public class UpdateGarageHandler : IRequestHandler<UpdateGarageCommand, GarageDto>
 {
     private readonly IAppDbContext _db;
-    public UpdateGarageHandler(IAppDbContext db) => _db = db;
+    private readonly ICurrentUser _current;
+    public UpdateGarageHandler(IAppDbContext db, ICurrentUser current) { _db = db; _current = current; }
     public async Task<GarageDto> Handle(UpdateGarageCommand r, CancellationToken ct)
     {
-        var g = await _db.Garages.FirstOrDefaultAsync(x => x.Id == r.Id, ct)
+        var tenant = _current.TenantId ?? throw AppException.Forbidden();
+        var g = await _db.Garages.FirstOrDefaultAsync(x => x.Id == r.Id && x.TenantId == tenant && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Garage");
-        var b = r.Body;
-        g.Code = b.Code.Trim(); g.Name = b.Name.Trim(); g.Afm = b.Afm;
+        var b = await GarageInput.Prepare(_db, _current, r.Body, r.Id, ct);
+        g.Code = b.Code!.Trim(); g.Name = b.Name.Trim(); g.Afm = b.Afm;
         g.Address = b.Address; g.City = b.City; g.PostalCode = b.PostalCode;
         g.Phone = b.Phone; g.Email = b.Email; g.Specialty = b.Specialty;
         g.IsApproved = b.IsApproved; g.Iban = b.Iban; g.IsActive = b.IsActive; g.Notes = b.Notes;

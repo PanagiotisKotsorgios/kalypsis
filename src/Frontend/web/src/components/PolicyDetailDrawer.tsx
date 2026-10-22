@@ -3,6 +3,7 @@ import { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback, useP
 import { POLICY_CORE_KEYS, policyCorePayload, policyPreservedAmounts } from "./profile/policyProfile";
 import { policyPaymentStatus } from "./profile/policyPaymentStatus";
 import { PolicyCoverageTable } from "./PolicyCoverageTable";
+import { policyCoverPayload, type PolicyCoverDraft } from "./profile/policyCoverEdit";
 import { PolicyFieldColumns } from "./profile/PolicyFieldColumns";
 import { PolicyClaimsDialog } from "./PolicyClaimsDialog";
 import { linkedVehicleSpecs } from "./profile/vehicleProfile";
@@ -1913,35 +1914,13 @@ interface CoverRow {
   agencyCommissionPercent: number | null;
 }
 
-interface CoverFormState {
-  coverCode: string;
-  coverName: string;
-  policyObjectId: string;
-  grossPremium: string;
-  netPremium: string;
-  coverageAmount: string;
-  commissionPercent: string;
-  agencyCommissionPercent: string;
-}
+type CoverFormState = PolicyCoverDraft;
 
 const EMPTY_COVER_FORM: CoverFormState = {
   coverCode: "", coverName: "", policyObjectId: "",
-  grossPremium: "", netPremium: "", coverageAmount: "",
+  netPremium: "", coverageAmount: "",
   commissionPercent: "", agencyCommissionPercent: ""
 };
-
-function toBody(f: CoverFormState) {
-  return {
-    coverCode: f.coverCode.trim().toUpperCase(),
-    coverName: f.coverName.trim() || null,
-    policyObjectId: f.policyObjectId || null,
-    grossPremium: Number(f.grossPremium) || 0,
-    netPremium: Number(f.netPremium) || 0,
-    coverageAmount: f.coverageAmount ? Number(f.coverageAmount) : null,
-    commissionPercent: f.commissionPercent === "" ? null : Number(f.commissionPercent),
-    agencyCommissionPercent: f.agencyCommissionPercent === "" ? null : Number(f.agencyCommissionPercent),
-  };
-}
 
 function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string; readOnly?: boolean }) {
   const profile = useContext(PolicyFieldsContext);
@@ -1968,11 +1947,11 @@ function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string
   };
 
   const add = useMutation({
-    mutationFn: async () => (await api.post(`/policies/${policyId}/covers`, toBody(form))).data,
+    mutationFn: async () => (await api.post(`/policies/${policyId}/covers`, policyCoverPayload(form))).data,
     onSuccess: () => { setForm(EMPTY_COVER_FORM); setCoverDialogOpen(false); invalidate(); }
   });
   const update = useMutation({
-    mutationFn: async () => (await api.put(`/policies/${policyId}/covers/${editingId}`, toBody(form))).data,
+    mutationFn: async () => (await api.put(`/policies/${policyId}/covers/${editingId}`, policyCoverPayload(form))).data,
     onSuccess: () => { setEditingId(null); setForm(EMPTY_COVER_FORM); setCoverDialogOpen(false); invalidate(); }
   });
   const del = useMutation({
@@ -1987,7 +1966,6 @@ function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string
       coverCode: c.coverCode,
       coverName: c.coverName ?? "",
       policyObjectId: c.policyObjectId ?? "",
-      grossPremium: String(c.grossPremium),
       netPremium: String(c.netPremium),
       coverageAmount: c.coverageAmount === null ? "" : String(c.coverageAmount),
       commissionPercent: c.commissionPercent === null ? "" : String(c.commissionPercent),
@@ -2037,8 +2015,6 @@ function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string
             : <Stack gap={1}><Typography fontWeight={800}>{form.coverCode}</Typography><TextField size="small" label="Ονομασία κάλυψης" value={form.coverName} onChange={event => setForm(previous => ({ ...previous, coverName: event.target.value }))} /></Stack>}
           {!editing && canCreateCatalogue && <Button variant="outlined" color="success" onClick={() => setCatalogueCreateOpen(true)}>Προσθήκη νέας κάλυψης στα παραμετρικά</Button>}
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            <TextField disabled={readOnly} size="small" type="number" label="Μικτά" value={form.grossPremium}
-              onChange={e => setForm({ ...form, grossPremium: e.target.value })} sx={{ flex: 1 }} />
             <TextField disabled={readOnly} size="small" type="number" label="Καθαρά" value={form.netPremium}
               onChange={e => setForm({ ...form, netPremium: e.target.value })} sx={{ flex: 1 }} />
             <TextField disabled={readOnly} size="small" type="number" label="Κεφάλαιο" value={form.coverageAmount}
@@ -2103,7 +2079,6 @@ function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string
         onCreated={item => setForm(previous => ({ ...previous, coverCode: item.code, coverName: item.name }))}
         onSaved={() => { for (const key of ["company-parameters-catalogue", "company-parameters", "production-company-parameters"]) void qc.invalidateQueries({ queryKey: [key] }); }} />
       <Typography variant="caption" color="text.secondary">
-        Το ασφάλιστρο του συμβολαίου συγχρονίζεται αυτόματα με το σύνολο των Μικτών των καλύψεων.
         Ποσοστά που αφήνετε κενά κληρονομούνται από τον κανόνα προμηθειών.
       </Typography>
     </Stack>
