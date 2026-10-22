@@ -1,5 +1,5 @@
 import { SearchableTextField } from "../components/SearchableTextField";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Alert, Avatar, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
   Checkbox, DialogTitle, FormControlLabel, IconButton, Popover, Stack, Switch, Tab, Table, TableBody, TableCell, TableHead,
@@ -34,6 +34,7 @@ import { type CarrierProfile, type CompanyDto } from "./InsuranceCompaniesPage";
 import { type OfficeDto } from "./AgencyOfficesPage";
 import { contractDurationLabel } from "../utils/contractDuration";
 import { DetailProfileTabs } from "../components/profile/DetailProfileTabs";
+import { PolicyFieldColumns } from "../components/profile/PolicyFieldColumns";
 import { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback, profileDialogPaperSx, profileFieldGridSx, useProfileFieldEditor } from "../components/profile/ProfileFieldEditor";
 import { customerFieldError } from "../components/customer/customerValidation";
 import { persistProfileWrites } from "../components/profile/profileDrafts";
@@ -1018,15 +1019,25 @@ const COMPANY_CORE_FIELDS = [
   ["website", "Ιστοσελίδα"], ["contactName", "Υπεύθυνος"], ["contactEmail", "Email"], ["contactPhone", "Τηλέφωνο"], ["isActive", "Κατάσταση"], ["notes", "Σημειώσεις"],
 ] as const;
 
-export function CompanyProfileFields({ session, contact = false, isBroker = false }: { session: ReturnType<typeof useProfileFieldEditor>; contact?: boolean; isBroker?: boolean }) {
-  const fields = contact ? COMPANY_CORE_FIELDS.filter(([field]) => ["contactName", "contactEmail", "contactPhone", "notes"].includes(field)) : COMPANY_CORE_FIELDS;
-  return <Box sx={profileFieldGridSx}>{fields.map(([field, label]) =>
-    <ProfileEditableField key={field} field={field} label={label} session={session}
+export function CompanyProfileFields({ session, contact = false, isBroker = false, generalFields }: {
+  session: ReturnType<typeof useProfileFieldEditor>; contact?: boolean; isBroker?: boolean;
+  generalFields?: { address: ReactNode[]; maps: ReactNode; cooperation: ReactNode[]; additional: ReactNode[] };
+}) {
+  const renderFields = (keys: readonly string[]) => keys.map(key => {
+    const [field, label] = COMPANY_CORE_FIELDS.find(([field]) => field === key)!;
+    return <ProfileEditableField key={field} field={field} label={label} session={session}
       options={field === "isActive" ? [{ value: "true", label: "Ενεργή" }, { value: "false", label: "Ανενεργή" }] : undefined}
       link={field === "website" ? session.values[field] : field === "contactEmail" && session.values[field] ? "mailto:" + session.values[field] : field === "contactPhone" && session.values[field] ? "tel:" + session.values[field] : undefined}
       type={field === "contactEmail" ? "email" : "text"} multiline={field === "notes"}
-      validate={value => customerFieldError(field === "contactEmail" ? "email" : field === "contactPhone" ? "phone" : field, value)} />
-  )}{!contact && <ProfileEditableField label="Τύπος" value={isBroker ? "Πρακτορείο" : "Ασφαλιστική εταιρεία"} />}</Box>;
+      validate={value => customerFieldError(field === "contactEmail" ? "email" : field === "contactPhone" ? "phone" : field, value)} />;
+  });
+  // Contact keeps its existing layout; only General changes reading order.
+  if (contact) return <Box sx={profileFieldGridSx}>{renderFields(["contactName", "contactEmail", "contactPhone", "notes"])}</Box>;
+  return <PolicyFieldColumns section="company-general" groups={[
+    [...renderFields(["name", "code", "afmVat", "isActive"]), <ProfileEditableField key="company-type" label="Τύπος" value={isBroker ? "Πρακτορείο" : "Ασφαλιστική εταιρεία"} />],
+    [...renderFields(["country"]), ...(generalFields?.address ?? []), ...renderFields(["website"]), generalFields?.maps].filter(Boolean),
+    [...renderFields(["contactName", "contactEmail", "contactPhone"]), ...(generalFields?.cooperation ?? []), ...renderFields(["notes"]), ...(generalFields?.additional ?? [])],
+  ]} />;
 }
 
 function ProductionCompanyProfileDialog({ open, company, startEditing = false, onClose, onChanged }: { open: boolean; company: CompanyDto | null; startEditing?: boolean; onClose: () => void; onChanged?: (saved: CompanyDto) => void }) {
@@ -1285,13 +1296,14 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
             </Stack>
           </ProfileSection>
 
-          <CompanyProfileFields session={session} isBroker={p.isBroker ?? company?.isBroker} />
-          <Box sx={profileFieldGridSx}>{addressFields.map(([label, aliases, mono]) => renderCustomField(label, aliases, mono))}</Box>
-          <Box sx={profileFieldGridSx}>{(workspace?.fields ?? []).filter(field => field.isActive && companyFieldPlacement(field) === "general" && !knownCustomIds.has(field.id) && !isSocialCustomField(field) && !isDuplicateCoreField(field)).map(field =>
-            <Box key={field.id} sx={{ minWidth: 0 }}>
-              <ProfileEditableField label={field.label} field={"custom:" + field.id} session={session} link={field.value ?? undefined}
-                type={field.fieldType === "date" ? "date" : field.fieldType === "number" ? "number" : "text"} />
-            </Box>)}</Box>
+          <CompanyProfileFields session={session} isBroker={p.isBroker ?? company?.isBroker} generalFields={{
+            address: addressFields.slice(0, 3).map(([label, aliases, mono]) => renderCustomField(label, aliases, mono)),
+            maps: renderCustomField(...addressFields[5]),
+            cooperation: addressFields.slice(3, 5).map(([label, aliases, mono]) => renderCustomField(label, aliases, mono)),
+            additional: (workspace?.fields ?? []).filter(field => field.isActive && companyFieldPlacement(field) === "general" && !knownCustomIds.has(field.id) && !isSocialCustomField(field) && !isDuplicateCoreField(field)).map(field =>
+              <ProfileEditableField key={field.id} label={field.label} field={"custom:" + field.id} session={session} link={field.value ?? undefined}
+                type={field.fieldType === "date" ? "date" : field.fieldType === "number" ? "number" : "text"} />),
+          }} />
         </Stack>}
         {tab === 3 && <Stack spacing={1.5}><ProfileMetricGrid items={[["Κλάδοι", String(p.branchCount), "info"], ["Πακέτα", String(p.packageCount), "info"], ["Χρήσεις", String(p.useCount), "info"], ["Καλύψεις", String(p.coverageCount), "info"], ["Γέφυρα", p.bridgeLinked ? "Συνδεδεμένη" : "Χωρίς σύνδεση", p.bridgeLinked ? "success" : "warning"]]} /><ProfileSection title="Σύνδεση εταιρείας"><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" }, gap: .75 }}>{[["Πηγή γέφυρας", p.bridgeLinkedSourceCarrier], ["Κατάσταση", p.isActive ? "Ενεργή" : "Ανενεργή"], ["Δημιουργήθηκε", date(p.createdAt)]].map(([label, value]) => <Box key={label} sx={{ minWidth: 0, px: 1.1, py: .85, border: "1px solid #d6e3f0", borderRadius: 1.5, bgcolor: "#f8fafc" }}><Typography variant="caption" color="text.secondary" fontWeight={750} display="block">{label}</Typography><Typography variant="body2" color="#102d55" fontWeight={850} noWrap title={value || "—"}>{value || "—"}</Typography></Box>)}</Box></ProfileSection>{renderPlacedFields("connection")}</Stack>}
 

@@ -6,6 +6,59 @@ import { createServer } from "vite";
 import { readFile } from "node:fs/promises";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+test("company and agency General fields read down semantic columns in identical view/edit order at every breakpoint", async () => {
+  globalThis.sessionStorage ??= { getItem: () => null, setItem() {}, removeItem() {} };
+  globalThis.localStorage ??= { getItem: () => null, setItem() {}, removeItem() {} };
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, ssr: { noExternal: [/@mui\//] }, appType: "custom" });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const ids = html => [...html.matchAll(/data-profile-field="([^"]+)"/g)].map(match => match[1]);
+  try {
+    const { CompanyProfileFields } = await server.ssrLoadModule("/src/pages/ProductionCompaniesAgenciesPage.tsx");
+    const { ProfileEditableField } = await server.ssrLoadModule("/src/components/profile/ProfileFieldEditor.tsx");
+    const { policyFieldColumns } = await server.ssrLoadModule("/src/components/profile/PolicyFieldColumns.tsx");
+    const { ThemeProvider, createTheme } = await server.ssrLoadModule("@mui/material/styles");
+    for (const isBroker of [false,true]) for (const additionalCount of [0,9]) {
+      const values = { name: "Εταιρεία δοκιμής", code: "TEST", afmVat: "012345678", country: "GR", website: "https://example.test", isActive: "false", contactName: "Υπεύθυνος", contactEmail: "contact@example.test", contactPhone: "2101234567", notes: "Υπάρχουσες σημειώσεις",
+        "custom:address": "Οδός 1", "custom:city": "Αθήνα", "custom:postal": "10558", "custom:maps": "https://maps.example.test", "custom:contract": "Σύμβαση", "custom:expiry": "2026-12-31" };
+      for(let index=0;index<additionalCount;index++) values[`custom:extra-${index}`]=String(index);
+      const before = JSON.stringify(values);
+      const groups = [
+        ["name","code","afmVat","isActive","Τύπος"],
+        ["country","custom:address","custom:city","custom:postal","website","custom:maps"],
+        ["contactName","contactEmail","contactPhone","custom:contract","custom:expiry","notes",...Array.from({length:additionalCount},(_,index)=>`custom:extra-${index}`)],
+      ];
+      for (const [width,count] of [[320,1],[600,1],[900,2],[1199,2],[1200,3],[1920,3]]) for(const editAll of [false,true]) {
+        const session = { values, drafts: {}, editAll, busy: false, change() {}, commit: async () => {} };
+        const field = (key,type="text") => createElement(ProfileEditableField,{key,field:key,label:key,session,type});
+        const generalFields = {
+          address: ["custom:address","custom:city","custom:postal"].map(key=>field(key)), maps: field("custom:maps"),
+          cooperation: [field("custom:contract"),field("custom:expiry","date")],
+          additional: Array.from({length:additionalCount},(_,index)=>field(`custom:extra-${index}`,"number")),
+        };
+        const theme=createTheme({components:{MuiUseMediaQuery:{defaultProps:{ssrMatchMedia:query=>({matches:width>=Number(query.match(/min-width:\s*(\d+)/)?.[1]??Infinity)})}}}});
+        const render = props=>renderToStaticMarkup(createElement(QueryClientProvider,{client},createElement(ThemeProvider,{theme},createElement(CompanyProfileFields,props))));
+        const html=render({session,isBroker,generalFields});
+        assert.ok(html.includes('data-policy-layout="company-general"'));
+        assert.ok(html.includes(`data-policy-columns="${count}"`));
+        assert.deepEqual(ids(html),groups.flat());
+        assert.deepEqual(html.split(/data-policy-column="\d+"/).slice(1).map(ids),policyFieldColumns(groups,count));
+        assert.equal(new Set(ids(html)).size,17+additionalCount);
+        assert.ok(html.includes(isBroker ? "Πρακτορείο" : "Ασφαλιστική εταιρεία"));
+        assert.ok(html.includes(editAll ? "Αποθήκευση Επωνυμία" : "Αντιγραφή Επωνυμία"));
+        assert.ok(!html.includes("Αποθήκευση Τύπος"));
+        const contact=render({session,contact:true,isBroker,generalFields});
+        assert.deepEqual(ids(contact),["contactName","contactEmail","contactPhone","notes"]);
+        assert.ok(!contact.includes('data-policy-layout="company-general"'));
+      }
+      assert.equal(JSON.stringify(values),before);
+    }
+    const source = await readFile(new URL("../../pages/ProductionCompaniesAgenciesPage.tsx",import.meta.url),"utf8");
+    assert.ok(source.includes('generalFields={{'));
+    assert.ok(source.includes('!knownCustomIds.has(field.id) && !isSocialCustomField(field) && !isDuplicateCoreField(field)'));
+    assert.ok(source.includes('maps: renderCustomField(...addressFields[5])'));
+  } finally { client.clear(); await server.close(); }
+});
+
 test("authenticated top bars hide the language toggle and use a compact red logout action", async () => {
   const layout = await readFile(new URL("../AppLayout.tsx", import.meta.url), "utf8");
   const maintenance = await readFile(new URL("../../pages/UnderMaintenancePage.tsx", import.meta.url), "utf8");
