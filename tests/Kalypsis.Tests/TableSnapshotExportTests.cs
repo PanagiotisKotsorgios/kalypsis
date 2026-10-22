@@ -29,11 +29,17 @@ public class TableSnapshotExportTests
         Assert.NotEmpty(result.FileContents);
         if (format == "csv")
         {
-            var csv = Encoding.UTF8.GetString(result.FileContents);
+            Assert.Equal(new byte[] { 0xEF, 0xBB, 0xBF }, result.FileContents.Take(3).ToArray());
+            using var reader = new StreamReader(new MemoryStream(result.FileContents), Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+            var csv = await reader.ReadToEndAsync();
             Assert.StartsWith("\"Γραφείο δοκιμής\"", csv);
             Assert.Contains("\"Πόλη\",\"Πελάτης\"", csv);
+            Assert.Contains("Νίκος Άλφα", csv);
+            Assert.Contains("Μαρία Ωμέγα", csv);
             Assert.True(csv.IndexOf("Νίκος Άλφα", StringComparison.Ordinal) < csv.IndexOf("Μαρία Ωμέγα", StringComparison.Ordinal));
             Assert.DoesNotContain("Kalypsis — Λίστα πελατών", csv);
+            Assert.DoesNotContain('\uFFFD', csv);
+            Assert.DoesNotContain('\uFEFF', csv);
         }
         else if (format == "xlsx")
         {

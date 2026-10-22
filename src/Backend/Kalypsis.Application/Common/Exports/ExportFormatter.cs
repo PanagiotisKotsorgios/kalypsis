@@ -52,7 +52,10 @@ public static class ExportFormatter
         sb.AppendLine(Quote(BrandLine));
         sb.AppendLine(Quote(CopyrightLine));
         sb.AppendLine(Quote(GeneratedLine));
-        return new UTF8Encoding(true).GetBytes(sb.ToString());
+        // GetBytes does not include the preamble, even when UTF8Encoding is
+        // configured to emit one. Excel needs these bytes to detect Greek UTF-8.
+        var encoding = new UTF8Encoding(true);
+        return [.. encoding.GetPreamble(), .. encoding.GetBytes(sb.ToString())];
 
         static string Quote(string s) => "\"" + (s ?? "").Replace("\"", "\"\"") + "\"";
     }

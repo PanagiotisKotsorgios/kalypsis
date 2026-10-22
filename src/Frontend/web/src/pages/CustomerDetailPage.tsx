@@ -61,6 +61,8 @@ import { drivingFields, persistCustomerEdits, type CustomerDrafts } from "../com
 import { customerDraftErrors, customerFieldError, fieldMaxLength } from "../components/customer/customerValidation";
 import { customerAge } from "../components/customer/customerAge";
 import { DetailProfileTabs } from "../components/profile/DetailProfileTabs";
+import { CustomerCompactTable, CustomerNeedsTable, FamilyMembersTable } from "../components/customer/CustomerFamilyTables";
+import { NEED_KINDS, NEED_LABEL, RELATIONSHIP_TYPES, RELATION_LABEL, type CustomerNeed, type FamilyMember } from "../components/customer/customerFamilyData";
 
 interface CustomerDto {
   id: string;
@@ -163,18 +165,6 @@ interface ContactRow {
   isPrimary: boolean;
 }
 
-interface CustomerNeed {
-  id: string; kind: string; title: string; hasAsset: boolean; isInsured: boolean;
-  priority: number; nextContactAt: string | null; notes: string | null;
-}
-interface FamilyPolicy {
-  id: string; policyNumber: string; policyType: string; status: string;
-  startDate: string; endDate: string; premium: number; currency: string;
-}
-interface FamilyMember {
-  relationshipId: string; customerId: string; displayName: string; customerType: string;
-  relationshipType: string; notes: string | null; policies: FamilyPolicy[]; needs: CustomerNeed[];
-}
 interface FamilyProfile {
   profile: {
     id: string; customerNumber: string; type: string; displayName: string;
@@ -510,7 +500,7 @@ export function CustomerDetailPage({ customerId, initialCustomer, onClose }: {
           </Button>
         </Stack>
       </DialogActions>
-      <CustomerPopup open={popup !== null} onClose={() => setPopup(null)} title={({ communications: "Ιστορικό επικοινωνίας", producers: "Συνεργάτες πελάτη", statistics: "Στατιστικά πελάτη", family: "Οικογένεια & πρόσθετα στοιχεία" })[popup ?? "communications"]} wide={popup === "statistics"}>
+      <CustomerPopup open={popup !== null} onClose={() => setPopup(null)} title={({ communications: "Ιστορικό επικοινωνίας", producers: "Συνεργάτες πελάτη", statistics: "Στατιστικά πελάτη", family: "Οικογένεια & πρόσθετα στοιχεία" })[popup ?? "communications"]} wide={popup === "statistics" || popup === "family"}>
         {popup === "communications" && <CustomerCommunicationManager customerId={id} />}
         {popup === "producers" && <CustomerProducersSummary customerId={id} />}
         {popup === "statistics" && <CustomerStatisticsTab customerId={id} />}
@@ -1639,17 +1629,6 @@ function ContactsTab({ customerId, customerType }: { customerId: string; custome
 
 /* ---------- Family, assets and insurance opportunities ---------- */
 
-const NEED_KINDS = ["Home", "Vehicle", "Health", "Life", "Business", "Travel", "Pet", "Liability", "Cyber", "Other"];
-const RELATIONSHIP_TYPES = ["Spouse", "Partner", "Child", "Parent", "Grandparent", "Grandchild", "Sibling", "Dependent", "Other"];
-const NEED_LABEL: Record<string, string> = {
-  Home: "Κατοικία", Vehicle: "Όχημα", Health: "Υγεία", Life: "Ζωή", Business: "Επιχείρηση",
-  Travel: "Ταξίδι", Pet: "Κατοικίδιο", Liability: "Αστική ευθύνη", Cyber: "Cyber", Other: "Άλλο"
-};
-const RELATION_LABEL: Record<string, string> = {
-  Spouse: "Σύζυγος", Partner: "Σύντροφος", Child: "Παιδί", Parent: "Γονέας", Grandparent: "Παππούς / γιαγιά",
-  Grandchild: "Εγγόνι", Sibling: "Αδελφός / αδελφή", Dependent: "Εξαρτώμενο μέλος", Other: "Άλλη σχέση"
-};
-
 function FamilyNeedsTab({ customerId }: { customerId: string }) {
   const q = useQuery({
     queryKey: ["customer-family", customerId],
@@ -1662,7 +1641,6 @@ function FamilyNeedsTab({ customerId }: { customerId: string }) {
     <Stack spacing={0.75}>
       <CustomerNeedsCard customerId={customerId} needs={q.data.needs} />
       <FamilyMembersCard customerId={customerId} members={q.data.family} />
-      <CommunicationsCard customerId={customerId} />
       <OpportunitiesCard opportunities={q.data.opportunities} />
     </Stack>
   );
@@ -1737,79 +1715,6 @@ function ConsentsCard({ customerId }: { customerId: string }) {
 // renders the confusing legal-consents block. Forms are handled in GDPR actions.
 void ConsentsCard;
 
-function CommunicationsCard({ customerId }: { customerId: string }) {
-  const { t } = useTranslation();
-  const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const q = useQuery({
-    queryKey: ["communications", customerId],
-    queryFn: async () => (await api.get<any[]>(`/customers/${customerId}/communications`)).data
-  });
-  const [form, setForm] = useState({ kind: "Call", subject: "", summary: "" });
-  const log = useMutation({
-    mutationFn: async () => (await api.post(`/customers/${customerId}/communications`, form)).data,
-    onSuccess: () => {
-      setOpen(false);
-      setForm({ kind: "Call", subject: "", summary: "" });
-      void qc.invalidateQueries({ queryKey: ["communications", customerId] });
-    }
-  });
-  return (
-    <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 }, bgcolor: "rgba(248,250,252,0.92)" }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" gap={1} mb={0.75} sx={{ px: 0.75, py: 0.5, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}>
-        <Box sx={{ minWidth: 0 }}>
-          <Typography variant="subtitle2" fontWeight={800}>Επικοινωνίες</Typography>
-          <Typography variant="caption" color="text.secondary">
-            Ιστορικό κλήσεων / email / SMS / επιστολών με τον πελάτη.
-          </Typography>
-        </Box>
-        <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)} sx={{ flexShrink: 0 }}>
-          Προσθήκη επικοινωνίας
-        </Button>
-      </Stack>
-      {q.isLoading ? <CircularProgress size={20} /> : (q.data ?? []).length === 0 ? (
-        <Typography variant="body2" color="text.secondary">Δεν έχουν καταγραφεί επικοινωνίες.</Typography>
-      ) : (
-        <Stack spacing={1.5}>
-          {(q.data ?? []).slice(0, 20).map((c: any) => (
-            <Box key={c.id} sx={{ p: 1.25, border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
-              <Stack direction="row" alignItems="baseline" justifyContent="space-between">
-                <Typography fontWeight={700}>{c.kind} · {c.subject ?? "—"}</Typography>
-                <Typography variant="caption" color="text.secondary">{c.occurredAt ?? c.createdAt}</Typography>
-              </Stack>
-              {c.summary && <Typography variant="body2" sx={{ mt: 0.5, color: "text.secondary" }}>{c.summary}</Typography>}
-            </Box>
-          ))}
-        </Stack>
-      )}
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Προσθήκη επικοινωνίας</DialogTitle>
-        <DialogContent>
-          <Stack spacing={1.5} mt={1}>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-              <SearchableTextField size="small" label="Είδος" value={form.kind}
-                onChange={e => setForm({ ...form, kind: e.target.value })} sx={{ minWidth: { sm: 180 } }}>
-                {["Call", "Email", "Sms", "Postal", "Meeting", "Note"].map(k => <MenuItem key={k} value={k}>{String(t(`communicationKind.${k}`, k))}</MenuItem>)}
-              </SearchableTextField>
-              <TextField size="small" label="Θέμα" value={form.subject}
-                onChange={e => setForm({ ...form, subject: e.target.value })} fullWidth />
-            </Stack>
-            <TextField size="small" label="Σύνοψη" value={form.summary} multiline rows={4}
-              onChange={e => setForm({ ...form, summary: e.target.value })} fullWidth />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpen(false)} color="error" variant="contained">Ακύρωση</Button>
-          <Button variant="contained" onClick={() => log.mutate()} disabled={log.isPending || !form.subject.trim()}>
-            {log.isPending ? <CircularProgress size={18} /> : "Καταγραφή"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Card>
-  );
-}
-
-
 function CustomerNeedsCard({ customerId, needs }: { customerId: string; needs: CustomerNeed[] }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -1817,8 +1722,8 @@ function CustomerNeedsCard({ customerId, needs }: { customerId: string; needs: C
   const [err, setErr] = useState<string | null>(null);
   const empty = { kind: "Home", title: "", hasAsset: true, isInsured: false, priority: 3, nextContactAt: "", notes: "" };
   const [form, setForm] = useState(empty);
-  const openCreate = (kind?: string) => { setEditing(null); setForm({ ...empty, kind: kind ?? "Home", title: kind === "Home" ? "Κύρια κατοικία" : kind === "Vehicle" ? "Όχημα" : "" }); setOpen(true); };
-  const openEdit = (need: CustomerNeed) => { setEditing(need); setForm({ kind: need.kind, title: need.title, hasAsset: need.hasAsset, isInsured: need.isInsured, priority: need.priority, nextContactAt: need.nextContactAt ?? "", notes: need.notes ?? "" }); setOpen(true); };
+  const openCreate = (kind?: string) => { setErr(null); setEditing(null); setForm({ ...empty, kind: kind ?? "Home", title: kind === "Home" ? "Κύρια κατοικία" : kind === "Vehicle" ? "Όχημα" : "" }); setOpen(true); };
+  const openEdit = (need: CustomerNeed) => { setErr(null); setEditing(need); setForm({ kind: need.kind, title: need.title, hasAsset: need.hasAsset, isInsured: need.isInsured, priority: need.priority, nextContactAt: need.nextContactAt ?? "", notes: need.notes ?? "" }); setOpen(true); };
   const save = useMutation({
     mutationFn: async () => {
       const body = { ...form, nextContactAt: form.nextContactAt || null };
@@ -1834,27 +1739,18 @@ function CustomerNeedsCard({ customerId, needs }: { customerId: string; needs: C
     <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 }, bgcolor: "rgba(248,250,252,0.92)" }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={0.75} flexWrap="wrap" gap={1}>
         <Box sx={{ px: 0.75, py: 0.5, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}><Typography variant="subtitle2" fontWeight={800}>Περιουσία και ανάγκες ασφάλισης</Typography><Typography variant="caption" color="text.secondary">Καταχωρήστε όχημα, σπίτι, υγεία ή οποιαδήποτε ανάγκη. Η κατάσταση «χωρίς κάλυψη» τροφοδοτεί τις προτάσεις.</Typography></Box>
-        <Button size="small" variant="contained" onClick={() => openCreate()}>+ Νέα ανάγκη</Button>
+        <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={() => openCreate()}>Νέα ανάγκη</Button>
       </Stack>
-      <Stack direction="row" spacing={1} flexWrap="wrap" mb={2}>
-        <Button size="small" startIcon={<HomeWorkIcon />} onClick={() => openCreate("Home")}>Έχει σπίτι</Button>
-        <Button size="small" startIcon={<DirectionsCarIcon />} onClick={() => openCreate("Vehicle")}>Έχει όχημα</Button>
-        <Button size="small" startIcon={<HealthAndSafetyIcon />} onClick={() => openCreate("Health")}>Υγεία</Button>
+      <Stack direction="row" spacing={.75} flexWrap="wrap" useFlexGap mb={.5} sx={{ "& .MuiButton-root": { bgcolor: "#159b59", color: "#fff", "&:hover": { bgcolor: "#107b46", color: "#fff" } } }}>
+        <Button size="small" variant="contained" startIcon={<HomeWorkIcon />} onClick={() => openCreate("Home")}>Έχει σπίτι</Button>
+        <Button size="small" variant="contained" startIcon={<DirectionsCarIcon />} onClick={() => openCreate("Vehicle")}>Έχει όχημα</Button>
+        <Button size="small" variant="contained" startIcon={<HealthAndSafetyIcon />} onClick={() => openCreate("Health")}>Υγεία</Button>
       </Stack>
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
-      {needs.length === 0 ? <Alert severity="info">Δεν έχουν καταχωρηθεί ακόμη περιουσία ή ανάγκες.</Alert> : (
-        <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" } }}>
-          {needs.map(need => <Card key={need.id} variant="outlined" sx={{ p: 1.5 }}>
-            <Stack direction="row" justifyContent="space-between" gap={1}><Box><Chip label={NEED_LABEL[need.kind] ?? need.kind} size="small" color={need.isInsured ? "success" : "warning"} />
-              <Typography fontWeight={800} mt={0.5}>{need.title}</Typography>
-              <Typography variant="caption" color="text.secondary">{need.isInsured ? "Με ενεργή κάλυψη" : "Χωρίς ενεργή κάλυψη"} · Προτεραιότητα {need.priority}/5</Typography>
-              {need.notes && <Typography variant="body2" mt={0.5}>{need.notes}</Typography>}</Box>
-              <Stack spacing={0.25}><Button size="small" onClick={() => openEdit(need)}>Επεξεργασία</Button><Button size="small" color="error" onClick={() => { if (confirm("Διαγραφή ανάγκης;")) del.mutate(need.id); }}>Διαγραφή</Button></Stack>
-            </Stack>
-          </Card>)}
-        </Box>
-      )}
+      <CustomerNeedsTable needs={needs} onEdit={openEdit} deleting={del.isPending}
+        onDelete={need => { if (confirm(`Διαγραφή ανάγκης «${need.title}»;`)) del.mutate(need.id); }} />
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm"><DialogTitle>{editing ? "Επεξεργασία ανάγκης" : "Νέα ανάγκη / περιουσία"}</DialogTitle><DialogContent><Stack spacing={2} mt={1}>
+        {err && <Alert severity="error">{err}</Alert>}
         <SearchableTextField label="Τύπος" value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value })} fullWidth>{NEED_KINDS.map(kind => <MenuItem key={kind} value={kind}>{NEED_LABEL[kind]}</MenuItem>)}</SearchableTextField>
         <TextField label="Περιγραφή" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} fullWidth required placeholder="π.χ. Toyota Yaris, εξοχικό, ιδιωτική υγεία" />
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1}><FormControlLabel control={<Switch checked={form.hasAsset} onChange={e => setForm({ ...form, hasAsset: e.target.checked })} />} label="Έχει την περιουσία / ανάγκη" />
@@ -1881,13 +1777,12 @@ function FamilyMembersCard({ customerId, members }: { customerId: string; member
   const display = (candidate: typeof candidates[number]) => candidate.type === "Company" ? candidate.companyName ?? candidate.customerNumber : `${candidate.firstName ?? ""} ${candidate.lastName ?? ""}`.trim();
 
   return <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 }, bgcolor: "rgba(248,250,252,0.92)" }}>
-    <Stack direction="row" justifyContent="space-between" alignItems="center" mb={0.75}><Box sx={{ px: 0.75, py: 0.5, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}><Typography variant="subtitle2" fontWeight={800}>Οικογένεια και συνδεδεμένοι πελάτες</Typography><Typography variant="caption" color="text.secondary">Κάθε μέλος βλέπει τα δικά του συμβόλαια, ανάγκες και τις εκκρεμείς ευκαιρίες κάλυψης.</Typography></Box><Button size="small" variant="contained" onClick={() => setOpen(true)}>+ Σύνδεση μέλους</Button></Stack>
+    <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1} mb={0.75}><Box sx={{ px: 0.75, py: 0.5, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}><Typography variant="subtitle2" fontWeight={800}>Οικογένεια και συνδεδεμένοι πελάτες</Typography><Typography variant="caption" color="text.secondary">Συμβόλαια, ανάγκες και ακάλυπτες περιουσίες ανά μέλος.</Typography></Box><Button size="small" variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)}>Σύνδεση μέλους</Button></Stack>
     {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
-    {members.length === 0 ? <Alert severity="info">Δεν έχουν συνδεθεί ακόμη σύζυγος, παιδιά ή άλλα μέλη.</Alert> : <Stack spacing={1}>{members.map(member => <Card key={member.relationshipId} variant="outlined" sx={{ p: 1.5 }}><Stack direction="row" justifyContent="space-between" gap={1}><Box><Stack direction="row" spacing={1} alignItems="center"><Typography fontWeight={800}>{member.displayName}</Typography><Chip size="small" label={RELATION_LABEL[member.relationshipType] ?? member.relationshipType} /></Stack>
-      <Stack direction="row" spacing={0.5} flexWrap="wrap" mt={1}>{member.policies.length ? member.policies.map(policy => <Chip key={policy.id} size="small" color="success" variant="outlined" label={`${policy.policyType} · ${policy.policyNumber}`} />) : <Typography variant="caption" color="text.secondary">Δεν έχει συμβόλαια.</Typography>}</Stack>
-      <Stack direction="row" spacing={0.5} flexWrap="wrap" mt={0.5}>{member.needs.map(need => <Chip key={need.id} size="small" color={need.isInsured ? "success" : "warning"} label={`${NEED_LABEL[need.kind] ?? need.kind}: ${need.title}`} />)}</Stack>
-      {member.notes && <Typography variant="body2" color="text.secondary" mt={0.75}>{member.notes}</Typography>}</Box><Button size="small" color="error" onClick={() => { if (confirm("Αφαίρεση οικογενειακής σχέσης;")) del.mutate(member.relationshipId); }}>Αφαίρεση</Button></Stack></Card>)}</Stack>}
+    <FamilyMembersTable members={members} removing={del.isPending}
+      onRemove={member => { if (confirm(`Αφαίρεση οικογενειακής σχέσης με «${member.displayName}»;`)) del.mutate(member.relationshipId); }} />
     <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm"><DialogTitle>Σύνδεση οικογενειακού μέλους</DialogTitle><DialogContent><Stack spacing={2} mt={1}>
+      {err && <Alert severity="error">{err}</Alert>}
       <SearchableSelect
         label="Υπάρχων πελάτης"
         required
@@ -1907,9 +1802,19 @@ function FamilyMembersCard({ customerId, members }: { customerId: string; member
 }
 
 function OpportunitiesCard({ opportunities }: { opportunities: FamilyProfile["opportunities"] }) {
+  const rows = useMemo(() => opportunities.map((opportunity, index) => ({ ...opportunity, rowKey: `${opportunity.customerId}-${opportunity.needKind}-${index}` })), [opportunities]);
   return <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 }, bgcolor: "rgba(248,250,252,0.92)", borderColor: opportunities.length ? "warning.light" : "divider" }}>
     <Box sx={{ px: 0.75, py: 0.5, mb: 0.75, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}><Typography variant="subtitle2" fontWeight={800}>Προτεινόμενες καλύψεις</Typography><Typography variant="caption" color="text.secondary">Παράγονται από την καταχωρημένη περιουσία/ανάγκη όταν δεν υπάρχει ενεργό συμβόλαιο του αντίστοιχου κλάδου.</Typography></Box>
-    {opportunities.length === 0 ? <Alert severity="success">Δεν υπάρχουν ανοικτές προτάσεις με βάση τα σημερινά στοιχεία.</Alert> : <Stack spacing={1}>{opportunities.map((opportunity, index) => <Alert key={`${opportunity.customerId}-${opportunity.needKind}-${index}`} severity="warning"><strong>{opportunity.customerName}</strong>{opportunity.relationship ? ` (${RELATION_LABEL[opportunity.relationship] ?? opportunity.relationship})` : ""}: {NEED_LABEL[opportunity.needKind] ?? opportunity.needKind} — {opportunity.needTitle}. {opportunity.reason}</Alert>)}</Stack>}
+    {opportunities.length === 0 ? <Alert severity="success">Δεν υπάρχουν ανοικτές προτάσεις με βάση τα σημερινά στοιχεία.</Alert> : <CustomerCompactTable rows={rows} rowKey={row => row.rowKey} label="Προτεινόμενες καλύψεις" minWidth={800}
+      searchPlaceholder="Πελάτης, ανάγκη ή αιτιολογία…" searchText={row => `${row.customerName} ${NEED_LABEL[row.needKind] ?? row.needKind} ${row.needTitle} ${row.reason}`}
+      columns={[
+        { key: "customer", title: "Πελάτης", cell: row => row.customerName },
+        { key: "relationship", title: "Σχέση", cell: row => row.relationship ? RELATION_LABEL[row.relationship] ?? row.relationship : "—" },
+        { key: "type", title: "Τύπος", cell: row => NEED_LABEL[row.needKind] ?? row.needKind },
+        { key: "need", title: "Ανάγκη", cell: row => row.needTitle },
+        { key: "reason", title: "Αιτιολογία", cell: row => <Typography variant="body2" title={row.reason} noWrap sx={{ maxWidth: 300, fontSize: 12.5 }}>{row.reason}</Typography> },
+        { key: "priority", title: "Προτεραιότητα", cell: row => `${row.priority}/5` },
+      ]} />}
   </Card>;
 }
 
