@@ -63,6 +63,7 @@ export function FriendlySettlementsPage() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [saveFilterRequest, setSaveFilterRequest] = useState(0);
+  const [clearSavedFilterRequest, setClearSavedFilterRequest] = useState(0);
 
   const q = useQuery({ queryKey: ["friendly-settlements"], queryFn: async () =>
     (await api.get<SettlementDto[]>("/friendly-settlements")).data });
@@ -83,7 +84,7 @@ export function FriendlySettlementsPage() {
   }, [rows, search, statusFilter, insurerFilter, dateFrom, dateTo]);
   useEffect(() => { setPage(0); }, [search, statusFilter, insurerFilter, dateFrom, dateTo, rowsPerPage]);
   const pageRows = filteredRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-  const clearFilters = () => { setSearch(""); setStatusFilter("all"); setInsurerFilter("all"); setDateFrom(""); setDateTo(""); };
+  const clearFilters = () => { setSearch(""); setStatusFilter("all"); setInsurerFilter("all"); setDateFrom(""); setDateTo(""); setClearSavedFilterRequest(value => value + 1); };
   const exportColumns = [
     { key: "settlementFileNumber", label: "Αριθμός φακέλου" }, { key: "claimNumber", label: "Αριθμός ζημιάς" },
     { key: "declarationDate", label: "Ημερομηνία δήλωσης" }, { key: "settlementDate", label: "Ημερομηνία διακανονισμού" },
@@ -134,7 +135,8 @@ export function FriendlySettlementsPage() {
           <TextField type="date" size="small" label="Έως" InputLabelProps={{ shrink: true }} value={dateTo} onChange={e => setDateTo(e.target.value)} />
           <SavedReportsButton entity="friendly-settlements" currentFilters={{ search, statusFilter, insurerFilter, dateFrom, dateTo }}
             onLoad={filters => { setSearch(filters.search ?? ""); setStatusFilter(filters.statusFilter ?? "all"); setInsurerFilter(filters.insurerFilter ?? "all"); setDateFrom(filters.dateFrom ?? ""); setDateTo(filters.dateTo ?? ""); }}
-            saveRequestToken={saveFilterRequest} />
+            onClear={clearFilters} clearRequestToken={clearSavedFilterRequest}
+            saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />
           <Button size="small" color="error" variant="contained" startIcon={<FilterAltOffIcon />} onClick={clearFilters}>Καθαρισμός φίλτρων</Button>
         </Stack>
       </Card>

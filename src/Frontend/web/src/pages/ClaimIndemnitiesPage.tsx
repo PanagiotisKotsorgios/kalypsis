@@ -44,6 +44,7 @@ export function ClaimIndemnitiesPage() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [saveFilterRequest, setSaveFilterRequest] = useState(0);
+  const [clearSavedFilterRequest, setClearSavedFilterRequest] = useState(0);
 
   const q = useQuery({ queryKey: ["indemnities"], queryFn: async () => (await api.get<IndemnityDto[]>("/indemnities")).data });
   const del = useMutation({
@@ -83,7 +84,7 @@ export function ClaimIndemnitiesPage() {
     return arr;
   }, [filteredRows, sortKey, sortDir]);
   const pageRows = sortedRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-  const clearFilters = () => { setSearch(""); setPayeeTypeFilter("all"); setMethodFilter("all"); setDateFrom(""); setDateTo(""); };
+  const clearFilters = () => { setSearch(""); setPayeeTypeFilter("all"); setMethodFilter("all"); setDateFrom(""); setDateTo(""); setClearSavedFilterRequest(value => value + 1); };
   const exportColumns = [
     { key: "paymentNumber", label: "Αριθμός πληρωμής" },
     { key: "claimNumber", label: "Αριθμός ζημιάς" },
@@ -160,7 +161,8 @@ export function ClaimIndemnitiesPage() {
           <TextField type="date" size="small" label="Έως" InputLabelProps={{ shrink: true }} value={dateTo} onChange={e => setDateTo(e.target.value)} />
           <SavedReportsButton entity="claim-indemnities" currentFilters={{ search, payeeTypeFilter, methodFilter, dateFrom, dateTo }}
             onLoad={filters => { setSearch(filters.search ?? ""); setPayeeTypeFilter(filters.payeeTypeFilter ?? "all"); setMethodFilter(filters.methodFilter ?? "all"); setDateFrom(filters.dateFrom ?? ""); setDateTo(filters.dateTo ?? ""); }}
-            saveRequestToken={saveFilterRequest} />
+            onClear={clearFilters} clearRequestToken={clearSavedFilterRequest}
+            saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />
           <Button size="small" color="error" variant="contained" startIcon={<FilterAltOffIcon />} onClick={clearFilters}>Καθαρισμός φίλτρων</Button>
         </Stack>
       </Card>

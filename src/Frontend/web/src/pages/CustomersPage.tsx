@@ -245,6 +245,7 @@ export function CustomersPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
   const [saveFilterRequest, setSaveFilterRequest] = useState(0);
+  const [clearSavedFilterRequest, setClearSavedFilterRequest] = useState(0);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDto | null>(null);
   const [toolbarAction, setToolbarAction] = useState<{ token: number; action: "csv" | "xlsx" | "pdf" | "print" | "columns" }>({ token: 0, action: "csv" });
   const [error, setError] = useState<string | null>(null);
@@ -338,6 +339,7 @@ export function CustomersPage() {
   const customers = table.paged;
   const customerFilterCount = activeCustomerFilterCount(filters) + (search ? 1 : 0);
   const clearFilters = () => {
+    setClearSavedFilterRequest(value => value + 1);
     setSearch("");
     setFilters({ ...EMPTY_CUSTOMER_LIST_FILTERS });
     table.setQuery("");
@@ -422,7 +424,8 @@ export function CustomersPage() {
         </Stack>
         <Stack direction="row" spacing={.75} useFlexGap flexWrap="wrap" sx={{ width: { xs: "100%", sm: "auto" }, alignItems: "center" }}>
         <SavedReportsButton entity="customers" currentFilters={savedCustomerFilters} onLoad={loadSavedCustomerFilters}
-          saveRequestToken={saveFilterRequest} />
+          onClear={clearFilters} clearRequestToken={clearSavedFilterRequest}
+          saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />
         <Button variant={activeCustomerFilterCount(filters) > 0 ? "contained" : "outlined"} startIcon={<FilterListIcon />}
           onClick={() => setFiltersOpen(true)} sx={{ minHeight: 40, whiteSpace: "nowrap" }}>
           Περισσότερα{activeCustomerFilterCount(filters) > 0 ? ` (${activeCustomerFilterCount(filters)})` : ""}

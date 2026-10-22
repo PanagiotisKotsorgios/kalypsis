@@ -233,6 +233,7 @@ export function PoliciesPage() {
   const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
   const [sectionsAnchor, setSectionsAnchor] = useState<HTMLElement | null>(null);
   const [saveFilterRequest, setSaveFilterRequest] = useState(0);
+  const [clearSavedFilterRequest, setClearSavedFilterRequest] = useState(0);
   const [toolbarAction, setToolbarAction] = useState<{ token: number; action: "csv" | "xlsx" | "pdf" | "print" | "columns" }>({ token: 0, action: "csv" });
 
   // Deep-link support — the customer card sends operators here as
@@ -387,6 +388,7 @@ export function PoliciesPage() {
   });
   const rows = table.paged;
   const clearPolicyFilters = () => {
+    setClearSavedFilterRequest(value => value + 1);
     setCarrierFilter(""); setSubCarrierFilter([]); setProducerFilter("");
     setDateFilterField("start");
     setFromDate(""); setToDate(""); setStatusFilter(""); setTypeFilter(""); setSearch("");
@@ -602,7 +604,9 @@ export function PoliciesPage() {
                    entity="policies"
                    currentFilters={savedPolicyFilters}
                    onLoad={loadSavedPolicyFilters}
+                   onClear={clearPolicyFilters} clearRequestToken={clearSavedFilterRequest}
                    saveRequestToken={saveFilterRequest}
+                   showSaveMenuItem={false}
                  />
                </Box>
              </Box>

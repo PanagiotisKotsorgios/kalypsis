@@ -442,6 +442,7 @@ export function CustomerVehiclesPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
   const [saveFilterRequest, setSaveFilterRequest] = useState(0);
+  const [clearSavedFilterRequest, setClearSavedFilterRequest] = useState(0);
   const q = useQuery({
     queryKey: ["customer-vehicles-all"],
     queryFn: async () => (await api.get<VehiclePolicyRow[]>("/policies", { params: { type: "Auto" } })).data
@@ -557,7 +558,7 @@ export function CustomerVehiclesPage() {
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "οχήματα-πελατών.csv"; anchor.click(); URL.revokeObjectURL(url);
   };
-  const resetFilters = () => { setSearch(""); setStatusFilter(""); setCompanyFilter(""); setRenewalFilter("all"); setSelectedIds(new Set()); };
+  const resetFilters = () => { setSearch(""); setStatusFilter(""); setCompanyFilter(""); setRenewalFilter("all"); setSelectedIds(new Set()); setPage(0); setClearSavedFilterRequest(value => value + 1); };
   if (q.isLoading) return <Box sx={{ p: 6, textAlign: "center" }}><CircularProgress /></Box>;
   if (q.isError) return <Alert severity="error">{extractErrorMessage(q.error)}</Alert>;
 
@@ -602,7 +603,8 @@ export function CustomerVehiclesPage() {
         <TextField select size="small" label="Λήξη" value={renewalFilter} onChange={e => setRenewalFilter(e.target.value)} sx={{ minWidth: 145 }}><MenuItem value="all">Όλες</MenuItem><MenuItem value="30">Σε 30 ημέρες</MenuItem><MenuItem value="31-90">31–90 ημέρες</MenuItem><MenuItem value="90">Σε 90 ημέρες</MenuItem><MenuItem value="expired">Ληγμένα</MenuItem></TextField>
         <SavedReportsButton entity="vehicles" currentFilters={{ search, statusFilter, companyFilter, renewalFilter }}
           onLoad={next => { setSearch(next.search ?? ""); setStatusFilter(next.statusFilter ?? ""); setCompanyFilter(next.companyFilter ?? ""); setRenewalFilter(next.renewalFilter ?? "all"); }}
-          saveRequestToken={saveFilterRequest} />
+          onClear={resetFilters} clearRequestToken={clearSavedFilterRequest}
+          saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />
         <Button size="small" color="error" variant="contained" onClick={resetFilters}>Καθαρισμός</Button>
       </Stack>
     </Card>

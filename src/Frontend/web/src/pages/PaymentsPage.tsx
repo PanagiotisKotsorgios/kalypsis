@@ -77,6 +77,7 @@ export function PaymentsPage() {
   const [amountMin, setAmountMin] = useState("");
   const [amountMax, setAmountMax] = useState("");
   const [saveFilterRequest, setSaveFilterRequest] = useState(0);
+  const [clearSavedFilterRequest, setClearSavedFilterRequest] = useState(0);
   const [exportAction, setExportAction] = useState<{ token: number; action: "xlsx" | "csv" | "pdf" | "print" }>({ token: 0, action: "xlsx" });
   const [columnsRequest, setColumnsRequest] = useState(0);
 
@@ -125,6 +126,7 @@ export function PaymentsPage() {
   ]);
   const cashOutTotal = filteredRows.reduce((s, p) => s + (p.amount - p.commissionsNetted), 0);
   const clearPaymentFilters = () => {
+    setClearSavedFilterRequest(value => value + 1);
     setSearch(""); setMethodFilter(""); setBenFilter(""); setFromDate(""); setToDate("");
     setAmountMin(""); setAmountMax("");
   };
@@ -264,7 +266,8 @@ export function PaymentsPage() {
           }} color="error" variant="contained">Καθαρισμός</Button>
           <SavedReportsButton entity="payments" currentFilters={{ search, methodFilter, benFilter, fromDate, toDate, amountMin, amountMax }}
             onLoad={filters => { setSearch(filters.search ?? ""); setMethodFilter(filters.methodFilter ?? ""); setBenFilter(filters.benFilter ?? ""); setFromDate(filters.fromDate ?? ""); setToDate(filters.toDate ?? ""); setAmountMin(filters.amountMin ?? ""); setAmountMax(filters.amountMax ?? ""); }}
-            saveRequestToken={saveFilterRequest} />
+            onClear={clearPaymentFilters} clearRequestToken={clearSavedFilterRequest}
+            saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />
         </Stack>
       </ResponsiveFilterPanel>
 

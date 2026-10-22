@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Alert, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  FormControlLabel, IconButton, Menu, MenuItem, Stack, Switch, TextField, Tooltip, Typography
+  FormControlLabel, IconButton, Menu, MenuItem, Snackbar, Stack, Switch, TextField, Tooltip, Typography
 } from "@mui/material";
 import BookmarkIcon from "@mui/icons-material/Bookmark";
 import BookmarkAddIcon from "@mui/icons-material/BookmarkAdd";
@@ -9,6 +9,7 @@ import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import EditIcon from "@mui/icons-material/EditOutlined";
 import SaveIcon from "@mui/icons-material/Save";
 import FilterAltOffIcon from "@mui/icons-material/FilterAltOff";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 
@@ -20,6 +21,13 @@ interface SavedReport {
   isShared: boolean;
   ownedByMe: boolean;
   createdAt: string;
+}
+
+export function parseSavedFilter<T>(filtersJson: string): T {
+  const parsed: unknown = JSON.parse(filtersJson);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    throw new Error("Το αποθηκευμένο φίλτρο δεν περιέχει έγκυρες επιλογές.");
+  return parsed as T;
 }
 
 export function savedFilterPayload(entity: string, currentFilters: unknown, name: string, isShared: boolean) {
@@ -81,6 +89,7 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad, onClear,
   const [editingReport, setEditingReport] = useState<SavedReport | null>(null);
   const [editForm, setEditForm] = useState({ name: "", isShared: false });
   const [replaceFilters, setReplaceFilters] = useState(false);
+  const [feedback, setFeedback] = useState<{ message: string; severity: "success" | "error" } | null>(null);
   useEffect(() => { setActiveId(null); setAnchor(null); }, [entity, clearRequestToken]);
   const clearSelection = () => { setActiveId(null); setAnchor(null); onClear?.(); };
 
@@ -97,6 +106,7 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad, onClear,
       qc.setQueryData<SavedReport[]>(["saved-reports", entity], previous => [result, ...(previous ?? []).filter(row => row.id !== result.id)]);
       setSaveOpen(false);
       setForm({ name: "", isShared: false });
+      setFeedback({ message: `Το φίλτρο «${result.name}» αποθηκεύτηκε.`, severity: "success" });
       void qc.invalidateQueries({ queryKey: ["saved-reports", entity] });
     },
   });
@@ -118,8 +128,11 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad, onClear,
         if (onClear) clearSelection();
         else setActiveId(null);
       }
+      qc.setQueryData<SavedReport[]>(["saved-reports", entity], previous => (previous ?? []).filter(report => report.id !== id));
+      setFeedback({ message: "Το αποθηκευμένο φίλτρο διαγράφηκε.", severity: "success" });
       void qc.invalidateQueries({ queryKey: ["saved-reports", entity] });
     },
+    onError: error => setFeedback({ message: extractErrorMessage(error, "Δεν διαγράφηκε το φίλτρο. Δοκιμάστε ξανά."), severity: "error" }),
   });
 
   const update = useMutation({
@@ -138,6 +151,7 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad, onClear,
         (previous ?? []).map(report => report.id === result.id ? result : report));
       setEditingReport(null);
       setReplaceFilters(false);
+      setFeedback({ message: `Οι αλλαγές στο φίλτρο «${result.name}» αποθηκεύτηκαν.`, severity: "success" });
       void qc.invalidateQueries({ queryKey: ["saved-reports", entity] });
     },
   });
@@ -151,7 +165,7 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad, onClear,
         ...(activeId
           ? { bgcolor: "#0b5cad", color: "#fff", "&:hover": { bgcolor: "#084d91", color: "#fff" } }
           : { color: "#123a64", borderColor: "#9ab2ca", "&:hover": { bgcolor: "#e8f2fb", borderColor: "#5d8fbd", color: "#123a64" } })
-      }}>
+      }} aria-haspopup="menu" aria-expanded={!!anchor}>
       <Typography component="span" variant="inherit" noWrap title={activeName}>{activeName ?? (compact ? "Έτοιμα φίλτρα" : inline ? "Όνομα νέου φίλτρου" : "Αποθηκευμένα")}</Typography>
     </Button>
   );
@@ -189,10 +203,11 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad, onClear,
         </Stack>
       ) : selectorButton}
       <Menu anchorEl={anchor} open={!!anchor} onClose={() => setAnchor(null)}
-        slotProps={{ paper: { sx: { minWidth: 300, maxHeight: 400 } } }}>
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }} transformOrigin={{ vertical: "top", horizontal: "right" }}
+        slotProps={{ paper: { sx: { width: 360, maxWidth: "calc(100vw - 24px)", maxHeight: "min(440px, 70vh)" } } }}>
         {onClear && <MenuItem selected={!activeId} onClick={clearSelection}
           sx={{ color: "#123a64", "&:hover": { bgcolor: "#e8f2fb", color: "#123a64" }, "&.Mui-selected": { bgcolor: "#d8eafa", color: "#0b305c" }, "&.Mui-selected:hover": { bgcolor: "#c8e1f6", color: "#0b305c" } }}>
-          <FilterAltOffIcon fontSize="small" sx={{ mr: 1 }} />Χωρίς αποθηκευμένο φίλτρο (προεπιλογή)
+          <FilterAltOffIcon fontSize="small" sx={{ mr: 1, flexShrink: 0 }} /><Typography variant="body2" sx={{ whiteSpace: "normal" }}>Χωρίς αποθηκευμένο φίλτρο (προεπιλογή)</Typography>
         </MenuItem>}
         {showSaveMenuItem && <MenuItem onClick={() => { setAnchor(null); save.reset(); setSaveOpen(true); }}>
           <BookmarkAddIcon fontSize="small" sx={{ mr: 1 }} />
@@ -200,24 +215,31 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad, onClear,
         </MenuItem>}
         {q.isLoading ? (
           <MenuItem disabled><CircularProgress size={14} sx={{ mr: 1 }} /> Φόρτωση…</MenuItem>
+        ) : q.isError ? (
+          <MenuItem onClick={() => void q.refetch()} sx={{ whiteSpace: "normal", color: "error.main" }}>
+            <RefreshIcon fontSize="small" sx={{ mr: 1, flexShrink: 0 }} />Δεν φορτώθηκαν τα φίλτρα. Δοκιμάστε ξανά.
+          </MenuItem>
         ) : (q.data ?? []).length === 0 ? (
           <MenuItem disabled sx={{ fontSize: 13, color: "text.secondary" }}>Δεν υπάρχουν αποθηκευμένα.</MenuItem>
         ) : (q.data ?? []).map(r => (
           <MenuItem key={r.id} selected={r.id === activeId} onClick={() => {
             try {
-              const parsed = JSON.parse(r.filtersJson);
+              const parsed = parseSavedFilter<T>(r.filtersJson);
               onLoad(parsed);
               setActiveId(r.id);
               setAnchor(null);
-            } catch { /* ignore malformed */ }
+            } catch {
+              setAnchor(null);
+              setFeedback({ message: "Δεν φορτώθηκε το φίλτρο. Οι αποθηκευμένες επιλογές δεν είναι έγκυρες.", severity: "error" });
+            }
           }} sx={{
             color: "#123a64",
             "&:hover": { bgcolor: "#e8f2fb", color: "#123a64" },
             "&.Mui-selected": { bgcolor: "#d8eafa", color: "#0b305c", fontWeight: 800 },
             "&.Mui-selected:hover": { bgcolor: "#c8e1f6", color: "#0b305c" },
           }}>
-            <Stack direction="row" alignItems="center" spacing={1} sx={{ width: "100%" }}>
-              <Typography sx={{ flex: 1 }} noWrap>{r.name}</Typography>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ width: "100%", minWidth: 0 }}>
+              <Typography sx={{ flex: 1, minWidth: 0 }} noWrap title={r.name}>{r.name}</Typography>
               {r.isShared && <Chip size="small" label="κοινό" sx={{ height: 18, fontSize: 10 }} />}
               {r.ownedByMe && (
                 <Stack direction="row" spacing={0.25}>
@@ -234,7 +256,7 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad, onClear,
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Διαγραφή αποθηκευμένου φίλτρου">
-                    <IconButton size="small" aria-label={`Διαγραφή ${r.name}`} color="error" sx={{
+                    <IconButton size="small" aria-label={`Διαγραφή ${r.name}`} color="error" disabled={del.isPending} sx={{
                       color: "#d32f2f", "&:hover": { color: "#fff", bgcolor: "#c62828" },
                     }} onClick={(e) => {
                       e.stopPropagation();
@@ -289,6 +311,9 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad, onClear,
           </Button>
         </DialogActions>
       </Dialog>
+      <Snackbar open={!!feedback} autoHideDuration={4500} onClose={() => setFeedback(null)} anchorOrigin={{ vertical: "bottom", horizontal: "right" }}>
+        <Alert severity={feedback?.severity ?? "success"} variant="filled" onClose={() => setFeedback(null)} sx={{ maxWidth: "min(480px, calc(100vw - 32px))" }}>{feedback?.message}</Alert>
+      </Snackbar>
     </>
   );
 }

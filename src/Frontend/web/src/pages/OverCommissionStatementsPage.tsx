@@ -115,6 +115,13 @@ export function OverCommissionStatementsPage() {
   const [selectedStatsGroup, setSelectedStatsGroup] = useState<string | null>(null);
   const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
   const [saveFilterRequest, setSaveFilterRequest] = useState(0);
+  const [clearSavedFilterRequest, setClearSavedFilterRequest] = useState(0);
+  const clearFilters = () => {
+    setYear(new Date().getFullYear()); setMonth("");
+    setCarrierFilter(""); setProducerFilter(""); setSearch("");
+    setDateFrom(""); setDateTo(""); setPaidFilter(""); setGroupBy("producer");
+    setClearSavedFilterRequest(value => value + 1);
+  };
   // Deep-link ?openImport=ergo (from OverCommissionBridgesPage) auto-opens
   // the μαζική καταχώρηση grid + tells the grid to preselect ERGO layout.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -550,12 +557,10 @@ export function OverCommissionStatementsPage() {
           <Box sx={{ justifySelf: { md: "end" } }}><SavedReportsButton entity="over-commission-statements"
             currentFilters={{ year, month, carrierFilter, producerFilter, search, dateFrom, dateTo, paidFilter, groupBy }}
             onLoad={next => { setYear(next.year ?? now.getFullYear()); setMonth(next.month ?? ""); setCarrierFilter(next.carrierFilter ?? ""); setProducerFilter(next.producerFilter ?? ""); setSearch(next.search ?? ""); setDateFrom(next.dateFrom ?? ""); setDateTo(next.dateTo ?? ""); setPaidFilter(next.paidFilter ?? ""); setGroupBy(next.groupBy ?? "producer"); }}
-            saveRequestToken={saveFilterRequest} /></Box>
+            onClear={clearFilters} clearRequestToken={clearSavedFilterRequest}
+            saveRequestToken={saveFilterRequest} showSaveMenuItem={false} /></Box>
           <Button size="small" fullWidth color="error" variant="contained"
-            onClick={() => {
-              setCarrierFilter(""); setProducerFilter(""); setSearch("");
-              setDateFrom(""); setDateTo(""); setPaidFilter(""); setMonth(""); setGroupBy("producer");
-            }}>
+            onClick={clearFilters}>
             Καθαρισμός φίλτρων
           </Button>
         </Box>

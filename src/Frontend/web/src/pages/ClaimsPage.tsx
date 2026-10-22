@@ -150,6 +150,7 @@ export function ClaimsPage() {
   const [dateWindow, setDateWindow] = useState<"" | "7" | "30" | "90">("");
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
   const [saveFilterRequest, setSaveFilterRequest] = useState(0);
+  const [clearSavedFilterRequest, setClearSavedFilterRequest] = useState(0);
   const [toolbarAction, setToolbarAction] = useState<{ token: number; action: UnifiedExportAction }>({ token: 0, action: "csv" });
 
   const importClaims = async (rows: Record<string, string>[]): Promise<BulkImportResult> => {
@@ -248,6 +249,7 @@ export function ClaimsPage() {
   });
   const rows = table.paged;
   const clearClaimFilters = () => {
+    setClearSavedFilterRequest(value => value + 1);
     setStatusFilter(""); setCustomerFilter(""); setCarrierFilter(""); setSubCarrierFilter([]);
     setTypeFilter(""); setUseFilter(""); setCoverFilter(""); setPackageFilter("");
     setFromDate(""); setToDate(""); setDateWindow("");
@@ -325,7 +327,8 @@ export function ClaimsPage() {
               <TextField size="small" type="date" label="Συμβάν έως" InputLabelProps={{ shrink: true }} fullWidth value={toDate} onChange={(e) => setToDate(e.target.value)} sx={{ minWidth: 0, width: "100%" }} />
               <SavedReportsButton entity="claims" currentFilters={{ customerFilter, statusFilter, carrierFilter, subCarrierFilter, typeFilter, useFilter, coverFilter, packageFilter, fromDate, toDate, dateWindow }}
                 onLoad={filters => { setCustomerFilter(filters.customerFilter ?? ""); setStatusFilter(filters.statusFilter ?? ""); setCarrierFilter(filters.carrierFilter ?? ""); setSubCarrierFilter(filters.subCarrierFilter ?? []); setTypeFilter(filters.typeFilter ?? ""); setUseFilter(filters.useFilter ?? ""); setCoverFilter(filters.coverFilter ?? ""); setPackageFilter(filters.packageFilter ?? ""); setFromDate(filters.fromDate ?? ""); setToDate(filters.toDate ?? ""); setDateWindow(filters.dateWindow ?? ""); }}
-                saveRequestToken={saveFilterRequest} />
+                onClear={clearClaimFilters} clearRequestToken={clearSavedFilterRequest}
+                saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />
             </Box>
           </Card>
           <Dialog open={advancedFiltersOpen} onClose={() => setAdvancedFiltersOpen(false)} fullWidth maxWidth="md">

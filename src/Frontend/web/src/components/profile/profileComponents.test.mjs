@@ -74,7 +74,7 @@ test("production profiles reuse client fields, pencil/save actions and compact t
   try {
     const { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback } = await server.ssrLoadModule("/src/components/profile/ProfileFieldEditor.tsx");
     const { CompanyProfileFields, OfficeProfileFields, WorkspaceProfileTabs, buildOfficeProfileUpdate, toCompanyApiPayload } = await server.ssrLoadModule("/src/pages/ProductionCompaniesAgenciesPage.tsx");
-    const { SavedReportsButton, SavedFilterForm, savedFilterPayload } = await server.ssrLoadModule("/src/components/SavedReportsButton.tsx");
+    const { SavedReportsButton, SavedFilterForm, savedFilterPayload, parseSavedFilter } = await server.ssrLoadModule("/src/components/SavedReportsButton.tsx");
     const events = [];
     const session = { values: { name: "Εταιρεία", code: "DEMO", country: "GR", isActive: "false", contactEmail: "info@example.gr", contactPhone: "2101234567" },
       drafts: {}, editAll: false, busy: false, change: (field, value) => events.push(["change", field, value]), commit: async (field, value) => events.push(["commit", field, value]),
@@ -154,6 +154,8 @@ test("production profiles reuse client fields, pencil/save actions and compact t
     const filters = { status: "Active", city: ["Αθήνα", "Πάτρα"], paid: false, amount: 0, from: null };
     const payload = savedFilterPayload("customers", filters, " Δοκιμή ", true);
     assert.equal(payload.name, "Δοκιμή"); assert.equal(payload.isShared, true); assert.deepEqual(JSON.parse(payload.filtersJson), filters);
+    assert.deepEqual(parseSavedFilter(payload.filtersJson), filters);
+    for (const invalid of ["null", "[]", "42", '"text"', "broken-json"]) assert.throws(() => parseSavedFilter(invalid));
     assert.throws(() => savedFilterPayload("customers", {}, "  ", false));
     assert.throws(() => savedFilterPayload("customers", {}, "x".repeat(201), false));
 

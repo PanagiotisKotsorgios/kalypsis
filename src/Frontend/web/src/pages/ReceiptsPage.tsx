@@ -92,6 +92,7 @@ export function ReceiptsPage() {
   const [toDate, setToDate] = useState("");
   const [customerFilter, setCustomerFilter] = useState("");
   const [saveFilterRequest, setSaveFilterRequest] = useState(0);
+  const [clearSavedFilterRequest, setClearSavedFilterRequest] = useState(0);
   const [exportAction, setExportAction] = useState<{ token: number; action: "xlsx" | "csv" | "pdf" | "print" }>({ token: 0, action: "xlsx" });
   const [columnsRequest, setColumnsRequest] = useState(0);
 
@@ -143,6 +144,11 @@ export function ReceiptsPage() {
   ]);
   const total = filtered.reduce((s, r) => s + r.amount, 0);
   const savedReceiptFilters = { search, methodFilter, fromDate, toDate, customerFilter };
+  const clearReceiptFilters = () => {
+    setSearch(""); setMethodFilter(""); setFromDate(""); setToDate(""); setCustomerFilter("");
+    table.setQuery(""); table.setPage(1);
+    setClearSavedFilterRequest(value => value + 1);
+  };
   const loadSavedReceiptFilters = (filters: Partial<typeof savedReceiptFilters>) => {
     setSearch(filters.search ?? "");
     setMethodFilter((filters.methodFilter ?? "") as Method | "");
@@ -235,14 +241,14 @@ export function ReceiptsPage() {
             <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }}
               value={toDate} onChange={(e) => setToDate(e.target.value)} sx={{ minWidth: 140, width: "100%" }} />
           </FilterFieldWrap>
-          <Button size="small" onClick={() => {
-            setSearch(""); setMethodFilter(""); setFromDate(""); setToDate(""); setCustomerFilter("");
-          }} color="error" variant="contained">Καθαρισμός</Button>
+          <Button size="small" onClick={clearReceiptFilters} color="error" variant="contained">Καθαρισμός</Button>
           <SavedReportsButton
             entity="receipts"
             currentFilters={savedReceiptFilters}
             onLoad={loadSavedReceiptFilters}
+            onClear={clearReceiptFilters} clearRequestToken={clearSavedFilterRequest}
             saveRequestToken={saveFilterRequest}
+            showSaveMenuItem={false}
           />
         </Stack>
       </Card>

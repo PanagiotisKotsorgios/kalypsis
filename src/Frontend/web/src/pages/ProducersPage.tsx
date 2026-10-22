@@ -142,6 +142,7 @@ export function ProducersPage() {
   const [issuedCreds, setIssuedCreds] = useState<{ email: string; password: string } | null>(null);
   const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
   const [saveFilterRequest, setSaveFilterRequest] = useState(0);
+  const [clearSavedFilterRequest, setClearSavedFilterRequest] = useState(0);
   const [toolbarAction, setToolbarAction] = useState<{ token: number; action: "csv" | "xlsx" | "pdf" | "print" | "columns" }>({ token: 0, action: "csv" });
 
   const q = useQuery({
@@ -190,6 +191,7 @@ export function ProducersPage() {
   const rows = table.paged;
 
   const clearProducerFilters = () => {
+    setClearSavedFilterRequest(value => value + 1);
     setStatusFilter("");
     setTierFilter("");
     setHasPoliciesOnly(false);
@@ -340,7 +342,8 @@ export function ProducersPage() {
             />
             <SavedReportsButton entity="producers" currentFilters={{ query: table.query, statusFilter, tierFilter, hasPoliciesOnly, hierarchyFilter }}
               onLoad={next => { table.setQuery(next.query ?? ""); setStatusFilter(next.statusFilter ?? ""); setTierFilter(next.tierFilter ?? ""); setHasPoliciesOnly(Boolean(next.hasPoliciesOnly)); setHierarchyFilter(next.hierarchyFilter ?? ""); }}
-              saveRequestToken={saveFilterRequest} />
+              onClear={clearProducerFilters} clearRequestToken={clearSavedFilterRequest}
+              saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />
           </Box>
         </Card>
         <Dialog open={advancedFiltersOpen} onClose={() => setAdvancedFiltersOpen(false)} fullWidth maxWidth="sm">

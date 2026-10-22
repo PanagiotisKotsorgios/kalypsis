@@ -36,6 +36,7 @@ export function GaragesPage() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [saveFilterRequest, setSaveFilterRequest] = useState(0);
+  const [clearSavedFilterRequest, setClearSavedFilterRequest] = useState(0);
 
   const q = useQuery({ queryKey: ["garages"], queryFn: async () => (await api.get<GarageDto[]>("/garages")).data });
   const rows = q.data ?? [];
@@ -55,7 +56,7 @@ export function GaragesPage() {
   }, [rows, search, approvalFilter, activeFilter, cityFilter]);
   useEffect(() => { setPage(0); }, [search, approvalFilter, activeFilter, cityFilter, rowsPerPage]);
   const pageRows = filteredRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-  const clearFilters = () => { setSearch(""); setApprovalFilter("all"); setActiveFilter("all"); setCityFilter("all"); };
+  const clearFilters = () => { setSearch(""); setApprovalFilter("all"); setActiveFilter("all"); setCityFilter("all"); setClearSavedFilterRequest(value => value + 1); };
   const exportColumns = [
     { key: "code", label: "Κωδικός" }, { key: "name", label: "Επωνυμία" }, { key: "afm", label: "ΑΦΜ" },
     { key: "address", label: "Διεύθυνση" }, { key: "city", label: "Πόλη" }, { key: "postalCode", label: "Τ.Κ." },
@@ -105,7 +106,8 @@ export function GaragesPage() {
           <TextField select size="small" label="Πόλη" value={cityFilter} onChange={e => setCityFilter(e.target.value)} sx={{ minWidth: 145 }}><MenuItem value="all">Όλες</MenuItem>{cities.map(city => <MenuItem key={city} value={city}>{city}</MenuItem>)}</TextField>
           <SavedReportsButton entity="garages" currentFilters={{ search, approvalFilter, activeFilter, cityFilter }}
             onLoad={filters => { setSearch(filters.search ?? ""); setApprovalFilter(filters.approvalFilter ?? "all"); setActiveFilter(filters.activeFilter ?? "all"); setCityFilter(filters.cityFilter ?? "all"); }}
-            saveRequestToken={saveFilterRequest} />
+            onClear={clearFilters} clearRequestToken={clearSavedFilterRequest}
+            saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />
           <Button size="small" color="error" variant="contained" startIcon={<FilterAltOffIcon />} onClick={clearFilters}>Καθαρισμός</Button>
         </Stack>
       </Card>
