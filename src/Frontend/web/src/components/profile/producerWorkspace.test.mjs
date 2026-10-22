@@ -13,7 +13,7 @@ test("producer workspace keeps contact editing, red debts and filtered live stat
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const render = (Component, props) => renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(Component, props)));
   try {
-    const { ProducerDebtField, ProducerBalancesPanel } = await server.ssrLoadModule("/src/components/ProducerBalancesPanel.tsx");
+    const { ProducerDebtField, ProducerBalancesPanel, ProducerBalanceEntriesTable, producerMonthEntries } = await server.ssrLoadModule("/src/components/ProducerBalancesPanel.tsx");
     const { ProducerContactFields, PRODUCER_CONTACT_FIELDS, producerContactError } = await server.ssrLoadModule("/src/components/ProducerContactFields.tsx");
     const { ProducerStatisticsDashboard, producerStatisticsParams, producerStatisticsCharts, producerStatisticsRefreshMs } = await server.ssrLoadModule("/src/components/ProducerStatisticsDialog.tsx");
     await context.test("positive debt has red value/copy controls with white foreground; zero is not falsely highlighted as debt", () => {
@@ -22,14 +22,32 @@ test("producer workspace keeps contact editing, red debts and filtered live stat
       assert.ok(debt.includes("60,00 EUR")); assert.ok(debt.includes("Αντιγραφή Οφειλή προς συνεργάτη"));
       assert.ok(!render(ProducerDebtField, { value: 0, currency: "EUR" }).includes("#D00000"));
     });
-    await context.test("financials retain summaries and all paginated records without a contract/payment search bar", () => {
-      client.setQueryData(["producer-balances", "P1"], { producerId: "P1", currencies: [{ currency: "EUR", earned: 100, paid: 40, toProducer: 60, fromProducer: 0 }],
-        entries: Array.from({ length: 12 }, (_, i) => ({ id: String(i), date: "2026-01-01", kind: "Commission", reference: `REF-${i}`, policyNumber: `POL-${i}`, earned: i, paid: 0, currency: "EUR" })) });
+    await context.test("financials show monthly carry-forward before explicitly all-history totals without a contract/payment search bar", () => {
+      const monthly = Array.from({ length: 12 }, (_, i) => ({ month: `2026-${String(12 - i).padStart(2, "0")}-01`, currency: "EUR", openingBalance: (11 - i) * 5,
+        earned: 10, paid: 5, closingBalance: (12 - i) * 5, entryCount: 2 }));
+      client.setQueryData(["producer-balances", "P1"], { producerId: "P1", currencies: [{ currency: "EUR", earned: 120, paid: 60, toProducer: 60, fromProducer: 0 }], monthly, entries: [] });
       const html = render(ProducerBalancesPanel, { producerId: "P1" });
-      assert.ok(html.includes("Αναλυτικές οικονομικές κινήσεις")); assert.ok(html.includes("100,00 EUR")); assert.ok(html.includes("60,00 EUR"));
+      for (const text of ["ανά μήνα", "Εκ μεταφοράς", "Προμήθειες μήνα", "Καταβλήθηκαν μήνα", "Υπόλοιπο τέλους μήνα", "μήνας έναρξης συμβολαίου", "μήνας πληρωμής", "Δεκέμβριος 2026", "120,00 EUR", "60,00 EUR", "Συνολικές προμήθειες", "Συνολικά καταβλήθηκαν"]) assert.ok(html.includes(text), text);
+      assert.ok(html.indexOf("Σύνολα όλου του καταχωρημένου ιστορικού") > html.indexOf("</table>"));
+      assert.ok(html.includes('aria-label="Κινήσεις Δεκέμβριος 2026 EUR"'));
       assert.ok(!html.includes("Αναζήτηση συμβολαίου ή πληρωμής")); assert.ok(html.includes("από 12"));
       const body = html.match(/<tbody\b[^>]*>[\s\S]*?<\/tbody>/)?.[0] ?? "";
       assert.equal((body.match(/<tr\b/g) ?? []).length, 10); assert.ok(html.includes("background-color:#f0f2f5"));
+    });
+    await context.test("monthly details retain every entry with pagination and isolate both month and currency", () => {
+      const entries = Array.from({ length: 12 }, (_, i) => ({ id: String(i), date: "2026-01-15", kind: i % 2 ? "Payment" : "Commission", reference: `REF-${i}`, policyNumber: `POL-${i}`, earned: i % 2 ? 0 : 10, paid: i % 2 ? 5 : 0, currency: "EUR" }));
+      const allEntries = [...entries, { ...entries[0], id: "USD", currency: "USD" }, { ...entries[0], id: "FEB", date: "2026-02-15" }];
+      const original = structuredClone(allEntries);
+      assert.deepEqual(producerMonthEntries(allEntries, { month: "2026-01-01", currency: "EUR" }), entries);
+      assert.deepEqual(allEntries, original);
+      const html = render(ProducerBalanceEntriesTable, { entries });
+      for (const text of ["15/1/2026", "Προμήθεια", "Πληρωμή", "POL-0", "REF-1", "από 12"]) assert.ok(html.includes(text), text);
+      assert.equal((html.match(/<tbody\b[^>]*>[\s\S]*?<\/tbody>/)?.[0].match(/<tr\b/g) ?? []).length, 10);
+    });
+    await context.test("empty financial history stays explicit and never invents a debt", () => {
+      client.setQueryData(["producer-balances", "EMPTY"], { producerId: "EMPTY", currencies: [], entries: [], monthly: [] });
+      const html = render(ProducerBalancesPanel, { producerId: "EMPTY" });
+      assert.ok(html.includes("Δεν υπάρχουν καταχωρημένες κινήσεις")); assert.ok(!html.includes('data-producer-debt="outstanding"'));
     });
     await context.test("base and additional contact fields keep copy, pencil/save and parent-owned drafts", () => {
       const fields = [{ id: "field-1", label: "Γραμματεία", kind: "Email", value: "secretary@example.gr" }];

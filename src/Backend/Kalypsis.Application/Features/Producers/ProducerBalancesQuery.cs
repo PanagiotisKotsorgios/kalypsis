@@ -8,7 +8,8 @@ namespace Kalypsis.Application.Features.Producers;
 
 public record ProducerBalanceCurrency(string Currency, decimal Earned, decimal Paid, decimal ToProducer, decimal FromProducer);
 public record ProducerBalanceEntry(string Id, DateOnly Date, string Kind, string Reference, string? PolicyNumber, decimal Earned, decimal Paid, string Currency);
-public record ProducerBalancesDto(Guid ProducerId, IReadOnlyList<ProducerBalanceCurrency> Currencies, IReadOnlyList<ProducerBalanceEntry> Entries);
+public record ProducerBalanceMonth(DateOnly Month, string Currency, decimal OpeningBalance, decimal Earned, decimal Paid, decimal ClosingBalance, int EntryCount);
+public record ProducerBalancesDto(Guid ProducerId, IReadOnlyList<ProducerBalanceCurrency> Currencies, IReadOnlyList<ProducerBalanceEntry> Entries, IReadOnlyList<ProducerBalanceMonth> Monthly);
 public record GetProducerBalancesQuery(Guid ProducerId) : IRequest<ProducerBalancesDto>;
 
 public sealed class GetProducerBalancesHandler(IAppDbContext db, ICurrentUser current) : IRequestHandler<GetProducerBalancesQuery, ProducerBalancesDto>
@@ -40,7 +41,24 @@ public sealed class GetProducerBalancesHandler(IAppDbContext db, ICurrentUser cu
             var paid = group.Sum(row => row.Paid);
             return new ProducerBalanceCurrency(group.Key, earned, paid, Math.Max(0, earned - paid), Math.Max(0, paid - earned));
         }).OrderBy(row => row.Currency).ToList();
-        return new ProducerBalancesDto(request.ProducerId, balances, entries);
+        // Calculate chronologically, before any UI pagination/filtering. A payment
+        // can settle prior months; summing each month's positive debt would overstate it.
+        // Commission dates retain the existing policy-start basis, payments PaidOn.
+        var monthly = new List<ProducerBalanceMonth>();
+        foreach (var currency in entries.GroupBy(row => row.Currency))
+        {
+            decimal runningBalance = 0;
+            foreach (var month in currency.GroupBy(row => new DateOnly(row.Date.Year, row.Date.Month, 1)).OrderBy(group => group.Key))
+            {
+                var earned = month.Sum(row => row.Earned);
+                var paid = month.Sum(row => row.Paid);
+                var opening = runningBalance;
+                runningBalance += earned - paid;
+                monthly.Add(new(month.Key, currency.Key, opening, earned, paid, runningBalance, month.Count()));
+            }
+        }
+        return new ProducerBalancesDto(request.ProducerId, balances, entries,
+            monthly.OrderByDescending(row => row.Month).ThenBy(row => row.Currency).ToList());
     }
 
     private static string Currency(string? currency) => string.IsNullOrWhiteSpace(currency) ? "EUR" : currency.Trim().ToUpperInvariant();

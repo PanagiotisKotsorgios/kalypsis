@@ -158,6 +158,62 @@ public sealed class PolicyLifecycleAndBalancesTests
         Assert.Equal(4, result.Entries.Count);
         var eur = Assert.Single(result.Currencies, b => b.Currency == "EUR"); Assert.Equal(100, eur.Earned); Assert.Equal(40, eur.Paid); Assert.Equal(60, eur.ToProducer); Assert.Equal(0, eur.FromProducer);
         var usd = Assert.Single(result.Currencies, b => b.Currency == "USD"); Assert.Equal(0, usd.ToProducer); Assert.Equal(30, usd.FromProducer);
+        Assert.Equal(4, result.Monthly.Count);
+        var eurJune = Assert.Single(result.Monthly, b => b.Currency == "EUR" && b.Month == new DateOnly(2026, 6, 1));
+        Assert.Equal(100, eurJune.OpeningBalance); Assert.Equal(60, eurJune.ClosingBalance); Assert.Equal(40, eurJune.Paid);
+        Assert.Equal(-30, Assert.Single(result.Monthly, b => b.Currency == "USD" && b.Month.Month == 6).ClosingBalance);
         await Assert.ThrowsAsync<AppException>(() => new GetProducerBalancesHandler(db, TestScaffold.AgencyStaff(Guid.NewGuid())).Handle(new(producer.Id), default));
+    }
+
+    [Fact]
+    public async Task Monthly_producer_balances_carry_debt_and_credit_across_years_and_gaps_without_mixing_currencies()
+    {
+        var current = TestScaffold.AgencyStaff(Guid.NewGuid()); var tenant = current.TenantId!.Value;
+        using var db = TestScaffold.NewDb(current, TestScaffold.Clock);
+        var company = new InsuranceCompany { Id = Guid.NewGuid(), TenantId = tenant };
+        var customer = new Customer { Id = Guid.NewGuid(), TenantId = tenant };
+        var producer = new Producer { Id = Guid.NewGuid(), TenantId = tenant, Name = "Monthly producer" }; db.Producers.Add(producer);
+        foreach (var (month, earned, currency) in new[] { (1, 100.10m, " eur "), (1, 20.20m, "EUR"), (2, 50m, "EUR"), (5, 69.99m, "EUR"), (1, 10m, "USD") })
+        {
+            var policy = Policy(tenant, company, customer, Guid.NewGuid().ToString(), 2026);
+            policy.StartDate = new(2026, month, 15); // Not the policy's January issue date.
+            db.Policies.Add(policy);
+            db.PolicyCommissionSplits.Add(new PolicyCommissionSplit { Id = Guid.NewGuid(), TenantId = tenant, PolicyId = policy.Id,
+                ProducerId = producer.Id, HierarchyLevel = HierarchyLevel.Producer, GrossAmount = earned, NetAmount = earned, Currency = currency });
+        }
+        foreach (var (date, paid, currency) in new[] { (new DateOnly(2025, 12, 20), 20m, "EUR"), (new DateOnly(2026, 1, 20), 40.30m, "EUR"),
+            (new DateOnly(2026, 2, 20), 80m, "EUR"), (new DateOnly(2026, 3, 20), 50m, "EUR"), (new DateOnly(2026, 1, 20), 15m, "USD") })
+            db.Payments.Add(new Payment { Id = Guid.NewGuid(), TenantId = tenant, Number = Guid.NewGuid().ToString(), BeneficiaryType = BeneficiaryType.Producer,
+                BeneficiaryProducerId = producer.Id, Amount = paid, Currency = currency, PaidOn = date });
+        await db.SaveChangesAsync();
+
+        var result = await new GetProducerBalancesHandler(db, current).Handle(new(producer.Id), default);
+        var eur = result.Monthly.Where(row => row.Currency == "EUR").OrderBy(row => row.Month).ToArray();
+        Assert.Equal(new[] { new DateOnly(2025, 12, 1), new DateOnly(2026, 1, 1), new DateOnly(2026, 2, 1), new DateOnly(2026, 3, 1), new DateOnly(2026, 5, 1) }, eur.Select(row => row.Month));
+        Assert.Equal(new[] { 0m, -20m, 60m, 30m, -20m }, eur.Select(row => row.OpeningBalance));
+        Assert.Equal(new[] { -20m, 60m, 30m, -20m, 49.99m }, eur.Select(row => row.ClosingBalance));
+        Assert.Equal(120.30m, eur[1].Earned); Assert.Equal(40.30m, eur[1].Paid); Assert.Equal(3, eur[1].EntryCount);
+        var usd = Assert.Single(result.Monthly, row => row.Currency == "USD"); Assert.Equal(0, usd.OpeningBalance); Assert.Equal(-5, usd.ClosingBalance);
+        foreach (var total in result.Currencies)
+        {
+            var months = result.Monthly.Where(row => row.Currency == total.Currency).OrderBy(row => row.Month).ToArray();
+            Assert.Equal(total.Earned, months.Sum(row => row.Earned)); Assert.Equal(total.Paid, months.Sum(row => row.Paid));
+            Assert.Equal(total.ToProducer - total.FromProducer, months[^1].ClosingBalance);
+            Assert.Equal(result.Entries.Count(row => row.Currency == total.Currency), months.Sum(row => row.EntryCount));
+        }
+        Assert.Equal(new DateOnly(2026, 5, 1), result.Monthly[0].Month);
+        Assert.Equal(49.99m, Assert.Single(result.Currencies, row => row.Currency == "EUR").ToProducer);
+        Assert.Equal(5m, Assert.Single(result.Currencies, row => row.Currency == "USD").FromProducer);
+    }
+
+    [Fact]
+    public async Task Producer_with_no_financial_history_has_no_invented_months_or_totals()
+    {
+        var current = TestScaffold.AgencyStaff(Guid.NewGuid());
+        using var db = TestScaffold.NewDb(current, TestScaffold.Clock);
+        var producer = new Producer { Id = Guid.NewGuid(), TenantId = current.TenantId!.Value, Name = "Empty" };
+        db.Producers.Add(producer); await db.SaveChangesAsync();
+        var result = await new GetProducerBalancesHandler(db, current).Handle(new(producer.Id), default);
+        Assert.Empty(result.Entries); Assert.Empty(result.Currencies); Assert.Empty(result.Monthly);
     }
 }
