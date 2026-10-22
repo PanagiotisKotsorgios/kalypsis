@@ -19,6 +19,7 @@ import { Link as RouterLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { LanguageToggle } from "./LanguageToggle";
 import { PUBLIC_NAVIGATION_Z_INDEX } from "./publicOverlayLayers";
+import { CliProjectLink } from "./CliProjectLink";
 
 const NAVY = "#0b2545";
 const NAVY_SOFT = "#3d4f6b";
@@ -51,23 +52,24 @@ export function LandingNavbar() {
           >
             <Box sx={{ display: { xs: "flex", md: "none" }, alignItems: "center" }}><LanguageToggle /></Box>
             <Stack direction="row" spacing={{ xs: 1.5, md: 2, lg: 3.5 }} alignItems="center" sx={{ display: { xs: "none", md: "flex" }, flexShrink: 0, whiteSpace: "nowrap" }}>
-              <Box component="a" href="tel:+302631028971" sx={{ display: { md: "none", lg: "inline-flex" }, alignItems: "center", gap: 1, color: NAVY, textDecoration: "none", fontSize: 15.5, fontWeight: 600, letterSpacing: "0.01em", "&:hover": { color: ACCENT } }}>
+              <Box component="a" href="tel:+302631028971" sx={{ display: { md: "none", xl: "inline-flex" }, alignItems: "center", gap: 1, color: NAVY, textDecoration: "none", fontSize: 15.5, fontWeight: 600, letterSpacing: "0.01em", "&:hover": { color: ACCENT } }}>
                 <PhoneOutlinedIcon sx={{ fontSize: 20 }} />2631028971
               </Box>
-              <Box component="a" href="mailto:info@mykalypsis.gr" sx={{ display: { md: "none", lg: "inline-flex" }, alignItems: "center", gap: 1, color: NAVY, textDecoration: "none", fontSize: 15.5, fontWeight: 600, letterSpacing: "0.01em", "&:hover": { color: ACCENT } }}>
+              <Box component="a" href="mailto:info@mykalypsis.gr" sx={{ display: { md: "none", xl: "inline-flex" }, alignItems: "center", gap: 1, color: NAVY, textDecoration: "none", fontSize: 15.5, fontWeight: 600, letterSpacing: "0.01em", "&:hover": { color: ACCENT } }}>
                 <MailOutlineIcon sx={{ fontSize: 20 }} />info@mykalypsis.gr
               </Box>
-              <Box aria-hidden sx={{ display: { md: "none", lg: "block" }, width: 1, height: 22, bgcolor: "rgba(11,37,69,0.18)" }} />
+              <Box aria-hidden sx={{ display: { md: "none", xl: "block" }, width: 1, height: 22, bgcolor: "rgba(11,37,69,0.18)" }} />
               <Box component={RouterLink} to="/login" sx={{ color: NAVY, textDecoration: "none", fontSize: { md: 14.5, lg: 15.5 }, fontWeight: 700, letterSpacing: "0.01em", "&:hover": { color: ACCENT } }}>Σύνδεση</Box>
               <Box component={RouterLink} to="/register" sx={{ color: NAVY, textDecoration: "none", fontSize: { md: 14.5, lg: 15.5 }, fontWeight: 700, letterSpacing: "0.01em", "&:hover": { color: ACCENT } }}>Εγγραφή</Box>
             </Stack>
             <Stack direction="row" spacing={{ md: 1.25, lg: 1.75 }} alignItems="center" sx={{ ml: "auto", display: { xs: "none", md: "flex" }, flexShrink: 0, whiteSpace: "nowrap" }}>
               <Button component={RouterLink} to="/contact" variant="outlined" startIcon={<ChatBubbleOutlineIcon sx={{ fontSize: 20, color: ACCENT }} />} sx={{ borderRadius: 999, px: { md: 2, lg: 2.75 }, py: { md: .85, lg: 1 }, fontSize: { md: 13.5, lg: 14.5 }, fontWeight: 700, letterSpacing: "0.01em", textTransform: "none", whiteSpace: "nowrap", color: NAVY, bgcolor: "rgba(30,167,225,0.06)", borderColor: "rgba(30,167,225,0.35)", "& .MuiButton-startIcon": { mr: 1 }, "&:hover": { borderColor: ACCENT, bgcolor: "rgba(30,167,225,0.12)" } }}>
-                <Box sx={{ display: { md: "inline", lg: "none" } }}>{t("landing.nav.contact", "Επικοινωνία")}</Box>
-                <Box sx={{ display: { md: "none", lg: "inline" } }}>{t("landing.nav.contactLong", "Επικοινωνία / Αναφορά Προβλήματος")}</Box>
+                <Box sx={{ display: { md: "inline", xl: "none" } }}>{t("landing.nav.contact", "Επικοινωνία")}</Box>
+                <Box sx={{ display: { md: "none", xl: "inline" } }}>{t("landing.nav.contactLong", "Επικοινωνία / Αναφορά Προβλήματος")}</Box>
               </Button>
               <LanguageToggle />
             </Stack>
+            <CliProjectLink />
             <IconButton aria-label="Άνοιγμα μενού" onClick={() => setMenuOpen(true)} sx={{ display: { xs: "inline-flex", md: "none" }, color: NAVY, bgcolor: "rgba(30,167,225,0.06)", border: "1px solid rgba(30,167,225,0.35)", borderRadius: 2, p: 1.15, "&:hover": { bgcolor: "rgba(30,167,225,0.14)" } }}>
               <MenuIcon sx={{ fontSize: 26 }} />
             </IconButton>

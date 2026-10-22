@@ -6,6 +6,7 @@ import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import TableChartOutlinedIcon from "@mui/icons-material/TableChartOutlined";
 import ShowChartIcon from "@mui/icons-material/ShowChart";
 import CloseIcon from "@mui/icons-material/Close";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { Area, Bar, Brush, CartesianGrid, Cell, ComposedChart, Legend, Line, Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
@@ -28,15 +29,15 @@ export function AgencyAnalyticsPanel({ collapsible = false }: { collapsible?: bo
     staleTime: 30_000, refetchInterval: live && expanded ? 60_000 : false,
     refetchIntervalInBackground: false,
   });
-  if (!expanded) return <Button fullWidth variant="outlined" startIcon={<InsightsOutlinedIcon />} onClick={() => setExpanded(true)}
-    sx={{ mb: 3, py: 1.5, justifyContent: "flex-start", bgcolor: "background.paper", borderColor: "divider", fontWeight: 800 }}>Στατιστικά & γραφήματα · Προβολή αναλύσεων</Button>;
-  return <Box sx={{ mb: 3, minWidth: 0 }} data-agency-analytics>
+  if (!expanded) return <Button fullWidth variant="outlined" startIcon={<InsightsOutlinedIcon />} endIcon={<ExpandMoreIcon />} aria-expanded={false} aria-controls="agency-analytics-content" onClick={() => setExpanded(true)}
+    sx={{ mb: 3, py: 1.5, px: 2, justifyContent: "flex-start", bgcolor: "background.paper", border: "2px solid", borderColor: "#7890AC", fontWeight: 800, textAlign: "left", "& .MuiButton-endIcon": { ml: "auto", pl: 1 }, "&:hover": { border: "2px solid #456B91", bgcolor: "action.hover" } }}>Στατιστικά & γραφήματα · Προβολή αναλύσεων</Button>;
+  return <Box id="agency-analytics-content" sx={{ mb: 3, minWidth: 0 }} data-agency-analytics>
     <Stack direction="row" useFlexGap flexWrap="wrap" gap={1.25} alignItems="center" sx={{ mb: 1.5 }}>
       <InsightsOutlinedIcon color="primary" /><Typography fontWeight={800}>Στατιστικά & γραφήματα</Typography>
       <FormControlLabel sx={{ m: 0 }} control={<Switch size="small" checked={live} onChange={event => setLive(event.target.checked)} />} label={<Typography variant="caption">Ανανέωση ανά 60″</Typography>} />
       <Typography variant="caption" color="text.secondary" role="status" aria-live="polite">{query.isFetching ? "Ενημέρωση…" : query.dataUpdatedAt ? `Ενημερώθηκε ${new Date(query.dataUpdatedAt).toLocaleTimeString("el-GR")}` : ""}</Typography>
       <Button size="small" variant="outlined" startIcon={<RefreshIcon />} disabled={query.isFetching} onClick={() => { void query.refetch(); void queryClient.invalidateQueries({ queryKey: ["report", "agency", "trend"] }); }}>Ανανέωση</Button>
-      {collapsible && <Button size="small" variant="contained" color="error" sx={{ color: "#fff" }} onClick={() => setExpanded(false)}>Απόκρυψη</Button>}
+      {collapsible && <Button size="small" variant="contained" color="error" endIcon={<ExpandMoreIcon sx={{ transform: "rotate(180deg)" }} />} aria-expanded={true} aria-controls="agency-analytics-content" sx={{ color: "#fff" }} onClick={() => setExpanded(false)}>Απόκρυψη</Button>}
     </Stack>
     {query.isError && <Alert severity="error" sx={{ mb: 1 }}>{query.data ? "Η ανανέωση απέτυχε. Προβάλλονται τα τελευταία διαθέσιμα δεδομένα. " : ""}{extractErrorMessage(query.error)}</Alert>}
     {query.isLoading && <Typography role="status" sx={{ py: 4 }}>Φόρτωση αναλύσεων…</Typography>}

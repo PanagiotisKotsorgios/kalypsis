@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Container, Divider,
   FormControlLabel, Checkbox, MenuItem, Paper, Stack, Table, TableBody,
-  TableCell, TableHead, TableRow, TextField, Typography
+  TableCell, TableHead, TableRow, TextField, Typography, Dialog, DialogTitle, DialogContent, DialogActions, IconButton
 } from "@mui/material";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import BusinessIcon from "@mui/icons-material/Business";
@@ -18,9 +18,11 @@ import SchoolIcon from "@mui/icons-material/School";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
+import CloseIcon from "@mui/icons-material/Close";
 import { useQuery } from "@tanstack/react-query";
 import { Link as RouterLink } from "react-router-dom";
-import { api } from "../api/client";
+import { api, extractErrorMessage } from "../api/client";
+import { ContractRequestSection } from "../components/ContractRequestDialog";
 import { KalypsisLogo } from "../components/KalypsisLogo";
 import { PublicShell } from "../components/PublicShell";
 import { PresentationRequestDialog } from "../components/PresentationRequestDialog";
@@ -37,6 +39,7 @@ const BLUE = "#1265d8";
 const NAVY = "#0a2b67";
 const RULE = "#d7e7f5";
 const RED = "#c62828";
+const extraCount = (value: string) => Number.isFinite(Number(value)) ? Math.max(0, Math.min(2147483647, Math.floor(Number(value)))) : 0;
 const money = (amount: number | null | undefined, currency = "EUR") => {
   if (amount == null) return "Κατά περίπτωση";
   try {
@@ -136,6 +139,7 @@ export function PricingPage() {
   const [selectedAddons, setSelectedAddons] = useState<Record<string, boolean>>({});
   const [selectedServices, setSelectedServices] = useState<Record<string, boolean>>({});
   const [presentationOpen, setPresentationOpen] = useState(false);
+  const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [interestPlan, setInterestPlan] = useState<Plan | null>(null);
   const openInterestDialog = (plan: Plan | null) => {
     setInterestPlan(plan);
@@ -146,7 +150,7 @@ export function PricingPage() {
     setInterestPlan(null);
   };
   useEffect(() => {
-    if (catalog && !catalog.plans.some(p => p.code === planCode)) setPlanCode(catalog.plans.find(p => p.isActive)?.code ?? "");
+    if (catalog && !catalog.plans.some(p => p.isActive && p.code === planCode)) setPlanCode(catalog.plans.find(p => p.isActive)?.code ?? "");
   }, [catalog, planCode]);
   const activePlans = useMemo(() => (catalog?.plans ?? []).filter(p => p.isActive).sort((a, b) => a.sortOrder - b.sortOrder), [catalog]);
   const activeFeatures = useMemo(() => (catalog?.features ?? []).filter(f => f.isActive).sort((a, b) => a.sortOrder - b.sortOrder), [catalog]);
@@ -157,7 +161,7 @@ export function PricingPage() {
   const selectedServiceCodes = activeServices.filter(s => selectedServices[s.code]).map(s => s.code);
   const calculation = useQuery({
     queryKey: ["public-pricing-calculate", planCode, extraOffices, extraUsers, selectedCodes.join(","), selectedServiceCodes.join(",")],
-    enabled: Boolean(catalog && planCode && !selectedPlan?.isComingSoon),
+    enabled: Boolean(calculatorOpen && catalog && planCode && !selectedPlan?.isComingSoon),
     queryFn: async () => (await api.post<Calculation>("/platform/pricing/calculate", { planCode, extraOffices, extraUsers, addonCodes: selectedCodes, serviceCodes: selectedServiceCodes })).data,
     staleTime: 5_000
   });
@@ -255,30 +259,41 @@ export function PricingPage() {
             </Paper>
           </Box>
 
-          <Paper sx={{ p: { xs: 2, md: 3 }, mt: 3, border: `2px solid ${BLUE}33`, borderRadius: 3, bgcolor: "rgba(255,255,255,.96)" }}>
-            <SectionHeading number="03" title="Υπολόγισε το δικό σου σύνολο" subtitle="Επίλεξε πλάνο, πρόσθετα γραφεία/χρήστες και πρόσθετα για ζωντανή εκτίμηση." />
-            <Stack direction={{ xs: "column", md: "row" }} gap={2} alignItems="stretch">
-              <Stack direction={{ xs: "column", sm: "row" }} gap={1.5} sx={{ flex: 1 }}>
-                <TextField select label="Βασικό πλάνο" value={planCode} onChange={e => setPlanCode(e.target.value)} fullWidth>{activePlans.map(p => <MenuItem value={p.code} key={p.code}>{p.name} · {p.isComingSoon ? "Σύντομα διαθέσιμο" : `${money(p.pricePerYear, settings.currency)} / ${p.pricePeriodLabel || "έτος"}`}</MenuItem>)}</TextField>
-                <TextField type="number" label={`${selectedPlan?.extraOfficeLabel || "Επιπλέον γραφεία"} · πλήθος`} value={extraOffices} onChange={e => setExtraOffices(Math.max(0, Number(e.target.value)))} inputProps={{ min: 0 }} />
-                <TextField type="number" label={`${selectedPlan?.extraUserLabel || "Επιπλέον χρήστες"} · πλήθος`} value={extraUsers} onChange={e => setExtraUsers(Math.max(0, Number(e.target.value)))} inputProps={{ min: 0 }} />
-              </Stack>
-              <Stack direction="row" gap={.5} flexWrap="wrap" alignItems="center" sx={{ maxWidth: { md: 420 } }}>
-                {activeAddons.map(a => <FormControlLabel key={a.code} control={<Checkbox size="small" checked={!!selectedAddons[a.code]} onChange={e => setSelectedAddons(v => ({ ...v, [a.code]: e.target.checked }))} />} label={<Typography variant="caption">{a.name}</Typography>} />)}
-                {activeServices.map(s => <FormControlLabel key={s.code} control={<Checkbox size="small" checked={!!selectedServices[s.code]} onChange={e => setSelectedServices(v => ({ ...v, [s.code]: e.target.checked }))} />} label={<Typography variant="caption">{s.name}</Typography>} />)}
-              </Stack>
-              <Card sx={{ minWidth: { md: 250 }, p: 2, bgcolor: "#eef7ff", border: `1px solid ${BLUE}44` }}>
-                <Stack direction="row" gap={1} alignItems="center"><CalculateIcon sx={{ color: BLUE }} /><Typography fontWeight={950} color={NAVY}>Ετήσιο σύνολο</Typography></Stack>
-                <Typography sx={{ color: BLUE, fontWeight: 950, fontSize: selectedPlan?.isComingSoon ? 20 : 30, mt: .5 }}>{selectedPlan?.isComingSoon ? "Σύντομα διαθέσιμο" : calculation.data ? money(calculation.data.totalAmount, calculation.data.currency || settings.currency) : <CircularProgress size={22} />}</Typography>
-                {calculation.data && <Typography variant="caption" color="text.secondary">Καθαρά {money(calculation.data.netAmount, calculation.data.currency || settings.currency)} · ΦΠΑ {money(calculation.data.vatAmount, calculation.data.currency || settings.currency)}{calculation.data.requiresQuote ? " · περιλαμβάνει υπηρεσία κατόπιν προσφοράς" : ""}</Typography>}
-              </Card>
-            </Stack>
-          </Paper>
-
-          <Paper sx={{ mt: 3, overflowX: "auto", border: `1px solid ${RULE}`, borderRadius: 3, bgcolor: "rgba(255,255,255,.94)" }}>
-            <Box sx={{ p: { xs: 2, md: 2.5 }, pb: 1 }}><SectionHeading number="04" title="Σύγκριση δυνατοτήτων" subtitle="Μια καθαρή εικόνα του τι περιλαμβάνει κάθε ενεργό πακέτο." /></Box>
-            <Table size="small" sx={{ minWidth: 760 }}><TableHead><TableRow sx={{ bgcolor: "#e6f4ff" }}><TableCell sx={{ fontWeight: 900, color: NAVY }}>Δυνατότητα</TableCell>{activePlans.map(p => <TableCell align="center" key={p.code} sx={{ fontWeight: 900, color: NAVY }}>{p.name}</TableCell>)}</TableRow></TableHead><TableBody>{activeFeatures.map(f => <TableRow hover key={f.key}><TableCell sx={{ fontWeight: f.key === "multi_quoting" ? 950 : 800, color: f.key === "multi_quoting" ? "#0f6b31" : NAVY }}>{f.label}</TableCell>{activePlans.map(p => { const isUltimateQuoting = p.code === "ultimate" && f.key === "multi_quoting"; return <TableCell align="center" key={p.code} sx={isUltimateQuoting ? { bgcolor: "#e8f8ee", border: "2px solid #16803c" } : undefined}>{(p.featureKeys ?? p.packages).includes(f.key) ? <CheckCircleIcon sx={{ color: "#16803c", fontSize: isUltimateQuoting ? 26 : 20 }} /> : "—"}</TableCell>; })}</TableRow>)}</TableBody></Table>
-          </Paper>
+          <Button fullWidth variant="outlined" startIcon={<CalculateIcon />} endIcon={<ArrowForwardIcon />} onClick={() => setCalculatorOpen(true)} aria-haspopup="dialog"
+            sx={{ mt: 3, px: { xs: 2, md: 3 }, py: 2, justifyContent: "flex-start", border: "2px solid #8CACD0", borderRadius: 2.5, bgcolor: "#F4F9FF", color: NAVY, textAlign: "left", "& .MuiButton-endIcon": { ml: "auto" }, "&:hover": { bgcolor: "#E5F0FC", border: "2px solid #456B91" } }}>
+            <Box sx={{ minWidth: 0 }}><Typography component="span" sx={{ display: "block", fontWeight: 900, fontSize: { xs: 17, md: 20 } }}>Υπολόγισε το δικό σου σύνολο</Typography><Typography component="span" sx={{ display: "block", color: "#536B89", fontSize: 13, fontWeight: 500, mt: .3 }}>Διαμορφώστε το πακέτο σας σε έναν σύντομο υπολογισμό.</Typography></Box>
+          </Button>
+          <ContractRequestSection />
+          <Dialog open={calculatorOpen} onClose={() => setCalculatorOpen(false)} fullWidth maxWidth="md" aria-labelledby="pricing-calculator-title" PaperProps={{ sx: { m: 1.5, width: "calc(100% - 24px)", maxHeight: "calc(100dvh - 24px)", borderRadius: 3, bgcolor: "#F4F8FC", border: "1px solid #B9CDE2" } }}>
+            <DialogTitle id="pricing-calculator-title" sx={{ display: "flex", alignItems: "center", gap: 1, color: NAVY, fontWeight: 900, fontSize: { xs: 19, sm: 23 }, py: 1.75, pr: 6 }}><CalculateIcon />Υπολόγισε το δικό σου σύνολο<IconButton onClick={() => setCalculatorOpen(false)} aria-label="Κλείσιμο υπολογιστή κόστους" sx={{ position: "absolute", right: 10, top: 10, color: "#536B89" }}><CloseIcon /></IconButton></DialogTitle>
+            <DialogContent dividers sx={{ p: { xs: 2, sm: 2.5 } }}>
+              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0,1fr)", md: "minmax(0,1fr) 260px" }, gap: 2 }}>
+                <Stack gap={2} sx={{ minWidth: 0 }}>
+                  <TextField select size="small" label="Βασικό πλάνο" value={planCode} onChange={event => setPlanCode(event.target.value)} fullWidth>{activePlans.map(plan => <MenuItem value={plan.code} key={plan.code}>{plan.name} · {plan.isComingSoon ? "Σύντομα διαθέσιμο" : `${money(plan.pricePerYear, settings.currency)} / ${plan.pricePeriodLabel || "έτος"}`}</MenuItem>)}</TextField>
+                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0,1fr)", sm: "repeat(2,minmax(0,1fr))" }, gap: 1.5 }}>
+                    <TextField size="small" type="number" label={`${selectedPlan?.extraOfficeLabel || "Επιπλέον γραφεία"} · πλήθος`} value={extraOffices} onChange={event => setExtraOffices(extraCount(event.target.value))} inputProps={{ min: 0, step: 1 }} />
+                    <TextField size="small" type="number" label={`${selectedPlan?.extraUserLabel || "Επιπλέον χρήστες"} · πλήθος`} value={extraUsers} onChange={event => setExtraUsers(extraCount(event.target.value))} inputProps={{ min: 0, step: 1 }} />
+                  </Box>
+                  {[{ title: "Πρόσθετα πακέτα", items: activeAddons, selected: selectedAddons, setSelected: setSelectedAddons }, { title: "Υπηρεσίες", items: activeServices, selected: selectedServices, setSelected: setSelectedServices }].map(group => <Box key={group.title}>
+                    <Typography sx={{ mb: .75, color: NAVY, fontWeight: 850, fontSize: 14 }}>{group.title}</Typography>
+                    <Stack gap={.5}>{group.items.map(item => <FormControlLabel key={item.code} sx={{ m: 0, p: .25, pr: 1, bgcolor: group.selected[item.code] ? "#E2EDF9" : "#EBF0F5", border: "1px solid #D1DEEB", borderRadius: 1.5, "& .MuiFormControlLabel-label": { fontSize: 13, color: "#102D55", overflowWrap: "anywhere" } }} control={<Checkbox size="small" checked={!!group.selected[item.code]} onChange={event => group.setSelected(current => ({ ...current, [item.code]: event.target.checked }))} />} label={item.name} />)}</Stack>
+                  </Box>)}
+                </Stack>
+                <Box aria-live="polite" sx={{ p: 2, borderRadius: 2, bgcolor: "#E8F2FC", border: "1px solid #BED4EB", alignSelf: "start" }}>
+                  <Typography sx={{ color: NAVY, fontWeight: 850 }}>Ετήσιο σύνολο</Typography>
+                  <Typography sx={{ color: BLUE, fontWeight: 950, fontSize: 30, my: 1 }}>{selectedPlan?.isComingSoon ? "Σύντομα διαθέσιμο" : calculation.data ? money(calculation.data.totalAmount, calculation.data.currency || settings.currency) : calculation.isError ? "—" : <CircularProgress size={24} aria-label="Υπολογισμός κόστους" />}</Typography>
+                  {calculation.isFetching && calculation.data && <Typography variant="caption">Ενημέρωση υπολογισμού…</Typography>}
+                  {calculation.isError && <Alert severity="error" sx={{ fontSize: 12 }}>{extractErrorMessage(calculation.error, "Δεν ήταν δυνατός ο υπολογισμός.")}<Button size="small" onClick={() => void calculation.refetch()}>Επανάληψη</Button></Alert>}
+                  {!selectedPlan?.isComingSoon && calculation.data && <>
+                    <Stack gap={.75} sx={{ borderTop: "1px solid #BED4EB", pt: 1.25 }}>{calculation.data.lines.map((line,index) => <Stack key={`${line.code}-${index}`} direction="row" gap={1} justifyContent="space-between"><Typography sx={{ fontSize: 12, color: "#536B89" }}>{line.label}</Typography><Typography sx={{ fontSize: 12, fontWeight: 750, whiteSpace: "nowrap", color: NAVY }}>{money(line.amount, calculation.data.currency || settings.currency)}</Typography></Stack>)}</Stack>
+                    <Typography sx={{ mt: 1.5, color: "#536B89", fontSize: 12 }}>Καθαρά {money(calculation.data.netAmount, calculation.data.currency || settings.currency)} · ΦΠΑ {money(calculation.data.vatAmount, calculation.data.currency || settings.currency)}</Typography>
+                    {calculation.data.requiresQuote && <Alert severity="info" sx={{ mt: 1.5, fontSize: 12 }}>Περιλαμβάνει υπηρεσία κατόπιν προσφοράς.</Alert>}
+                  </>}
+                </Box>
+              </Box>
+            </DialogContent>
+            <DialogActions sx={{ p: 1.5 }}><Button onClick={() => setCalculatorOpen(false)} variant="contained" color="error" startIcon={<CloseIcon />}>Κλείσιμο</Button></DialogActions>
+          </Dialog>
 
           <Stack alignItems="center" textAlign="center" sx={{ mt: 4 }}><Typography variant="h5" fontWeight={950} color={NAVY}>Θέλεις να το προσαρμόσουμε στο γραφείο σου;</Typography><Typography color="text.secondary" sx={{ mt: .5 }}>Επικοινώνησε μαζί μας για ενεργοποίηση πακέτων ή ειδική τιμολόγηση.</Typography><Button component={RouterLink} to="/contact" variant="contained" endIcon={<ArrowForwardIcon />} sx={{ mt: 1.5, bgcolor: NAVY, fontWeight: 900 }}>Ζήτησε διαμόρφωση</Button></Stack>
         </Container>

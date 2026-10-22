@@ -51,6 +51,7 @@ import { DesktopDownloadButton } from "../components/DesktopDownloadButton";
 import { PUBLIC_NAVIGATION_Z_INDEX } from "../components/publicOverlayLayers";
 import { PublicTechnologiesSection } from "../components/PublicTechnologiesSection";
 import { PublicPackageComparison } from "../components/PublicPackageComparison";
+import { CliProjectLink } from "../components/CliProjectLink";
 import { api } from "../api/client";
 
 // Restrained brand palette — navy for type, single accent blue, soft borders.
@@ -294,7 +295,7 @@ export function LandingPage() {
                 component="a"
                 href="tel:+302631028971"
                 sx={{
-                  display: { md: "none", lg: "inline-flex" },
+                  display: { md: "none", xl: "inline-flex" },
                   alignItems: "center",
                   gap: 1,
                   color: NAVY,
@@ -312,7 +313,7 @@ export function LandingPage() {
                 component="a"
                 href="mailto:info@mykalypsis.gr"
                 sx={{
-                  display: { md: "none", lg: "inline-flex" },
+                  display: { md: "none", xl: "inline-flex" },
                   alignItems: "center",
                   gap: 1,
                   color: NAVY,
@@ -330,7 +331,7 @@ export function LandingPage() {
               <Box
                 aria-hidden
                 sx={{
-                  display: { md: "none", lg: "block" },
+                  display: { md: "none", xl: "block" },
                   width: "1px",
                   height: 22,
                   bgcolor: "rgba(11,37,69,0.18)",
@@ -409,10 +410,10 @@ export function LandingPage() {
                   just «Επικοινωνία». The full label reappears at lg+.
                   Both labels flow through t() so the header follows the
                   LanguageToggle without a page reload. */}
-                <Box sx={{ display: { md: "inline", lg: "none" } }}>
+                <Box sx={{ display: { md: "inline", xl: "none" } }}>
                   {tHeader("landing.nav.contact", "Επικοινωνία")}
                 </Box>
-                <Box sx={{ display: { md: "none", lg: "inline" } }}>
+                <Box sx={{ display: { md: "none", xl: "inline" } }}>
                   {tHeader(
                     "landing.nav.contactLong",
                     "Επικοινωνία / Αναφορά Προβλήματος",
@@ -422,6 +423,7 @@ export function LandingPage() {
               <LanguageToggle />
             </Stack>
 
+            <CliProjectLink />
             {/* Mobile-only hamburger — opens the right-hand drawer with
               Σύνδεση / Εγγραφή / Επικοινωνία. */}
             <IconButton

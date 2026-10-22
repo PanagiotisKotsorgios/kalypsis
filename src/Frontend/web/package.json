@@ -19,6 +19,7 @@
     "test:sidebar-visibility": "node --experimental-strip-types --test src/config/sidebarVisibility.test.mjs",
     "test:dashboard-experience": "node --experimental-strip-types --test src/components/dashboardExperience.test.mjs",
     "test:public-experience": "node --experimental-strip-types --test --test-concurrency=1 src/components/publicExperience.test.mjs",
+    "test:pricing-public": "node --experimental-strip-types --test --test-concurrency=1 src/components/pricingPublicExperience.test.mjs",
     "test:unified-actions": "node --experimental-strip-types --test src/pages/unifiedActionsMenus.test.mjs",
     "test:customer-filters": "node --experimental-strip-types --test src/pages/customerListFilters.test.mjs src/pages/customerTableAppearance.test.mjs",
     "test:financial-claim-actions": "node --experimental-strip-types --test src/pages/financialAndClaimsActions.test.mjs",

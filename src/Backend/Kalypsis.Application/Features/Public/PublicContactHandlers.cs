@@ -30,7 +30,9 @@ public record PublicContactBody(
     string? Website = null,
     // Optional package selected from the public pricing page. Package-interest
     // submissions are also persisted in the platform admin request inbox.
-    string? SelectedPackage = null);
+    string? SelectedPackage = null,
+    // Used by the public cooperation-contract request, not by account creation.
+    string? CompanyName = null);
 
 public record PublicContactResult(string Reference, bool Delivered);
 
@@ -57,6 +59,20 @@ public class SubmitPublicContactHandler : IRequestHandler<SubmitPublicContactCom
             return new PublicContactResult($"KLP-CT-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}", false);
         }
 
+        var contractRequest = string.Equals(b.InquiryType?.Trim(), "contract", StringComparison.OrdinalIgnoreCase);
+        if (contractRequest)
+        {
+            if (string.IsNullOrWhiteSpace(b.CompanyName) || b.CompanyName.Trim().Length > 200)
+                throw AppException.Validation("Συμπληρώστε επωνυμία γραφείου / εταιρείας έως 200 χαρακτήρες.");
+            var phone = b.Phone?.Trim() ?? "";
+            var digits = phone.Count(char.IsAsciiDigit);
+            if (digits < 10 || digits > 15 || !System.Text.RegularExpressions.Regex.IsMatch(phone, @"^\+?[0-9 ()-]+$"))
+                throw AppException.Validation("Συμπληρώστε έγκυρο τηλέφωνο με 10–15 ψηφία.");
+            if ((b.FirstName?.Length ?? 0) > 120 || (b.LastName?.Length ?? 0) > 120
+                || (b.Email?.Length ?? 0) > 160 || (b.AgencyOrCity?.Length ?? 0) > 120 || phone.Length > 40)
+                throw AppException.Validation("Κάποιο στοιχείο επικοινωνίας υπερβαίνει το επιτρεπόμενο μήκος.");
+        }
+
         // Field guards — we already validate on the client, but never trust it.
         if (string.IsNullOrWhiteSpace(b.FirstName)) throw new AppException("contact_name", "Συμπληρώστε το όνομα.", 400);
         if (string.IsNullOrWhiteSpace(b.LastName)) throw new AppException("contact_name", "Συμπληρώστε το επώνυμο.", 400);
@@ -77,29 +93,32 @@ public class SubmitPublicContactHandler : IRequestHandler<SubmitPublicContactCom
         // lead visible for triage/read/pending/follow-up even if email delivery
         // is temporarily unavailable. Regular contact submissions remain
         // email-only.
-        if (selectedPackage is not null)
+        if (selectedPackage is not null || contractRequest)
         {
             var registrationReference = reference;
             if (await _db.RegistrationRequests.AnyAsync(x => x.ReferenceCode == registrationReference, ct))
                 registrationReference = $"KLP-CT-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
+            reference = registrationReference;
 
             _db.RegistrationRequests.Add(new RegistrationRequest
             {
                 Id = Guid.NewGuid(),
                 FirstName = b.FirstName.Trim(),
                 LastName = b.LastName.Trim(),
-                Email = b.Email.Trim().ToLowerInvariant(),
+                Email = b.Email!.Trim().ToLowerInvariant(),
                 Phone = b.Phone?.Trim() ?? string.Empty,
                 City = string.IsNullOrWhiteSpace(b.AgencyOrCity) ? null : b.AgencyOrCity.Trim(),
+                OrganizationName = contractRequest ? b.CompanyName!.Trim() : null,
                 ReferenceCode = registrationReference,
-                Category = "Εκδήλωση ενδιαφέροντος πακέτου",
-                Message = BuildPackageInterestMessage(selectedPackage, b.Message ?? string.Empty),
+                Category = contractRequest ? "Αίτημα σύμβασης συνεργασίας" : "Εκδήλωση ενδιαφέροντος πακέτου",
+                Message = contractRequest ? $"{b.Message!.Trim()}\n\nΣυγκατάθεση επικοινωνίας: Ναι" : BuildPackageInterestMessage(selectedPackage!, b.Message ?? string.Empty),
                 Status = RegistrationRequestStatus.New,
                 TriageStatus = RegistrationRequestTriageStatus.New,
                 IsRead = false,
-                DpaAccepted = b.Consent,
-                DpaVersion = b.Consent ? "public-contact-v1" : null,
-                DpaAcceptedAt = b.Consent ? DateTime.UtcNow : null,
+                // Requesting a contract is not acceptance/signature of a DPA.
+                DpaAccepted = !contractRequest && b.Consent,
+                DpaVersion = !contractRequest && b.Consent ? "public-contact-v1" : null,
+                DpaAcceptedAt = !contractRequest && b.Consent ? DateTime.UtcNow : null,
                 IpAddress = string.IsNullOrWhiteSpace(cmd.ClientIp) ? null : cmd.ClientIp,
                 UserAgent = string.IsNullOrWhiteSpace(cmd.UserAgent) ? null : cmd.UserAgent
             });
@@ -118,6 +137,7 @@ public class SubmitPublicContactHandler : IRequestHandler<SubmitPublicContactCom
             "complaint" => "[ΠΑΡΑΠΟΝΟ] ",
             "support"   => "[ΥΠΟΣΤΗΡΙΞΗ] ",
             "sales"     => "[SALES] ",
+            "contract"  => "[ΣΥΜΒΑΣΗ ΣΥΝΕΡΓΑΣΙΑΣ] ",
             _ => "[ΕΠΙΚΟΙΝΩΝΙΑ] "
         };
         var subject = $"{subjectPrefix}{TruncForSubject(b.Subject ?? string.Empty)} ({reference})";
@@ -128,10 +148,9 @@ public class SubmitPublicContactHandler : IRequestHandler<SubmitPublicContactCom
             Subject: subject,
             HtmlBody: html), ct);
 
-        // We always succeed at the API level so the user gets their ref code; if
-        // Brevo wasn't configured the message stays in logs and the team still
-        // sees it via server alerts. Returning Delivered=false would only confuse
-        // the visitor.
+        // Contract/package requests remain in the admin inbox even if sending
+        // fails. Report delivery separately from registration so their UI never
+        // promises an email or contract that was not actually delivered.
         return new PublicContactResult(reference, result.Success);
     }
 
@@ -158,6 +177,7 @@ public class SubmitPublicContactHandler : IRequestHandler<SubmitPublicContactCom
         Row(sb, "Τύπος", b.InquiryType ?? "—");
         Row(sb, "Όνομα", $"{b.FirstName} {b.LastName}".Trim());
         Row(sb, "Email", b.Email);
+        if (!string.IsNullOrWhiteSpace(b.CompanyName)) Row(sb, "Επωνυμία γραφείου / εταιρείας", b.CompanyName);
         if (!string.IsNullOrWhiteSpace(b.SelectedPackage))
             Row(sb, "Επιλεγμένο πακέτο", b.SelectedPackage!);
         Row(sb, "Τηλέφωνο", b.Phone ?? "—");

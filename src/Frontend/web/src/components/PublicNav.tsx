@@ -20,6 +20,7 @@ import { useTranslation } from "react-i18next";
 import { KalypsisLogo } from "./KalypsisLogo";
 import { LanguageToggle } from "./LanguageToggle";
 import { LandingNavbar } from "./LandingNavbar";
+import { CliProjectLink } from "./CliProjectLink";
 
 interface PublicNavProps {
   overlayHero?: boolean;
@@ -257,6 +258,7 @@ export function PublicNav({ modern = false }: PublicNavProps = {}) {
               </RouterLink>
             </Stack>
 
+            <CliProjectLink />
             {/* Mobile hamburger — bigger touch target */}
             <IconButton
               onClick={() => setOpen(true)}
