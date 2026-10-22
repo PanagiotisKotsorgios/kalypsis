@@ -18,6 +18,7 @@ import PhoneOutlinedIcon from "@mui/icons-material/PhoneOutlined";
 import { Link as RouterLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { LanguageToggle } from "./LanguageToggle";
+import { PUBLIC_NAVIGATION_Z_INDEX } from "./publicOverlayLayers";
 
 const NAVY = "#0b2545";
 const NAVY_SOFT = "#3d4f6b";
@@ -74,7 +75,7 @@ export function LandingNavbar() {
         </Container>
       </Box>
 
-      <Drawer anchor="right" open={menuOpen} onClose={() => setMenuOpen(false)} transitionDuration={{ enter: 280, exit: 220 }} PaperProps={{ sx: { width: { xs: 300, sm: 340 }, bgcolor: "#f7fafd", borderLeft: "1px solid rgba(148,191,230,0.35)", display: "flex", flexDirection: "column", backgroundImage: "radial-gradient(circle at 100% 0%, rgba(47,107,214,0.10), transparent 55%), radial-gradient(circle at 0% 100%, rgba(30,167,225,0.08), transparent 55%), linear-gradient(180deg, #ffffff 0%, #eaf3ff 100%)", boxShadow: "-24px 0 60px rgba(11,37,69,0.18)" } }}>
+      <Drawer sx={{ zIndex: PUBLIC_NAVIGATION_Z_INDEX }} anchor="right" open={menuOpen} onClose={() => setMenuOpen(false)} transitionDuration={{ enter: 280, exit: 220 }} PaperProps={{ sx: { width: { xs: 300, sm: 340 }, bgcolor: "#f7fafd", borderLeft: "1px solid rgba(148,191,230,0.35)", display: "flex", flexDirection: "column", backgroundImage: "radial-gradient(circle at 100% 0%, rgba(47,107,214,0.10), transparent 55%), radial-gradient(circle at 0% 100%, rgba(30,167,225,0.08), transparent 55%), linear-gradient(180deg, #ffffff 0%, #eaf3ff 100%)", boxShadow: "-24px 0 60px rgba(11,37,69,0.18)" } }}>
         <Box sx={{ background: "linear-gradient(180deg, #2f6bd6 0%, #17417f 55%, #0b2545 100%)", color: "#fff", px: 2.5, py: 2, borderBottom: "1px solid rgba(255,255,255,0.10)" }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between"><Stack><Typography sx={{ fontSize: 11, letterSpacing: "0.28em", textTransform: "uppercase", color: "rgba(255,255,255,0.72)", fontWeight: 700 }}>Kalypsis</Typography><Typography sx={{ fontSize: 17, fontWeight: 800, mt: .25 }}>Μενού</Typography></Stack><IconButton onClick={() => setMenuOpen(false)} sx={{ color: "#fff", bgcolor: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 1.5, "&:hover": { bgcolor: "rgba(255,255,255,0.16)" } }}><CloseIcon /></IconButton></Stack>
         </Box>

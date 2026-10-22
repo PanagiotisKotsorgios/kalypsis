@@ -4,6 +4,7 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { Link as RouterLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { DESKTOP_INSTALLER_URL } from "./DesktopDownloadButton";
+import { PUBLIC_FLOATING_Z_INDEX } from "./publicOverlayLayers";
 
 /**
  * Persistent download action for every public/pre-login route. It intentionally
@@ -23,7 +24,7 @@ export function PreloginDesktopDownload() {
         // Keep the floating installer below the infrastructure notice on phones
         // so the two controls never overlap the page header or each other.
         top: { xs: 132, sm: 104 },
-        zIndex: (theme) => theme.zIndex.drawer + 1,
+        zIndex: PUBLIC_FLOATING_Z_INDEX,
         display: "flex",
         alignItems: "stretch",
         overflow: "hidden",

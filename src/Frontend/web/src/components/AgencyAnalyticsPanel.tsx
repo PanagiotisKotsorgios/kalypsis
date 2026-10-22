@@ -7,9 +7,10 @@ import TableChartOutlinedIcon from "@mui/icons-material/TableChartOutlined";
 import ShowChartIcon from "@mui/icons-material/ShowChart";
 import CloseIcon from "@mui/icons-material/Close";
 import { Area, Bar, Brush, CartesianGrid, Cell, ComposedChart, Legend, Line, Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { labelledPoints, monthlyAnalytics, type AgencyAnalyticsReport, type AnalyticsPoint } from "./agencyAnalyticsModel";
+import { presetTrendRange, trendRangeError, type TrendRange } from "./productionTrendPeriod";
 
 const euros = new Intl.NumberFormat("el-GR", { style: "currency", currency: "EUR", maximumFractionDigits: 2 });
 const integers = new Intl.NumberFormat("el-GR");
@@ -20,6 +21,7 @@ const compactMoney = (value: number) => `${new Intl.NumberFormat("el-GR", { nota
 export function AgencyAnalyticsPanel({ collapsible = false }: { collapsible?: boolean }) {
   const [expanded, setExpanded] = useState(!collapsible);
   const [live, setLive] = useState(true);
+  const queryClient = useQueryClient();
   const query = useQuery<AgencyAnalyticsReport>({
     queryKey: ["report", "agency"], enabled: expanded,
     queryFn: async () => (await api.get("/reports/agency")).data,
@@ -33,27 +35,57 @@ export function AgencyAnalyticsPanel({ collapsible = false }: { collapsible?: bo
       <InsightsOutlinedIcon color="primary" /><Typography fontWeight={800}>Στατιστικά & γραφήματα</Typography>
       <FormControlLabel sx={{ m: 0 }} control={<Switch size="small" checked={live} onChange={event => setLive(event.target.checked)} />} label={<Typography variant="caption">Ανανέωση ανά 60″</Typography>} />
       <Typography variant="caption" color="text.secondary" role="status" aria-live="polite">{query.isFetching ? "Ενημέρωση…" : query.dataUpdatedAt ? `Ενημερώθηκε ${new Date(query.dataUpdatedAt).toLocaleTimeString("el-GR")}` : ""}</Typography>
-      <Button size="small" variant="outlined" startIcon={<RefreshIcon />} disabled={query.isFetching} onClick={() => void query.refetch()}>Ανανέωση</Button>
-      {collapsible && <Button size="small" onClick={() => setExpanded(false)}>Απόκρυψη</Button>}
+      <Button size="small" variant="outlined" startIcon={<RefreshIcon />} disabled={query.isFetching} onClick={() => { void query.refetch(); void queryClient.invalidateQueries({ queryKey: ["report", "agency", "trend"] }); }}>Ανανέωση</Button>
+      {collapsible && <Button size="small" variant="contained" color="error" sx={{ color: "#fff" }} onClick={() => setExpanded(false)}>Απόκρυψη</Button>}
     </Stack>
     {query.isError && <Alert severity="error" sx={{ mb: 1 }}>{query.data ? "Η ανανέωση απέτυχε. Προβάλλονται τα τελευταία διαθέσιμα δεδομένα. " : ""}{extractErrorMessage(query.error)}</Alert>}
     {query.isLoading && <Typography role="status" sx={{ py: 4 }}>Φόρτωση αναλύσεων…</Typography>}
-    {query.data && <AgencyAnalyticsView report={query.data} />}
+    {query.data && <AgencyAnalyticsView report={query.data} live={live} />}
   </Box>;
 }
 
-export function AgencyAnalyticsView({ report }: { report: AgencyAnalyticsReport }) {
-  const [months, setMonths] = useState(6);
+export function AgencyAnalyticsView({ report, live = false }: { report: AgencyAnalyticsReport; live?: boolean }) {
+  const [period, setPeriod] = useState("6");
+  const [range, setRange] = useState<TrendRange>(() => presetTrendRange(6));
+  const [draft, setDraft] = useState<TrendRange>(() => presetTrendRange(12));
+  const [applied, setApplied] = useState(false);
+  const custom = period === "custom";
+  const rangeError = trendRangeError(draft);
+  const remote = !["3", "6"].includes(period) && (!custom || applied);
+  const trend = useQuery<AnalyticsPoint[]>({
+    queryKey: ["report", "agency", "trend", range.from, range.to],
+    enabled: remote,
+    queryFn: async () => (await api.get("/reports/agency/trend", { params: range })).data,
+    staleTime: 30_000, refetchInterval: live && remote ? 60_000 : false,
+    refetchIntervalInBackground: false,
+  });
   const [mode, setMode] = useState("area");
   const [average, setAverage] = useState(true);
-  const analysis = useMemo(() => monthlyAnalytics(report.monthlyPremium ?? [], months), [report.monthlyPremium, months]);
+  const source = remote ? trend.data ?? [] : custom ? [] : report.monthlyPremium ?? [];
+  const analysis = useMemo(() => monthlyAnalytics(source, remote ? 120 : Number(period) || 120), [source, period, remote]);
   const trendRows = analysis.series.map(point => [point.month, euros.format(point.value), point.movingAverage === null ? "—" : euros.format(point.movingAverage), euros.format(point.cumulative)]);
   const trendToolbar = <Stack direction="row" useFlexGap flexWrap="wrap" gap={1} sx={{ mb: 1.5, pt: .75 }}>
-    <TextField select size="small" label="Περίοδος τάσης" value={months} onChange={event => setMonths(Number(event.target.value))} sx={{ minWidth: 155 }}>
-      <MenuItem value={3}>Τελευταίοι 3 μήνες</MenuItem><MenuItem value={6}>Τελευταίοι 6 μήνες</MenuItem>
+    <TextField select size="small" label="Περίοδος τάσης" value={period} onChange={event => {
+      const value = event.target.value; setPeriod(value);
+      if (value !== "custom") { setRange(presetTrendRange(Number(value))); setApplied(false); }
+    }} sx={{ minWidth: 185 }}>
+      <MenuItem value="3">Τελευταίοι 3 μήνες</MenuItem><MenuItem value="6">Τελευταίοι 6 μήνες</MenuItem>
+      <MenuItem value="12">Τελευταίοι 12 μήνες</MenuItem><MenuItem value="24">Τελευταία 2 έτη</MenuItem>
+      <MenuItem value="60">Τελευταία 5 έτη</MenuItem><MenuItem value="120">Τελευταία 10 έτη</MenuItem>
+      <MenuItem value="custom">Χειροκίνητη περίοδος</MenuItem>
     </TextField>
+    {custom && <>
+      <TextField size="small" type="date" label="Από" value={draft.from} onChange={event => setDraft(value => ({ ...value, from: event.target.value }))} InputLabelProps={{ shrink: true }} sx={{ width: 165 }} />
+      <TextField size="small" type="date" label="Έως" value={draft.to} onChange={event => setDraft(value => ({ ...value, to: event.target.value }))} InputLabelProps={{ shrink: true }} sx={{ width: 165 }} />
+      <Button variant="contained" disabled={Boolean(rangeError)} onClick={() => { setRange({ ...draft }); setApplied(true); }}>Εφαρμογή περιόδου</Button>
+      {rangeError && <Typography color="error" variant="caption" role="status" sx={{ flexBasis: "100%" }}>{rangeError}</Typography>}
+    </>}
     <TextField select size="small" label="Απεικόνιση" value={mode} onChange={event => setMode(event.target.value)} sx={{ minWidth: 140 }}><MenuItem value="area">Καμπύλη</MenuItem><MenuItem value="bar">Στήλες</MenuItem></TextField>
     <FormControlLabel sx={{ m: 0 }} control={<Switch size="small" checked={average} onChange={event => setAverage(event.target.checked)} />} label={<Typography variant="caption">Κινητός μέσος 3 μηνών</Typography>} />
+    {custom && !applied && <Typography variant="caption" sx={{ flexBasis: "100%" }}>Επιλέξτε ημερομηνίες και πατήστε «Εφαρμογή περιόδου».</Typography>}
+    {remote && trend.isFetching && <Typography variant="caption" role="status" sx={{ flexBasis: "100%" }}>Φόρτωση επιλεγμένης περιόδου…</Typography>}
+    {remote && trend.isError && <Alert severity="error" sx={{ width: "100%" }}>{extractErrorMessage(trend.error)} <Button onClick={() => void trend.refetch()}>Επανάληψη</Button></Alert>}
+    {remote && <Typography variant="caption" color="text.secondary" sx={{ flexBasis: "100%" }}>Επιλεγμένη περίοδος: {range.from.split("-").reverse().join("/")} – {range.to.split("-").reverse().join("/")}</Typography>}
   </Stack>;
   const snapshot = (title: string, points: AnalyticsPoint[], type: "donut" | "bar", index: number) => {
     const values = labelledPoints(points);
@@ -100,7 +132,7 @@ function AnalyticsCard({ title, subtitle, toolbar, chart, headers, rows, index, 
     </Box>}
     {children}
   </>;
-  const toggle = <Button size="small" startIcon={table ? <ShowChartIcon /> : <TableChartOutlinedIcon />} onClick={() => setTable(value => !value)}>{table ? "Γράφημα" : "Δεδομένα"}</Button>;
+  const toggle = <Button size="small" sx={{ bgcolor: dark ? "#34465B" : "#E2E6EB", color: dark ? "#fff" : "#102D55", "&:hover": { bgcolor: dark ? "#435A73" : "#CFD6DF" } }} startIcon={table ? <ShowChartIcon /> : <TableChartOutlinedIcon />} onClick={() => setTable(value => !value)}>{table ? "Γράφημα" : "Δεδομένα"}</Button>;
   return <Card variant="outlined" data-analytics-chart={title} sx={{ p: { xs: 1.25, sm: 2 }, minWidth: 0, borderRadius: 2.5, bgcolor: dark ? "#15263A" : "#F8FAFC", borderColor: dark ? "#344E6B" : "#D5E0EC", boxShadow: "0 5px 22px rgba(16,44,85,.05)",
     animation: "analyticsIn 450ms ease both", animationDelay: `${index*45}ms`, "@keyframes analyticsIn": { from: { opacity: 0, transform: "translateY(7px)" }, to: { opacity: 1, transform: "none" } }, "@media (prefers-reduced-motion: reduce)": { animation: "none" } }}>
     <Stack direction="row" useFlexGap flexWrap="wrap" gap={1} alignItems="center" sx={{ mb: 1.5 }}>

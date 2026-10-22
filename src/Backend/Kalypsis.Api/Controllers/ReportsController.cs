@@ -21,6 +21,12 @@ public class ReportsController : ControllerBase
     public async Task<ActionResult<AgencyReportDto>> Agency(CancellationToken cancellationToken)
         => Ok(await _mediator.Send(new GetAgencyReportQuery(), cancellationToken));
 
+    [HttpGet("agency/trend")]
+    [Authorize(Policy = "AgencyStaff")]
+    public async Task<ActionResult<IReadOnlyList<SeriesPoint>>> AgencyTrend(
+        [FromQuery] DateOnly from, [FromQuery] DateOnly to, CancellationToken cancellationToken)
+        => Ok(await _mediator.Send(new GetAgencyProductionTrendQuery(from, to), cancellationToken));
+
     [HttpGet("producer")]
     [Authorize(Policy = "Producer")]
     public async Task<ActionResult<ProducerReportDto>> Producer(CancellationToken cancellationToken)

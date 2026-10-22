@@ -7,6 +7,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import TextDecreaseIcon from "@mui/icons-material/TextDecrease";
 import TextIncreaseIcon from "@mui/icons-material/TextIncrease";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
+import { PUBLIC_FLOATING_Z_INDEX } from "./publicOverlayLayers";
 
 // =============================================================================
 // EU-aligned accessibility widget (EAA / EN 301 549 / WCAG 2.1 AA).
@@ -110,7 +111,7 @@ export function AccessibilityWidget() {
           aria-expanded={open}
           onClick={() => setOpen(true)}
           sx={{
-            position: "fixed", right: 16, bottom: 16, zIndex: 1500,
+            position: "fixed", right: 16, bottom: 16, zIndex: PUBLIC_FLOATING_Z_INDEX,
             width: 56, height: 56, borderRadius: "50%",
             bgcolor: "#0b2545", color: "#fff",
             boxShadow: "0 10px 30px rgba(11,37,69,0.25), 0 2px 8px rgba(11,37,69,0.20)",

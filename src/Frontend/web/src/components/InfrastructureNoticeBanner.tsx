@@ -22,19 +22,19 @@ export function InfrastructureNoticeBanner() {
         closeText="Κλείσιμο ενημέρωσης"
         sx={{
           borderRadius: 0,
-          background: "#EAF3FC",
-          color: "#102D55",
-          borderBottom: "1px solid #B8D4EF",
+          background: "#E8F5ED",
+          color: "#164B30",
+          borderBottom: "1px solid #A7D5B8",
           boxShadow: "0 2px 10px rgba(16, 45, 85, 0.08)",
           fontSize: { xs: "0.9rem", sm: "1rem" },
-          "& .MuiAlert-icon": { color: "#087CEB" },
-          "& .MuiAlert-action": { color: "#102D55", alignItems: "center", pt: 0 },
+          "& .MuiAlert-icon": { color: "#14864B" },
+          "& .MuiAlert-action": { color: "#164B30", alignItems: "center", pt: 0 },
           "& .MuiAlert-action .MuiIconButton-root": {
-            color: "#102D55",
-            border: "1px solid #B8D4EF",
+            color: "#164B30",
+            border: "1px solid #A7D5B8",
             borderRadius: "50%",
             p: 0.5,
-            "&:hover": { bgcolor: "#D8EAFB" },
+            "&:hover": { bgcolor: "#D4EDDF" },
           },
           "& .MuiAlert-message": { width: "100%", fontWeight: 700, lineHeight: 1.45 },
           px: { xs: 1.5, sm: 3 },
@@ -45,8 +45,8 @@ export function InfrastructureNoticeBanner() {
           component="span"
           sx={{
             display: "inline-block",
-            bgcolor: "#D8EAFB",
-            color: "#102D55",
+            bgcolor: "#FFE16A",
+            color: "#151515",
             borderRadius: 0.75,
             px: 1,
             py: 0.2,
