@@ -75,3 +75,23 @@ export function mergeVehicleSpecs(raw: string | null | undefined, changes: Recor
   }
   return Object.keys(specs).length ? JSON.stringify(specs) : null;
 }
+
+/** Linking a vehicle must not import another contract's beneficiaries, package or cover terms. */
+export function linkedVehicleSpecs(targetRaw?: string | null, sourceRaw?: string | null) {
+  const read = (raw?: string | null): Record<string, unknown> => {
+    if (!raw?.trim()) return {};
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Μη έγκυρα στοιχεία οχήματος. Δεν τροποποιήθηκαν τα δεδομένα.");
+    return parsed as Record<string, unknown>;
+  };
+  const target = read(targetRaw), source = read(sourceRaw);
+  const from = source.vehicle && typeof source.vehicle === "object" && !Array.isArray(source.vehicle) ? source.vehicle as Record<string, unknown> : source;
+  const into = target.vehicle && typeof target.vehicle === "object" && !Array.isArray(target.vehicle) ? target.vehicle as Record<string, unknown> : target;
+  const owns = (object: Record<string, unknown>, key: string) => Object.prototype.hasOwnProperty.call(object, key);
+  for (const key of [...VEHICLE_SPEC_FIELDS.map(([key]) => key), "vehicleOwnership"]) {
+    delete into[key];
+    if (into !== target) delete target[key];
+    if (owns(from, key) || owns(source, key)) into[key] = owns(from, key) ? from[key] : source[key];
+  }
+  return Object.keys(target).length ? JSON.stringify(target) : null;
+}

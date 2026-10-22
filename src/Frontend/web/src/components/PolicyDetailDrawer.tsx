@@ -1,6 +1,9 @@
 import { DetailProfileTabs } from "./profile/DetailProfileTabs";
 import { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback, profileFieldGridSx, useProfileFieldEditor, type ProfileFieldSession } from "./profile/ProfileFieldEditor";
 import { POLICY_CORE_KEYS, policyCorePayload, policyPreservedAmounts } from "./profile/policyProfile";
+import { PolicyBeneficiaries, PolicyRiskFields, PolicyTaxFields, policyPaymentStatus } from "./profile/PolicyRiskProfileFields";
+import { PolicyClaimsDialog } from "./PolicyClaimsDialog";
+import { linkedVehicleSpecs } from "./profile/vehicleProfile";
 import { createContext, useContext, Children, isValidElement, useEffect, useMemo, useState } from "react";
 import {
   Alert, Autocomplete, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
@@ -72,6 +75,9 @@ export interface PolicyDetail {
   applicationNumber: string | null;
   contractPartyCustomerId: string | null;
   contractPartyDisplay: string | null;
+  contractPartyVat?: string | null;
+  contractPartyEmail?: string | null;
+  contractPartyPhone?: string | null;
   previousInsuranceCompanyId: string | null;
   previousInsuranceCompanyName: string | null;
   issuedAt: string | null;
@@ -207,6 +213,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   const [vehicleSearch, setVehicleSearch] = useState("");
   const [commissionDetailsOpen, setCommissionDetailsOpen] = useState(false);
   const [communicationsOpen, setCommunicationsOpen] = useState(false);
+  const [claimsOpen, setClaimsOpen] = useState(false);
   const [settlementMode, setSettlementMode] = useState<PolicySettlementMode | null>(null);
   const modalPresentation = presentation === "modal";
   const selectTab = (next: number | string) => {
@@ -223,6 +230,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
     if (open) {
       setCommissionDetailsOpen(false);
       setCommunicationsOpen(false);
+      setClaimsOpen(false);
       setModalTab(0);
       setTab(0);
     }
@@ -243,6 +251,8 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
     enabled: !!policyId && open,
     queryFn: async () => (await api.get<PolicyDetail>(`/policies/${policyId}/detail`)).data
   });
+  const riskQuery = useQuery({ queryKey: ["policy-risk-profile", policyId], enabled: open && !!policyId && !readOnly,
+    queryFn: async () => (await api.get<Record<string, string>>(`/policies/${policyId}/risk-profile`)).data });
 
   // Editable extended form (Phase 12 fields). Initialized from query data.
   const [form, setForm] = useState({
@@ -365,7 +375,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
     // Also enabled on the Οικονομικά tab (index 1) so its summary card can
     // show the parametrization-computed producer / agency totals alongside
     // the bridge-supplied premiums.
-    enabled: !readOnly && open && ((tab === 1) || (modalPresentation && modalTab === 1)) && !!policyId,
+    enabled: !readOnly && open && ((tab === 0 || tab === 1) || (modalPresentation && (modalTab === 0 || modalTab === 1))) && !!policyId,
     queryFn: async () => (await api.get<PolicyCommissionMatrix>(`/policies/${policyId}/commission-splits`)).data
   });
 
@@ -444,6 +454,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
       // the new contract immediately has the same vehicle card details,
       // rather than only displaying the registration plate.
       const source = await api.get<PolicyDetail>(`/policies/${vehicle.id}/detail`).then(response => response.data);
+      const target = await api.get<PolicyDetail>(`/policies/${policyId}/detail`).then(response => response.data);
       return api.patch(`/policies/${policyId}/vehicle`, {
         vehicleRegistrationPlate: vehicle.vehicleRegistrationPlate,
         vehicleUseCategory: source.vehicleUseCategory ?? source.carrierUseCode ?? null,
@@ -452,14 +463,15 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
         characteristic: source.characteristic ?? null,
         deductible: source.deductible ?? null,
         position: source.position ?? null,
-        specsJson: source.specsJson ?? null,
-        notes: source.policyNotes ?? null,
+        specsJson: linkedVehicleSpecs(target.specsJson, source.specsJson),
+        notes: target.policyNotes ?? null,
         replaceDetails: true,
       });
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["policy-detail", policyId] });
       void qc.invalidateQueries({ queryKey: ["policies"] });
+      void qc.invalidateQueries({ queryKey: ["policy-risk-profile", policyId] });
       void qc.invalidateQueries({ queryKey: ["customer-vehicles-all"] });
       setVehiclePickerOpen(false);
       setVehicleSearch("");
@@ -513,7 +525,8 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
       vehicleUseCategory: q.data?.vehicleUseCategory || q.data?.carrierUseCode || "",
       packageCode: q.data?.carrierPackageCode || "",
       coverCode: q.data?.carrierCoverageCode || "",
-    }, onClose, refresh: () => { void qc.invalidateQueries({ queryKey: ["policy-detail", policyId] }); void qc.invalidateQueries({ queryKey: ["policies"] }); },
+      ...Object.fromEntries(Object.entries(riskQuery.data ?? {}).map(([key, value]) => ["risk:" + key, value])),
+    }, onClose, refresh: () => { void qc.invalidateQueries({ queryKey: ["policy-detail", policyId] }); void qc.invalidateQueries({ queryKey: ["policy-risk-profile", policyId] }); void qc.invalidateQueries({ queryKey: ["policies"] }); },
     write: async (changes, accept) => {
       if (readOnly || !q.data) throw new Error("Δεν επιτρέπεται η επεξεργασία συμβολαίου.");
       if (!Object.keys(changes).length) return;
@@ -530,7 +543,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
         qc.setQueryData(["policy-detail", policyId], (await api.get<PolicyDetail>("/policies/" + policyId + "/detail")).data);
         accept(Object.keys(core));
       }
-      const extended = Object.fromEntries(Object.entries(changes).filter(([key]) => !POLICY_CORE_KEYS.some(field => field === key)));
+      const extended = Object.fromEntries(Object.entries(changes).filter(([key]) => !key.startsWith("risk:") && !POLICY_CORE_KEYS.some(field => field === key)));
       if (Object.keys(extended).length) {
         const override: Record<string, string | boolean> = {};
         for (const [key, value] of Object.entries(extended)) {
@@ -547,6 +560,13 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
         const current = qc.getQueryData<PolicyDetail>(["policy-detail", policyId]) ?? q.data;
         const baseline = Object.fromEntries(Object.keys(form).map(key => [key, typeof form[key as keyof typeof form] === "boolean" ? Boolean(current[key as keyof PolicyDetail]) : String(current[key as keyof PolicyDetail] ?? "")]));
         await save.mutateAsync({ ...baseline, ...override } as Partial<typeof form>); accept(Object.keys(extended));
+      }
+      const risk = Object.fromEntries(Object.entries(changes).filter(([key]) => key.startsWith("risk:")).map(([key, value]) => [key.slice(5), value]));
+      if (Object.keys(risk).length) {
+        const result = await api.patch<Record<string, string>>(`/policies/${policyId}/risk-profile`, { changes: risk });
+        qc.setQueryData(["policy-risk-profile", policyId], result.data);
+        qc.setQueryData(["policy-detail", policyId], (await api.get<PolicyDetail>(`/policies/${policyId}/detail`)).data);
+        accept(Object.keys(risk).map(key => "risk:" + key));
       }
     }
   });
@@ -597,7 +617,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   const catalogue = useCarrierCatalogue(open ? q.data?.insuranceCompanyId : null);
 
   return (
-    <ThemeProvider theme={policyOverlayTheme}><PolicyFieldsContext.Provider value={{session, readOnly}}><Drawer anchor="right" open={open} onClose={session.requestClose}
+    <ThemeProvider theme={policyOverlayTheme}><PolicyFieldsContext.Provider value={{session, readOnly, riskReady: !!riskQuery.data && !riskQuery.isError}}><Drawer anchor="right" open={open} onClose={session.requestClose}
       transitionDuration={modalPresentation ? 0 : undefined}
       ModalProps={modalPresentation ? { sx: { zIndex: 1600 } } : undefined}
       PaperProps={{ sx: modalPresentation ? {
@@ -685,6 +705,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
           } : {}),
         }}>
           <ProfileEditorFeedback session={session} />
+          {!readOnly && riskQuery.isError && <Alert severity="error" sx={{ mb: 1 }} action={<Button onClick={() => void riskQuery.refetch()}>Επανάληψη</Button>}>Δεν φορτώθηκαν τα πρόσθετα στοιχεία συμβολαίου. {extractErrorMessage(riskQuery.error)}</Alert>}
           {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
           {saved && <Alert severity="success" sx={{ mb: 2 }}>{t("common.savedOk")}</Alert>}
 
@@ -693,15 +714,17 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
               {/* SUMMARY */}
               {showSummary && <Stack spacing={.75}>
                 <PolicyProfileFields session={readOnly ? undefined : session} values={session.values} policy={p}
-                  companies={carriersLookup.data ?? []} customers={customersLookup.data ?? []} />
+                  companies={carriersLookup.data ?? []} customers={customersLookup.data ?? []}
+                  producerCommissionPercent={commissionMatrix.data?.rows.find(row => !!p.producerId && row.producerId === p.producerId)?.percent} />
                 <Stack direction="row" spacing={.75} useFlexGap flexWrap="wrap" sx={{ "& .MuiButton-root": { bgcolor: "success.main", color: "#fff", borderColor: "success.main", "&:hover": { bgcolor: "success.dark", borderColor: "success.dark" } } }}>
                   <Button size="small" variant="outlined" onClick={() => setCustomerPreviewOpen(true)}>Καρτέλα πελάτη</Button>
                   <Button size="small" variant="outlined" onClick={() => setVehiclePreviewOpen(true)}>Καρτέλα οχήματος</Button>
                   {!readOnly && <Button size="small" variant="outlined" onClick={() => setVehiclePickerOpen(true)}>Σύνδεση οχήματος</Button>}
                   {!readOnly && <Button size="small" variant="outlined" onClick={() => setChangeProducerOpen(true)}>Αλλαγή συνεργάτη</Button>}
+                  {!readOnly && <Button size="small" variant="outlined" onClick={() => setClaimsOpen(true)}>Ζημιές & αποζημιώσεις ({p.claimCount})</Button>}
                 </Stack>
                 <Box sx={profileFieldGridSx}>
-                  <ProfileEditableField label="Δημιουργήθηκε" value={new Date(p.createdAt).toLocaleString("el-GR")} />
+                  <ProfileEditableField label="Ημερομηνία καταχώρησης" value={new Date(p.createdAt).toLocaleString("el-GR")} />
                   <ProfileEditableField label="Ενημερώθηκε" value={p.updatedAt ? new Date(p.updatedAt).toLocaleString("el-GR") : ""} />
                   <ProfileEditableField label="Δημιουργήθηκε από" value={p.createdByName} />
                   <ProfileEditableField label="Προηγούμενο συμβόλαιο" value={p.renewedFromPolicyNumber} />
@@ -710,6 +733,11 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
 
               {showContract && <Stack spacing={1}>
                 <PolicyContractFields policy={p} session={readOnly ? undefined : session} values={session.values} uses={catalogue.uses} packages={catalogue.packages} />
+                {!readOnly && riskQuery.isLoading && <CircularProgress size={22} />}
+                {!readOnly && riskQuery.data && !riskQuery.isError && <>
+                  <PolicySummarySection title="Στοιχεία ασφαλιζόμενου κινδύνου"><PolicyRiskFields policyType={p.policyType} values={session.values} session={session} /></PolicySummarySection>
+                  <PolicyBeneficiaries values={session.values} session={session} />
+                </>}
                 <PolicySummarySection title="Καλύψεις"><PolicyCoversTab policyId={p.id} readOnly={readOnly} /></PolicySummarySection>
               </Stack>}
 
@@ -721,6 +749,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                 <Stack spacing={1}>
                   <PolicySummarySection title={`Ασφάλιστρα & ανάλυση · ${p.currency}`}>
                     <PolicyPremiumFields policy={p} matrix={commissionMatrix.data} matrixLoading={commissionMatrix.isLoading} session={session} />
+                    {riskQuery.data && !riskQuery.isError && <Box sx={{ mt: .75 }}><PolicyTaxFields values={session.values} session={session} /></Box>}
                     <Stack direction="row" gap={.75} flexWrap="wrap" sx={{ mt: .75 }}>
                       <Button size="small" variant="outlined" startIcon={<AccountBalanceWalletOutlinedIcon />} onClick={() => setCommissionDetailsOpen(true)}>Κατανομή & ειδικά ποσοστά</Button>
                       <Button size="small" variant="contained" color="success" sx={{ color: "#fff" }} disabled={commissionMatrix.isFetching} onClick={() => void commissionMatrix.refetch()}>Επανυπολογισμός προμηθειών</Button>
@@ -730,6 +759,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                     <Box sx={{ ...profileFieldGridSx, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))" }}>
                       <PolicySummaryLine label={t("policyDetail.totalReceived")} value={settlementAmount(p.totalReceived, p.currency)} mono />
                       <PolicyOutstandingField amount={p.outstanding} currency={p.currency} />
+                      <ProfileEditableField label="Κατάσταση πληρωμής" value={policyPaymentStatus(p.premium, p.totalReceived, p.paidDirectlyToCarrier)} />
                       <TextField profileKey="paymentFrequency" select label={t("policyDetail.paymentFrequency")} value={form.paymentFrequency}>{FREQUENCIES.map(f => <MenuItem key={f} value={f}>{FREQUENCY_LABELS[f] ?? f}</MenuItem>)}</TextField>
                       <TextField profileKey="paymentCollectionMethod" select label="Τρόπος είσπραξης" value={form.paymentCollectionMethod}><MenuItem value="">Δεν έχει οριστεί</MenuItem>{COLLECTION_METHODS.map(m => <MenuItem key={m} value={m}>{COLLECTION_METHODS_LABEL[m]}</MenuItem>)}</TextField>
                       <PolicyBooleanField profileKey="paidDirectlyToCarrier" label="Πληρωμή απευθείας στην ασφαλιστική" />
@@ -861,6 +891,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
           {!readOnly && p ? <ProfileEditorActions session={session} label="συμβολαίου" /> : <Button variant="contained" color="error" onClick={session.requestClose}>Κλείσιμο</Button>}
         </Box>
       </Box>
+      {p && !readOnly && <PolicyClaimsDialog key={p.id} policyId={p.id} open={claimsOpen} onClose={() => setClaimsOpen(false)} />}
       <PropagateChangesDialog
         open={!!propagateChanges}
         sourcePolicyId={policyId}
@@ -2001,6 +2032,8 @@ function toBody(f: CoverFormState) {
 }
 
 function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string; readOnly?: boolean }) {
+  const profile = useContext(PolicyFieldsContext);
+  const showDeductible = !!profile && !readOnly && !profile.readOnly;
   const { user } = useAuth();
   const canCreateCatalogue = !readOnly && !!user && ["AgencyAdmin", "PlatformAdmin", "PlatformEmployee"].includes(user.role);
   const [coverDialogOpen, setCoverDialogOpen] = useState(false);
@@ -2085,6 +2118,7 @@ function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string
                 <TableCell align="right">Μικτά</TableCell>
                 <TableCell align="right">Καθαρά</TableCell>
                 <TableCell align="right">Κεφάλαιο</TableCell>
+                {showDeductible && <TableCell>Απαλλαγή ({detail.data?.currency ?? "EUR"})</TableCell>}
                 <TableCell align="right">Προμ. συν. %</TableCell>
                 <TableCell align="right">Προμ. γρ. %</TableCell>
                 <TableCell width={80} />
@@ -2092,7 +2126,7 @@ function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string
             </TableHead>
             <TableBody>
               {rows.length === 0 && (
-                <TableRow><TableCell colSpan={8} align="center" sx={{ color: "error.dark", fontWeight: 650, py: 2 }}>
+                <TableRow><TableCell colSpan={showDeductible ? 9 : 8} align="center" sx={{ color: "error.dark", fontWeight: 650, py: 2 }}>
                   Δεν υπάρχουν καταχωρημένες καλύψεις.
                 </TableCell></TableRow>
               )}
@@ -2103,6 +2137,7 @@ function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string
                   <TableCell align="right" sx={{ color: c.grossPremium > 0 ? "success.dark" : "error.dark" }}>{c.grossPremium.toFixed(2)}</TableCell>
                   <TableCell align="right" sx={{ color: c.netPremium > 0 ? "success.dark" : "error.dark" }}>{c.netPremium.toFixed(2)}</TableCell>
                   <TableCell align="right" sx={{ color: c.coverageAmount === null ? "error.dark" : "success.dark" }}>{c.coverageAmount === null ? "Δεν έχει καταχωρηθεί" : c.coverageAmount.toFixed(2)}</TableCell>
+                  {showDeductible && <TableCell sx={{ minWidth: 210 }}>{profile.riskReady ? <ProfileEditableField label="Απαλλαγή" field={`risk:coverDeductible:${c.id}`} session={profile.session} value={profile.session.values[`risk:coverDeductible:${c.id}`]} type="number" /> : "Δεν φορτώθηκε"}</TableCell>}
                   <TableCell align="right" sx={{ color: c.commissionPercent === null ? "error.dark" : "success.dark" }}>
                     {c.commissionPercent === null ? "—" : `${c.commissionPercent.toFixed(2)}%`}
                   </TableCell>
@@ -2126,7 +2161,7 @@ function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string
                   <TableCell colSpan={2} sx={{ fontWeight: 700 }}>Σύνολο</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700 }}>{totalGross.toFixed(2)}</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700 }}>{totalNet.toFixed(2)}</TableCell>
-                  <TableCell colSpan={4} />
+                  <TableCell colSpan={showDeductible ? 5 : 4} />
                 </TableRow>
               )}
             </TableBody>
@@ -2855,7 +2890,7 @@ export function PolicyPremiumFields({ policy, matrix, matrixLoading, session }: 
   </Box>;
 }
 
-const PolicyFieldsContext = createContext<{ session: ProfileFieldSession; readOnly: boolean } | null>(null);
+const PolicyFieldsContext = createContext<{ session: ProfileFieldSession; readOnly: boolean; riskReady: boolean } | null>(null);
 function TextField(props: React.ComponentProps<typeof MuiTextField> & { profileKey?: string }) {
   const context = useContext(PolicyFieldsContext);
   const { profileKey, ...original } = props;
@@ -2877,9 +2912,10 @@ function PolicyBooleanField({profileKey, label}: {profileKey: string; label: str
     value={context?.session.values[profileKey]} options={[{value:"true",label:"Ναι"}, {value:"false",label:"Όχι"}]} />;
 }
 
-export function PolicyProfileFields({session, values, policy, companies, customers}: {
+export function PolicyProfileFields({session, values, policy, companies, customers, producerCommissionPercent}: {
   session?: ProfileFieldSession; values: Record<string,string>; policy: PolicyDetail;
   companies: {id:string; name:string}[]; customers: {id:string; firstName?:string|null; lastName?:string|null; companyName?:string|null}[];
+  producerCommissionPercent?: number;
 }) {
   const field = (key:string,label:string,extra: Partial<React.ComponentProps<typeof ProfileEditableField>> = {}) =>
     <ProfileEditableField key={key} label={label} field={session ? key : undefined} session={session} value={values[key]} {...extra} />;
@@ -2897,8 +2933,15 @@ export function PolicyProfileFields({session, values, policy, companies, custome
     {field("previousInsuranceCompanyId","Προηγούμενη ασφαλιστική",{options:[{value:"",label:"Δεν έχει οριστεί"}, ...carrierOptions]})}
     <ProfileEditableField label="Πελάτης / ασφαλισμένος" value={policy.customerDisplay} />
     <ProfileEditableField label="ΑΦΜ πελάτη" value={policy.customerVat} mono />
+    <ProfileEditableField label="Email ασφαλισμένου" value={policy.customerEmail} />
+    <ProfileEditableField label="Τηλέφωνο ασφαλισμένου" value={policy.customerPhone} />
     {field("contractPartyCustomerId","Συμβαλλόμενος",{options:[{value:"",label:"Ίδιος με τον ασφαλιζόμενο"}, ...customers.map(row=>({value:row.id,label:row.companyName || [row.firstName,row.lastName].filter(Boolean).join(" ")}))]})}
+    <ProfileEditableField label="ΑΦΜ συμβαλλομένου" value={policy.contractPartyVat ?? (!policy.contractPartyCustomerId ? policy.customerVat : null)} mono />
+    <ProfileEditableField label="Email συμβαλλομένου" value={policy.contractPartyEmail ?? (!policy.contractPartyCustomerId ? policy.customerEmail : null)} />
+    <ProfileEditableField label="Τηλέφωνο συμβαλλομένου" value={policy.contractPartyPhone ?? (!policy.contractPartyCustomerId ? policy.customerPhone : null)} />
     <ProfileEditableField label="Συνεργάτης" value={policy.producerName} />
+    <ProfileEditableField label="Κωδικός συνεργάτη" value={policy.producerCode} mono />
+    <ProfileEditableField label="Προμήθεια συνεργάτη (%)" value={producerCommissionPercent == null ? "" : String(producerCommissionPercent) + "%"} mono />
     {field("issuedAt","Ημερομηνία έκδοσης",{type:"date"})}
     {field("startDate","Έναρξη",{type:"date"})}
     {field("endDate","Λήξη",{type:"date"})}

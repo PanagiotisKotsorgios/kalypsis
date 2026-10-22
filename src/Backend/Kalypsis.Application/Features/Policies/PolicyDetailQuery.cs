@@ -124,7 +124,10 @@ public record PolicyDetailDto(
     // Raw carrier mappings are needed for lossless, single-field profile edits.
     string? CarrierBranchCode = null,
     string? CarrierPackageCode = null,
-    string? CarrierCoverageCode = null);
+    string? CarrierCoverageCode = null,
+    string? ContractPartyVat = null,
+    string? ContractPartyEmail = null,
+    string? ContractPartyPhone = null);
 
 public record GetPolicyDetailQuery(Guid Id) : IRequest<PolicyDetailDto>;
 
@@ -401,6 +404,7 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
                 : p.ContractPartyCustomer.CompanyName ?? "—";
         }
         var createdByName = p.CreatedByUser is null ? null : $"{p.CreatedByUser.FirstName} {p.CreatedByUser.LastName}".Trim();
+        var contractParty = p.ContractPartyCustomerId.HasValue ? p.ContractPartyCustomer : p.Customer;
 
         return new PolicyDetailDto(
             p.Id, p.PolicyNumber, p.PolicyType, p.Status,
@@ -456,7 +460,10 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
             Math.Max(0m, agencyExpected - agencyReceived),
             p.CarrierBranchCode,
             p.CarrierPackageCode,
-            p.CarrierCoverageCode);
+            p.CarrierCoverageCode,
+            contractParty?.VatNumber,
+            contractParty?.Email,
+            contractParty?.MobilePhone ?? contractParty?.Phone);
     }
 }
 

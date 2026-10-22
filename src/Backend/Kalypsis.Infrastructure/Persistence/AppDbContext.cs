@@ -366,6 +366,8 @@ public class AppDbContext : DbContext, IAppDbContext
         Encrypt<Customer>(x => x.IdNumber);
         Encrypt<Customer>(x => x.PassportNumber);
         Encrypt<Customer>(x => x.DriverLicenseNumber);
+        // Existing longtext column: no schema change; legacy notes decrypt/read unchanged.
+        modelBuilder.Entity<Policy>().Property(x => x.MedicalExamsNotes).HasConversion(enc!);
 
         // Financial identifiers — IBAN (τραπεζικός λογαριασμός) όπου βρίσκεται.
         Encrypt<BankConnection>(x => x.Iban);
@@ -703,7 +705,8 @@ public class AppDbContext : DbContext, IAppDbContext
         if (propertyName.Contains("Password", StringComparison.OrdinalIgnoreCase)
             || propertyName.Contains("Token", StringComparison.OrdinalIgnoreCase)
             || propertyName.Contains("Secret", StringComparison.OrdinalIgnoreCase)
-            || propertyName.Contains("ApiKey", StringComparison.OrdinalIgnoreCase))
+            || propertyName.Contains("ApiKey", StringComparison.OrdinalIgnoreCase)
+            || propertyName == nameof(Policy.MedicalExamsNotes))
         {
             return "***";
         }
