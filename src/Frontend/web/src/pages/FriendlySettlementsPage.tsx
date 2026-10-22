@@ -1,7 +1,9 @@
+import { ClaimListFilters, ClaimListTableFrame } from "../components/ClaimListLayout";
+import { RecordCountChip } from "../components/TableToolbar";
 import { useEffect, useMemo, useState } from "react";
 import AddIcon from "@mui/icons-material/Add";
 import {
-  Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
+  Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   IconButton, MenuItem, Stack, Tab, Tabs, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Typography
 } from "@mui/material";
 import HandshakeIcon from "@mui/icons-material/Handshake";
@@ -103,14 +105,15 @@ export function FriendlySettlementsPage() {
   };
 
   return (
-    <Box>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
-        <Stack direction="row" alignItems="center" spacing={2}>
+    <Box sx={{ minWidth: 0 }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.25} flexWrap="wrap" gap={2}>
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0, maxWidth: "100%" }}>
           <HandshakeIcon sx={{ fontSize: 36 }} color="primary" />
           <Box>
-            <Stack direction="row" alignItems="center" spacing={0.5}>
-              <Typography variant="h4" sx={{ fontWeight: 800 }}>{t("friendly.title")}</Typography>
+            <Stack direction="row" alignItems="center" spacing={0.5} useFlexGap flexWrap="wrap" sx={{ minWidth: 0 }}>
+              <Typography variant="h4" sx={{ fontWeight: 800, fontSize: { xs: 22, sm: 28, lg: 32 }, overflowWrap: "anywhere" }}>{t("friendly.title")}</Typography>
               <HelpHint id="page.friendly" />
+              <RecordCountChip count={filteredRows.length} />
             </Stack>
             <Typography color="text.secondary">{t("friendly.subtitle")}</Typography>
           </Box>
@@ -121,31 +124,27 @@ export function FriendlySettlementsPage() {
           onExport={action => { if (action === "csv") exportCsv(); else if (action === "xlsx") void exportXlsx(); else if (action === "print") window.print(); }} />
       </Stack>
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
-      <Card variant="outlined" sx={{ p: 1.25, mb: 1.5, bgcolor: "#f4f7fb" }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }} flexWrap="wrap" useFlexGap>
-          <TextField size="small" fullWidth placeholder="Αναζήτηση φακέλου, ζημιάς, ασφαλιστικής ή συμβολαίου" value={search}
-            onChange={e => setSearch(e.target.value)} InputProps={{ startAdornment: <SearchIcon sx={{ mr: 0.75, color: "text.secondary" }} /> }} sx={{ flex: 1, minWidth: { md: 300 } }} />
-          <TextField select size="small" label="Κατάσταση" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} sx={{ minWidth: 150 }}>
-            <MenuItem value="all">Όλες</MenuItem>{STATUSES.map(v => <MenuItem key={v} value={v}>{settlementStatusLabel(v)}</MenuItem>)}
-          </TextField>
-          <SearchableTextField select size="small" label="Ασφαλιστική" value={insurerFilter} onChange={e => setInsurerFilter(e.target.value)} sx={{ minWidth: 170 }}>
-            <MenuItem value="all">Όλες</MenuItem>{insurers.map(v => <MenuItem key={v} value={v}>{v}</MenuItem>)}
-          </SearchableTextField>
-          <TextField type="date" size="small" label="Από" InputLabelProps={{ shrink: true }} value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-          <TextField type="date" size="small" label="Έως" InputLabelProps={{ shrink: true }} value={dateTo} onChange={e => setDateTo(e.target.value)} />
-          <SavedReportsButton entity="friendly-settlements" currentFilters={{ search, statusFilter, insurerFilter, dateFrom, dateTo }}
+      <ClaimListFilters title="Φίλτρα φιλικών διακανονισμών" desktopColumns={6} savedFilters={<SavedReportsButton entity="friendly-settlements" currentFilters={{ search, statusFilter, insurerFilter, dateFrom, dateTo }}
             onLoad={filters => { setSearch(filters.search ?? ""); setStatusFilter(filters.statusFilter ?? "all"); setInsurerFilter(filters.insurerFilter ?? "all"); setDateFrom(filters.dateFrom ?? ""); setDateTo(filters.dateTo ?? ""); }}
             onClear={clearFilters} clearRequestToken={clearSavedFilterRequest}
-            saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />
-          <Button size="small" color="error" variant="contained" startIcon={<FilterAltOffIcon />} onClick={clearFilters}>Καθαρισμός φίλτρων</Button>
-        </Stack>
-      </Card>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" useFlexGap spacing={1} sx={{ mb: 1 }}>
-        <Typography variant="body2" color="text.secondary">Εμφανίζονται {filteredRows.length} από {rows.length} φιλικούς διακανονισμούς</Typography>
-      </Stack>
+            saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />}>
+        <TextField size="small" fullWidth placeholder="Αναζήτηση φακέλου, ζημιάς, ασφαλιστικής ή συμβολαίου" value={search}
+            onChange={e => setSearch(e.target.value)} InputProps={{ startAdornment: <SearchIcon sx={{ mr: 0.75, color: "text.secondary" }} /> }} sx={{ flex: 1, minWidth: { md: 300 } }} />
+        <TextField select size="small" label="Κατάσταση" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} sx={{ minWidth: 150 }}>
+            <MenuItem value="all">Όλες</MenuItem>{STATUSES.map(v => <MenuItem key={v} value={v}>{settlementStatusLabel(v)}</MenuItem>)}
+          </TextField>
+        <SearchableTextField select size="small" label="Ασφαλιστική" value={insurerFilter} onChange={e => setInsurerFilter(e.target.value)} sx={{ minWidth: 170 }}>
+            <MenuItem value="all">Όλες</MenuItem>{insurers.map(v => <MenuItem key={v} value={v}>{v}</MenuItem>)}
+          </SearchableTextField>
+        <TextField type="date" size="small" label="Από" InputLabelProps={{ shrink: true }} value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+        <TextField type="date" size="small" label="Έως" InputLabelProps={{ shrink: true }} value={dateTo} onChange={e => setDateTo(e.target.value)} />
+        <Button size="small" color="error" variant="contained" startIcon={<FilterAltOffIcon />} onClick={clearFilters}>Καθαρισμός φίλτρων</Button>
+      </ClaimListFilters>
       {q.isLoading ? <CircularProgress /> : (
-        <Card variant="outlined" sx={{ overflowX: "auto" }}>
-          <Table size="small">
+        <ClaimListTableFrame label="Φιλικοί διακανονισμοί" minWidth={960} pagination={<TablePagination component="div" count={filteredRows.length} page={page} onPageChange={(_, next) => setPage(next)} rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={event => { setRowsPerPage(Number(event.target.value)); setPage(0); }} rowsPerPageOptions={[10, 25, 50, 100]}
+            labelRowsPerPage="Ανά σελίδα" labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`} />}>
+          <Table size="small" stickyHeader>
             <TableHead><TableRow>
               <TableCell>{t("friendly.fileNumber")}</TableCell>
               <TableCell>{t("friendly.claim")}</TableCell>
@@ -154,7 +153,7 @@ export function FriendlySettlementsPage() {
               <TableCell align="right">{t("friendly.agreedAmount")}</TableCell>
               <TableCell align="center">{t("friendly.victims")}</TableCell>
               <TableCell>{t("common.status")}</TableCell>
-              <TableCell align="right" />
+              <TableCell align="right">Ενέργειες</TableCell>
             </TableRow></TableHead>
             <TableBody>
               {filteredRows.length === 0 && (
@@ -176,10 +175,7 @@ export function FriendlySettlementsPage() {
               ))}
             </TableBody>
           </Table>
-          <TablePagination component="div" count={filteredRows.length} page={page} onPageChange={(_, next) => setPage(next)} rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={event => { setRowsPerPage(Number(event.target.value)); setPage(0); }} rowsPerPageOptions={[10, 25, 50, 100]}
-            labelRowsPerPage="Ανά σελίδα" labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`} />
-        </Card>
+        </ClaimListTableFrame>
       )}
       <CreateDialog open={createOpen} onClose={() => setCreateOpen(false)}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["friendly-settlements"] }); setCreateOpen(false); }} />
@@ -348,7 +344,7 @@ function VictimsDialog({ settlement, onClose }: { settlement: SettlementDto | nu
             <Button size="small" startIcon={<AddIcon />} variant="outlined" onClick={() => setAdding(true)} sx={{ mb: 2 }}>
               {t("friendly.addVictim")}
             </Button>
-            <Table size="small">
+            <ClaimListTableFrame label="Παθόντες διακανονισμού" minWidth={880}><Table size="small" stickyHeader>
               <TableHead><TableRow>
                 <TableCell>{t("friendly.victimName")}</TableCell>
                 <TableCell>{t("friendly.victimType")}</TableCell>
@@ -357,7 +353,7 @@ function VictimsDialog({ settlement, onClose }: { settlement: SettlementDto | nu
                 <TableCell align="right">{t("friendly.reserveAmount")}</TableCell>
                 <TableCell align="right">{t("friendly.paidAmount")}</TableCell>
                 <TableCell>{t("common.status")}</TableCell>
-                <TableCell align="right" />
+                <TableCell align="right">Ενέργειες</TableCell>
               </TableRow></TableHead>
               <TableBody>
                 {(q.data ?? []).map(v => (
@@ -377,7 +373,7 @@ function VictimsDialog({ settlement, onClose }: { settlement: SettlementDto | nu
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+            </Table></ClaimListTableFrame>
           </Box>
         ) : (
           <Stack spacing={2} mt={1}>

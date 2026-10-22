@@ -1,6 +1,8 @@
+import { ClaimListFilters, ClaimListTableFrame } from "../components/ClaimListLayout";
+import { RecordCountChip } from "../components/TableToolbar";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
+  Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   IconButton, MenuItem, Stack, Switch, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Typography
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
@@ -80,14 +82,15 @@ export function GaragesPage() {
   });
 
   return (
-    <Box>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
-        <Stack direction="row" alignItems="center" spacing={2}>
+    <Box sx={{ minWidth: 0 }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.25} flexWrap="wrap" gap={2}>
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0, maxWidth: "100%" }}>
           <BuildIcon sx={{ fontSize: 36 }} color="primary" />
           <Box>
-            <Stack direction="row" alignItems="center" spacing={0.5}>
-              <Typography variant="h4" sx={{ fontWeight: 800 }}>{t("garages.title")}</Typography>
+            <Stack direction="row" alignItems="center" spacing={0.5} useFlexGap flexWrap="wrap" sx={{ minWidth: 0 }}>
+              <Typography variant="h4" sx={{ fontWeight: 800, fontSize: { xs: 22, sm: 28, lg: 32 }, overflowWrap: "anywhere" }}>{t("garages.title")}</Typography>
               <HelpHint id="page.garages" />
+              <RecordCountChip count={filteredRows.length} />
             </Stack>
             <Typography color="text.secondary">{t("garages.subtitle")}</Typography>
           </Box>
@@ -98,25 +101,19 @@ export function GaragesPage() {
           onExport={action => { if (action === "csv") exportCsv(); else if (action === "xlsx") void exportXlsx(); else if (action === "print") window.print(); }} />
       </Stack>
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
-      <Card variant="outlined" sx={{ p: 1.25, mb: 1.5, bgcolor: "#f4f7fb" }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }} flexWrap="wrap" useFlexGap>
-          <TextField size="small" fullWidth placeholder="Αναζήτηση κωδικού, επωνυμίας, πόλης, τηλεφώνου ή email" value={search} onChange={e => setSearch(e.target.value)} InputProps={{ startAdornment: <SearchIcon sx={{ mr: 0.75, color: "text.secondary" }} /> }} sx={{ flex: 1, minWidth: { md: 300 } }} />
-          <TextField select size="small" label="Έγκριση" value={approvalFilter} onChange={e => setApprovalFilter(e.target.value)} sx={{ minWidth: 140 }}><MenuItem value="all">Όλα</MenuItem><MenuItem value="approved">Εγκεκριμένα</MenuItem><MenuItem value="unapproved">Μη εγκεκριμένα</MenuItem></TextField>
-          <TextField select size="small" label="Κατάσταση" value={activeFilter} onChange={e => setActiveFilter(e.target.value)} sx={{ minWidth: 135 }}><MenuItem value="all">Όλες</MenuItem><MenuItem value="active">Ενεργά</MenuItem><MenuItem value="inactive">Ανενεργά</MenuItem></TextField>
-          <TextField select size="small" label="Πόλη" value={cityFilter} onChange={e => setCityFilter(e.target.value)} sx={{ minWidth: 145 }}><MenuItem value="all">Όλες</MenuItem>{cities.map(city => <MenuItem key={city} value={city}>{city}</MenuItem>)}</TextField>
-          <SavedReportsButton entity="garages" currentFilters={{ search, approvalFilter, activeFilter, cityFilter }}
+      <ClaimListFilters title="Φίλτρα συνεργείων" desktopColumns={5} savedFilters={<SavedReportsButton entity="garages" currentFilters={{ search, approvalFilter, activeFilter, cityFilter }}
             onLoad={filters => { setSearch(filters.search ?? ""); setApprovalFilter(filters.approvalFilter ?? "all"); setActiveFilter(filters.activeFilter ?? "all"); setCityFilter(filters.cityFilter ?? "all"); }}
             onClear={clearFilters} clearRequestToken={clearSavedFilterRequest}
-            saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />
-          <Button size="small" color="error" variant="contained" startIcon={<FilterAltOffIcon />} onClick={clearFilters}>Καθαρισμός</Button>
-        </Stack>
-      </Card>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" useFlexGap spacing={1} sx={{ mb: 1 }}>
-        <Typography variant="body2" color="text.secondary">Εμφανίζονται {filteredRows.length} από {rows.length} συνεργεία</Typography>
-      </Stack>
+            saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />}>
+        <TextField size="small" fullWidth placeholder="Αναζήτηση κωδικού, επωνυμίας, πόλης, τηλεφώνου ή email" value={search} onChange={e => setSearch(e.target.value)} InputProps={{ startAdornment: <SearchIcon sx={{ mr: 0.75, color: "text.secondary" }} /> }} sx={{ flex: 1, minWidth: { md: 300 } }} />
+        <TextField select size="small" label="Έγκριση" value={approvalFilter} onChange={e => setApprovalFilter(e.target.value)} sx={{ minWidth: 140 }}><MenuItem value="all">Όλα</MenuItem><MenuItem value="approved">Εγκεκριμένα</MenuItem><MenuItem value="unapproved">Μη εγκεκριμένα</MenuItem></TextField>
+        <TextField select size="small" label="Κατάσταση" value={activeFilter} onChange={e => setActiveFilter(e.target.value)} sx={{ minWidth: 135 }}><MenuItem value="all">Όλες</MenuItem><MenuItem value="active">Ενεργά</MenuItem><MenuItem value="inactive">Ανενεργά</MenuItem></TextField>
+        <TextField select size="small" label="Πόλη" value={cityFilter} onChange={e => setCityFilter(e.target.value)} sx={{ minWidth: 145 }}><MenuItem value="all">Όλες</MenuItem>{cities.map(city => <MenuItem key={city} value={city}>{city}</MenuItem>)}</TextField>
+        <Button size="small" color="error" variant="contained" startIcon={<FilterAltOffIcon />} onClick={clearFilters}>Καθαρισμός</Button>
+      </ClaimListFilters>
       {q.isLoading ? <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box> : (
-        <Card variant="outlined" sx={{ overflowX: "auto" }}>
-          <Table size="small">
+        <ClaimListTableFrame label="Συνεργεία" minWidth={860} pagination={<TablePagination component="div" count={filteredRows.length} page={page} onPageChange={(_, next) => setPage(next)} rowsPerPage={rowsPerPage} onRowsPerPageChange={event => { setRowsPerPage(Number(event.target.value)); setPage(0); }} rowsPerPageOptions={[10, 25, 50, 100]} labelRowsPerPage="Ανά σελίδα" labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`} />}>
+          <Table size="small" stickyHeader>
             <TableHead><TableRow>
               <TableCell>{t("garages.code")}</TableCell>
               <TableCell>{t("garages.name")}</TableCell>
@@ -125,7 +122,7 @@ export function GaragesPage() {
               <TableCell>{t("garages.specialty")}</TableCell>
               <TableCell>{t("garages.approved")}</TableCell>
               <TableCell>{t("common.status")}</TableCell>
-              <TableCell align="right" />
+              <TableCell align="right">Ενέργειες</TableCell>
             </TableRow></TableHead>
             <TableBody>
               {filteredRows.length === 0 && (
@@ -150,8 +147,7 @@ export function GaragesPage() {
               ))}
             </TableBody>
           </Table>
-          <TablePagination component="div" count={filteredRows.length} page={page} onPageChange={(_, next) => setPage(next)} rowsPerPage={rowsPerPage} onRowsPerPageChange={event => { setRowsPerPage(Number(event.target.value)); setPage(0); }} rowsPerPageOptions={[10, 25, 50, 100]} labelRowsPerPage="Ανά σελίδα" labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`} />
-        </Card>
+        </ClaimListTableFrame>
       )}
       <FormDialog open={createOpen} onClose={() => setCreateOpen(false)} item={null}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["garages"] }); setCreateOpen(false); }} />

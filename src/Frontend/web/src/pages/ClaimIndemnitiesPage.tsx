@@ -1,7 +1,9 @@
+import { ClaimListFilters, ClaimListTableFrame } from "../components/ClaimListLayout";
+import { RecordCountChip } from "../components/TableToolbar";
 import { useEffect, useMemo, useState } from "react";
 import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import {
-  Alert, Box, Button, Card, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
+  Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Typography
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -123,14 +125,15 @@ export function ClaimIndemnitiesPage() {
   });
 
   return (
-    <Box>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
-        <Stack direction="row" alignItems="center" spacing={2}>
+    <Box sx={{ minWidth: 0 }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.25} flexWrap="wrap" gap={2}>
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0, maxWidth: "100%" }}>
           <PaymentsIcon sx={{ fontSize: 36 }} color="primary" />
           <Box>
-            <Stack direction="row" alignItems="center" spacing={0.5}>
-              <Typography variant="h4" sx={{ fontWeight: 800 }}>{t("indemnities.title")}</Typography>
+            <Stack direction="row" alignItems="center" spacing={0.5} useFlexGap flexWrap="wrap" sx={{ minWidth: 0 }}>
+              <Typography variant="h4" sx={{ fontWeight: 800, fontSize: { xs: 22, sm: 28, lg: 32 }, overflowWrap: "anywhere" }}>{t("indemnities.title")}</Typography>
               <HelpHint id="page.indemnities" />
+              <RecordCountChip count={filteredRows.length} />
             </Stack>
             <Typography color="text.secondary">{t("indemnities.subtitle")}</Typography>
           </Box>
@@ -147,31 +150,27 @@ export function ClaimIndemnitiesPage() {
         </Stack>
       </Stack>
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
-      <Card variant="outlined" sx={{ p: 1.25, mb: 1.5, bgcolor: "#f4f7fb" }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }} flexWrap="wrap" useFlexGap>
-          <TextField size="small" fullWidth placeholder="Αναζήτηση αριθμού, ζημιάς, δικαιούχου ή αναφοράς" value={search}
-            onChange={e => setSearch(e.target.value)} InputProps={{ startAdornment: <SearchIcon sx={{ mr: 0.75, color: "text.secondary" }} /> }} sx={{ flex: 1, minWidth: { md: 280 } }} />
-          <TextField select size="small" label="Τύπος δικαιούχου" value={payeeTypeFilter} onChange={e => setPayeeTypeFilter(e.target.value)} sx={{ minWidth: 150 }}>
-            <MenuItem value="all">Όλοι</MenuItem>{PAYEE_TYPES.map(v => <MenuItem key={v} value={v}>{t(`payeeType.${v}`, v)}</MenuItem>)}
-          </TextField>
-          <TextField select size="small" label="Μέθοδος" value={methodFilter} onChange={e => setMethodFilter(e.target.value)} sx={{ minWidth: 150 }}>
-            <MenuItem value="all">Όλες</MenuItem>{METHODS.map(v => <MenuItem key={v} value={v}>{t(`paymentMethod.${v}`, v)}</MenuItem>)}
-          </TextField>
-          <TextField type="date" size="small" label="Από" InputLabelProps={{ shrink: true }} value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-          <TextField type="date" size="small" label="Έως" InputLabelProps={{ shrink: true }} value={dateTo} onChange={e => setDateTo(e.target.value)} />
-          <SavedReportsButton entity="claim-indemnities" currentFilters={{ search, payeeTypeFilter, methodFilter, dateFrom, dateTo }}
+      <ClaimListFilters title="Φίλτρα αποζημιώσεων" desktopColumns={6} savedFilters={<SavedReportsButton entity="claim-indemnities" currentFilters={{ search, payeeTypeFilter, methodFilter, dateFrom, dateTo }}
             onLoad={filters => { setSearch(filters.search ?? ""); setPayeeTypeFilter(filters.payeeTypeFilter ?? "all"); setMethodFilter(filters.methodFilter ?? "all"); setDateFrom(filters.dateFrom ?? ""); setDateTo(filters.dateTo ?? ""); }}
             onClear={clearFilters} clearRequestToken={clearSavedFilterRequest}
-            saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />
-          <Button size="small" color="error" variant="contained" startIcon={<FilterAltOffIcon />} onClick={clearFilters}>Καθαρισμός φίλτρων</Button>
-        </Stack>
-      </Card>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" useFlexGap spacing={1} sx={{ mb: 1 }}>
-        <Typography variant="body2" color="text.secondary">Εμφανίζονται {filteredRows.length} από {rows.length} αποζημιώσεις</Typography>
-      </Stack>
+            saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />}>
+        <TextField size="small" fullWidth placeholder="Αναζήτηση αριθμού, ζημιάς, δικαιούχου ή αναφοράς" value={search}
+            onChange={e => setSearch(e.target.value)} InputProps={{ startAdornment: <SearchIcon sx={{ mr: 0.75, color: "text.secondary" }} /> }} sx={{ flex: 1, minWidth: { md: 280 } }} />
+        <TextField select size="small" label="Τύπος δικαιούχου" value={payeeTypeFilter} onChange={e => setPayeeTypeFilter(e.target.value)} sx={{ minWidth: 150 }}>
+            <MenuItem value="all">Όλοι</MenuItem>{PAYEE_TYPES.map(v => <MenuItem key={v} value={v}>{t(`payeeType.${v}`, v)}</MenuItem>)}
+          </TextField>
+        <TextField select size="small" label="Μέθοδος" value={methodFilter} onChange={e => setMethodFilter(e.target.value)} sx={{ minWidth: 150 }}>
+            <MenuItem value="all">Όλες</MenuItem>{METHODS.map(v => <MenuItem key={v} value={v}>{t(`paymentMethod.${v}`, v)}</MenuItem>)}
+          </TextField>
+        <TextField type="date" size="small" label="Από" InputLabelProps={{ shrink: true }} value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+        <TextField type="date" size="small" label="Έως" InputLabelProps={{ shrink: true }} value={dateTo} onChange={e => setDateTo(e.target.value)} />
+        <Button size="small" color="error" variant="contained" startIcon={<FilterAltOffIcon />} onClick={clearFilters}>Καθαρισμός φίλτρων</Button>
+      </ClaimListFilters>
       {q.isLoading ? <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box> : (
-        <Card variant="outlined" sx={{ overflowX: "auto" }}>
-          <Table size="small">
+        <ClaimListTableFrame label="Αποζημιώσεις" minWidth={940} pagination={<TablePagination component="div" count={sortedRows.length} page={page} onPageChange={(_, next) => setPage(next)} rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={event => { setRowsPerPage(Number(event.target.value)); setPage(0); }} rowsPerPageOptions={[10, 25, 50, 100]}
+            labelRowsPerPage="Ανά σελίδα" labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`} />}>
+          <Table size="small" stickyHeader>
             <TableHead><TableRow>
               {[
                 ["number", t("indemnities.number"), "left"],
@@ -185,7 +184,7 @@ export function ClaimIndemnitiesPage() {
                   onContextMenu={(e) => headerMenu.open(e, { key: k as string, label: label as string, type: inferType(k as string), canHide: false })}
                 >{label}</TableCell>
               ))}
-              <TableCell align="right" />
+              <TableCell align="right">Ενέργειες</TableCell>
             </TableRow></TableHead>
             <TableBody>
               {filteredRows.length === 0 && (
@@ -211,10 +210,7 @@ export function ClaimIndemnitiesPage() {
               ))}
             </TableBody>
           </Table>
-          <TablePagination component="div" count={sortedRows.length} page={page} onPageChange={(_, next) => setPage(next)} rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={event => { setRowsPerPage(Number(event.target.value)); setPage(0); }} rowsPerPageOptions={[10, 25, 50, 100]}
-            labelRowsPerPage="Ανά σελίδα" labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`} />
-        </Card>
+        </ClaimListTableFrame>
       )}
       {headerMenu.menu}
       {rowMenu.menu}

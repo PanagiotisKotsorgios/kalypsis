@@ -1,3 +1,4 @@
+import { ClaimListFilters, ClaimListTableFrame } from "../components/ClaimListLayout";
 import { useEffect, useMemo, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
 import { FilterHelp } from "../components/FilterHelp";
@@ -5,7 +6,6 @@ import {
   Alert,
   Box,
   Button,
-  Card,
   Chip,
   CircularProgress,
   Dialog,
@@ -19,7 +19,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableContainer,
   TableHead,
   TableRow,
   TextField,
@@ -276,12 +275,27 @@ export function ClaimsPage() {
     onEdit: (c) => setEditing(c),
   });
 
+  const claimAdvancedFilters = <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, pt: .5 }}>
+                <SearchableTextField size="small" label={t("claims.col.status")} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ClaimStatus | "")}>
+                  <MenuItem value="">Όλες οι καταστάσεις</MenuItem>
+                  {(["Reported", "UnderReview", "Approved", "Rejected", "Paid", "Closed"] as const).map(s => <MenuItem key={s} value={s}>{t(`claims.statuses.${s}`)}</MenuItem>)}
+                </SearchableTextField>
+                <TextField select size="small" label="Χρονικό διάστημα" value={dateWindow} onChange={event => setDateWindow(event.target.value as typeof dateWindow)}>
+                  <MenuItem value="">Όλο το διάστημα</MenuItem>{["7", "30", "90"].map(days => <MenuItem key={days} value={days}>Τελευταίες {days} ημέρες</MenuItem>)}
+                </TextField>
+                <SearchableSelect label="Εταιρία" value={carrierFilter} onChange={(v) => { setCarrierFilter(v); setSubCarrierFilter([]); setTypeFilter(""); setUseFilter(""); setCoverFilter(""); setPackageFilter(""); }} emptyLabel="Όλες" options={(carriersQ.data ?? []).filter(c => !c.parentCompanyId).map(c => ({ value: c.id, label: c.name, hint: c.isBroker ? "Πρακτορείο" : undefined }))} />
+                <SearchableSelect label="Κλάδος" value={typeFilter} onChange={(v) => setTypeFilter(v)} disabled={!carrierFilter} emptyLabel="Όλοι" options={filterCatalogue.branches.map(b => ({ value: b.value, label: b.label }))} />
+                <SearchableSelect label="Χρήση οχήματος" value={useFilter} onChange={(v) => setUseFilter(v)} disabled={!carrierFilter} emptyLabel="Όλες" options={filterCatalogue.uses.map(u => ({ value: u.value, label: u.label }))} />
+                <SearchableSelect label="Κάλυψη" value={coverFilter} onChange={(v) => setCoverFilter(v)} disabled={!carrierFilter} emptyLabel="Όλες" options={filterCatalogue.coverages.map(c => ({ value: c.value, label: c.label }))} />
+                <SearchableSelect label="Πακέτο" value={packageFilter} onChange={(v) => setPackageFilter(v)} disabled={!carrierFilter} emptyLabel="Όλα" options={filterCatalogue.packages.map(p => ({ value: p.value, label: p.label }))} />
+              </Box>;
+
   return (
-    <Box>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} gap={2} flexWrap="wrap">
+    <Box sx={{ minWidth: 0 }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.25} gap={2} flexWrap="wrap">
         <Box>
-          <Stack direction="row" alignItems="center" spacing={0.5}>
-            <Typography variant="h4" sx={{ fontWeight: 800 }}>
+          <Stack direction="row" alignItems="center" spacing={0.5} useFlexGap flexWrap="wrap" sx={{ minWidth: 0 }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, fontSize: { xs: 22, sm: 28, lg: 32 }, overflowWrap: "anywhere" }}>
               {isCustomer ? t("claims.customerTitle") : t("claims.agencyTitle")}
             </Typography>
             <HelpHint id="page.claims" />
@@ -302,18 +316,11 @@ export function ClaimsPage() {
 
       {!isCustomer && (
         <>
-          <Card variant="outlined" sx={{ p: 1, mb: 2 }}>
-            <Box sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                sm: "repeat(2, minmax(0, 1fr))",
-                lg: "minmax(220px, 1fr) 170px 170px auto",
-              },
-              gap: 0.75,
-              alignItems: "center",
-            }}>
-              <TextField
+          <ClaimListFilters title="Φίλτρα ζημιών" desktopColumns={4} extraFilters={claimAdvancedFilters} savedFilters={<SavedReportsButton entity="claims" currentFilters={{ customerFilter, statusFilter, carrierFilter, subCarrierFilter, typeFilter, useFilter, coverFilter, packageFilter, fromDate, toDate, dateWindow }}
+                onLoad={filters => { setCustomerFilter(filters.customerFilter ?? ""); setStatusFilter(filters.statusFilter ?? ""); setCarrierFilter(filters.carrierFilter ?? ""); setSubCarrierFilter(filters.subCarrierFilter ?? []); setTypeFilter(filters.typeFilter ?? ""); setUseFilter(filters.useFilter ?? ""); setCoverFilter(filters.coverFilter ?? ""); setPackageFilter(filters.packageFilter ?? ""); setFromDate(filters.fromDate ?? ""); setToDate(filters.toDate ?? ""); setDateWindow(filters.dateWindow ?? ""); }}
+                onClear={clearClaimFilters} clearRequestToken={clearSavedFilterRequest}
+                saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />}>
+        <TextField
                 size="small"
                 fullWidth
                 label="Πελάτης / συμβόλαιο / ΑΦΜ"
@@ -323,31 +330,14 @@ export function ClaimsPage() {
                 sx={{ minWidth: 0, gridColumn: { xs: "auto", sm: "span 2", lg: "auto" } }}
                 InputProps={{ endAdornment: <FilterHelp title="Αναζήτηση σε ονοματεπώνυμο πελάτη, αριθμό συμβολαίου ή ΑΦΜ." /> }}
               />
-              <TextField size="small" type="date" label="Συμβάν από" InputLabelProps={{ shrink: true }} fullWidth value={fromDate} onChange={(e) => setFromDate(e.target.value)} sx={{ minWidth: 0, width: "100%" }} />
-              <TextField size="small" type="date" label="Συμβάν έως" InputLabelProps={{ shrink: true }} fullWidth value={toDate} onChange={(e) => setToDate(e.target.value)} sx={{ minWidth: 0, width: "100%" }} />
-              <SavedReportsButton entity="claims" currentFilters={{ customerFilter, statusFilter, carrierFilter, subCarrierFilter, typeFilter, useFilter, coverFilter, packageFilter, fromDate, toDate, dateWindow }}
-                onLoad={filters => { setCustomerFilter(filters.customerFilter ?? ""); setStatusFilter(filters.statusFilter ?? ""); setCarrierFilter(filters.carrierFilter ?? ""); setSubCarrierFilter(filters.subCarrierFilter ?? []); setTypeFilter(filters.typeFilter ?? ""); setUseFilter(filters.useFilter ?? ""); setCoverFilter(filters.coverFilter ?? ""); setPackageFilter(filters.packageFilter ?? ""); setFromDate(filters.fromDate ?? ""); setToDate(filters.toDate ?? ""); setDateWindow(filters.dateWindow ?? ""); }}
-                onClear={clearClaimFilters} clearRequestToken={clearSavedFilterRequest}
-                saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />
-            </Box>
-          </Card>
+        <TextField size="small" type="date" label="Συμβάν από" InputLabelProps={{ shrink: true }} fullWidth value={fromDate} onChange={(e) => setFromDate(e.target.value)} sx={{ minWidth: 0, width: "100%" }} />
+        <TextField size="small" type="date" label="Συμβάν έως" InputLabelProps={{ shrink: true }} fullWidth value={toDate} onChange={(e) => setToDate(e.target.value)} sx={{ minWidth: 0, width: "100%" }} />
+        <Button size="small" color="error" variant="contained" onClick={clearClaimFilters}>Καθαρισμός φίλτρων</Button>
+      </ClaimListFilters>
           <Dialog open={advancedFiltersOpen} onClose={() => setAdvancedFiltersOpen(false)} fullWidth maxWidth="md">
             <DialogTitle>Σύνθετα φίλτρα ζημιών</DialogTitle>
             <DialogContent dividers>
-              <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, pt: .5 }}>
-                <SearchableTextField size="small" label={t("claims.col.status")} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ClaimStatus | "")}>
-                  <MenuItem value="">Όλες οι καταστάσεις</MenuItem>
-                  {(["Reported", "UnderReview", "Approved", "Rejected", "Paid", "Closed"] as const).map(s => <MenuItem key={s} value={s}>{t(`claims.statuses.${s}`)}</MenuItem>)}
-                </SearchableTextField>
-                <TextField select size="small" label="Χρονικό διάστημα" value={dateWindow} onChange={event => setDateWindow(event.target.value as typeof dateWindow)}>
-                  <MenuItem value="">Όλο το διάστημα</MenuItem>{["7", "30", "90"].map(days => <MenuItem key={days} value={days}>Τελευταίες {days} ημέρες</MenuItem>)}
-                </TextField>
-                <SearchableSelect label="Εταιρία" value={carrierFilter} onChange={(v) => { setCarrierFilter(v); setSubCarrierFilter([]); setTypeFilter(""); setUseFilter(""); setCoverFilter(""); setPackageFilter(""); }} emptyLabel="Όλες" options={(carriersQ.data ?? []).filter(c => !c.parentCompanyId).map(c => ({ value: c.id, label: c.name, hint: c.isBroker ? "Πρακτορείο" : undefined }))} />
-                <SearchableSelect label="Κλάδος" value={typeFilter} onChange={(v) => setTypeFilter(v)} disabled={!carrierFilter} emptyLabel="Όλοι" options={filterCatalogue.branches.map(b => ({ value: b.value, label: b.label }))} />
-                <SearchableSelect label="Χρήση οχήματος" value={useFilter} onChange={(v) => setUseFilter(v)} disabled={!carrierFilter} emptyLabel="Όλες" options={filterCatalogue.uses.map(u => ({ value: u.value, label: u.label }))} />
-                <SearchableSelect label="Κάλυψη" value={coverFilter} onChange={(v) => setCoverFilter(v)} disabled={!carrierFilter} emptyLabel="Όλες" options={filterCatalogue.coverages.map(c => ({ value: c.value, label: c.label }))} />
-                <SearchableSelect label="Πακέτο" value={packageFilter} onChange={(v) => setPackageFilter(v)} disabled={!carrierFilter} emptyLabel="Όλα" options={filterCatalogue.packages.map(p => ({ value: p.value, label: p.label }))} />
-              </Box>
+              {claimAdvancedFilters}
             </DialogContent>
             <DialogActions><Button color="error" variant="contained" onClick={clearClaimFilters}>Καθαρισμός φίλτρων</Button><Button variant="contained" onClick={() => setAdvancedFiltersOpen(false)}>Εφαρμογή</Button></DialogActions>
           </Dialog>
@@ -383,9 +373,8 @@ export function ClaimsPage() {
       {claimsQuery.isLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
       ) : (
-        <Card>
-          <TableContainer>
-            <Table>
+        <ClaimListTableFrame label="Ζημιές" minWidth={980} pagination={<NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage} totalRows={table.filtered.length} pageSize={table.pageSize} onPageSize={table.setPageSize} />}>
+          <Table size="small" stickyHeader>
               <TableHead>
                 <TableRow>
                   <TableCell
@@ -418,7 +407,7 @@ export function ClaimsPage() {
                     onContextMenu={(e) => headerMenu.open(e, { key: "status", label: t("claims.col.status"), type: inferType("status"), canHide: false })}
                     sx={{ userSelect: "none" }}
                   >{t("claims.col.status")}</TableCell>
-                  {canEdit && <TableCell />}
+                  {canEdit && <TableCell align="right">Ενέργειες</TableCell>}
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -468,11 +457,7 @@ export function ClaimsPage() {
                 )}
               </TableBody>
             </Table>
-          </TableContainer>
-          <Box sx={{ display: "flex", justifyContent: "center", px: 2, py: 1 }}>
-            <NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage} totalRows={table.filtered.length} pageSize={table.pageSize} onPageSize={table.setPageSize} />
-          </Box>
-        </Card>
+        </ClaimListTableFrame>
       )}
 
       {canEdit && (
