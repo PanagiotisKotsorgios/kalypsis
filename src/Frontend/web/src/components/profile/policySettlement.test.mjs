@@ -39,5 +39,20 @@ test("the policy card shows office commission as income, separately from payment
       assert.ok(!html.includes("<button"));
       assert.ok(income(html).includes("16,00 EUR"));
     });
+    await t.test("direct carrier payment has no customer or insurer payable, including stale cached balances, and never fabricates office commission income", () => {
+      const html = render({ paidDirectlyToCarrier: true });
+      const customer = html.slice(html.indexOf('data-settlement-obligation="receipt"'), html.indexOf('data-settlement-obligation="carrierPayment"'));
+      assert.ok(customer.includes("Πελάτης προς γραφείο"));
+      assert.ok(!customer.includes("100,00 EUR"));
+      assert.ok(!customer.includes("#D00000"));
+      assert.ok(!html.includes("Καταχώρηση είσπραξης"));
+      assert.ok(!html.includes("Πληρωμή ασφαλιστικής"));
+      assert.ok(html.includes("Πληρωμή συνεργάτη"));
+      const office = income(html);
+      assert.ok(office.includes("Προμήθεια έδρας από ασφαλιστική"));
+      assert.ok(office.includes("16,00 EUR"));
+      assert.ok(office.includes("0,00 EUR"));
+      assert.ok(html.includes("Δεν υπάρχει οφειλή πελάτη προς το γραφείο"));
+    });
   } finally { await server.close(); }
 });

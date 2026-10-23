@@ -58,6 +58,7 @@ interface PolicyPaymentSummary {
   premium: number; paidAmount: number; remainingAmount: number;
   status: "Unpaid" | "Partial" | "Paid" | "Overpaid";
   statusLabelGr: string; lastReceiptDate: string | null; receiptCount: number;
+  paidDirectlyToCarrier?: boolean;
 }
 
 const STATUS_COLOR: Record<PolicyPaymentSummary["status"], "default" | "success" | "warning" | "error" | "info"> = {
@@ -75,7 +76,7 @@ function PaidChip({ policyId }: { policyId: string | null }) {
   if (!q.data) return <Chip size="small" label="?" />;
   return (
     <Chip size="small" color={STATUS_COLOR[q.data.status]}
-      label={`${q.data.statusLabelGr} (${q.data.paidAmount.toFixed(0)}/${q.data.premium.toFixed(0)} €)`}
+      label={q.data.paidDirectlyToCarrier ? q.data.statusLabelGr : `${q.data.statusLabelGr} (${q.data.paidAmount.toFixed(0)}/${q.data.premium.toFixed(0)} €)`}
       sx={{ fontWeight: 700 }} />
   );
 }
@@ -462,8 +463,9 @@ function FormDialog({ open, item, onClose, onSaved }: { open: boolean; item: Rec
           )}
           {policyPayment.data && (
             <Alert severity={STATUS_COLOR[policyPayment.data.status] === "success" ? "info" : STATUS_COLOR[policyPayment.data.status] as any}>
-              {policyPayment.data.statusLabelGr} · Πληρωμένο {money(policyPayment.data.paidAmount)} / {money(policyPayment.data.premium)} ·
-              Υπόλοιπο {money(policyPayment.data.remainingAmount)}
+              {policyPayment.data.paidDirectlyToCarrier
+                ? `${policyPayment.data.statusLabelGr} · Εισπράξεις γραφείου ${money(policyPayment.data.paidAmount)} · Οφειλή προς γραφείο ${money(policyPayment.data.remainingAmount)}`
+                : `${policyPayment.data.statusLabelGr} · Πληρωμένο ${money(policyPayment.data.paidAmount)} / ${money(policyPayment.data.premium)} · Υπόλοιπο ${money(policyPayment.data.remainingAmount)}`}
             </Alert>
           )}
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>

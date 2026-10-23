@@ -750,8 +750,8 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                   </PolicySummarySection>
                   <PolicySummarySection title="Είσπραξη & ρυθμίσεις">
                     <PolicyFieldColumns section="collection" groups={[
-                      [<PolicySummaryLine key="received" label={t("policyDetail.totalReceived")} value={settlementAmount(p.totalReceived, p.currency)} mono />,
-                        <PolicyOutstandingField key="outstanding" amount={p.outstanding} currency={p.currency} />,
+                      [<PolicySummaryLine key="received" label={p.paidDirectlyToCarrier ? "Εισπράξεις γραφείου" : t("policyDetail.totalReceived")} value={settlementAmount(p.totalReceived, p.currency)} mono />,
+                        <PolicyOutstandingField key="outstanding" amount={p.paidDirectlyToCarrier ? 0 : p.outstanding} currency={p.currency} />,
                         <ProfileEditableField key="status" label="Κατάσταση πληρωμής" value={policyPaymentStatus(p.premium, p.totalReceived, p.paidDirectlyToCarrier)} />],
                       [<TextField key="frequency" profileKey="paymentFrequency" select label={t("policyDetail.paymentFrequency")} value={form.paymentFrequency}>{FREQUENCIES.map(f => <MenuItem key={f} value={f}>{FREQUENCY_LABELS[f] ?? f}</MenuItem>)}</TextField>,
                         <TextField key="method" profileKey="paymentCollectionMethod" select label="Τρόπος είσπραξης" value={form.paymentCollectionMethod}><MenuItem value="">Δεν έχει οριστεί</MenuItem>{COLLECTION_METHODS.map(m => <MenuItem key={m} value={m}>{COLLECTION_METHODS_LABEL[m]}</MenuItem>)}</TextField>,
@@ -1198,18 +1198,18 @@ export function PolicySettlementPanel({ policy, readOnly, onSettle }: {
   const rows = [
     {
       title: "Πελάτης προς γραφείο",
-      due: policy.premium,
+      due: policy.paidDirectlyToCarrier ? 0 : policy.premium,
       paid: policy.totalReceived,
-      outstanding: policy.outstanding,
+      outstanding: policy.paidDirectlyToCarrier ? 0 : policy.outstanding,
       action: "receipt" as const,
       actionLabel: "Καταχώρηση είσπραξης",
       color: "success" as const,
     },
     {
       title: "Γραφείο προς ασφαλιστική",
-      due: policy.carrierDue,
+      due: policy.paidDirectlyToCarrier ? 0 : policy.carrierDue,
       paid: policy.carrierPaid,
-      outstanding: policy.carrierOutstanding,
+      outstanding: policy.paidDirectlyToCarrier ? 0 : policy.carrierOutstanding,
       action: "carrierPayment" as const,
       actionLabel: "Πληρωμή ασφαλιστικής",
       color: "warning" as const,
@@ -1246,7 +1246,7 @@ export function PolicySettlementPanel({ policy, readOnly, onSettle }: {
           </Box>
         ))}
         <Box data-commission-income="agency" sx={{ p: .9, borderRadius: 1, bgcolor: "#edf7f0", border: "1px solid", borderColor: "success.light" }}>
-          <Typography variant="caption" fontWeight={800} display="block" color="success.dark">Προμήθεια έδρας</Typography>
+          <Typography variant="caption" fontWeight={800} display="block" color="success.dark">{policy.paidDirectlyToCarrier ? "Προμήθεια έδρας από ασφαλιστική" : "Προμήθεια έδρας"}</Typography>
           <Stack spacing={.5} sx={{ mt: .45 }}>
             <Typography variant="body2"><strong>Προμήθεια συμβολαίου:</strong> {settlementAmount(policy.agencyCommissionExpected, policy.currency)}</Typography>
             <Typography variant="body2" color="success.dark"><strong>Εισπραχθείσα προμήθεια:</strong> {settlementAmount(policy.agencyCommissionReceived, policy.currency)}</Typography>
@@ -1254,7 +1254,9 @@ export function PolicySettlementPanel({ policy, readOnly, onSettle }: {
         </Box>
       </Box>
       <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: .9 }}>
-        Οι πληρωμές ενημερώνονται μετά την καταχώρησή τους. Η προμήθεια έδρας είναι έσοδο του γραφείου και ενημερώνεται αναλογικά με τις εισπράξεις του συμβολαίου.
+        {policy.paidDirectlyToCarrier
+          ? "Το ασφάλιστρο έχει δηλωθεί εξοφλημένο απευθείας στην ασφαλιστική. Δεν υπάρχει οφειλή πελάτη προς το γραφείο. Η εξόφληση του ασφαλίστρου δεν δηλώνει καταβολή της προμήθειας στο γραφείο."
+          : "Οι πληρωμές ενημερώνονται μετά την καταχώρησή τους. Η προμήθεια έδρας είναι έσοδο του γραφείου και ενημερώνεται αναλογικά με τις εισπράξεις του συμβολαίου."}
       </Typography>
     </Box>
   );

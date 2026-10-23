@@ -130,4 +130,65 @@ public sealed class PolicyAgencyCommissionTests
         await using var scope = db;
         Assert.Equal(0m, (await Detail(db, current, policy)).AgencyCommissionReceived);
     }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(25)]
+    public async Task Direct_carrier_payment_clears_office_obligations_without_fabricating_receipts_or_commission(decimal actualReceipt)
+    {
+        var (db, current, policy) = await Setup(134m);
+        await using var scope = db;
+        if (actualReceipt > 0) await Receive(db, current, policy, actualReceipt);
+        var before = await Detail(db, current, policy);
+        Assert.Equal(134m - actualReceipt, before.Outstanding);
+        var receiptCount = db.Receipts.Count();
+        var movementCount = db.FinancialMovements.Count();
+        policy.PaidDirectlyToCarrier = true;
+        await db.SaveChangesAsync();
+
+        var detail = await Detail(db, current, policy);
+        var summary = await new GetPolicyPaymentSummaryHandler(db, current).Handle(new(policy.Id), default);
+
+        Assert.Equal(0m, detail.Outstanding);
+        Assert.Equal(0m, detail.CarrierDue);
+        Assert.Equal(0m, detail.CarrierOutstanding);
+        Assert.Equal(actualReceipt, detail.TotalReceived);
+        Assert.Equal(before.AgencyCommissionExpected, detail.AgencyCommissionExpected);
+        Assert.Equal(before.AgencyCommissionReceived, detail.AgencyCommissionReceived);
+        Assert.Equal("Paid", summary.Status);
+        Assert.Equal("Εξοφλημένο απευθείας στην ασφαλιστική", summary.StatusLabelGr);
+        Assert.True(summary.PaidDirectlyToCarrier);
+        Assert.Equal(0m, summary.RemainingAmount);
+        Assert.Equal(actualReceipt, summary.PaidAmount);
+        Assert.Equal(receiptCount, db.Receipts.Count());
+        Assert.Equal(movementCount, db.FinancialMovements.Count());
+
+        // Correcting the declaration must restore the actual balance, without
+        // deleting/replacing original receipts or writing a synthetic payment.
+        policy.PaidDirectlyToCarrier = false;
+        await db.SaveChangesAsync();
+        Assert.Equal(134m - actualReceipt, (await Detail(db, current, policy)).Outstanding);
+        Assert.Equal(134m - actualReceipt,
+            (await new GetPolicyPaymentSummaryHandler(db, current).Handle(new(policy.Id), default)).RemainingAmount);
+        Assert.Equal(receiptCount, db.Receipts.Count());
+        Assert.Equal(movementCount, db.FinancialMovements.Count());
+    }
+
+    [Theory]
+    [InlineData(0, "Unpaid", 100)]
+    [InlineData(50, "Partial", 50)]
+    [InlineData(100, "Paid", 0)]
+    [InlineData(150, "Overpaid", 0)]
+    public async Task Office_payment_summary_keeps_real_receipt_states_and_excludes_other_currencies(decimal receipt, string status, decimal remaining)
+    {
+        var (db, current, policy) = await Setup();
+        await using var scope = db;
+        await Receive(db, current, policy, 100m, "USD");
+        if (receipt > 0) await Receive(db, current, policy, receipt);
+        var summary = await new GetPolicyPaymentSummaryHandler(db, current).Handle(new(policy.Id), default);
+        Assert.Equal(status, summary.Status);
+        Assert.Equal(receipt, summary.PaidAmount);
+        Assert.Equal(remaining, summary.RemainingAmount);
+        Assert.False(summary.PaidDirectlyToCarrier);
+    }
 }

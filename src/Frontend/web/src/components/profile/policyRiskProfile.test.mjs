@@ -11,7 +11,7 @@ test("policy payment states distinguish zero, partial and recorded payments", ()
   assert.equal(policyPaymentStatus(100, 30, false), "Μερικώς εξοφλημένο");
   assert.equal(policyPaymentStatus(100, 100, false), "Εξοφλημένο");
   assert.equal(policyPaymentStatus(0, 0, false), "Μηδενικό ασφάλιστρο");
-  assert.match(policyPaymentStatus(100, 0, true), /δεν έχει επιβεβαιωθεί/);
+  for (const received of [0, 30, 100]) assert.equal(policyPaymentStatus(100, received, true), "Εξοφλημένο απευθείας στην ασφαλιστική");
 });
 
 test("policy card removes obsolete sections without discarding stored data or lifecycle history", async () => {

@@ -8,7 +8,8 @@ namespace Kalypsis.Application.Features.Policies;
 /// <summary>
 /// Derived payment posture for a policy: how much has been collected against
 /// it, how much is left, and a single human-readable status label.
-/// Computed on the fly from receipts so the schema stays unchanged.
+/// Computed from actual office receipts and the direct-carrier payment
+/// declaration. Direct payment clears the office balance, not its cashbook.
 /// </summary>
 public record PolicyPaymentSummaryDto(
     Guid PolicyId, string PolicyNumber,
@@ -16,7 +17,8 @@ public record PolicyPaymentSummaryDto(
     string Status,          // "Unpaid" | "Partial" | "Paid" | "Overpaid"
     string StatusLabelGr,   // localized greek label for the chip
     DateOnly? LastReceiptDate,
-    int ReceiptCount);
+    int ReceiptCount,
+    bool PaidDirectlyToCarrier = false);
 
 public record GetPolicyPaymentSummaryQuery(Guid PolicyId) : IRequest<PolicyPaymentSummaryDto>;
 
@@ -34,12 +36,19 @@ public class GetPolicyPaymentSummaryHandler : IRequestHandler<GetPolicyPaymentSu
             ?? throw AppException.NotFound("Συμβόλαιο");
 
         var receipts = await _db.Receipts
-            .Where(r => r.PolicyId == p.Id && r.DeletedAt == null)
+            .Where(r => r.PolicyId == p.Id && r.DeletedAt == null && r.Currency == p.Currency)
             .Select(r => new { r.Amount, r.ReceivedOn }).ToListAsync(ct);
 
         var paid = receipts.Sum(r => r.Amount);
         var remaining = p.Premium - paid;
         var lastDate = receipts.Count == 0 ? (DateOnly?)null : receipts.Max(r => r.ReceivedOn);
+
+        // This flag records a declared direct payment, not an office cash
+        // receipt. Preserve actual receipts without inventing office income.
+        if (p.PaidDirectlyToCarrier)
+            return new PolicyPaymentSummaryDto(p.Id, p.PolicyNumber,
+                p.Premium, paid, 0m, "Paid", "Εξοφλημένο απευθείας στην ασφαλιστική",
+                lastDate, receipts.Count, true);
 
         var (status, label) = (paid, remaining) switch
         {
