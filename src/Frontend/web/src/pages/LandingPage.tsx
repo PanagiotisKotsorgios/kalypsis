@@ -43,7 +43,7 @@ import { PUBLIC_NAVIGATION_Z_INDEX } from "../components/publicOverlayLayers";
 import { PublicTechnologiesSection } from "../components/PublicTechnologiesSection";
 import { PublicPricingCooperationSection } from "../components/PublicPricingCooperationSection";
 import { CliProjectLink } from "../components/CliProjectLink";
-import { PublicWorkflowSection } from "../components/PublicWorkflowSection";
+import { PublicProductShowcase } from "../components/PublicProductShowcase";
 import { PublicOfferingsSection } from "../components/PublicOfferingsSection";
 import { api } from "../api/client";
 
@@ -741,10 +741,7 @@ export function LandingPage() {
       <PublicOfferingsSection />
       <PublicPricingCooperationSection />
       <PublicTechnologiesSection />
-      {/* A second, calmer section explains how the packages work together and
-          gives visitors a direct next step without adding another screenshot
-          carousel or repeating the same Desktop copy. */}
-      <PublicWorkflowSection />
+      <PublicProductShowcase />
       <Container
         maxWidth={false}
         sx={{

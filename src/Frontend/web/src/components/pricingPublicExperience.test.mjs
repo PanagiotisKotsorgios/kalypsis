@@ -61,7 +61,8 @@ test("public pricing, contract form, disclosure and bilingual CLI links render w
     const {LandingNavbar} = await server.ssrLoadModule("/src/components/LandingNavbar.tsx");
     const {PublicNav} = await server.ssrLoadModule("/src/components/PublicNav.tsx");
     const {LandingPage} = await server.ssrLoadModule("/src/pages/LandingPage.tsx");
-    const {PublicWorkflowSection} = await server.ssrLoadModule("/src/components/PublicWorkflowSection.tsx");
+    const {PublicProductShowcase,WEB_SCREENSHOTS} = await server.ssrLoadModule("/src/components/PublicProductShowcase.tsx");
+    const {DESKTOP_SCREENSHOTS} = await server.ssrLoadModule("/src/components/DownloadShowcase.tsx");
     const {PublicOfferingsSection} = await server.ssrLoadModule("/src/components/PublicOfferingsSection.tsx");
     const {PublicPricingCooperationSection} = await server.ssrLoadModule("/src/components/PublicPricingCooperationSection.tsx");
     client.setQueryData(["public-pricing"], {version:1,plans:[{code:"test",name:"Πλάνο δοκιμής",description:"Δοκιμή",tagline:"",pricePerYear:100,includedOffices:1,includedUsers:1,includedPackages:1,extraOfficePerYear:20,extraUserPerYear:10,packages:["core"],isFeatured:true,isActive:true,sortOrder:1,buttonText:"Επιλογή",buttonUrl:"/register"}],addons:[],services:[],features:[{key:"core",label:"Πελάτες",sortOrder:1,isActive:true}],settings:{currency:"EUR",pricesIncludeVat:false,vatRate:24,publicTitle:"Τιμές",publicSubtitle:"",vatLabel:"ΦΠΑ"}});
@@ -113,24 +114,33 @@ test("public pricing, contract form, disclosure and bilingual CLI links render w
         }
       }
     });
-    await context.test("the reference workflow is real bilingual content with four readable ordered steps and a working contact link", async () => {
+    await context.test("Web and Desktop have separate bilingual showcases with real screenshots and working next steps", async () => {
+      assert.equal(WEB_SCREENSHOTS.length,6);
+      assert.equal(DESKTOP_SCREENSHOTS.length,4);
+      for (const image of [...WEB_SCREENSHOTS,...DESKTOP_SCREENSHOTS]) {
+        const bytes = await readFile(new URL(`../../public/images/download/${image.file}`,import.meta.url));
+        assert.equal(bytes.readUInt16BE(0),0xffd8,image.file);
+        assert.ok(bytes.length > 1000,image.file);
+      }
       for (const language of ["el","en"]) {
         await i18n.changeLanguage(language);
         for (const width of [320,360,600,900,1280,1920]) {
-          const html = render(h(PublicWorkflowSection),width);
-          assert.equal((html.match(/<li\b/g)??[]).length,4);
-          assert.equal((html.match(/<h3\b/g)??[]).length,4);
-          assert.ok(html.includes('<ol ')); assert.ok(html.includes('aria-labelledby="public-workflow-title"'));
-          assert.ok(html.includes('href="/contact"')); assert.ok(!html.includes('<img'));
-          assert.ok(html.includes(language === "el" ? "Όλα σε ένα περιβάλλον, χωρίς πολύπλοκες διαδικασίες" : "One workspace, without complicated processes"));
-          assert.ok(html.includes(language === "el" ? "Αυτοματοποιείτε τα επαναλαμβανόμενα" : "Automate recurring work"));
-          for (const token of ["#087CEB","#E7F1FD","prefers-reduced-motion","minmax(0, 1fr)","1200px"]) assert.ok(html.includes(token),token);
-          for (const obsolete of ["#305EC6","#12877F","#795DD8"]) assert.ok(!html.includes(obsolete));
+          const html = render(h(PublicProductShowcase),width);
+          assert.equal((html.match(/<section\b/g)??[]).length,2);
+          assert.ok(html.includes('aria-labelledby="public-web-title"'));
+          assert.ok(html.includes('aria-labelledby="public-desktop-title"'));
+          assert.ok(html.includes('href="/register"')); assert.ok(html.includes('href="/download"'));
+          assert.ok(html.includes('/releases/latest/download/kalypsis-desktop-win-Setup.exe'));
+          for (const image of [...WEB_SCREENSHOTS,...DESKTOP_SCREENSHOTS]) assert.ok(html.includes(`/images/download/${image.file}`),image.file);
+          assert.ok(html.includes(language === "el" ? "Το γραφείο σας, οργανωμένο από τον browser." : "Your agency, organised in your browser."));
+          assert.ok(html.includes(language === "el" ? "Η καθημερινή σας εργασία, σε εφαρμογή Windows." : "Everyday work, in a Windows application."));
+          assert.ok(html.includes(language === "el" ? "Μεγέθυνση" : "Enlarge"));
+          for (const token of ["#F1F7FD","#0B2B54","minmax(0, 1fr)","900px"]) assert.ok(html.includes(token),token);
+          assert.ok(!html.includes('public-workflow-title'));
         }
       }
-      const source = await read("./PublicWorkflowSection.tsx");
-      assert.ok(!source.includes("linear-gradient")); assert.ok(!source.includes("boxShadow"));
-      assert.ok((await read("../pages/LandingPage.tsx")).includes("<PublicWorkflowSection />"));
+      await assert.rejects(read("./PublicWorkflowSection.tsx"),{code:"ENOENT"});
+      assert.ok((await read("../pages/LandingPage.tsx")).includes("<PublicProductShowcase />"));
       const tooltip = await read("./CliProjectLink.tsx");
       for (const obsolete of ["υπό προετοιμασία","not available yet","planned Windows"]) assert.ok(!tooltip.includes(obsolete));
     });

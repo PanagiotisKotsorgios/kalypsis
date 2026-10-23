@@ -14,7 +14,7 @@ import { CLI_REPOSITORY } from "./CliProjectLink";
 const NAVY = "#0b2545";
 const BLUE = "#087CEB";
 type Copy = { el: string; en: string };
-type Screenshot = { file: string; width: number; height: number; title: Copy; description: Copy };
+export type Screenshot = { file: string; width: number; height: number; title: Copy; description: Copy };
 const imageRoot = "/images/download/";
 const text = (copy: Copy, english: boolean) => english ? copy.en : copy.el;
 
@@ -51,7 +51,7 @@ export const CLI_SCREENSHOTS: Screenshot[] = [
     description: { el: "Αναλυτικά στοιχεία συμβολαίου, προμήθειες και πιστωτικά.", en: "Policy details, commissions and credit notes." } },
 ];
 
-function ScreenshotGallery({ images, title, english }: { images: Screenshot[]; title: string; english: boolean }) {
+export function ScreenshotGallery({ images, title, english }: { images: Screenshot[]; title: string; english: boolean }) {
   const [selected, setSelected] = useState(0);
   const [open, setOpen] = useState(false);
   const id = useId();
