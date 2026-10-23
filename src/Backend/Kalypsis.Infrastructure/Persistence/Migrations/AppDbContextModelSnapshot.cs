@@ -5409,6 +5409,12 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .HasMaxLength(24)
                         .HasColumnType("varchar(24)");
 
+                    b.Property<DateTime?>("TrialStartedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("TrialExpiresAtUtc")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");
 

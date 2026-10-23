@@ -47,7 +47,7 @@ type DesktopPayment = {
 type DesktopLicense = {
   id: string;
   registrationCode: string;
-  status: "PendingPayment" | "Active" | "Expiring" | "Expired" | "Blocked";
+  status: "PendingPayment" | "Trial" | "Active" | "Expiring" | "Expired" | "Blocked";
   companyName: string;
   contactName: string;
   email: string;
@@ -70,6 +70,7 @@ type DesktopLicense = {
 };
 
 const statusMeta: Record<DesktopLicense["status"], { label: string; color: "default" | "success" | "warning" | "error" }> = {
+  Trial: { label: "Δωρεάν δοκιμή 30 ημερών", color: "success" },
   PendingPayment: { label: "Αναμονή πληρωμής", color: "warning" },
   Active: { label: "Ενεργή", color: "success" },
   Expiring: { label: "Λήγει σύντομα", color: "warning" },

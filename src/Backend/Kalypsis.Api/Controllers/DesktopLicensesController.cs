@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using Kalypsis.Application.Abstractions;
 using Kalypsis.Domain.Entities;
 using Kalypsis.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
@@ -23,11 +24,13 @@ public sealed class DesktopLicensesController : ControllerBase
     private const int WarningDays = 20;
     private readonly AppDbContext _db;
     private readonly IConfiguration _configuration;
+    private readonly IDateTimeProvider _clock;
 
-    public DesktopLicensesController(AppDbContext db, IConfiguration configuration)
+    public DesktopLicensesController(AppDbContext db, IConfiguration configuration, IDateTimeProvider clock)
     {
         _db = db;
         _configuration = configuration;
+        _clock = clock;
     }
 
     public sealed record RegisterDesktopRequest(
@@ -76,13 +79,17 @@ public sealed class DesktopLicensesController : ControllerBase
         var tokenHash = HashToken(token);
         var license = await _db.DesktopLicenses.IgnoreQueryFilters()
             .Include(x => x.Payments)
-            .FirstOrDefaultAsync(x => x.InstallationId == installationId && x.DeletedAt == null, cancellationToken);
+            .FirstOrDefaultAsync(x => x.InstallationId == installationId, cancellationToken);
+
+        if (license?.DeletedAt is not null)
+            return Conflict(new { message = "Η εγκατάσταση έχει απενεργοποιηθεί. Επικοινωνήστε με την Kalypsis." });
 
         if (license is not null && !TokenMatches(license.ClientTokenHash, tokenHash))
             return Conflict(new { message = "Η εγκατάσταση είναι ήδη καταχωρημένη με διαφορετικό αναγνωριστικό. Επικοινωνήστε με την Kalypsis." });
 
         if (license is null)
         {
+            var trialStarts = _clock.UtcNow;
             license = new DesktopLicense
             {
                 Id = Guid.NewGuid(),
@@ -90,7 +97,9 @@ public sealed class DesktopLicensesController : ControllerBase
                 InstallationId = installationId,
                 ClientTokenHash = tokenHash,
                 AnnualPrice = DefaultAnnualPrice(),
-                Currency = DefaultCurrency()
+                Currency = DefaultCurrency(),
+                TrialStartedAtUtc = trialStarts,
+                TrialExpiresAtUtc = trialStarts.AddDays(30)
             };
             _db.DesktopLicenses.Add(license);
         }
@@ -103,7 +112,7 @@ public sealed class DesktopLicensesController : ControllerBase
         license.MachineName = Clean(request.MachineName);
         license.OsVersion = Clean(request.OsVersion);
         license.AppVersion = Clean(request.AppVersion);
-        license.LastSeenAtUtc = DateTime.UtcNow;
+        license.LastSeenAtUtc = _clock.UtcNow;
         await _db.SaveChangesAsync(cancellationToken);
 
         return Ok(ToStatus(license));
@@ -131,7 +140,7 @@ public sealed class DesktopLicensesController : ControllerBase
         license.MachineName = Clean(request.MachineName) ?? license.MachineName;
         license.OsVersion = Clean(request.OsVersion) ?? license.OsVersion;
         license.AppVersion = Clean(request.AppVersion) ?? license.AppVersion;
-        license.LastSeenAtUtc = DateTime.UtcNow;
+        license.LastSeenAtUtc = _clock.UtcNow;
         await _db.SaveChangesAsync(cancellationToken);
 
         return Ok(ToStatus(license));
@@ -218,9 +227,9 @@ public sealed class DesktopLicensesController : ControllerBase
         CancellationToken cancellationToken)
     {
         var license = await FindLicenseAsync(id, cancellationToken);
-        var paidAt = NormalizeUtc(request.PaidAtUtc ?? DateTime.UtcNow);
+        var paidAt = NormalizeUtc(request.PaidAtUtc ?? _clock.UtcNow);
         var startsAt = NormalizeUtc(request.AccessStartsAtUtc ?? paidAt);
-        if (startsAt > DateTime.UtcNow.AddMinutes(5))
+        if (startsAt > _clock.UtcNow.AddMinutes(5))
             return BadRequest(new { message = "Η έναρξη πρόσβασης δεν μπορεί να είναι μελλοντική." });
         var expiresAt = startsAt.AddDays(365);
         var currency = NormalizeCurrency(request.Currency ?? license.Currency);
@@ -295,7 +304,8 @@ public sealed class DesktopLicensesController : ControllerBase
         var (status, canUse, days, message) = State(license);
         return new DesktopLicenseStatusResponse(
             status, canUse, license.RegistrationCode, license.CompanyName,
-            license.AccessStartsAtUtc, license.AccessExpiresAtUtc, days, WarningDays,
+            license.AccessExpiresAtUtc.HasValue ? license.AccessStartsAtUtc : license.TrialStartedAtUtc,
+            license.AccessExpiresAtUtc ?? license.TrialExpiresAtUtc, days, WarningDays,
             license.AnnualPrice, license.Currency, PaymentUrl(), message);
     }
 
@@ -306,25 +316,39 @@ public sealed class DesktopLicensesController : ControllerBase
             license.Id, license.RegistrationCode, status, license.CompanyName,
             license.ContactName, license.Email, license.Phone, license.AfmVat,
             license.MachineName, license.OsVersion, license.AppVersion, license.LastSeenAtUtc,
-            license.AnnualPrice, license.Currency, license.AccessStartsAtUtc,
-            license.AccessExpiresAtUtc, days, license.IsBlocked, license.BlockReason,
+            license.AnnualPrice, license.Currency,
+            license.AccessExpiresAtUtc.HasValue ? license.AccessStartsAtUtc : license.TrialStartedAtUtc,
+            license.AccessExpiresAtUtc ?? license.TrialExpiresAtUtc, days, license.IsBlocked, license.BlockReason,
             license.AdminNotes, license.CreatedAt,
             license.Payments.OrderByDescending(x => x.PaidAtUtc).Select(x => new DesktopPaymentResponse(
                 x.Id, x.Amount, x.Currency, x.PaidAtUtc, x.AccessStartsAtUtc,
                 x.AccessExpiresAtUtc, x.PaymentMethod, x.Reference, x.Notes)).ToList());
     }
 
-    private static (string Status, bool CanUse, int? Days, string Message) State(DesktopLicense license)
+    private (string Status, bool CanUse, int? Days, string Message) State(DesktopLicense license)
     {
         if (license.IsBlocked)
             return ("Blocked", false, null, string.IsNullOrWhiteSpace(license.BlockReason)
                 ? "Η πρόσβαση έχει ανασταλεί από την Kalypsis."
                 : license.BlockReason);
 
+        var now = _clock.UtcNow;
         if (!license.AccessExpiresAtUtc.HasValue)
+        {
+            if (license.TrialStartedAtUtc.HasValue && license.TrialExpiresAtUtc.HasValue)
+            {
+                var trialStarts = NormalizeUtc(license.TrialStartedAtUtc.Value);
+                var trialEnds = NormalizeUtc(license.TrialExpiresAtUtc.Value);
+                if (now < trialStarts)
+                    return ("PendingPayment", false, null, "Η περίοδος δοκιμής δεν έχει ξεκινήσει ακόμη.");
+                if (now >= trialEnds)
+                    return ("Expired", false, 0, "Η δωρεάν δοκιμή 30 ημερών ολοκληρώθηκε. Τα δεδομένα σας διατηρούνται. Επικοινωνήστε με την Kalypsis για να συνεχίσετε τη χρήση.");
+                var days = (int)Math.Ceiling((trialEnds - now).TotalDays);
+                return ("Trial", true, days, $"Η δωρεάν δοκιμή 30 ημερών είναι ενεργή έως {trialEnds:dd/MM/yyyy}. Απομένουν {days} ημέρες.");
+            }
             return ("PendingPayment", false, null, "Η εγγραφή ολοκληρώθηκε. Απαιτείται πληρωμή και ενεργοποίηση από την Kalypsis.");
+        }
 
-        var now = DateTime.UtcNow;
         if (license.AccessStartsAtUtc.HasValue && NormalizeUtc(license.AccessStartsAtUtc.Value) > now)
             return ("PendingPayment", false, null, "Η πληρωμή έχει καταχωρηθεί, αλλά η περίοδος πρόσβασης δεν έχει ξεκινήσει ακόμη.");
 

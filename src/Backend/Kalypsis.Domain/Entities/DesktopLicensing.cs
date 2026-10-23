@@ -24,6 +24,10 @@ public class DesktopLicense : BaseEntity
     public string? AppVersion { get; set; }
     public DateTime? LastSeenAtUtc { get; set; }
 
+    // Granted once on initial registration; paid access is tracked separately.
+    public DateTime? TrialStartedAtUtc { get; set; }
+    public DateTime? TrialExpiresAtUtc { get; set; }
+
     public decimal AnnualPrice { get; set; }
     public string Currency { get; set; } = "EUR";
     public DateTime? AccessStartsAtUtc { get; set; }
