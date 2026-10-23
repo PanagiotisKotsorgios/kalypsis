@@ -64,12 +64,12 @@ export function PreloginDesktopDownload() {
           minHeight: 56,
           borderRadius: 0,
           color: "#0b2545",
-          bgcolor: "#edf5fd",
+          bgcolor: "#e1effd",
           fontSize: { xs: 15, sm: 16 },
           fontWeight: 700,
           textTransform: "none",
           lineHeight: 1.4,
-          "&:hover": { bgcolor: "#dbeafa" }
+          "&:hover": { bgcolor: "#d0e4fa" }
         }}
       >
         {t("landing.v2.desktop.moreInformation")}
