@@ -49,6 +49,7 @@ public class ProducerConfiguration : IEntityTypeConfiguration<Producer>
         b.HasOne(x => x.ParentProducer).WithMany()
             .HasForeignKey(x => x.ParentProducerId).OnDelete(DeleteBehavior.Restrict);
         b.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
+        b.HasOne<ProducerCategory>().WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
         b.HasIndex(x => new { x.TenantId, x.ParentProducerId });
     }
 }

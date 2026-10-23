@@ -5409,10 +5409,10 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .HasMaxLength(24)
                         .HasColumnType("varchar(24)");
 
-                    b.Property<DateTime?>("TrialStartedAtUtc")
+                    b.Property<DateTime?>("TrialExpiresAtUtc")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<DateTime?>("TrialExpiresAtUtc")
+                    b.Property<DateTime?>("TrialStartedAtUtc")
                         .HasColumnType("datetime(6)");
 
                     b.Property<DateTime?>("UpdatedAt")
@@ -6622,7 +6622,6 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.Garage", b =>
                 {
-                    b.Property<string>("ProfileJson").HasColumnType("longtext");
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
@@ -6684,6 +6683,9 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
+                    b.Property<string>("ProfileJson")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("Specialty")
                         .HasMaxLength(80)
                         .HasColumnType("varchar(80)");
@@ -6704,18 +6706,41 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.GarageInsuranceCompany", b =>
                 {
-                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("char(36)");
-                    b.Property<Guid>("GarageId").HasColumnType("char(36)");
-                    b.Property<Guid>("InsuranceCompanyId").HasColumnType("char(36)");
-                    b.Property<Guid>("TenantId").HasColumnType("char(36)");
-                    b.Property<Guid?>("AgencyOfficeScopeId").HasColumnType("char(36)");
-                    b.Property<DateTime>("CreatedAt").HasColumnType("datetime(6)");
-                    b.Property<DateTime?>("UpdatedAt").HasColumnType("datetime(6)");
-                    b.Property<DateTime?>("DeletedAt").HasColumnType("datetime(6)");
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("AgencyOfficeScopeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("GarageId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("InsuranceCompanyId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
                     b.HasKey("Id");
+
                     b.HasIndex("GarageId");
+
                     b.HasIndex("InsuranceCompanyId");
-                    b.HasIndex("TenantId", "GarageId", "InsuranceCompanyId").IsUnique().HasDatabaseName("IX_GarageCompanies_Tenant_Garage_Company");
+
+                    b.HasIndex("TenantId", "GarageId", "InsuranceCompanyId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_GarageCompanies_Tenant_Garage_Company");
+
                     b.ToTable("GarageInsuranceCompanies");
                 });
 
@@ -11802,6 +11827,9 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("varchar(80)");
 
+                    b.Property<Guid?>("CategoryId")
+                        .HasColumnType("char(36)");
+
                     b.Property<string>("City")
                         .HasMaxLength(120)
                         .HasColumnType("varchar(120)");
@@ -11951,6 +11979,8 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CategoryId");
+
                     b.HasIndex("ParentProducerId");
 
                     b.HasIndex("TenantId", "Code")
@@ -12000,7 +12030,7 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "Code")
+                    b.HasIndex("TenantId", "AgencyOfficeScopeId", "Code")
                         .IsUnique();
 
                     b.ToTable("ProducerCategories");
@@ -16679,6 +16709,27 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Navigation("Claim");
                 });
 
+            modelBuilder.Entity("Kalypsis.Domain.Entities.GarageInsuranceCompany", b =>
+                {
+                    b.HasOne("Kalypsis.Domain.Entities.Garage", "Garage")
+                        .WithMany("InsuranceCompanies")
+                        .HasForeignKey("GarageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_GarageCompanies_Garage");
+
+                    b.HasOne("Kalypsis.Domain.Entities.InsuranceCompany", "InsuranceCompany")
+                        .WithMany()
+                        .HasForeignKey("InsuranceCompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_GarageCompanies_Company");
+
+                    b.Navigation("Garage");
+
+                    b.Navigation("InsuranceCompany");
+                });
+
             modelBuilder.Entity("Kalypsis.Domain.Entities.GdprErasureRequest", b =>
                 {
                     b.HasOne("Kalypsis.Domain.Entities.Customer", "Customer")
@@ -17420,6 +17471,11 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.Producer", b =>
                 {
+                    b.HasOne("Kalypsis.Domain.Entities.ProducerCategory", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Kalypsis.Domain.Entities.Producer", "ParentProducer")
                         .WithMany()
                         .HasForeignKey("ParentProducerId")
@@ -18040,6 +18096,11 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Navigation("Victims");
                 });
 
+            modelBuilder.Entity("Kalypsis.Domain.Entities.Garage", b =>
+                {
+                    b.Navigation("InsuranceCompanies");
+                });
+
             modelBuilder.Entity("Kalypsis.Domain.Entities.GroupPolicy", b =>
                 {
                     b.Navigation("Members");
@@ -18146,14 +18207,6 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                 {
                     b.Navigation("Actions");
                 });
-            modelBuilder.Entity("Kalypsis.Domain.Entities.GarageInsuranceCompany", b =>
-                {
-                    b.HasOne("Kalypsis.Domain.Entities.Garage", "Garage").WithMany("InsuranceCompanies").HasForeignKey("GarageId").OnDelete(DeleteBehavior.Restrict).IsRequired().HasConstraintName("FK_GarageCompanies_Garage");
-                    b.HasOne("Kalypsis.Domain.Entities.InsuranceCompany", "InsuranceCompany").WithMany().HasForeignKey("InsuranceCompanyId").OnDelete(DeleteBehavior.Restrict).IsRequired().HasConstraintName("FK_GarageCompanies_Company");
-                    b.Navigation("Garage");
-                    b.Navigation("InsuranceCompany");
-                });
-            modelBuilder.Entity("Kalypsis.Domain.Entities.Garage", b => { b.Navigation("InsuranceCompanies"); });
 #pragma warning restore 612, 618
         }
     }

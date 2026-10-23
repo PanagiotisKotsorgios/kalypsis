@@ -47,7 +47,9 @@ public record ProducerDetailDto(
     ProducerTier Tier = ProducerTier.None,
     HierarchyLevel HierarchyLevel = HierarchyLevel.Producer,
     Guid? ParentProducerId = null,
-    string? ParentProducerName = null);
+    string? ParentProducerName = null,
+    Guid? CategoryId = null,
+    string? CategoryName = null);
 
 public record ProducerCarrierStat(string CarrierName, int PolicyCount, decimal TotalPremium);
 public record ProducerTypeStat(string PolicyType, int PolicyCount, decimal TotalPremium);
@@ -141,6 +143,7 @@ public class GetProducerDetailQueryHandler : IRequestHandler<GetProducerDetailQu
             p.ContractEndDate, p.Address, p.City, p.PostalCode, p.Website, p.IdentityNumber,
             p.ProfessionalLicenseNumber, p.LicenseExpiryDate, p.Iban, p.BankName,
             p.PaymentMethod, p.AdditionalInfoJson, p.Tier, p.HierarchyLevel,
-            p.ParentProducerId, p.ParentProducer != null ? p.ParentProducer.Name : null);
+            p.ParentProducerId, p.ParentProducer != null ? p.ParentProducer.Name : null,
+            p.CategoryId, await _db.ProducerCategories.Where(c => c.Id == p.CategoryId).Select(c => c.Name).FirstOrDefaultAsync(ct));
     }
 }

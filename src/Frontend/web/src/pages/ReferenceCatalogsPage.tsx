@@ -48,7 +48,7 @@ const CATALOGS: CatalogDef[] = [
     ],
     columns: [{ key: "code", label: "Κωδ." }, { key: "name", label: "Όνομα" }, { key: "colorHex", label: "Χρώμα" }, { key: "isActive", label: "Ενεργή" }] },
   { id: "producer-categories", label: "Κατηγορίες συνεργατών", endpoint: "/lookups/producer-categories",
-    usedIn: ["Καρτέλα συνεργάτη: πεδίο κατηγορίας", "Παραμετροποίηση προμηθειών ανά κατηγορία συνεργάτη"],
+    usedIn: ["Καρτέλα συνεργάτη: επιλογή κατηγορίας του γραφείου", "Λίστα συνεργατών: φίλτρο και στήλη κατηγορίας"],
     fields: [
       { key: "code", label: "Κωδικός", required: true },
       { key: "name", label: "Όνομα", required: true },

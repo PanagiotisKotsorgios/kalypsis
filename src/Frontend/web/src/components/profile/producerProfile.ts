@@ -2,8 +2,8 @@ import { customerFieldError } from "../customer/customerValidation";
 
 export const PRODUCER_FIELDS = [
   ["code", "Κωδικός"], ["name", "Ονοματεπώνυμο / επωνυμία"], ["status", "Κατάσταση"], ["taxId", "ΑΦΜ"], ["taxOffice", "Δ.Ο.Υ."],
-  ["businessType", "Τύπος επιχείρησης"], ["professionalCategory", "Κατηγορία"], ["identityNumber", "Αρ. ταυτότητας"],
-  ["tier", "Κατηγορία προμηθειών"], ["hierarchyLevel", "Επίπεδο ιεραρχίας"], ["parentProducerId", "Προϊστάμενος"],
+  ["businessType", "Τύπος επιχείρησης"], ["professionalCategory", "Επαγγελματική ιδιότητα"], ["identityNumber", "Αρ. ταυτότητας"],
+  ["categoryId", "Κατηγορία συνεργάτη"], ["tier", "Βαθμίδα κανόνων προμηθειών"], ["hierarchyLevel", "Επίπεδο ιεραρχίας"], ["parentProducerId", "Προϊστάμενος"],
   ["email", "Email"], ["secondaryEmail", "Δεύτερο email"], ["phone", "Τηλέφωνο"], ["secondaryPhone", "Δεύτερο τηλέφωνο"],
   ["address", "Διεύθυνση"], ["city", "Πόλη"], ["postalCode", "Τ.Κ."], ["website", "Ιστοσελίδα"],
   ["hasContract", "Σύμβαση"], ["contractNumber", "Αριθμός σύμβασης"], ["contractStartDate", "Έναρξη σύμβασης"], ["contractEndDate", "Λήξη σύμβασης"],
@@ -16,7 +16,7 @@ type ProducerFieldKey = (typeof PRODUCER_FIELDS)[number][0];
 /** Read each group top-to-bottom before moving to the next column. */
 export const PRODUCER_GENERAL_COLUMNS = [
   ["code", "name", "status", "taxId", "taxOffice", "businessType", "professionalCategory", "identityNumber",
-    "tier", "hierarchyLevel", "parentProducerId"],
+    "categoryId", "tier", "hierarchyLevel", "parentProducerId"],
   ["email", "secondaryEmail", "phone", "secondaryPhone", "address", "city", "postalCode", "website"],
   ["hasContract", "contractNumber", "contractStartDate", "contractEndDate", "professionalLicenseNumber", "licenseExpiryDate",
     "iban", "bankName", "paymentMethod", "notes", "additionalInfoJson"],

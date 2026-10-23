@@ -1,24 +1,19 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
-import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
+import { FilterHelp } from "../components/FilterHelp";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
-  FormControlLabel, Switch, Checkbox, Snackbar, useMediaQuery, useTheme
+  FormControlLabel, Switch, Checkbox, Snackbar, useMediaQuery, useTheme, Divider
 } from "@mui/material";
-import { InputAdornment, Fade, Slide, Divider, alpha } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import TuneIcon from "@mui/icons-material/Tune";
 import DeleteIcon from "@mui/icons-material/Delete";
 import VpnKeyIcon from "@mui/icons-material/VpnKey";
 import SettingsSuggestIcon from "@mui/icons-material/SettingsSuggest";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import PersonSearchIcon from "@mui/icons-material/PersonSearch";
-import LinkIcon from "@mui/icons-material/Link";
 import HubIcon from "@mui/icons-material/Hub";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import BookmarkAddIcon from "@mui/icons-material/BookmarkAdd";
@@ -37,6 +32,8 @@ import { api, extractErrorMessage } from "../api/client";
 import { CredentialsDialog } from "./TenantsPage";
 import { ProducerDetailDrawer } from "../components/ProducerDetailDrawer";
 import { ProducerCustomersDialog } from "../components/ProducerCustomersDialog";
+import { ProducerCreateDialog } from "../components/ProducerCreateDialog";
+import { useProducerCategories } from "../components/useProducerCategories";
 import { ReassignProducerDialog } from "../components/ReassignProducerDialog";
 import PeopleIcon from "@mui/icons-material/People";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
@@ -44,7 +41,6 @@ import { useTableState } from "../components/useTableState";
 import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import { TableToolbar, NumberedPager, RecordCountChip } from "../components/TableToolbar";
 import { SearchableTextField } from "../components/SearchableTextField";
-import { SearchableSelect } from "../components/SearchableSelect";
 import { money } from "../utils/format";
 import { BulkImportDialog, type BulkImportResult } from "../components/BulkImportDialog";
 import { SavedReportsButton } from "../components/SavedReportsButton";
@@ -62,17 +58,6 @@ const HIERARCHY_LABEL: Record<HierarchyLevel, string> = {
   Agency:    "Γραφείο (κεντρικό)"
 };
 
-// One-line explanation shown next to each option so the operator knows
-// exactly what each level means — the English terms (Manager / Unit /
-// Assistant) come from ALIS parity and are opaque without context.
-const HIERARCHY_DESC: Record<HierarchyLevel, string> = {
-  Producer:  "Ο συνεργάτης που φέρνει το συμβόλαιο. Είναι το πρώτο επίπεδο προμήθειας.",
-  Manager:   "Υπεύθυνος μιας ομάδας συνεργατών. Παίρνει ένα ποσοστό από κάθε συμβόλαιο της ομάδας του.",
-  Unit:      "Επικεφαλής μιας μονάδας από ομάδες. Παίρνει ποσοστό πάνω από τον υπεύθυνο ομάδας.",
-  Assistant: "Βοηθός διοίκησης πάνω από τη μονάδα. Παίρνει ένα μικρό ποσοστό συντονισμού.",
-  Agency:    "Το ίδιο το γραφείο. Είναι η κορυφή της ιεραρχίας — παίρνει ό,τι μένει μετά όλες τις προμήθειες."
-};
-
 interface ProducerDto {
   id: string; code: string; name: string;
   email: string | null; phone: string | null;
@@ -87,7 +72,7 @@ interface ProducerDto {
   professionalLicenseNumber?: string | null; licenseExpiryDate?: string | null;
   iban?: string | null; bankName?: string | null; paymentMethod?: string | null;
   additionalInfoJson?: string | null;
-  status: ProducerStatus; tier: ProducerTier;
+  status: ProducerStatus; tier: ProducerTier; categoryId?: string | null; categoryName?: string | null;
   policyCount: number; createdAt: string;
   // ALIS-parity hierarchy
   hierarchyLevel: HierarchyLevel;
@@ -95,17 +80,8 @@ interface ProducerDto {
   parentProducerName: string | null;
 }
 
-interface CreateProducerResponse {
-  producer: ProducerDto;
-  portalEmail: string | null;
-  temporaryPassword: string | null;
-}
-
 const STATUS_COLOR: Record<ProducerStatus, "success" | "warning" | "default"> = {
   Active: "success", Suspended: "warning", Terminated: "default", Prospect: "warning"
-};
-const TIER_COLOR: Record<ProducerTier, "default" | "warning" | "primary" | "info" | "success"> = {
-  A: "warning", B: "primary", C: "info", D: "success", E: "default", None: "default"
 };
 const TIER_LABEL: Record<ProducerTier, string> = {
   A: "Κατ. Α", B: "Κατ. Β", C: "Κατ. Γ", D: "Κατ. Δ", E: "Κατ. Ε", None: "—"
@@ -121,7 +97,7 @@ export function producerListExportColumns(t: (key: string) => string) {
   return [
     { key: "code", label: t("producers.col.code"), map: (row: ProducerDto) => row.code },
     { key: "name", label: t("producers.col.name"), map: (row: ProducerDto) => row.name },
-    { key: "tier", label: "Κατηγορία", map: (row: ProducerDto) => TIER_LABEL[row.tier] ?? row.tier ?? "—" },
+    { key: "tier", label: "Κατηγορία", map: (row: ProducerDto) => row.categoryName ?? "—" },
     { key: "email", label: t("producers.col.email"), map: (row: ProducerDto) => row.email ?? "—" },
     { key: "phone", label: t("producers.col.phone"), map: (row: ProducerDto) => row.phone ?? "—" },
     { key: "policyCount", label: t("producers.col.policies"), map: (row: ProducerDto) => row.policyCount },
@@ -130,10 +106,11 @@ export function producerListExportColumns(t: (key: string) => string) {
 }
 
 export function filterProducerListRows(rows: ProducerDto[], filters: {
-  statusFilter: ProducerStatus | ""; tierFilter: ProducerTier | ""; hasPoliciesOnly: boolean; hierarchyFilter: HierarchyLevel | "";
+  statusFilter: ProducerStatus | ""; tierFilter: ProducerTier | ""; categoryFilter?: string; hasPoliciesOnly: boolean; hierarchyFilter: HierarchyLevel | "";
 }) {
   return rows.filter(row => (!filters.statusFilter || row.status === filters.statusFilter)
     && (!filters.tierFilter || row.tier === filters.tierFilter)
+    && (!filters.categoryFilter || (filters.categoryFilter === "None" ? !row.categoryId : row.categoryId === filters.categoryFilter))
     && (!filters.hasPoliciesOnly || row.policyCount !== 0)
     && (!filters.hierarchyFilter || row.hierarchyLevel === filters.hierarchyFilter));
 }
@@ -201,25 +178,28 @@ export function ProducersPage() {
 
   const [statusFilter, setStatusFilter] = useState<ProducerStatus | "">("");
   const [tierFilter, setTierFilter] = useState<ProducerTier | "">("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const categories = useProducerCategories();
   const [hasPoliciesOnly, setHasPoliciesOnly] = useState(false);
   const [hierarchyFilter, setHierarchyFilter] = useState<HierarchyLevel | "">("");
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
   useEffect(() => { if (!compactFilters) setAdvancedFiltersOpen(false); }, [compactFilters]);
   const rawProducers = q.data ?? [];
-  const allRows = filterProducerListRows(rawProducers, { statusFilter, tierFilter, hasPoliciesOnly, hierarchyFilter });
+  const allRows = filterProducerListRows(rawProducers, { statusFilter, tierFilter, categoryFilter, hasPoliciesOnly, hierarchyFilter });
   const table = useTableState<ProducerDto>({
     rows: allRows,
-    searchableText: (p) => `${p.code} ${p.name} ${p.email ?? ""} ${p.phone ?? ""} ${p.status}`,
+    searchableText: (p) => `${p.code} ${p.name} ${p.email ?? ""} ${p.phone ?? ""} ${p.categoryName ?? ""} ${p.status}`,
     pageSize: 25
   });
   const rows = table.paged;
-  useEffect(() => { table.setPage(1); }, [statusFilter, tierFilter, hasPoliciesOnly, hierarchyFilter]);
-  const activeFilterCount = [statusFilter, tierFilter, hasPoliciesOnly ? "policies" : "", hierarchyFilter, table.query].filter(Boolean).length;
+  useEffect(() => { table.setPage(1); }, [statusFilter, tierFilter, categoryFilter, hasPoliciesOnly, hierarchyFilter]);
+  const activeFilterCount = [statusFilter, tierFilter, categoryFilter, hasPoliciesOnly ? "policies" : "", hierarchyFilter, table.query].filter(Boolean).length;
 
   const clearProducerFilters = () => {
     setClearSavedFilterRequest(value => value + 1);
     setStatusFilter("");
     setTierFilter("");
+    setCategoryFilter("");
     setHasPoliciesOnly(false);
     setHierarchyFilter("");
     table.setQuery("");
@@ -271,7 +251,7 @@ export function ProducersPage() {
   const headerMenu = useHeaderContextMenu({
     onSort: (key, dir) => {
       const map: Record<string, keyof ProducerDto> = {
-        code: "code", name: "name", tier: "tier",
+        code: "code", name: "name", tier: "categoryName",
         email: "email", phone: "phone", policies: "policyCount", status: "status",
       };
       const dtoKey = map[key];
@@ -296,8 +276,10 @@ export function ProducersPage() {
     <SearchableTextField size="small" fullWidth label={t("producers.col.status")} value={statusFilter} onChange={event => setStatusFilter(event.target.value as ProducerStatus | "")} sx={{ minWidth: 0 }}>
       <MenuItem value="">Όλες</MenuItem>{(["Prospect", "Active", "Suspended", "Terminated"] as const).map(status => <MenuItem key={status} value={status}>{status === "Prospect" ? "Πιθανός συνεργάτης" : t(`producers.statuses.${status}`)}</MenuItem>)}
     </SearchableTextField>
-    <SearchableTextField size="small" fullWidth label="Κατηγορία" value={tierFilter} onChange={event => setTierFilter(event.target.value as ProducerTier | "")} sx={{ minWidth: 0 }}>
-      <MenuItem value="">Όλες</MenuItem>{(["A", "B", "C", "D", "E"] as const).map(tier => <MenuItem key={tier} value={tier}>{TIER_LABEL[tier]}</MenuItem>)}<MenuItem value="None">Χωρίς κατηγορία</MenuItem>
+    <SearchableTextField size="small" fullWidth label="Κατηγορία" value={categoryFilter} onChange={event => setCategoryFilter(event.target.value)} sx={{ minWidth: 0 }}>
+      <MenuItem value="">Όλες</MenuItem>
+      {(categories.data ?? []).map(category => <MenuItem key={category.id} value={category.id}>{category.name}</MenuItem>)}
+      <MenuItem value="None">Χωρίς κατηγορία</MenuItem>
     </SearchableTextField>
     <SearchableTextField size="small" fullWidth label="Επίπεδο ιεραρχίας" value={hierarchyFilter} onChange={event => setHierarchyFilter(event.target.value as HierarchyLevel | "")} sx={{ minWidth: 0 }}>
       <MenuItem value="">Όλα</MenuItem>{(Object.keys(HIERARCHY_LABEL) as HierarchyLevel[]).map(level => <MenuItem key={level} value={level}>{HIERARCHY_LABEL[level]}</MenuItem>)}
@@ -305,9 +287,9 @@ export function ProducersPage() {
     <FormControlLabel sx={{ m: 0, minWidth: 0, gridColumn: inDialog ? "1 / -1" : undefined }} control={<Checkbox size="small" checked={hasPoliciesOnly} onChange={event => setHasPoliciesOnly(event.target.checked)} />} label="Μόνο με συμβόλαια" />
   </Box>;
   const producerExportColumns = producerListExportColumns(t);
-  const producerExportSubtitle = [table.query && `Αναζήτηση: ${table.query}`,
+  const producerExportSubtitle = [categoryFilter && `Κατηγορία: ${categoryFilter === "None" ? "Χωρίς κατηγορία" : categories.data?.find(row => row.id === categoryFilter)?.name ?? categoryFilter}`, table.query && `Αναζήτηση: ${table.query}`,
     statusFilter && `Κατάσταση: ${statusFilter === "Prospect" ? "Πιθανός συνεργάτης" : t(`producers.statuses.${statusFilter}`)}`,
-    tierFilter && `Κατηγορία: ${tierFilter === "None" ? "Χωρίς κατηγορία" : TIER_LABEL[tierFilter]}`,
+    tierFilter && `Βαθμίδα προμηθειών: ${tierFilter === "None" ? "Χωρίς κατηγορία" : TIER_LABEL[tierFilter]}`,
     hierarchyFilter && `Ιεραρχία: ${HIERARCHY_LABEL[hierarchyFilter]}`, hasPoliciesOnly && "Μόνο με συμβόλαια",
   ].filter(Boolean).join(" · ");
 
@@ -323,8 +305,8 @@ export function ProducersPage() {
           <Typography color="text.secondary">{t("producers.subtitle")}</Typography>
         </Box>
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          <SavedReportsButton entity="producers" currentFilters={{ query: table.query, statusFilter, tierFilter, hasPoliciesOnly, hierarchyFilter }}
-            onLoad={next => { table.setQuery(next.query ?? ""); setStatusFilter(next.statusFilter ?? ""); setTierFilter(next.tierFilter ?? ""); setHasPoliciesOnly(Boolean(next.hasPoliciesOnly)); setHierarchyFilter(next.hierarchyFilter ?? ""); }}
+          <SavedReportsButton entity="producers" currentFilters={{ query: table.query, statusFilter, tierFilter, categoryFilter, hasPoliciesOnly, hierarchyFilter }}
+            onLoad={next => { table.setQuery(next.query ?? ""); setStatusFilter(next.statusFilter ?? ""); setTierFilter(next.tierFilter ?? ""); setCategoryFilter(next.categoryFilter ?? ""); setHasPoliciesOnly(Boolean(next.hasPoliciesOnly)); setHierarchyFilter(next.hierarchyFilter ?? ""); }}
             onClear={clearProducerFilters} clearRequestToken={clearSavedFilterRequest} saveRequestToken={saveFilterRequest} showSaveMenuItem={false} />
           {compactFilters && <Button variant="contained" startIcon={<FilterListIcon />} onClick={() => setAdvancedFiltersOpen(true)} aria-haspopup="dialog" aria-expanded={advancedFiltersOpen}
             sx={{ bgcolor: "#159b59", color: "#fff", whiteSpace: "nowrap", flexShrink: 0, "&:hover": { bgcolor: "#107b46", color: "#fff" } }}>
@@ -453,8 +435,8 @@ export function ProducersPage() {
                       </Stack>
                     </TableCell>
                     <TableCell>
-                      {p.tier && p.tier !== "None"
-                        ? <Chip size="small" color={TIER_COLOR[p.tier]} label={TIER_LABEL[p.tier]} sx={{ fontWeight: 800 }} />
+                      {p.categoryName
+                        ? <Chip size="small" color="primary" label={p.categoryName} sx={{ fontWeight: 800 }} />
                         : <Typography variant="caption" color="text.secondary">—</Typography>}
                     </TableCell>
                     <TableCell>{p.email ?? "—"}</TableCell>
@@ -520,12 +502,14 @@ export function ProducersPage() {
         <Alert severity="success" variant="filled" onClose={() => setSuccess(null)}>{success}</Alert>
       </Snackbar>
 
-      <ProducerDialog
-        open={createStatus !== null} initialStatus={createStatus ?? "Active"} onClose={() => setCreateStatus(null)} producer={null}
-        onSaved={(credentials) => {
+      <ProducerCreateDialog
+        open={createStatus !== null} initialStatus={createStatus ?? "Active"} onClose={() => setCreateStatus(null)}
+        onSaved={(result) => {
           void qc.invalidateQueries({ queryKey: ["producers"] });
+          void qc.invalidateQueries({ queryKey: ["producers-for-hierarchy"] });
           setCreateStatus(null);
-          if (credentials) setIssuedCreds(credentials);
+          openProducerCard(result.producer.id, true);
+          if (result.portalEmail && result.temporaryPassword) setIssuedCreds({ email: result.portalEmail, password: result.temporaryPassword });
         }}
       />
 
@@ -541,14 +525,7 @@ export function ProducersPage() {
         onClose={() => setGoalPlanFor(null)}
       />
 
-      <CredentialsDialog
-        open={!!issuedCreds}
-        email={issuedCreds?.email ?? ""}
-        password={issuedCreds?.password ?? ""}
-        onClose={() => setIssuedCreds(null)}
-        title="Στοιχεία πρόσβασης συνεργάτη"
-        introKey="producers.portalCreatedBody"
-      />
+
 
       <ProducerDetailDrawer
         key={`${detailId ?? "closed"}:${detailEditing ? "edit" : "view"}`}
@@ -557,6 +534,15 @@ export function ProducersPage() {
         canEdit
         open={!!detailId}
         onClose={() => setDetailId(null)}
+      />
+
+      <CredentialsDialog
+        open={!!issuedCreds}
+        email={issuedCreds?.email ?? ""}
+        password={issuedCreds?.password ?? ""}
+        onClose={() => setIssuedCreds(null)}
+        title="Στοιχεία πρόσβασης συνεργάτη"
+        introKey="producers.portalCreatedBody"
       />
 
       <ProducerCustomersDialog
@@ -581,343 +567,6 @@ export function ProducersPage() {
         onImport={importProducers}
       />
     </Box>
-  );
-}
-
-interface UserLookupDto {
-  userId: string;
-  email: string;
-  fullName: string;
-  role: string;
-  isActive: boolean;
-  createdAt: string;
-  linkedProducerId: string | null;
-  linkedProducerCode: string | null;
-  linkedProducerName: string | null;
-}
-
-function ProducerDialog({ open, initialStatus = "Active", onClose, producer, onSaved }: {
-  open: boolean;
-  initialStatus?: ProducerStatus;
-  onClose: () => void;
-  producer: ProducerDto | null;
-  onSaved: (credentials?: { email: string; password: string }) => void;
-}) {
-  const { t } = useTranslation();
-  const editing = !!producer;
-  const [form, setForm] = useState({
-    code: "", name: "", email: "", phone: "", notes: "",
-    secondaryEmail: "", secondaryPhone: "", taxId: "", taxOffice: "",
-    businessType: "", professionalCategory: "", hasContract: false,
-    contractNumber: "", contractStartDate: "", contractEndDate: "",
-    address: "", city: "", postalCode: "", website: "", identityNumber: "",
-    professionalLicenseNumber: "", licenseExpiryDate: "", iban: "", bankName: "",
-    paymentMethod: "", additionalInfoJson: "",
-    status: "Active" as ProducerStatus,
-    tier: "None" as ProducerTier,
-    hierarchyLevel: "Producer" as HierarchyLevel,
-    parentProducerId: "" as string,
-    initialPassword: ""
-  });
-  const [error, setError] = useState<string | null>(null);
-  const [verifyOpen, setVerifyOpen] = useState(false);
-
-  // Load the tenant's producer list so we can offer parents in a searchable
-  // dropdown. Excludes the current producer (no self-parent) and defers to
-  // the calculator for deeper cycles.
-  const producersQ = useQuery({
-    queryKey: ["producers-for-hierarchy"],
-    enabled: open,
-    queryFn: async () => (await api.get<ProducerDto[]>("/producers")).data
-  });
-  const parentOptions = useMemo(() => {
-    const all = producersQ.data ?? [];
-    return all.filter(p => !producer || p.id !== producer.id);
-  }, [producersQ.data, producer]);
-
-  useEffect(() => {
-    if (producer) {
-      setForm({
-        code: producer.code, name: producer.name,
-        email: producer.email ?? "", phone: producer.phone ?? "",
-        notes: producer.notes ?? "",
-        secondaryEmail: producer.secondaryEmail ?? "", secondaryPhone: producer.secondaryPhone ?? "",
-        taxId: producer.taxId ?? "", taxOffice: producer.taxOffice ?? "",
-        businessType: producer.businessType ?? "", professionalCategory: producer.professionalCategory ?? "",
-        hasContract: producer.hasContract ?? false, contractNumber: producer.contractNumber ?? "",
-        contractStartDate: producer.contractStartDate ?? "", contractEndDate: producer.contractEndDate ?? "",
-        address: producer.address ?? "", city: producer.city ?? "", postalCode: producer.postalCode ?? "",
-        website: producer.website ?? "", identityNumber: producer.identityNumber ?? "",
-        professionalLicenseNumber: producer.professionalLicenseNumber ?? "", licenseExpiryDate: producer.licenseExpiryDate ?? "",
-        iban: producer.iban ?? "", bankName: producer.bankName ?? "", paymentMethod: producer.paymentMethod ?? "",
-        additionalInfoJson: producer.additionalInfoJson ?? "",
-        status: producer.status, tier: producer.tier ?? "None",
-        hierarchyLevel: producer.hierarchyLevel ?? "Producer",
-        parentProducerId: producer.parentProducerId ?? "",
-        initialPassword: ""
-      });
-    } else if (open) {
-      setForm({ code: "", name: "", email: "", phone: "", notes: "", secondaryEmail: "", secondaryPhone: "", taxId: "", taxOffice: "",
-        businessType: "", professionalCategory: "", hasContract: false, contractNumber: "", contractStartDate: "", contractEndDate: "",
-        address: "", city: "", postalCode: "", website: "", identityNumber: "", professionalLicenseNumber: "", licenseExpiryDate: "",
-        iban: "", bankName: "", paymentMethod: "", additionalInfoJson: "", status: initialStatus, tier: "None",
-        hierarchyLevel: "Producer", parentProducerId: "", initialPassword: "" });
-    }
-  }, [producer, open, initialStatus]);
-
-  // Debounce the email as the operator types → live lookup against Kalypsis
-  // users. Only enable when the string looks like a plausible email and the
-  // dialog is open, so we don't burn queries while the field is empty.
-  const [debouncedEmail, setDebouncedEmail] = useState("");
-  useEffect(() => {
-    const trimmed = form.email.trim().toLowerCase();
-    const handle = setTimeout(() => setDebouncedEmail(trimmed), 400);
-    return () => clearTimeout(handle);
-  }, [form.email]);
-
-  const lookup = useQuery({
-    queryKey: ["producer-user-lookup", debouncedEmail],
-    queryFn: async () => (await api.get<UserLookupDto | null>("/producers/user-lookup", {
-      params: { email: debouncedEmail }
-    })).data,
-    enabled: open && debouncedEmail.length > 3 && debouncedEmail.includes("@") && debouncedEmail.includes("."),
-    staleTime: 30_000,
-  });
-
-  // Three visual states for the lookup: searching (spinner + wait), found (green
-  // check + «click to verify»), not-found (blue info hint). The check icon has a
-  // scale-in animation via MUI's Fade so it feels alive when a hit lands.
-  const searching = lookup.isFetching;
-  const foundUser = lookup.data ?? null;
-  const notFound = !searching && debouncedEmail.length > 3 && lookup.isFetched && !foundUser;
-
-  const save = useMutation({
-    mutationFn: async () => {
-      const { initialPassword, ...body } = form;
-      const payload = {
-        ...body,
-        parentProducerId: form.parentProducerId || null,
-        secondaryEmail: form.secondaryEmail.trim() || null,
-        secondaryPhone: form.secondaryPhone.trim() || null,
-        taxId: form.taxId.trim() || null, taxOffice: form.taxOffice.trim() || null,
-        businessType: form.businessType.trim() || null, professionalCategory: form.professionalCategory.trim() || null,
-        contractNumber: form.contractNumber.trim() || null,
-        contractStartDate: form.contractStartDate || null, contractEndDate: form.contractEndDate || null,
-        address: form.address.trim() || null, city: form.city.trim() || null, postalCode: form.postalCode.trim() || null,
-        website: form.website.trim() || null, identityNumber: form.identityNumber.trim() || null,
-        professionalLicenseNumber: form.professionalLicenseNumber.trim() || null, licenseExpiryDate: form.licenseExpiryDate || null,
-        iban: form.iban.trim() || null, bankName: form.bankName.trim() || null, paymentMethod: form.paymentMethod.trim() || null,
-        additionalInfoJson: form.additionalInfoJson.trim() || null,
-      };
-      if (editing) {
-        await api.put(`/producers/${producer!.id}`, payload);
-        return null;
-      }
-      const { data } = await api.post<CreateProducerResponse>("/producers", {
-        ...payload,
-        initialPassword: initialPassword || null
-      });
-      return data.portalEmail && data.temporaryPassword
-        ? { email: data.portalEmail, password: data.temporaryPassword }
-        : null;
-    },
-    onSuccess: (credentials) => onSaved(credentials ?? undefined),
-    onError: (err) => setError(extractErrorMessage(err))
-  });
-
-  return (
-    <>
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-      <DialogTitle>{editing ? t("producers.form.editTitle") : t("producers.form.createTitle")}</DialogTitle>
-      <DialogContent>
-        {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
-        <Stack spacing={2.5} mt={1}>
-          {/* Κωδικός is short (≤8 chars), Κατάσταση carries longer localised
-              labels — give status ~2× the width so «Τερματισμένος» never
-              gets clipped and Κωδικός stops swallowing empty space. */}
-          <Stack direction="row" spacing={2}>
-            <TextField label={t("producers.col.code")} value={form.code}
-              onChange={(e) => setForm({ ...form, code: e.target.value })} required disabled={editing}
-              sx={{ flex: 1 }}
-              InputProps={{ endAdornment: <FilterHelp title="Μοναδικός κωδικός συνεργάτη. Δεν αλλάζει μετά τη δημιουργία — χρησιμοποιείται σε bridges και reports." /> }} />
-            <FilterFieldWrap tip="Ενεργός: εμφανίζεται και δουλεύει κανονικά. Ανενεργός/Τερματισμένος: κρύβεται από τις νέες αναθέσεις." sx={{ flex: 2 }}>
-              <SearchableTextField label={t("producers.col.status")} value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value as ProducerStatus })} fullWidth>
-                {(["Prospect","Active","Suspended","Terminated"] as const).map(s => <MenuItem key={s} value={s}>{s === "Prospect" ? "Πιθανός συνεργάτης" : t(`producers.statuses.${s}`)}</MenuItem>)}
-              </SearchableTextField>
-            </FilterFieldWrap>
-          </Stack>
-          <FilterFieldWrap tip="Επιλέξτε την κατηγορία Α/Β/Γ/Δ/Ε ώστε ο συνεργάτης να παίρνει αυτόματα την προμήθεια που έχετε ορίσει στην παραμετροποίηση για την κατηγορία του.">
-            <SearchableTextField label="Κατηγορία προμηθειών" value={form.tier}
-              onChange={(e) => setForm({ ...form, tier: e.target.value as ProducerTier })} fullWidth>
-              <MenuItem value="None">— Χωρίς κατηγορία —</MenuItem>
-              {(["A","B","C","D","E"] as const).map(tier =>
-                <MenuItem key={tier} value={tier}>{TIER_LABEL[tier as ProducerTier]}</MenuItem>)}
-            </SearchableTextField>
-          </FilterFieldWrap>
-          {/* Hierarchy determines who gets paid at each level of
-              the commission matrix. Leaf sales agents keep the default
-              "Συνεργάτης" level; supervisors move up the chain. The Alert
-              below primes the operator on what each rank actually means so
-              they aren't guessing between «Manager» / «Unit» / «Assistant». */}
-          <Alert severity="info" variant="outlined" sx={{ mb: -1 }}>
-            <b>Πώς δουλεύει η ιεραρχία:</b> Κάθε συμβόλαιο πληρώνει τον <i>Συνεργάτη</i> που το φέρνει.
-            Ένα κομμάτι της προμήθειας ανεβαίνει και στον <i>Υπεύθυνο ομάδας</i>, μετά στον <i>Υπεύθυνο μονάδας</i>,
-            μετά στον <i>Βοηθό διοίκησης</i>, και ό,τι μένει πάει στο <i>Γραφείο</i>.
-            Αν αυτός ο συνεργάτης είναι στην κορυφή της ιεραρχίας του, αφήστε το «Προϊστάμενος» → <i>Ίδιος</i>.
-          </Alert>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <FilterFieldWrap tip="Θέση στην ιεραρχία προμηθειών. Ένας απλός συνεργάτης έχει έναν υπεύθυνο ομάδας ως γονέα, εκείνος έναν υπεύθυνο μονάδας, κ.ο.κ." sx={{ flex: 2 }}>
-              <SearchableSelect
-                label="Επίπεδο ιεραρχίας"
-                value={form.hierarchyLevel}
-                onChange={(v) => setForm({ ...form, hierarchyLevel: v as HierarchyLevel })}
-                sx={{ width: "100%" }}
-                options={(["Producer","Manager","Unit","Assistant","Agency"] as const).map(lvl => ({
-                  value: lvl,
-                  label: HIERARCHY_LABEL[lvl],
-                  hint: HIERARCHY_DESC[lvl],
-                }))}
-                helperText={HIERARCHY_DESC[form.hierarchyLevel]} />
-            </FilterFieldWrap>
-            <Box sx={{ flex: 1 }}>
-              <SearchableSelect
-                label="Προϊστάμενος"
-                value={form.parentProducerId}
-                onChange={(v) => setForm({ ...form, parentProducerId: v })}
-                emptyLabel="Ίδιος (κορυφή ιεραρχίας)"
-                sx={{ width: "100%" }}
-                options={parentOptions.map(p => ({
-                  value: p.id, label: p.name,
-                  hint: HIERARCHY_LABEL[p.hierarchyLevel ?? "Producer"]
-                }))}
-                helperText="Ο συνεργάτης που παίρνει προμήθεια από πάνω. Αφήστε «Ίδιος» αν αυτός είναι το ανώτερο επίπεδο." />
-            </Box>
-          </Stack>
-          <TextField label={t("producers.col.name")} value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })} fullWidth required
-            InputProps={{ endAdornment: <FilterHelp title="Πλήρες ονοματεπώνυμο συνεργάτη όπως εμφανίζεται σε λίστες, έγγραφα και reports." /> }} />
-          <Box>
-            <TextField
-              label={t("producers.col.email")}
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              fullWidth
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    {searching && <CircularProgress size={18} thickness={5} />}
-                    <Fade in={!searching && !!foundUser} unmountOnExit>
-                      <IconButton size="small" onClick={() => setVerifyOpen(true)} color="success" title="Βρέθηκε χρήστης στο Kalypsis">
-                        <CheckCircleIcon fontSize="small" />
-                      </IconButton>
-                    </Fade>
-                    <Fade in={notFound} unmountOnExit>
-                      <PersonSearchIcon fontSize="small" color="disabled" />
-                    </Fade>
-                  </InputAdornment>
-                )
-              }}
-            />
-            <Slide direction="down" in={!searching && !!foundUser} mountOnEnter unmountOnExit>
-              <Alert
-                icon={<CheckCircleIcon fontSize="inherit" />}
-                severity="success"
-                sx={{ mt: 1, cursor: "pointer" }}
-                onClick={() => setVerifyOpen(true)}
-                action={<Button size="small" onClick={() => setVerifyOpen(true)}>Επαλήθευση</Button>}
-              >
-                Βρέθηκε χρήστης στο Kalypsis — <b>{foundUser?.fullName || foundUser?.email}</b>. Επαληθεύστε τα στοιχεία πριν από τη σύνδεση.
-              </Alert>
-            </Slide>
-            <Slide direction="down" in={notFound && form.status !== "Prospect"} mountOnEnter unmountOnExit>
-              <Alert severity="info" sx={{ mt: 1 }} icon={<HelpOutlineIcon fontSize="inherit" />}>
-                Δεν υπάρχει ακόμη λογαριασμός για αυτό το email. Με την αποθήκευση θα δημιουργηθεί πρόσβαση συνεργάτη και θα εμφανιστεί ο αρχικός κωδικός μία φορά για αντιγραφή.
-              </Alert>
-            </Slide>
-          </Box>
-          {!editing && form.status !== "Prospect" && (
-            <TextField
-              label="Αρχικός κωδικός πρόσβασης"
-              type="password"
-              value={form.initialPassword}
-              onChange={(e) => setForm({ ...form, initialPassword: e.target.value })}
-              fullWidth
-              disabled={!form.email.trim()}
-              helperText={form.email.trim()
-                ? "Προαιρετικό — αφήστε το κενό για ασφαλή αυτόματο κωδικό. Θα εμφανιστεί μία φορά μετά την αποθήκευση."
-                : "Προσθέστε email για να δημιουργηθεί πρόσβαση συνεργάτη."}
-              inputProps={{ minLength: 8, maxLength: 128 }}
-            />
-          )}
-          <Card variant="outlined" sx={{ p: 1.5, bgcolor: "#f8fafc" }}>
-            <Typography fontWeight={800} mb={1}>Ταυτότητα, φορολογικά & επαγγελματικά στοιχεία</Typography>
-            <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" } }}>
-              <TextField label="ΑΦΜ" value={form.taxId} onChange={(e) => setForm({ ...form, taxId: e.target.value })} />
-              <TextField label="ΔΟΥ" value={form.taxOffice} onChange={(e) => setForm({ ...form, taxOffice: e.target.value })} />
-              <TextField select label="Τύπος επιχείρησης / συνεργάτη" value={form.businessType} onChange={(e) => setForm({ ...form, businessType: e.target.value })}>
-                <MenuItem value="">— Δεν έχει οριστεί —</MenuItem>
-                <MenuItem value="Φυσικό πρόσωπο">Φυσικό πρόσωπο</MenuItem>
-                <MenuItem value="Ατομική επιχείρηση">Ατομική επιχείρηση</MenuItem>
-                <MenuItem value="Νομικό πρόσωπο">Νομικό πρόσωπο</MenuItem>
-                <MenuItem value="Πρακτορείο / εταιρεία">Πρακτορείο / εταιρεία</MenuItem>
-              </TextField>
-              <TextField label="Επαγγελματική κατηγορία" value={form.professionalCategory} onChange={(e) => setForm({ ...form, professionalCategory: e.target.value })} />
-              <TextField label="Αριθμός ταυτότητας / διαβατηρίου" value={form.identityNumber} onChange={(e) => setForm({ ...form, identityNumber: e.target.value })} />
-              <TextField label="Αρ. επαγγελματικής άδειας / μητρώου" value={form.professionalLicenseNumber} onChange={(e) => setForm({ ...form, professionalLicenseNumber: e.target.value })} />
-              <TextField type="date" label="Λήξη άδειας" value={form.licenseExpiryDate} onChange={(e) => setForm({ ...form, licenseExpiryDate: e.target.value })} InputLabelProps={{ shrink: true }} />
-            </Box>
-          </Card>
-          <Card variant="outlined" sx={{ p: 1.5, bgcolor: "#f8fafc" }}>
-            <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} mb={1}>
-              <Typography fontWeight={800}>Σύμβαση συνεργασίας</Typography>
-              <FormControlLabel control={<Switch checked={form.hasContract} onChange={(e) => setForm({ ...form, hasContract: e.target.checked })} color="success" />} label={form.hasContract ? "Με ενεργή σύμβαση" : "Χωρίς σύμβαση"} />
-            </Stack>
-            <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" } }}>
-              <TextField label="Αριθμός σύμβασης" value={form.contractNumber} onChange={(e) => setForm({ ...form, contractNumber: e.target.value })} disabled={!form.hasContract} />
-              <TextField type="date" label="Έναρξη σύμβασης" value={form.contractStartDate} onChange={(e) => setForm({ ...form, contractStartDate: e.target.value })} InputLabelProps={{ shrink: true }} disabled={!form.hasContract} />
-              <TextField type="date" label="Λήξη σύμβασης" value={form.contractEndDate} onChange={(e) => setForm({ ...form, contractEndDate: e.target.value })} InputLabelProps={{ shrink: true }} disabled={!form.hasContract} />
-            </Box>
-          </Card>
-          <Card variant="outlined" sx={{ p: 1.5, bgcolor: "#f8fafc" }}>
-            <Typography fontWeight={800} mb={1}>Επιπλέον επικοινωνία, διεύθυνση & πληρωμές</Typography>
-            <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" } }}>
-              <TextField type="email" label="Δευτερεύον email" value={form.secondaryEmail} onChange={(e) => setForm({ ...form, secondaryEmail: e.target.value })} />
-              <TextField label="Δευτερεύον τηλέφωνο" value={form.secondaryPhone} onChange={(e) => setForm({ ...form, secondaryPhone: e.target.value })} />
-              <TextField label="Διεύθυνση" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-              <TextField label="Πόλη" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
-              <TextField label="Τ.Κ." value={form.postalCode} onChange={(e) => setForm({ ...form, postalCode: e.target.value })} />
-              <TextField label="Ιστοσελίδα" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
-              <TextField label="Τράπεζα" value={form.bankName} onChange={(e) => setForm({ ...form, bankName: e.target.value })} />
-              <TextField label="IBAN" value={form.iban} onChange={(e) => setForm({ ...form, iban: e.target.value })} />
-              <TextField label="Τρόπος πληρωμής προμηθειών" value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })} />
-            </Box>
-          </Card>
-          <TextField
-            label="Σημειώσεις"
-            value={form.notes}
-            onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            fullWidth multiline minRows={3}
-            inputProps={{ maxLength: 2000 }}
-          />
-          <TextField label={t("producers.col.phone")} value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })} fullWidth
-            InputProps={{ endAdornment: <FilterHelp title="Τηλέφωνο επικοινωνίας. Χρησιμοποιείται για CRM δραστηριότητες όπως τηλεφωνήματα και SMS." /> }} />
-          <TextField label="Πρόσθετες πληροφορίες" value={form.additionalInfoJson}
-            onChange={(e) => setForm({ ...form, additionalInfoJson: e.target.value })} fullWidth multiline minRows={2}
-            helperText="Ελεύθερο κείμενο ή JSON για πρόσθετα στοιχεία του συνεργάτη." />
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>{t("common.cancel")}</Button>
-        <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending || !form.code.trim() || !form.name.trim() || (form.initialPassword.length > 0 && form.initialPassword.length < 8)}>
-          {save.isPending ? <CircularProgress size={18} /> : t("common.save")}
-        </Button>
-      </DialogActions>
-    </Dialog>
-    <VerifyUserDialog open={verifyOpen} user={foundUser} onClose={() => setVerifyOpen(false)} />
-    </>
   );
 }
 
@@ -1175,72 +824,5 @@ function ProducerGoalPlanDialog({ producer, onClose }: {
         </Button>
       </DialogActions>
     </Dialog>
-  );
-}
-
-// Verification popup shown when the operator confirms the found User is the
-// intended person. Backend already does the linking on save (existing email →
-// User.ProducerId), so this dialog is informational — it exists so the operator
-// can eyeball name/role/linked producer and back out if it's the wrong person.
-function VerifyUserDialog({ open, user, onClose }: {
-  open: boolean; user: UserLookupDto | null; onClose: () => void;
-}) {
-  if (!user) return <Dialog open={open} onClose={onClose} />;
-  const alreadyLinked = !!user.linkedProducerId;
-  return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <CheckCircleIcon color="success" />
-          <span>Επαλήθευση χρήστη Kalypsis</span>
-        </Stack>
-      </DialogTitle>
-      <DialogContent>
-        <Card variant="outlined" sx={{ p: 2, mb: 2, bgcolor: (th) => alpha(th.palette.success.main, 0.05) }}>
-          <Stack spacing={1}>
-            <VerifyRow label="Όνομα" value={user.fullName || "—"} />
-            <VerifyRow label="Email" value={user.email} mono />
-            <VerifyRow label="Ρόλος" value={user.role} />
-            <VerifyRow label="Ενεργός" value={user.isActive ? "Ναι" : "Όχι"} />
-            <VerifyRow label="Εγγραφή" value={new Date(user.createdAt).toLocaleDateString("el-GR")} />
-            <Divider />
-            {alreadyLinked ? (
-              <Stack direction="row" spacing={1} alignItems="center">
-                <LinkIcon fontSize="small" color="warning" />
-                <Typography variant="body2">
-                  Ο χρήστης είναι <b>ήδη συνδεδεμένος</b> με τον συνεργάτη
-                  {" "}<b>{user.linkedProducerCode} — {user.linkedProducerName}</b>.
-                  Η αποθήκευση θα επαναφέρει τη σύνδεση σε αυτόν τον συνεργάτη.
-                </Typography>
-              </Stack>
-            ) : (
-              <Stack direction="row" spacing={1} alignItems="center">
-                <LinkIcon fontSize="small" color="success" />
-                <Typography variant="body2">
-                  Ο χρήστης δεν έχει σύνδεση με συνεργάτη. Θα συνδεθεί αυτόματα με τη νέα εγγραφή στην αποθήκευση.
-                </Typography>
-              </Stack>
-            )}
-          </Stack>
-        </Card>
-        <Typography variant="caption" color="text.secondary">
-          Αν <b>δεν είναι το ίδιο πρόσωπο</b>, αλλάξτε το email — δεν θα γίνει σύνδεση.
-        </Typography>
-      </DialogContent>
-      <DialogActions>
-        <Button variant="contained" onClick={onClose}>Εντάξει</Button>
-      </DialogActions>
-    </Dialog>
-  );
-}
-
-function VerifyRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
-  return (
-    <Stack direction="row" spacing={2} alignItems="baseline">
-      <Typography variant="caption" color="text.secondary" sx={{ minWidth: 90 }}>{label}</Typography>
-      <Typography variant="body2" fontWeight={700} sx={mono ? { fontFamily: "monospace" } : undefined}>
-        {value}
-      </Typography>
-    </Stack>
   );
 }

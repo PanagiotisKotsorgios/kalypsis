@@ -21,6 +21,7 @@ import { api, extractErrorMessage } from "../api/client";
 import { ProducerBalancesPanel } from "./ProducerBalancesPanel";
 import { ProducerStatisticsDialog } from "./ProducerStatisticsDialog";
 import { ProducerContactFields, producerContactError, type ProducerContactField } from "./ProducerContactFields";
+import { useProducerCategories, type ProducerCategoryOption } from "./useProducerCategories";
 
 interface ProducerDetail {
   id: string; code: string; name: string; email: string | null; phone: string | null; notes: string | null; status: string;
@@ -31,6 +32,7 @@ interface ProducerDetail {
   professionalLicenseNumber?: string | null; licenseExpiryDate?: string | null; iban?: string | null; bankName?: string | null;
   paymentMethod?: string | null; additionalInfoJson?: string | null;
   tier?: string; hierarchyLevel?: string; parentProducerId?: string | null; parentProducerName?: string | null;
+  categoryId?: string | null; categoryName?: string | null;
   totalPolicies: number; activePolicies: number; renewedPolicies: number; cancelledPolicies: number;
   newPoliciesThisYear: number; renewalsDueNext60Days: number;
   totalPremiumYtd: number; totalPremiumLastYear: number; premiumGrowthPercent: number;
@@ -66,6 +68,7 @@ export function ProducerDetailDrawer({ producerId, open, onClose, onEdit, canEdi
   });
 
   const p = q.data;
+  const categories = useProducerCategories(open);
   const [tab, setTab] = useState(0);
   const [statisticsOpen, setStatisticsOpen] = useState(false);
   useEffect(() => { if (open) { setTab(0); setStatisticsOpen(false); } }, [open, producerId]);
@@ -132,7 +135,11 @@ export function ProducerDetailDrawer({ producerId, open, onClose, onEdit, canEdi
           <ProfileEditorFeedback session={session} />
 
           <Stack spacing={1.25}>
-            {tab === 0 && <ProducerProfileFields session={canEdit ? session : undefined} values={session.values} parents={(producerOptions.data ?? []).filter(row => row.id !== producerId)} />}
+            {tab === 0 && <>
+              {categories.isError && <Typography color="error">Δεν ήταν δυνατή η φόρτωση κατηγοριών συνεργατών.</Typography>}
+              {canEdit && <Button component="a" href="/app/config-hub" target="_blank" rel="noopener noreferrer" size="small" sx={{ alignSelf: "flex-start", textTransform: "none" }}>Διαχείριση κατηγοριών συνεργατών</Button>}
+              <ProducerProfileFields session={canEdit ? session : undefined} values={session.values} parents={(producerOptions.data ?? []).filter(row => row.id !== producerId)} categories={categories.data ?? []} currentCategoryName={p.categoryName} />
+            </>}
             {tab === 1 && <Stack spacing={1.25}>
               {p.byCarrier.length > 0 && <Card variant="outlined" sx={{ p: 1.25 }}><Typography fontWeight={800} mb={.75}>{t("producerDetail.byCarrier")}</Typography><Table size="small"><TableHead><TableRow><TableCell>{t("producerDetail.carrier")}</TableCell><TableCell align="right">{t("producerDetail.policies")}</TableCell><TableCell align="right">{t("producerDetail.premium")}</TableCell></TableRow></TableHead><TableBody>{p.byCarrier.map(c => <TableRow key={c.carrierName}><TableCell>{c.carrierName}</TableCell><TableCell align="right">{c.policyCount}</TableCell><TableCell align="right" sx={{ fontWeight: 700 }}>{c.totalPremium.toFixed(2)} €</TableCell></TableRow>)}</TableBody></Table></Card>}
               {p.byPolicyType.length > 0 && <Card variant="outlined" sx={{ p: 1.25 }}><Typography fontWeight={800} mb={.75}>{t("producerDetail.byType")}</Typography><Table size="small"><TableHead><TableRow><TableCell>{t("producerDetail.type")}</TableCell><TableCell align="right">{t("producerDetail.policies")}</TableCell><TableCell align="right">{t("producerDetail.premium")}</TableCell></TableRow></TableHead><TableBody>{p.byPolicyType.map(item => <TableRow key={item.policyType}><TableCell>{item.policyType}</TableCell><TableCell align="right">{item.policyCount}</TableCell><TableCell align="right" sx={{ fontWeight: 700 }}>{item.totalPremium.toFixed(2)} €</TableCell></TableRow>)}</TableBody></Table></Card>}
@@ -155,7 +162,7 @@ export function ProducerDetailDrawer({ producerId, open, onClose, onEdit, canEdi
   );
 }
 
-export function ProducerProfileFields({ session, values, parents = [] }: { session?: ProfileFieldSession; values: Record<string, string>; parents?: {id: string; name: string}[] }) {
+export function ProducerProfileFields({ session, values, parents = [], categories = [], currentCategoryName }: { session?: ProfileFieldSession; values: Record<string, string>; parents?: {id: string; name: string}[]; categories?: ProducerCategoryOption[]; currentCategoryName?: string | null }) {
   const theme = useTheme();
   const wide = useMediaQuery(theme.breakpoints.up("lg"));
   const medium = useMediaQuery(theme.breakpoints.up("md"));
@@ -163,11 +170,13 @@ export function ProducerProfileFields({ session, values, parents = [] }: { sessi
   const enums: Record<string, { value: string; label: string }[]> = {
     status: [{value:"Active",label:"Ενεργός"}, {value:"Prospect",label:"Πιθανός συνεργάτης"}, {value:"Suspended",label:"Σε αναστολή"}, {value:"Terminated",label:"Τερματισμένος"}],
     hasContract: [{value:"true",label:"Ναι"}, {value:"false",label:"Όχι"}],
-    tier: ["None", "A", "B", "C", "D", "E"].map(value => ({value,label: value === "None" ? "Χωρίς κατηγορία" : "Κατηγορία " + value})),
+    categoryId: [{value:"",label:"Χωρίς κατηγορία"}, ...categories.filter(row => row.isActive || row.id === values.categoryId).map(row => ({value:row.id,label:row.name}))],
+    tier: ["None", "A", "B", "C", "D", "E"].map(value => ({value,label: value === "None" ? "Χωρίς βαθμίδα" : "Βαθμίδα " + value})),
     hierarchyLevel: Object.entries({Producer:"Συνεργάτης", Manager:"Υπεύθυνος ομάδας", Unit:"Μονάδα", Assistant:"Βοηθός διοίκησης", Agency:"Γραφείο"}).map(([value,label]) => ({value,label})),
     parentProducerId: [{value:"",label:"Χωρίς προϊστάμενο"}, ...parents.map(row => ({value:row.id,label:row.name}))],
   };
   if (values.parentProducerId && !enums.parentProducerId.some(option => option.value === values.parentProducerId)) enums.parentProducerId.push({value: values.parentProducerId, label:"Τρέχων προϊστάμενος"});
+  if (values.categoryId && !enums.categoryId.some(option => option.value === values.categoryId)) enums.categoryId.push({value: values.categoryId, label: currentCategoryName || "Τρέχουσα κατηγορία"});
   const fields = new Map(PRODUCER_FIELDS.map(([key, label]) => [key,
     <ProfileEditableField key={key} label={label} field={session ? key : undefined} session={session} value={values[key]} options={enums[key]}
       type={/Date$/.test(key) ? "date" : /email/i.test(key) ? "email" : "text"} multiline={key === "notes" || key === "additionalInfoJson"} />

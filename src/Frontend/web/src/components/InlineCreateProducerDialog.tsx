@@ -36,9 +36,7 @@ interface CreateBody {
 }
 
 interface CreateResponse {
-  id: string;
-  code: string;
-  name: string;
+  producer: { id: string; code: string; name: string };
 }
 
 function seedFromPrefill(prefill: string): CreateBody {
@@ -77,7 +75,7 @@ export function InlineCreateProducerDialog({ open, onClose, prefillText = "", on
     onSuccess: (data) => {
       void qc.invalidateQueries({ queryKey: ["producers"] });
       void qc.invalidateQueries({ queryKey: ["producers-lite"] });
-      onCreated({ id: data.id, name: data.name, code: data.code });
+      onCreated(data.producer);
       onClose();
     },
     onError: e => setErr(extractErrorMessage(e)),

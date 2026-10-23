@@ -118,7 +118,7 @@ public class ProducerCategoryConfiguration : IEntityTypeConfiguration<ProducerCa
 {
     public void Configure(EntityTypeBuilder<ProducerCategory> b)
     {
-        b.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
+        b.HasIndex(x => new { x.TenantId, x.AgencyOfficeScopeId, x.Code }).IsUnique();
         b.Property(x => x.Code).HasMaxLength(40).IsRequired();
         b.Property(x => x.Name).HasMaxLength(160).IsRequired();
     }

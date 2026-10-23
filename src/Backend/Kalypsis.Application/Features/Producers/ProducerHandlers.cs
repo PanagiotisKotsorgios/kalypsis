@@ -37,7 +37,9 @@ public record ProducerDto(
     string? Iban = null,
     string? BankName = null,
     string? PaymentMethod = null,
-    string? AdditionalInfoJson = null);
+    string? AdditionalInfoJson = null,
+    Guid? CategoryId = null,
+    string? CategoryName = null);
 
 public record CreateProducerBody(string Code, string Name, string? Email, string? Phone, ProducerStatus Status,
     ProducerTier Tier = ProducerTier.None,
@@ -65,7 +67,8 @@ public record CreateProducerBody(string Code, string Name, string? Email, string
     string? Iban = null,
     string? BankName = null,
     string? PaymentMethod = null,
-    string? AdditionalInfoJson = null);
+    string? AdditionalInfoJson = null,
+    Guid? CategoryId = null);
 public record UpdateProducerBody(string Code, string Name, string? Email, string? Phone, ProducerStatus Status,
     ProducerTier Tier = ProducerTier.None,
     HierarchyLevel HierarchyLevel = HierarchyLevel.Producer,
@@ -91,7 +94,8 @@ public record UpdateProducerBody(string Code, string Name, string? Email, string
     string? Iban = null,
     string? BankName = null,
     string? PaymentMethod = null,
-    string? AdditionalInfoJson = null);
+    string? AdditionalInfoJson = null,
+    Guid? CategoryId = null);
 
 public record CreateProducerResponse(
     ProducerDto Producer,
@@ -127,7 +131,8 @@ public class ListProducersQueryHandler : IRequestHandler<ListProducersQuery, IRe
                 p.ProfessionalCategory, p.HasContract, p.ContractNumber, p.ContractStartDate,
                 p.ContractEndDate, p.Address, p.City, p.PostalCode, p.Website, p.IdentityNumber,
                 p.ProfessionalLicenseNumber, p.LicenseExpiryDate, p.Iban, p.BankName,
-                p.PaymentMethod, p.AdditionalInfoJson))
+                p.PaymentMethod, p.AdditionalInfoJson, p.CategoryId,
+                _db.ProducerCategories.Where(c => c.Id == p.CategoryId).Select(c => c.Name).FirstOrDefault()))
             .ToListAsync(ct);
         return rows;
     }
@@ -165,6 +170,7 @@ public class CreateProducerCommandHandler : IRequestHandler<CreateProducerComman
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var b = request.Body;
         var code = b.Code.Trim().ToUpperInvariant();
+        var categoryName = await ProducerCategorySelection.ValidateAsync(_db, _current, b.CategoryId, null, ct);
         if (await _db.Producers.AnyAsync(p => p.TenantId == tenantId && p.Code == code && p.DeletedAt == null, ct))
             throw new AppException("producer_code_taken",
                 $"Παραγωγός με κωδικό {code} υπάρχει ήδη.", 409,
@@ -190,7 +196,7 @@ public class CreateProducerCommandHandler : IRequestHandler<CreateProducerComman
             ProfessionalLicenseNumber = b.ProfessionalLicenseNumber?.Trim(), LicenseExpiryDate = b.LicenseExpiryDate,
             Iban = b.Iban?.Trim(), BankName = b.BankName?.Trim(), PaymentMethod = b.PaymentMethod?.Trim(),
             AdditionalInfoJson = string.IsNullOrWhiteSpace(b.AdditionalInfoJson) ? null : b.AdditionalInfoJson.Trim(),
-            Status = b.Status, Tier = b.Tier,
+            Status = b.Status, Tier = b.Tier, CategoryId = b.CategoryId,
             HierarchyLevel = b.HierarchyLevel,
             ParentProducerId = b.ParentProducerId
         };
@@ -252,7 +258,7 @@ public class CreateProducerCommandHandler : IRequestHandler<CreateProducerComman
                 p.ProfessionalCategory, p.HasContract, p.ContractNumber, p.ContractStartDate,
                 p.ContractEndDate, p.Address, p.City, p.PostalCode, p.Website, p.IdentityNumber,
                 p.ProfessionalLicenseNumber, p.LicenseExpiryDate, p.Iban, p.BankName,
-                p.PaymentMethod, p.AdditionalInfoJson),
+                p.PaymentMethod, p.AdditionalInfoJson, p.CategoryId, categoryName),
             portalEmail,
             temporaryPassword);
     }
@@ -288,6 +294,8 @@ public class UpdateProducerCommandHandler : IRequestHandler<UpdateProducerComman
             ?? throw AppException.NotFound("Παραγωγός");
 
         var b = request.Body;
+        var categoryName = await ProducerCategorySelection.ValidateAsync(_db, _current, b.CategoryId, p.CategoryId, ct);
+        p.CategoryId = b.CategoryId;
         p.Code = b.Code.Trim().ToUpperInvariant();
         p.Name = b.Name.Trim();
         var newEmail = b.Email?.Trim().ToLowerInvariant();
@@ -384,7 +392,7 @@ public class UpdateProducerCommandHandler : IRequestHandler<UpdateProducerComman
             p.ProfessionalCategory, p.HasContract, p.ContractNumber, p.ContractStartDate,
             p.ContractEndDate, p.Address, p.City, p.PostalCode, p.Website, p.IdentityNumber,
             p.ProfessionalLicenseNumber, p.LicenseExpiryDate, p.Iban, p.BankName,
-            p.PaymentMethod, p.AdditionalInfoJson);
+            p.PaymentMethod, p.AdditionalInfoJson, p.CategoryId, categoryName);
     }
 }
 

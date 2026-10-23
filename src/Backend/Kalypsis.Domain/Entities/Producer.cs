@@ -38,6 +38,8 @@ public class Producer : TenantEntity
     /// for each individual partner.
     /// </summary>
     public ProducerTier Tier { get; set; } = ProducerTier.None;
+    /// <summary>Office-defined classification, independent of legacy commission tiers.</summary>
+    public Guid? CategoryId { get; set; }
 
     /// <summary>
     /// Θέση του συνεργάτη στην ιεραρχία προμηθειών. Ένας απλός Producer έχει

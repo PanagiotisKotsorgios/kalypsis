@@ -137,10 +137,23 @@ public class ProducerCategoriesController : ControllerBase
     public record Dto(Guid Id, string Code, string Name, int DisplayOrder, bool IsActive);
     public record Body(string Code, string Name, int DisplayOrder, bool IsActive);
 
+    private async Task Validate(Body body, Guid? id, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(body.Code) || body.Code.Trim().Length > 40
+            || string.IsNullOrWhiteSpace(body.Name) || body.Name.Trim().Length > 160)
+            throw new Kalypsis.Application.Common.AppException("producer_category_invalid",
+                "Συμπληρώστε κωδικό έως 40 χαρακτήρες και ονομασία έως 160 χαρακτήρες.", 400);
+        var code = body.Code.Trim().ToUpperInvariant();
+        if (await _db.ProducerCategories.AnyAsync(x => x.Id != id && x.Code == code, ct))
+            throw new Kalypsis.Application.Common.AppException("producer_category_code_taken",
+                "Ο κωδικός κατηγορίας χρησιμοποιείται ήδη στο γραφείο σας.", 409);
+    }
+
     [HttpGet] public async Task<ActionResult<IReadOnlyList<Dto>>> List(CancellationToken ct) =>
         Ok(await _db.ProducerCategories.Where(c => c.DeletedAt == null).OrderBy(c => c.DisplayOrder).ThenBy(c => c.Name)
             .Select(c => new Dto(c.Id, c.Code, c.Name, c.DisplayOrder, c.IsActive)).ToListAsync(ct));
     [HttpPost][Authorize(Policy = "AgencyAdmin")] public async Task<ActionResult<Dto>> Create([FromBody] Body body, CancellationToken ct) {
+        await Validate(body, null, ct);
         var c = new ProducerCategory { Id = Guid.NewGuid(), Code = body.Code.Trim().ToUpperInvariant(),
             Name = body.Name.Trim(), DisplayOrder = body.DisplayOrder, IsActive = body.IsActive };
         _db.ProducerCategories.Add(c); await _db.SaveChangesAsync(ct);
@@ -149,6 +162,7 @@ public class ProducerCategoriesController : ControllerBase
     [HttpPut("{id:guid}")][Authorize(Policy = "AgencyAdmin")] public async Task<ActionResult<Dto>> Update(Guid id, [FromBody] Body body, CancellationToken ct) {
         var c = await _db.ProducerCategories.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (c is null) return CatalogCommonHelpers.NotFoundEnvelope("Κατηγορία συνεργάτη");
+        await Validate(body, id, ct);
         c.Code = body.Code.Trim().ToUpperInvariant(); c.Name = body.Name.Trim();
         c.DisplayOrder = body.DisplayOrder; c.IsActive = body.IsActive;
         await _db.SaveChangesAsync(ct);
@@ -157,6 +171,9 @@ public class ProducerCategoriesController : ControllerBase
     [HttpDelete("{id:guid}")][Authorize(Policy = "AgencyAdmin")] public async Task<ActionResult> Delete(Guid id, CancellationToken ct) {
         var c = await _db.ProducerCategories.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (c is null) return CatalogCommonHelpers.NotFoundEnvelope("Κατηγορία συνεργάτη");
+        if (await _db.Producers.IgnoreQueryFilters().AnyAsync(p => p.TenantId == c.TenantId && p.CategoryId == id, ct))
+            throw new Kalypsis.Application.Common.AppException("producer_category_in_use",
+                "Η κατηγορία χρησιμοποιείται από συνεργάτες. Αλλάξτε πρώτα την κατηγορία τους ή απενεργοποιήστε την από την παραμετροποίηση.", 409);
         c.DeletedAt = DateTime.UtcNow; await _db.SaveChangesAsync(ct); return NoContent();
     }
 }
