@@ -8,6 +8,43 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createServer } from "vite";
 import { insuranceProducts, insuranceArticles, insuranceQuoteUrl } from "./insuranceContent.ts";
 
+test("insurance pages gate all direct links before rendering while public office sites stay public", async () => {
+  globalThis.sessionStorage ??= { getItem: () => null, setItem() {}, removeItem() {} };
+  globalThis.localStorage ??= { getItem: () => null, setItem() {}, removeItem() {} };
+  const source = await readFile(new URL("../../App.tsx", import.meta.url), "utf8");
+  assert.match(source, /path="\/insurance\/\*" element=\{<ProtectedRoute>/);
+  assert.match(source, /path="\/insurance-request" element=\{<ProtectedRoute>/);
+  assert.match(source, /path="\/site\/:slug" element=\{<OfficePublicSitePage/);
+  const server = await createServer({
+    plugins: [{ name: "insurance-preview-test-session", enforce: "pre", transform(_code, id) {
+      if (id.replaceAll("\\", "/").endsWith("/auth/AuthContext.tsx"))
+        return "export function useAuth() { return globalThis.insurancePreviewTestSession; }";
+    } }],
+    server: { middlewareMode: true, hmr: false }, ssr: { noExternal: [/@mui\//] }, appType: "custom"
+  });
+  try {
+      const { ProtectedRoute } = await server.ssrLoadModule("/src/components/ProtectedRoute.tsx");
+      let childRenders = 0;
+      const PrivateContent = () => { childRenders++; return createElement("div", null, "private-insurance-preview"); };
+      const paths = ["/insurance", "/insurance/", "/insurance/programs/car", "/insurance/contact", "/insurance/quote?type=car", "/insurance-request"];
+      const render = path => renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: [path] },
+        createElement(ProtectedRoute, null, createElement(PrivateContent))));
+      for (const path of paths) {
+        globalThis.insurancePreviewTestSession = { loading: true, user: null };
+        assert.ok(!render(path).includes("private-insurance-preview"), path);
+        globalThis.insurancePreviewTestSession = { loading: false, user: null };
+        assert.ok(!render(path).includes("private-insurance-preview"), path);
+      }
+      assert.equal(childRenders, 0, "anonymous and restoring sessions never render insurance children");
+      globalThis.insurancePreviewTestSession = { loading: false, user: { role: "AgencyUser" } };
+      for (const path of paths) assert.ok(render(path).includes("private-insurance-preview"), path);
+      assert.equal(childRenders, paths.length);
+  } finally {
+    delete globalThis.insurancePreviewTestSession;
+    await server.close();
+  }
+});
+
 test("product quote links preserve the actual Greek request type and subject", () => {
   for (const product of insuranceProducts) {
     const url = new URL(insuranceQuoteUrl(product.requestType, "ΙΒΧ 1234"), "http://localhost");

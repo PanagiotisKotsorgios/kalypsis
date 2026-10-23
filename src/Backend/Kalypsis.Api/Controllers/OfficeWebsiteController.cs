@@ -302,12 +302,12 @@ public sealed class PublicOfficeWebsiteController : ControllerBase
     }
 
     /// <summary>
-    /// Hidden, unlisted KALYPSIS insurance-office request form. The backing
+    /// Authenticated KALYPSIS insurance-office request preview. The backing
     /// website intentionally remains unpublished, while its inbox stores the
     /// requests under the PLATFORM tenant for later follow-up.
     /// </summary>
     [HttpPost("kalypsis/insurance-request")]
-    [AllowAnonymous]
+    [Authorize]
     [EnableRateLimiting("public-contact")]
     public async Task<IActionResult> SubmitKalypsisInsuranceRequest([FromBody] InsuranceRequestBody body, CancellationToken ct)
     {

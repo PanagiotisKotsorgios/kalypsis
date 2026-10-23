@@ -1,16 +1,41 @@
 using System.Text.Json;
+using System.Security.Claims;
 using Kalypsis.Api.Controllers;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Domain.Entities;
 using Kalypsis.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Kalypsis.Tests;
 
 public class InsuranceWebsiteIntakeTests
 {
+    [Fact]
+    public async Task Kalypsis_intake_requires_authentication_while_other_published_office_sites_remain_public()
+    {
+        var type = typeof(PublicOfficeWebsiteController);
+        var intake = type.GetMethod(nameof(PublicOfficeWebsiteController.SubmitKalypsisInsuranceRequest))!;
+        Assert.Empty(type.GetCustomAttributes(typeof(AllowAnonymousAttribute), true));
+        Assert.Empty(intake.GetCustomAttributes(typeof(AllowAnonymousAttribute), true));
+        var requirements = intake.GetCustomAttributes(typeof(AuthorizeAttribute), true).Cast<IAuthorizeData>();
+        Assert.Single(requirements);
+        var services = new ServiceCollection();
+        services.AddLogging(); services.AddAuthorization();
+        using var provider = services.BuildServiceProvider();
+        var policy = await AuthorizationPolicy.CombineAsync(provider.GetRequiredService<IAuthorizationPolicyProvider>(), requirements);
+        Assert.NotNull(policy);
+        var authorization = provider.GetRequiredService<IAuthorizationService>();
+        Assert.False((await authorization.AuthorizeAsync(new ClaimsPrincipal(new ClaimsIdentity()), null, policy)).Succeeded);
+        var signedIn = new ClaimsPrincipal(new ClaimsIdentity([new System.Security.Claims.Claim(ClaimTypes.NameIdentifier, "preview-user")], "test"));
+        Assert.True((await authorization.AuthorizeAsync(signedIn, null, policy)).Succeeded);
+        foreach (var name in new[] { nameof(PublicOfficeWebsiteController.Get), nameof(PublicOfficeWebsiteController.Submit) })
+            Assert.NotEmpty(type.GetMethod(name)!.GetCustomAttributes(typeof(AllowAnonymousAttribute), true));
+    }
+
     private sealed class CapturingEmail : IEmailSender
     {
         public List<EmailMessage> Messages { get; } = [];

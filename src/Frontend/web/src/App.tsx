@@ -831,10 +831,9 @@ export default function App() {
         <Route path="/register/agency" element={<Navigate to="/register" replace />} />
         <Route path="/register/agent" element={<Navigate to="/register" replace />} />
         <Route path="/site/:slug" element={<OfficePublicSitePage />} />
-        {/* Intentionally unlisted: direct-link insurance request intake for KALYPSIS. */}
-        <Route path="/insurance-request" element={<InsuranceRequestPage />} />
-        {/* Unlisted insurance-office site; excluded from public navigation and indexing. */}
-        <Route path="/insurance/*" element={<Suspense fallback={<PageLoader minHeight="100vh" />}><InsuranceWebsitePage /></Suspense>} />
+        {/* Insurance preview and intake require login, including direct links. */}
+        <Route path="/insurance-request" element={<ProtectedRoute><InsuranceRequestPage /></ProtectedRoute>} />
+        <Route path="/insurance/*" element={<ProtectedRoute><Suspense fallback={<PageLoader minHeight="100vh" />}><InsuranceWebsitePage /></Suspense></ProtectedRoute>} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/download" element={<DownloadPage />} />
         <Route path="/download/releases" element={<DesktopReleasesPage />} />
