@@ -5,6 +5,7 @@ using Kalypsis.Domain.Entities;
 using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 using System.Security.Cryptography;
 
 namespace Kalypsis.Application.Features.Customers;
@@ -68,12 +69,7 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
             throw new AppException("portal_email_exists",
                 "Υπάρχει ήδη λογαριασμός με αυτό το email στο γραφείο.", 409);
 
-        var lastNumber = await _db.Customers
-
-            .Where(c => c.TenantId == tenantId)
-            .CountAsync(cancellationToken);
-
-        var customerNumber = $"C-{(lastNumber + 1):D6}";
+        var customerNumber = await NextCustomerNumberAsync(tenantId, cancellationToken);
 
         var customer = new Customer
         {
@@ -124,7 +120,28 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
         };
         _db.Customers.Add(customer);
 
-        await _db.SaveChangesAsync(cancellationToken);
+        // The unique index is tenant-wide, including deleted rows and other
+        // offices. If another request wins this number, retry this same entity
+        // with the next available number; never retry an unrelated DB failure.
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                await _db.SaveChangesAsync(cancellationToken);
+                break;
+            }
+            catch (DbUpdateException)
+            {
+                var occupied = await _db.Customers.IgnoreQueryFilters().AnyAsync(c =>
+                    c.TenantId == tenantId && c.CustomerNumber == customer.CustomerNumber
+                    && c.Id != customer.Id, cancellationToken);
+                if (!occupied) throw;
+                if (attempt >= 4)
+                    throw new AppException("customer_number_busy",
+                        "Γίνονται ταυτόχρονες καταχωρήσεις πελατών. Επαναλάβετε την αποθήκευση σε λίγο.", 409);
+                customer.CustomerNumber = await NextCustomerNumberAsync(tenantId, cancellationToken);
+            }
+        }
 
         string? portalEmail = null;
         string? temporaryPassword = null;
@@ -160,6 +177,25 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
             customer.DriverLicenseExpiryDate, customer.Source, customer.TagsJson, customer.PhotoUrl);
 
         return new CreateCustomerResponse(dto, portalEmail, temporaryPassword);
+    }
+
+    private async Task<string> NextCustomerNumberAsync(Guid tenantId, CancellationToken ct)
+    {
+        // Explicit tenant restriction is essential when bypassing soft-delete
+        // and office filters. Imported/DEMO numbers are a different namespace.
+        var numbers = await _db.Customers.IgnoreQueryFilters().AsNoTracking()
+            .Where(c => c.TenantId == tenantId && c.CustomerNumber.StartsWith("C-"))
+            .Select(c => c.CustomerNumber).ToListAsync(ct);
+        long maximum = 0;
+        foreach (var number in numbers)
+        {
+            if (number.StartsWith("C-", StringComparison.OrdinalIgnoreCase)
+                && long.TryParse(number.AsSpan(2), NumberStyles.None, CultureInfo.InvariantCulture, out var sequence))
+                maximum = Math.Max(maximum, sequence);
+        }
+        if (maximum == long.MaxValue)
+            throw new AppException("customer_number_exhausted", "Η αρίθμηση πελατών χρειάζεται έλεγχο από την υποστήριξη.", 409);
+        return "C-" + (maximum + 1).ToString("D6", CultureInfo.InvariantCulture);
     }
 
     private static string GenerateTemporaryPassword()
