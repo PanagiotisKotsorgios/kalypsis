@@ -135,6 +135,70 @@ public sealed class DesktopLicenseTrialTests
     }
 
     [Fact]
+    public async Task Missing_server_registration_returns_registration_form_without_granting_access()
+    {
+        var clock = TestScaffold.ClockAt(Start);
+        await using var db = TestScaffold.NewDb(TestScaffold.PlatformAdmin(), clock);
+        var controller = Controller(db, clock);
+
+        // An old installation still has its local registration code, identity
+        // and protected token after reinstalling. Only the server row is absent.
+        var missing = Status(await controller.Check(CheckBody(), default));
+        Assert.Equal("Unregistered", missing.Status);
+        Assert.False(missing.CanUse);
+        Assert.Empty(missing.RegistrationCode);
+        Assert.Null(missing.AccessExpiresAtUtc);
+        Assert.Empty(db.DesktopLicenses.IgnoreQueryFilters());
+
+        var registered = Status(await controller.Register(Registration(), default));
+        Assert.Equal("Trial", registered.Status);
+        Assert.True(registered.CanUse);
+        Assert.Equal(Start.AddDays(30), registered.AccessExpiresAtUtc);
+        Assert.Equal(registered.RegistrationCode, Status(await controller.Check(CheckBody(), default)).RegistrationCode);
+        Assert.Single(db.DesktopLicenses);
+    }
+
+    [Theory]
+    [InlineData("expired")]
+    [InlineData("blocked")]
+    [InlineData("deleted")]
+    [InlineData("wrong-token")]
+    public async Task Existing_licenses_never_fall_back_to_unregistered(string condition)
+    {
+        var clock = TestScaffold.ClockAt(Start);
+        await using var db = TestScaffold.NewDb(TestScaffold.PlatformAdmin(), clock);
+        var controller = Controller(db, clock);
+        var original = Status(await controller.Register(Registration(), default));
+        var row = Assert.Single(db.DesktopLicenses);
+        if (condition == "expired") clock.UtcNow = Start.AddDays(31);
+        if (condition == "blocked") row.IsBlocked = true;
+        if (condition == "deleted") row.DeletedAt = Start;
+        await db.SaveChangesAsync();
+
+        var response = await Controller(db, clock, condition == "wrong-token" ? new string('x', 40) : Token)
+            .Check(CheckBody(), default);
+        if (condition is "deleted" or "wrong-token")
+            Assert.IsType<UnauthorizedObjectResult>(response.Result);
+        else
+        {
+            var status = Status(response);
+            Assert.False(status.CanUse);
+            Assert.Equal(condition == "expired" ? "Expired" : "Blocked", status.Status);
+        }
+        Assert.Equal(original.AccessExpiresAtUtc, row.TrialExpiresAtUtc);
+        Assert.Single(db.DesktopLicenses.IgnoreQueryFilters());
+    }
+
+    [Fact]
+    public async Task Missing_token_cannot_request_registration_recovery()
+    {
+        var clock = TestScaffold.ClockAt(Start);
+        await using var db = TestScaffold.NewDb(TestScaffold.PlatformAdmin(), clock);
+        Assert.IsType<UnauthorizedObjectResult>((await Controller(db, clock, null).Check(CheckBody(), default)).Result);
+        Assert.Empty(db.DesktopLicenses.IgnoreQueryFilters());
+    }
+
+    [Fact]
     public void Trial_columns_match_the_migration_snapshot()
     {
         TestScaffold.EnsureEncryptorBooted();

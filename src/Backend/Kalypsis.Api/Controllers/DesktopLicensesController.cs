@@ -132,9 +132,20 @@ public sealed class DesktopLicensesController : ControllerBase
         var tokenHash = HashToken(token);
         var license = await _db.DesktopLicenses.IgnoreQueryFilters()
             .Include(x => x.Payments.Where(p => p.DeletedAt == null))
-            .FirstOrDefaultAsync(x => x.InstallationId == request.InstallationId.Trim() && x.DeletedAt == null, cancellationToken);
+            .FirstOrDefaultAsync(x => x.InstallationId == request.InstallationId.Trim(), cancellationToken);
 
-        if (license is null || !TokenMatches(license.ClientTokenHash, tokenHash))
+        // Reinstalling keeps the DPAPI-protected local identity. If that identity
+        // was never registered with this service (e.g. an older test environment),
+        // let Desktop show its registration form instead of a terminal lockout.
+        // Do not issue access here, replace the identity, or reset an existing
+        // trial. Deleted licenses must remain distinguishable from missing ones.
+        if (license is null)
+            return Ok(new DesktopLicenseStatusResponse(
+                "Unregistered", false, string.Empty, string.Empty,
+                null, null, null, WarningDays, DefaultAnnualPrice(), DefaultCurrency(), PaymentUrl(),
+                "Καταχωρήστε τα στοιχεία του γραφείου και ξεκινήστε δωρεάν δοκιμή 30 ημερών."));
+
+        if (license.DeletedAt is not null || !TokenMatches(license.ClientTokenHash, tokenHash))
             return Unauthorized(new { message = "Η άδεια της εγκατάστασης δεν αναγνωρίστηκε." });
 
         license.MachineName = Clean(request.MachineName) ?? license.MachineName;
