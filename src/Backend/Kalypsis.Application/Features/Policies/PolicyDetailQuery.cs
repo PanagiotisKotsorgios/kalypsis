@@ -118,6 +118,8 @@ public record PolicyDetailDto(
     decimal ProducerDue = 0m,
     decimal ProducerPaid = 0m,
     decimal ProducerOutstanding = 0m,
+    // Agency income is recognised proportionally to recorded premium receipts.
+    // The uncollected expected amount is not an office payment obligation.
     decimal AgencyCommissionExpected = 0m,
     decimal AgencyCommissionReceived = 0m,
     decimal AgencyCommissionOutstanding = 0m,
@@ -278,7 +280,7 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
             .CountAsync(x => x.PolicyId == p.Id && x.DeletedAt == null, ct);
 
         var totalReceived = await _db.Receipts
-            .Where(x => x.PolicyId == p.Id && x.DeletedAt == null)
+            .Where(x => x.PolicyId == p.Id && x.DeletedAt == null && x.Currency == p.Currency)
             .SumAsync(x => (decimal?)x.Amount, ct) ?? 0m;
         var totalCommissions = await _db.CommissionTransactions
             .Where(x => x.PolicyId == p.Id && x.DeletedAt == null)
@@ -352,7 +354,16 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
             if (raw is not null) bridgeAgencyCommission = raw;
         }
         catch { /* best-effort */ }
-        var agencyReceived = bridgeAgencyCommission ?? 0m;
+        // CommissionEarned bridge postings describe the imported commission;
+        // they are not proof of cash collection. Recognise the office share
+        // from actual receipts, including partial collections, and cap it at
+        // the configured commission so an overpayment cannot create income.
+        // Deriving this snapshot also reflects receipt edits/deletions without
+        // creating another commission posting or counting bridge data twice.
+        var agencyReceived = p.Premium > 0m
+            ? Math.Round(agencyExpected * Math.Clamp(totalReceived / p.Premium, 0m, 1m),
+                2, MidpointRounding.AwayFromZero)
+            : 0m;
 
         // Cover breakdown. Wrapped so a missing table (partial deploy on an
         // old DB) doesn't fail the whole detail load — the safety net will

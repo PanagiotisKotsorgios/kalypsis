@@ -27,6 +27,7 @@
     "test:claim-layout": "node --experimental-strip-types --test src/pages/claimsResponsive.test.mjs",
     "test:edit-card-routing": "node --experimental-strip-types --test src/components/profile/editCardRouting.test.mjs",
     "test:policy-renewal": "node --experimental-strip-types --test src/components/policyRenewalPremiums.test.mjs",
+    "test:policy-settlement": "node --experimental-strip-types --test --test-concurrency=1 src/components/profile/policySettlement.test.mjs",
     "test:policy-quick-actions": "node --experimental-strip-types --test --test-concurrency=1 src/components/profile/policyQuickActions.test.mjs"
   },
   "dependencies": {

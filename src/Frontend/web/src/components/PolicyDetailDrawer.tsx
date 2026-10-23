@@ -1190,7 +1190,7 @@ function settlementAmount(value: number | undefined, currency: string) {
   return `${(value ?? 0).toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
 }
 
-function PolicySettlementPanel({ policy, readOnly, onSettle }: {
+export function PolicySettlementPanel({ policy, readOnly, onSettle }: {
   policy: PolicyDetail;
   readOnly: boolean;
   onSettle: (mode: PolicySettlementMode) => void;
@@ -1223,15 +1223,6 @@ function PolicySettlementPanel({ policy, readOnly, onSettle }: {
       actionLabel: "Πληρωμή συνεργάτη",
       color: "info" as const,
     },
-    {
-      title: "Αναμενόμενη προμήθεια έδρας",
-      due: policy.agencyCommissionExpected,
-      paid: policy.agencyCommissionReceived,
-      outstanding: policy.agencyCommissionOutstanding,
-      action: null,
-      actionLabel: "",
-      color: "primary" as const,
-    },
   ];
   return (
     <Box sx={{ p: 1.25, borderRadius: 1.25, border: "1px solid", borderColor: "rgba(11,92,173,.25)", bgcolor: "rgba(239,246,255,.72)" }}>
@@ -1240,7 +1231,7 @@ function PolicySettlementPanel({ policy, readOnly, onSettle }: {
       </Typography>
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }, gap: .9 }}>
         {rows.map(row => (
-          <Box key={row.title} sx={{ p: .9, borderRadius: 1, bgcolor: "background.paper", border: "1px solid", borderColor: "divider" }}>
+          <Box key={row.title} data-settlement-obligation={row.action} sx={{ p: .9, borderRadius: 1, bgcolor: "background.paper", border: "1px solid", borderColor: "divider" }}>
             <Typography variant="caption" fontWeight={800} display="block" color={`${row.color}.dark`}>{row.title}</Typography>
             <Stack spacing={.5} sx={{ mt: .45 }}>
               <Typography variant="body2"><strong>Υποχρέωση:</strong> {settlementAmount(row.due, policy.currency)}</Typography>
@@ -1254,9 +1245,16 @@ function PolicySettlementPanel({ policy, readOnly, onSettle }: {
             )}
           </Box>
         ))}
+        <Box data-commission-income="agency" sx={{ p: .9, borderRadius: 1, bgcolor: "#edf7f0", border: "1px solid", borderColor: "success.light" }}>
+          <Typography variant="caption" fontWeight={800} display="block" color="success.dark">Προμήθεια έδρας</Typography>
+          <Stack spacing={.5} sx={{ mt: .45 }}>
+            <Typography variant="body2"><strong>Προμήθεια συμβολαίου:</strong> {settlementAmount(policy.agencyCommissionExpected, policy.currency)}</Typography>
+            <Typography variant="body2" color="success.dark"><strong>Εισπραχθείσα προμήθεια:</strong> {settlementAmount(policy.agencyCommissionReceived, policy.currency)}</Typography>
+          </Stack>
+        </Box>
       </Box>
       <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: .9 }}>
-        Οι «Πληρωμές» ενημερώνονται μόνο μετά από πραγματική καταχώρηση. Η δημιουργία συμβολαίου δημιουργεί υποχρέωση, όχι αυτόματη εξόφληση.
+        Οι πληρωμές ενημερώνονται μετά την καταχώρησή τους. Η προμήθεια έδρας είναι έσοδο του γραφείου και ενημερώνεται αναλογικά με τις εισπράξεις του συμβολαίου.
       </Typography>
     </Box>
   );
