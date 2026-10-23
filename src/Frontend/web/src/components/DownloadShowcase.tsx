@@ -51,7 +51,7 @@ export const CLI_SCREENSHOTS: Screenshot[] = [
     description: { el: "Αναλυτικά στοιχεία συμβολαίου, προμήθειες και πιστωτικά.", en: "Policy details, commissions and credit notes." } },
 ];
 
-export function ScreenshotGallery({ images, title, english }: { images: Screenshot[]; title: string; english: boolean }) {
+export function ScreenshotGallery({ images, title, english, showDescriptions = true }: { images: Screenshot[]; title: string; english: boolean; showDescriptions?: boolean }) {
   const [selected, setSelected] = useState(0);
   const [open, setOpen] = useState(false);
   const id = useId();
@@ -74,9 +74,9 @@ export function ScreenshotGallery({ images, title, english }: { images: Screensh
         <Box component="img" src={imageRoot + current.file} alt={label} width={current.width} height={current.height} loading="lazy" decoding="async"
           sx={{ display: "block", width: "100%", height: "100%", objectFit: "contain" }} />
       </ButtonBase>
-      <Box component="figcaption" aria-live="polite" sx={{ p: { xs: 1.5, sm: 2 }, bgcolor: "#fff" }}>
+      {showDescriptions && <Box component="figcaption" aria-live="polite" sx={{ p: { xs: 1.5, sm: 2 }, bgcolor: "#fff" }}>
         <Typography sx={{ color: "#3d4f6b", fontSize: 14, lineHeight: 1.6 }}>{text(current.description, english)}</Typography>
-      </Box>
+      </Box>}
     </Box>
     <Box sx={{ mt: 1.5, display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: `repeat(${images.length}, minmax(0, 1fr))` }, gap: { xs: 1, sm: 1.25 } }}>
       {images.map((image, index) => <ButtonBase key={image.file} onClick={() => setSelected(index)} aria-pressed={selected === index} aria-label={text(image.title, english)}

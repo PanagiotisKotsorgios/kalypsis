@@ -90,7 +90,7 @@ function ProductSection({ product, english }: { product: Product; english: boole
           bgcolor: NAVY, minWidth: 0, display: "flex", alignItems: "center", p: { xs: 2, sm: 3, lg: 4 },
           "& > [role='group']": { width: "100%" },
         }}>
-          <ScreenshotGallery images={images} title={name} english={english} />
+          <ScreenshotGallery images={images} title={name} english={english} showDescriptions={false} />
         </Box>
       </Box>
     </Container>
