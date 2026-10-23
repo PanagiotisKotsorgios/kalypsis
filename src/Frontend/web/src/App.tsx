@@ -784,6 +784,7 @@ export default function App() {
     && !location.pathname.startsWith("/insurance")
     && !location.pathname.startsWith("/ermes-app");
   const showPreloginDownload = !location.pathname.startsWith("/app")
+    && location.pathname.replace(/\/+$/, "") !== "/contact"
     && !location.pathname.startsWith("/insurance")
     && !location.pathname.startsWith("/ermes-app")
     && !location.pathname.startsWith("/frontoffice-quoting")

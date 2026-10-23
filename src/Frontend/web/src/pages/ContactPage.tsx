@@ -305,14 +305,7 @@ export function ContactPage() {
             }}>
               <ChatBubbleOutlineIcon sx={{ fontSize: 22, opacity: 0.85 }} />
               <Box sx={{ flex: 1 }}>
-                <Typography sx={{
-                  fontSize: 11, letterSpacing: "0.22em",
-                  textTransform: "uppercase", fontWeight: 600,
-                  color: "rgba(255,255,255,0.72)"
-                }}>
-                  Support · Sales · Bug reports
-                </Typography>
-                <Typography sx={{ fontSize: 15, fontWeight: 700, mt: 0.25 }}>
+                <Typography sx={{ fontSize: 15, fontWeight: 700 }}>
                   {t("contact.form.header", "Φόρμα επικοινωνίας")}
                 </Typography>
               </Box>
