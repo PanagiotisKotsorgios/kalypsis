@@ -4,12 +4,11 @@ import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import PaymentIcon from "@mui/icons-material/Payment";
 import PaidIcon from "@mui/icons-material/Paid";
-import { useSearchParams } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { ReceiptsPage } from "./ReceiptsPage";
 import { PaymentsPage } from "./PaymentsPage";
 import { FinancialMovementsPage } from "./FinancialMovementsPage";
 import { CashPositionPage } from "./CashPositionPage";
-import { GeneralLedgerPage } from "./GeneralLedgerPage";
 import { GeneralFinancialEntriesPage } from "./GeneralFinancialEntriesPage";
 import { SecuritiesPage } from "./SecuritiesPage";
 import { CreditNotesPage } from "./CreditNotesPage";
@@ -67,7 +66,6 @@ const TABS = [
   { key: "securities", label: "Αξιόγραφα", Component: SecuritiesPage },
   { key: "creditNotes", label: "Πιστωτικά", Component: CreditNotesPage },
   { key: "customerAccounts", label: "Υπόλοιπα πελατών", Component: CustomerAccountsPage },
-  { key: "gl", label: "Λογιστική", Component: GeneralLedgerPage },
 ] as const;
 
 // Every deep-link that could target one of the three merged sub-views
@@ -77,8 +75,8 @@ const TABS = [
 const MERGED_CASH_KEYS = new Set<string>(["cash", "receipts", "payments"]);
 
 /**
- * Unified financials workspace. The five separate pages (Receipts, Payments,
- * Movements, Cash, GL) share a customer/date focus and operators bounce
+ * Unified financials workspace. Receipts, payments, movements and cash
+ * share a customer/date focus and operators bounce
  * between them constantly. Rendering them as tabs on one page cuts the
  * sidebar noise and preserves scroll/filter state within a session.
  */
@@ -104,6 +102,11 @@ export function FinancialsPage() {
     setSearch(next, { replace: true });
   };
 
+  // Retired ledger bookmarks return to the remaining financial workspace.
+  if (search.get("tab") === "gl") {
+    return <Navigate to="/app/financials" replace />;
+  }
+
   const Active = TABS[tab].Component;
 
   return (
@@ -113,7 +116,7 @@ export function FinancialsPage() {
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 800 }}>Οικονομικά</Typography>
           <Typography color="text.secondary">
-            Εισπράξεις, πληρωμές, κινήσεις, ταμείο και λογιστική σε ένα workspace.
+            Εισπράξεις, πληρωμές, κινήσεις και ταμείο σε έναν ενιαίο χώρο.
           </Typography>
         </Box>
       </Stack>

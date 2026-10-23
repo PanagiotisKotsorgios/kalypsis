@@ -45,13 +45,13 @@ test("financial screens render compact modal filters and consistent receipts", a
       }}}}});
       return renderToStaticMarkup(h(QueryClientProvider,{client},h(ThemeProvider,{theme},h(AuthProvider,null,h(UndoProvider,null,h(MemoryRouter,null,child))))));
     };
-    const names=["CashPositionPage","ReceiptsPage","PaymentsPage","FinancialMovementsPage","GeneralFinancialEntriesPage","SecuritiesPage","CreditNotesPage","CustomerAccountsPage","GeneralLedgerPage","FinancialReportPage","ProducerStatementPage","CommissionRunsPage","AdvancePaymentsPage"];
+    const names=["CashPositionPage","ReceiptsPage","PaymentsPage","FinancialMovementsPage","GeneralFinancialEntriesPage","SecuritiesPage","CreditNotesPage","CustomerAccountsPage","FinancialReportPage","ProducerStatementPage","CommissionRunsPage","AdvancePaymentsPage"];
     const pages=[];
     for(const name of names){
       const module=await server.ssrLoadModule(`/src/pages/${name==="AdvancePaymentsPage"?"Phase13Pages":name}.tsx`);
       pages.push([name,module[name]]);
     }
-    await context.test("all thirteen financial lists: 320–1366px use a green button, not compressed inline controls",()=>{
+    await context.test("all twelve financial lists: 320–1366px use a green button, not compressed inline controls",()=>{
       for(const width of [320,360,768,1024,1366])for(const [name,Component]of pages){
         const html=render(h(Component),width);
         for(const expected of ["data-financial-filters",'aria-haspopup="dialog"',"#159B59","#107B46","color:#fff"])assert.ok(html.includes(expected),`${name} ${width}: ${expected}`);

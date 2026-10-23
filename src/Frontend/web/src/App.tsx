@@ -1215,7 +1215,7 @@ export default function App() {
                   <Route path="payments" element={<Navigate to="/app/financials?tab=payments" replace />} />
                   <Route path="financial-movements" element={<Navigate to="/app/financials?tab=movements" replace />} />
                   <Route path="cash" element={<Navigate to="/app/financials?tab=cash" replace />} />
-                  <Route path="gl" element={<Navigate to="/app/financials?tab=gl" replace />} />
+                  <Route path="gl" element={<Navigate to="/app/financials" replace />} />
                   <Route path="bridge-import" element={<Navigate to="/app/carrier-bridges-hub" replace />} />
                   <Route path="platform/carriers" element={<PlatformCarriersPage />} />
                   <Route path="platform/oc-bridges" element={<PlatformOverCommissionBridgesPage />} />
