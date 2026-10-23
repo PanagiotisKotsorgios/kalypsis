@@ -37,7 +37,7 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { api } from "../api/client";
 import { money, date, dateTime } from "../utils/format";
-import { EntityAuditTimeline } from "./EntityAuditTimeline";
+import { EntityAuditTable } from "./EntityAuditTable";
 
 interface ClaimRow {
   id: string;
@@ -506,7 +506,7 @@ export function ClaimDetailDrawer({
               />
             )}
             {tab === 5 && (
-              <HistoryTab claim={snapshot} policy={policy} onOpen={openLink} />
+              <HistoryTab claim={snapshot} onOpen={openLink} />
             )}
           </>
         )}
@@ -1170,48 +1170,18 @@ function PeopleCommunicationsTab({
   );
 }
 
-function HistoryTab({
+export function HistoryTab({
   claim,
-  policy,
   onOpen,
 }: {
   claim: ClaimRow;
-  policy: PolicyDetail | null | undefined;
   onOpen: (path: string) => void;
 }) {
   return (
     <Stack spacing={1}>
-      <Panel title="Σύνδεσμοι και αρχεία" icon={<DescriptionOutlinedIcon />}>
-        <ClaimInfoFields>
-          <InfoItem
-            label="Αριθμός εγγράφων συμβολαίου"
-            value={policy?.documentCount ?? 0}
-          />
-          <InfoItem
-            label="Δημιουργία ζημιάς"
-            value={claim.createdAt ? dateTime(claim.createdAt) : "—"}
-          />
-          <InfoItem
-            label="Παραδόθηκε συμβόλαιο"
-            value={
-              policy?.deliveredAt
-                ? date(policy.deliveredAt)
-                : "Δεν έχει δηλωθεί"
-            }
-          />
-          <InfoItem label="Μέθοδος παράδοσης" value={policy?.deliveryMethod} />
-          <InfoItem
-            label="Πληρωμή στην ασφαλιστική"
-            value={policy?.paidDirectlyToCarrier ? "Ναι" : "Όχι"}
-          />
-          <InfoItem
-            label="Επόμενη ανανέωση"
-            value={policy?.nextRenewalDate ? date(policy.nextRenewalDate) : "—"}
-          />
-        </ClaimInfoFields>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} mt={1}>
           <Button
-            variant="outlined"
+            variant="contained" color="success" sx={{ color: "#fff" }}
             startIcon={<OpenInNewIcon />}
             onClick={() =>
               onOpen(
@@ -1223,7 +1193,7 @@ function HistoryTab({
           </Button>
           {claim.customerId && (
             <Button
-              variant="outlined"
+              variant="contained" color="success" sx={{ color: "#fff" }}
               startIcon={<OpenInNewIcon />}
               onClick={() => onOpen(`/app/customers/${claim.customerId}`)}
             >
@@ -1231,9 +1201,8 @@ function HistoryTab({
             </Button>
           )}
         </Stack>
-      </Panel>
       <Panel title="Ιστορικό μεταβολών" icon={<HistoryOutlinedIcon />}>
-        <EntityAuditTimeline entityName="Claim" entityId={claim.id} />
+        <EntityAuditTable entityName="Claim" entityId={claim.id} />
       </Panel>
     </Stack>
   );

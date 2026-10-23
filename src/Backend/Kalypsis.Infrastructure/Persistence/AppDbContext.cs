@@ -184,6 +184,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<ClaimProvision> ClaimProvisions => Set<ClaimProvision>();
     public DbSet<ClaimIndemnity> ClaimIndemnities => Set<ClaimIndemnity>();
     public DbSet<Garage> Garages => Set<Garage>();
+    public DbSet<GarageInsuranceCompany> GarageInsuranceCompanies => Set<GarageInsuranceCompany>();
     public DbSet<GlAccount> GlAccounts => Set<GlAccount>();
     public DbSet<GlEntry> GlEntries => Set<GlEntry>();
     public DbSet<CashAccount> CashAccounts => Set<CashAccount>();

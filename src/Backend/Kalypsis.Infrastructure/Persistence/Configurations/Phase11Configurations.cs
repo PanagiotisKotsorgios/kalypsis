@@ -87,6 +87,17 @@ public class GarageConfiguration : IEntityTypeConfiguration<Garage>
         b.Property(x => x.Specialty).HasMaxLength(80);
         b.Property(x => x.Iban).HasMaxLength(40);
         b.Property(x => x.Notes).HasMaxLength(2000);
+        b.Property(x => x.ProfileJson).HasColumnType("longtext");
+    }
+}
+
+public sealed class GarageInsuranceCompanyConfiguration : IEntityTypeConfiguration<GarageInsuranceCompany>
+{
+    public void Configure(EntityTypeBuilder<GarageInsuranceCompany> b)
+    {
+        b.HasIndex(x => new { x.TenantId, x.GarageId, x.InsuranceCompanyId }).IsUnique().HasDatabaseName("IX_GarageCompanies_Tenant_Garage_Company");
+        b.HasOne(x => x.Garage).WithMany(x => x.InsuranceCompanies).HasForeignKey(x => x.GarageId).OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_GarageCompanies_Garage");
+        b.HasOne(x => x.InsuranceCompany).WithMany().HasForeignKey(x => x.InsuranceCompanyId).OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_GarageCompanies_Company");
     }
 }
 

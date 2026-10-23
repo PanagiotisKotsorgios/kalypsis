@@ -185,6 +185,7 @@ public interface IAppDbContext
     DbSet<ClaimProvision> ClaimProvisions { get; }
     DbSet<ClaimIndemnity> ClaimIndemnities { get; }
     DbSet<Garage> Garages { get; }
+    DbSet<GarageInsuranceCompany> GarageInsuranceCompanies { get; }
     DbSet<GlAccount> GlAccounts { get; }
     DbSet<GlEntry> GlEntries { get; }
     DbSet<CashAccount> CashAccounts { get; }

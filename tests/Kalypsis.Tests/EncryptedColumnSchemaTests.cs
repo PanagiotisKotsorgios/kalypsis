@@ -58,7 +58,7 @@ public sealed class EncryptedColumnSchemaTests
                   `Code` varchar(40) NOT NULL, `Name` varchar(200) NOT NULL, `Afm` varchar(20) NULL,
                   `Address` varchar(300) NULL, `City` varchar(120) NULL, `PostalCode` varchar(20) NULL,
                   `Phone` varchar(40) NULL, `Email` varchar(160) NULL, `Specialty` varchar(80) NULL,
-                  `Iban` varchar(40) NULL COMMENT 'Preserve legacy IBAN', `IsApproved` tinyint(1) NOT NULL, `IsActive` tinyint(1) NOT NULL, `Notes` varchar(2000) NULL,
+                  `Iban` varchar(40) NULL COMMENT 'Preserve legacy IBAN', `IsApproved` tinyint(1) NOT NULL, `IsActive` tinyint(1) NOT NULL, `Notes` varchar(2000) NULL, `ProfileJson` longtext NULL,
                   UNIQUE KEY `IX_Garage_Code` (`TenantId`, `Code`)
                 );
                 CREATE TABLE `audit_logs` (

@@ -371,15 +371,18 @@ public class DeleteClaimIndemnityHandler : IRequestHandler<DeleteClaimIndemnityC
    GARAGES (Συνεργεία)
    ========================================================================= */
 
+public record GarageCompanyDto(Guid Id, string Name);
 public record GarageDto(
     Guid Id, string Code, string Name, string? Afm, string? Address, string? City,
     string? PostalCode, string? Phone, string? Email, string? Specialty,
-    bool IsApproved, string? Iban, bool IsActive, string? Notes);
+    bool IsApproved, string? Iban, bool IsActive, string? Notes,
+    GarageProfile? Profile = null, IReadOnlyList<GarageCompanyDto>? InsuranceCompanies = null);
 
 public record GarageBody(
     string? Code, string Name, string? Afm, string? Address, string? City,
     string? PostalCode, string? Phone, string? Email, string? Specialty,
-    bool IsApproved, string? Iban, bool IsActive, string? Notes);
+    bool IsApproved, string? Iban, bool IsActive, string? Notes,
+    GarageProfile? Profile = null, IReadOnlyList<Guid>? InsuranceCompanyIds = null);
 
 public record ListGaragesQuery() : IRequest<IReadOnlyList<GarageDto>>;
 public class ListGaragesHandler : IRequestHandler<ListGaragesQuery, IReadOnlyList<GarageDto>>
@@ -388,12 +391,14 @@ public class ListGaragesHandler : IRequestHandler<ListGaragesQuery, IReadOnlyLis
     public ListGaragesHandler(IAppDbContext db) => _db = db;
     public async Task<IReadOnlyList<GarageDto>> Handle(ListGaragesQuery _, CancellationToken ct)
     {
-        var rows = await _db.Garages.OrderBy(x => x.Name).Take(500).ToListAsync(ct);
+        var rows = await _db.Garages.Include(x => x.InsuranceCompanies).ThenInclude(x => x.InsuranceCompany).OrderBy(x => x.Name).Take(500).ToListAsync(ct);
         return rows.Select(Map).ToList();
     }
     internal static GarageDto Map(Garage g) => new(
         g.Id, g.Code, g.Name, g.Afm, g.Address, g.City, g.PostalCode,
-        g.Phone, g.Email, g.Specialty, g.IsApproved, g.Iban, g.IsActive, g.Notes);
+        g.Phone, g.Email, g.Specialty, g.IsApproved, g.Iban, g.IsActive, g.Notes,
+        GarageInput.ReadProfile(g.ProfileJson), g.InsuranceCompanies.Where(x => x.DeletedAt == null && x.InsuranceCompany is not null)
+            .Select(x => new GarageCompanyDto(x.InsuranceCompanyId, x.InsuranceCompany.Name)).OrderBy(x => x.Name).ToList());
 }
 
 public class GarageBodyValidator : AbstractValidator<GarageBody>
@@ -426,13 +431,17 @@ public class CreateGarageHandler : IRequestHandler<CreateGarageCommand, GarageDt
         var g = new Garage
         {
             Id = Guid.NewGuid(),
+            TenantId = _current.TenantId!.Value, AgencyOfficeScopeId = _current.AgencyOfficeId,
             Code = b.Code!.Trim(), Name = b.Name.Trim(), Afm = b.Afm,
             Address = b.Address, City = b.City, PostalCode = b.PostalCode,
             Phone = b.Phone, Email = b.Email, Specialty = b.Specialty,
             IsApproved = b.IsApproved, Iban = b.Iban, IsActive = b.IsActive, Notes = b.Notes
         };
         _db.Garages.Add(g);
+        await GarageInput.ApplyDetails(_db, g, b, ct);
         await _db.SaveChangesAsync(ct);
+        if (b.InsuranceCompanyIds is not null)
+            await _db.GarageInsuranceCompanies.Where(x => x.GarageId == g.Id).Include(x => x.InsuranceCompany).LoadAsync(ct);
         return ListGaragesHandler.Map(g);
     }
 }
@@ -453,7 +462,9 @@ public class UpdateGarageHandler : IRequestHandler<UpdateGarageCommand, GarageDt
         g.Address = b.Address; g.City = b.City; g.PostalCode = b.PostalCode;
         g.Phone = b.Phone; g.Email = b.Email; g.Specialty = b.Specialty;
         g.IsApproved = b.IsApproved; g.Iban = b.Iban; g.IsActive = b.IsActive; g.Notes = b.Notes;
+        await GarageInput.ApplyDetails(_db, g, b, ct);
         await _db.SaveChangesAsync(ct);
+        await _db.GarageInsuranceCompanies.Where(x => x.GarageId == g.Id).Include(x => x.InsuranceCompany).LoadAsync(ct);
         return ListGaragesHandler.Map(g);
     }
 }
@@ -467,6 +478,11 @@ public class DeleteGarageHandler : IRequestHandler<DeleteGarageCommand, Unit>
     {
         var g = await _db.Garages.FirstOrDefaultAsync(x => x.Id == r.Id, ct)
             ?? throw AppException.NotFound("Garage");
+        DeletionProtection.ThrowIfBlocked($"συνεργείου «{g.Name}»", new[]
+        {
+            new DeletionBlocker("αποζημιώσεις", await _db.ClaimIndemnities.CountAsync(x => x.GarageId == g.Id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("συνεργασίες ασφαλιστικών", await _db.GarageInsuranceCompanies.CountAsync(x => x.GarageId == g.Id && x.DeletedAt == null, ct))
+        });
         g.DeletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
         return Unit.Value;

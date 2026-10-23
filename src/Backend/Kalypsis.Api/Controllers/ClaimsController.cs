@@ -21,8 +21,9 @@ public class ClaimsController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<ClaimDto>>> List(
         [FromQuery] ClaimStatus? status,
         [FromQuery] Guid? policyId,
-        CancellationToken cancellationToken)
-        => Ok(await _mediator.Send(new ListClaimsQuery(status, policyId), cancellationToken));
+        CancellationToken cancellationToken,
+        [FromQuery] Guid? claimId = null)
+        => Ok(await _mediator.Send(new ListClaimsQuery(status, policyId, claimId), cancellationToken));
 
     [HttpPost]
     [Authorize(Policy = "AgencyStaff")]

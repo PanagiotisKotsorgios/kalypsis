@@ -3,10 +3,21 @@ import { customerFieldError } from "../customer/customerValidation";
 export type ClaimSupportKind = "garages" | "friendly-settlements" | "indemnities";
 export interface ClaimSupportField { key: string; label: string; type?: "text" | "date" | "number" | "email"; readonly?: boolean; multiline?: boolean; options?: { value: string; label: string }[] }
 const yesNo = [{ value: "true", label: "Ναι" }, { value: "false", label: "Όχι" }];
+export const GARAGE_PROFILE_FIELDS: ClaimSupportField[] = [
+  { key: "ownerName", label: "Ιδιοκτήτης / νόμιμος εκπρόσωπος" }, { key: "region", label: "Περιοχή / περιφέρεια" },
+  { key: "mobilePhone", label: "Κινητό συνεργείου" }, { key: "contactName", label: "Υπεύθυνος επικοινωνίας" },
+  { key: "contactRole", label: "Θέση / αρμοδιότητα" }, { key: "contactPhone", label: "Τηλέφωνο υπευθύνου" },
+  { key: "contactEmail", label: "Email υπευθύνου", type: "email" }, { key: "secondContactName", label: "Δεύτερη επαφή" },
+  { key: "secondContactPhone", label: "Τηλέφωνο δεύτερης επαφής" }, { key: "secondContactEmail", label: "Email δεύτερης επαφής", type: "email" },
+  { key: "website", label: "Ιστοσελίδα" }, { key: "openingHours", label: "Ωράριο λειτουργίας" },
+  { key: "vehicleBrands", label: "Μάρκες οχημάτων" }, { key: "services", label: "Υπηρεσίες", multiline: true },
+];
+export const GARAGE_PROFILE_KEYS = GARAGE_PROFILE_FIELDS.map(field => field.key);
+const garageField = (key: string) => GARAGE_PROFILE_FIELDS.find(field => field.key === key)!;
 export const CLAIM_SUPPORT_SECTIONS: Record<ClaimSupportKind, { label: string; fields: ClaimSupportField[] }[]> = {
   garages: [
-    { label: "Γενικά", fields: [{ key: "code", label: "Κωδικός" }, { key: "name", label: "Επωνυμία" }, { key: "afm", label: "ΑΦΜ" }, { key: "specialty", label: "Ειδικότητα" }, { key: "isApproved", label: "Εγκεκριμένο", options: yesNo }, { key: "isActive", label: "Ενεργό", options: yesNo }, { key: "iban", label: "IBAN" }] },
-    { label: "Επικοινωνία", fields: [{ key: "address", label: "Διεύθυνση" }, { key: "city", label: "Πόλη" }, { key: "postalCode", label: "Τ.Κ." }, { key: "phone", label: "Τηλέφωνο" }, { key: "email", label: "Email", type: "email" }] },
+    { label: "Γενικά", fields: [{ key: "code", label: "Κωδικός" }, { key: "name", label: "Επωνυμία" }, garageField("ownerName"), { key: "afm", label: "ΑΦΜ" }, { key: "specialty", label: "Ειδικότητα" }, garageField("vehicleBrands"), garageField("services"), garageField("openingHours"), { key: "isApproved", label: "Εγκεκριμένο", options: yesNo }, { key: "isActive", label: "Ενεργό", options: yesNo }, { key: "iban", label: "IBAN" }] },
+    { label: "Επικοινωνία", fields: [{ key: "address", label: "Διεύθυνση" }, { key: "city", label: "Πόλη" }, garageField("region"), { key: "postalCode", label: "Τ.Κ." }, { key: "phone", label: "Σταθερό συνεργείου" }, garageField("mobilePhone"), { key: "email", label: "Email συνεργείου", type: "email" }, garageField("website"), ...["contactName", "contactRole", "contactPhone", "contactEmail", "secondContactName", "secondContactPhone", "secondContactEmail"].map(garageField)] },
     { label: "Σημειώσεις", fields: [{ key: "notes", label: "Σημειώσεις", multiline: true }] },
   ],
   "friendly-settlements": [
@@ -22,12 +33,13 @@ export const CLAIM_SUPPORT_SECTIONS: Record<ClaimSupportKind, { label: string; f
 /** Preserve hidden historical values and associations; only existing PUT endpoints are supported. */
 export function claimSupportUpdate(kind: ClaimSupportKind, current: Record<string, unknown>, changes: Record<string, string>, { allowGeneratedGarageCode = false } = {}) {
   const fields = CLAIM_SUPPORT_SECTIONS[kind].flatMap(section => section.fields).filter(field => !field.readonly);
-  const next = { ...current };
+  const next = { ...current, ...(kind === "garages" && current.profile && typeof current.profile === "object" ? current.profile : {}) } as Record<string, unknown>;
   for (const [key, raw] of Object.entries(changes)) {
     const field = fields.find(field => field.key === key);
     if (!field) throw new Error("Μη υποστηριζόμενο πεδίο.");
     const value = raw.trim();
-    const error = customerFieldError(key === "afm" ? "vatNumber" : key, value);
+    const contactKey = /phone$/i.test(key) ? "phone" : /email$/i.test(key) ? "email" : key === "afm" ? "vatNumber" : key;
+    const error = customerFieldError(contactKey, value);
     if (error) throw new Error(error);
     if (field.type === "number") {
       const number = value ? Number(value) : null;
@@ -52,9 +64,20 @@ export function claimSupportUpdate(kind: ClaimSupportKind, current: Record<strin
     for (const [key, limit] of Object.entries({ paymentNumber: 40, payeeName: 200, reference: 80, notes: 2000 })) if (String(next[key] ?? "").length > limit) throw new Error(`Το πεδίο «${fields.find(field => field.key === key)?.label}» δέχεται έως ${limit} χαρακτήρες.`);
   }
   if (kind !== "garages" && !/^[A-Za-z]{3}$/.test(String(next.currency))) throw new Error("Συμπληρώστε νόμισμα με 3 γράμματα, π.χ. EUR.");
-  const keys = fields.map(field => field.key);
+  if (kind === "garages") {
+    if (next.website) {
+      try { const url = new URL(String(next.website)); if (!["https:", "http:"].includes(url.protocol) || url.username || url.password) throw new Error(); }
+      catch { throw new Error("Συμπληρώστε ιστοσελίδα με https:// ή http://."); }
+    }
+    for (const key of GARAGE_PROFILE_KEYS) if (String(next[key] ?? "").length > (key === "services" ? 1000 : key === "website" ? 500 : 200)) throw new Error("Το πεδίο υπερβαίνει το επιτρεπόμενο μήκος.");
+  }
+  const keys = fields.map(field => field.key).filter(key => kind !== "garages" || !GARAGE_PROFILE_KEYS.includes(key));
   if (kind === "friendly-settlements") keys.push("claimId", "vatAmount");
   const payload = Object.fromEntries(keys.map(key => [key, next[key] ?? null]));
+  if (kind === "garages") {
+    payload.profile = Object.fromEntries(GARAGE_PROFILE_KEYS.map(key => [key, next[key] ?? null]));
+    payload.insuranceCompanyIds = current.insuranceCompanyIds ?? (Array.isArray(current.insuranceCompanies) ? current.insuranceCompanies.map(company => company.id) : null);
+  }
   if (kind !== "garages") payload.currency = String(payload.currency).toUpperCase();
   return payload;
 }

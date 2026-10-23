@@ -1068,6 +1068,7 @@ public class InsuranceCompaniesController : ControllerBase
             new DeletionBlocker("ομαδικά συμβόλαια", await _db.GroupPolicies.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
             new DeletionBlocker("πληρωμές", await _db.Payments.IgnoreQueryFilters().CountAsync(x => x.BeneficiaryInsuranceCompanyId == id && x.DeletedAt == null, ct)),
             new DeletionBlocker("οικονομικές κινήσεις", await _db.FinancialMovements.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
+            new DeletionBlocker("συνεργαζόμενα συνεργεία", await _db.GarageInsuranceCompanies.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
             new DeletionBlocker("πιστωτικά", await _db.CreditNotes.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
             new DeletionBlocker("κανόνες προμηθειών", await _db.CommissionRules.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),
             new DeletionBlocker("γραμμές εκκαθαρίσεων", await _db.CommissionRunLines.IgnoreQueryFilters().CountAsync(x => x.InsuranceCompanyId == id && x.DeletedAt == null, ct)),

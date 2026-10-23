@@ -175,7 +175,7 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
         }
       }
       const source = await readFile(new URL("../ClaimDetailDrawer.tsx", import.meta.url), "utf8");
-      assert.equal((source.match(/<ClaimInfoFields>/g) ?? []).length, 7);
+      assert.equal((source.match(/<ClaimInfoFields>/g) ?? []).length, 6);
       assert.ok(!source.includes("InfoGrid"));
       assert.ok(!source.includes("profileFieldGridSx"));
       const item = source.slice(source.indexOf("function InfoItem("), source.indexOf("function KPI("));

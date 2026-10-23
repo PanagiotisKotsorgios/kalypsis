@@ -19,11 +19,13 @@ public class AuditLogsController : ControllerBase
     [HttpGet("entity/{entityName}/{entityId}")]
     [Authorize(Policy = "AgencyStaff")]
     public async Task<ActionResult<AuditLogPageDto>> ForEntity(
-        string entityName, string entityId, CancellationToken ct)
+        string entityName, string entityId, CancellationToken ct,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 50,
+        [FromQuery] string? search = null, [FromQuery] string? action = null)
         => Ok(await _mediator.Send(new ListAuditLogsQuery(
-            EntityName: entityName, Action: null, TenantId: null, UserId: null,
-            Category: null, Search: null, From: null, To: null,
-            Page: 1, PageSize: 50, EntityId: entityId), ct));
+            EntityName: entityName, Action: action, TenantId: null, UserId: null,
+            Category: null, Search: search, From: null, To: null,
+            Page: Math.Max(1, page), PageSize: Math.Clamp(pageSize, 1, 100), EntityId: entityId), ct));
 
     [HttpGet]
     public async Task<ActionResult<AuditLogPageDto>> List(

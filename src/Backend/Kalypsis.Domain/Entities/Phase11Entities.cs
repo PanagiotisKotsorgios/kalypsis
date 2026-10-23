@@ -91,7 +91,23 @@ public class Garage : TenantEntity
     public string? Iban { get; set; }
     public bool IsActive { get; set; } = true;
     public string? Notes { get; set; }
+    public string? ProfileJson { get; set; }
+    public List<GarageInsuranceCompany> InsuranceCompanies { get; set; } = new();
 }
+
+public sealed class GarageInsuranceCompany : TenantEntity
+{
+    public Guid GarageId { get; set; }
+    public Garage Garage { get; set; } = null!;
+    public Guid InsuranceCompanyId { get; set; }
+    public InsuranceCompany InsuranceCompany { get; set; } = null!;
+}
+
+public sealed record GarageProfile(
+    string? OwnerName = null, string? Region = null, string? MobilePhone = null,
+    string? ContactName = null, string? ContactRole = null, string? ContactPhone = null, string? ContactEmail = null,
+    string? SecondContactName = null, string? SecondContactPhone = null, string? SecondContactEmail = null,
+    string? Website = null, string? OpeningHours = null, string? VehicleBrands = null, string? Services = null);
 
 // ----- Λογιστικό σχέδιο (GL chart of accounts) -----
 public class GlAccount : TenantEntity

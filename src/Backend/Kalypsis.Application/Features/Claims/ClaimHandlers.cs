@@ -10,7 +10,7 @@ namespace Kalypsis.Application.Features.Claims;
 
 /* ========= List ========= */
 
-public record ListClaimsQuery(ClaimStatus? Status, Guid? PolicyId) : IRequest<IReadOnlyList<ClaimDto>>;
+public record ListClaimsQuery(ClaimStatus? Status, Guid? PolicyId, Guid? Id = null) : IRequest<IReadOnlyList<ClaimDto>>;
 
 public class ListClaimsQueryHandler : IRequestHandler<ListClaimsQuery, IReadOnlyList<ClaimDto>>
 {
@@ -43,6 +43,7 @@ public class ListClaimsQueryHandler : IRequestHandler<ListClaimsQuery, IReadOnly
 
         if (request.Status.HasValue) q = q.Where(c => c.Status == request.Status.Value);
         if (request.PolicyId.HasValue) q = q.Where(c => c.PolicyId == request.PolicyId.Value);
+        if (request.Id.HasValue) q = q.Where(c => c.Id == request.Id.Value);
 
         var rows = await q.OrderByDescending(c => c.CreatedAt).Take(500).ToListAsync(ct);
         return rows.Select(ToDto).ToList();

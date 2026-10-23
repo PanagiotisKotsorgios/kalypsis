@@ -6616,6 +6616,7 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.Garage", b =>
                 {
+                    b.Property<string>("ProfileJson").HasColumnType("longtext");
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
@@ -6693,6 +6694,23 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Garages");
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.GarageInsuranceCompany", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("char(36)");
+                    b.Property<Guid>("GarageId").HasColumnType("char(36)");
+                    b.Property<Guid>("InsuranceCompanyId").HasColumnType("char(36)");
+                    b.Property<Guid>("TenantId").HasColumnType("char(36)");
+                    b.Property<Guid?>("AgencyOfficeScopeId").HasColumnType("char(36)");
+                    b.Property<DateTime>("CreatedAt").HasColumnType("datetime(6)");
+                    b.Property<DateTime?>("UpdatedAt").HasColumnType("datetime(6)");
+                    b.Property<DateTime?>("DeletedAt").HasColumnType("datetime(6)");
+                    b.HasKey("Id");
+                    b.HasIndex("GarageId");
+                    b.HasIndex("InsuranceCompanyId");
+                    b.HasIndex("TenantId", "GarageId", "InsuranceCompanyId").IsUnique().HasDatabaseName("IX_GarageCompanies_Tenant_Garage_Company");
+                    b.ToTable("GarageInsuranceCompanies");
                 });
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.GdprErasureRequest", b =>
@@ -18122,6 +18140,14 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                 {
                     b.Navigation("Actions");
                 });
+            modelBuilder.Entity("Kalypsis.Domain.Entities.GarageInsuranceCompany", b =>
+                {
+                    b.HasOne("Kalypsis.Domain.Entities.Garage", "Garage").WithMany("InsuranceCompanies").HasForeignKey("GarageId").OnDelete(DeleteBehavior.Restrict).IsRequired().HasConstraintName("FK_GarageCompanies_Garage");
+                    b.HasOne("Kalypsis.Domain.Entities.InsuranceCompany", "InsuranceCompany").WithMany().HasForeignKey("InsuranceCompanyId").OnDelete(DeleteBehavior.Restrict).IsRequired().HasConstraintName("FK_GarageCompanies_Company");
+                    b.Navigation("Garage");
+                    b.Navigation("InsuranceCompany");
+                });
+            modelBuilder.Entity("Kalypsis.Domain.Entities.Garage", b => { b.Navigation("InsuranceCompanies"); });
 #pragma warning restore 612, 618
         }
     }
