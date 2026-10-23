@@ -1049,7 +1049,6 @@ function PolicyFormDialog({
   // Full server-side customer search (ΑΦΜ / κινητό / email / όνομα κ.λπ.) —
   // no more «τα πρώτα 500» wall. See useCustomerSearch for the debounce +
   // selected-customer inclusion logic.
-  const customerSearch = useCustomerSearch(null);
   // Non-null string = inline "new customer" dialog open (with that string
   // as the prefill). Null = closed. Kept as a separate state so the parent
   // dialog stays interactive underneath.
@@ -1098,13 +1097,8 @@ function PolicyFormDialog({
     paymentCollectionMethod: "Cash"
   });
   const [error, setError] = useState<string | null>(null);
+  const customerSearch = useCustomerSearch(form.customerId);
   const dialogCatalogue = useCarrierCatalogue(form.insuranceCompanyId);
-  // Auto-save the new-policy draft to localStorage so a lost tab or
-  // accidental close leaves the operator right where they were. Only
-  // active for CREATE (editing an existing policy shouldn't accidentally
-  // overwrite a stashed draft from a different day).
-  const { clearDraft, hasDraft } = useDraftPersistence<FormBody>(
-    "policy-new", user?.userId ?? null, form, setForm, open && !editing);
 
   useEffect(() => {
     if (policy) {
@@ -1156,8 +1150,14 @@ function PolicyFormDialog({
     }
   }, [policy, open, initialStatus]);
 
+  // Initialise defaults first, then silently restore the draft. Reversing
+  // these effects overwrote restored input with an empty form on opening.
+  const { clearDraft, hasDraft, hydrated } = useDraftPersistence<FormBody>(
+    "policy-new", user?.userId ?? null, form,
+    restored => setForm(previous => ({ ...previous, ...restored })), open && !editing);
+
   useEffect(() => {
-    if (open && !editing && !hasDraft && workflowSettings.data) {
+    if (open && !editing && hydrated && !hasDraft && workflowSettings.data) {
       const map = new Map(workflowSettings.data.map(x => [x.keyName, x.value]));
       setForm(prev => ({
         ...prev,
@@ -1165,7 +1165,7 @@ function PolicyFormDialog({
         createReceipt: map.get("AutoCreateReceiptOnPolicy") === "true",
       }));
     }
-  }, [workflowSettings.data, open, editing, hasDraft]);
+  }, [workflowSettings.data, open, editing, hasDraft, hydrated]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -1205,284 +1205,167 @@ function PolicyFormDialog({
       }
     },
     onSuccess: () => { clearDraft(); onSaved(); },
-    onError: (err) => { clearDraft(); setError(extractErrorMessage(err)); }
+    onError: (err) => setError(extractErrorMessage(err))
   });
 
   // customer options come from useCustomerSearch (server-side filtered).
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg"
-      PaperProps={{ sx: { maxHeight: "calc(100vh - 24px)", bgcolor: "#edf3f9", border: "1px solid #d6e3f0", borderRadius: 2 } }}>
-      <DialogTitle>{editing ? t("policies.form.editTitle") : t("policies.form.createTitle")}</DialogTitle>
-      <DialogContent sx={{ p: { xs: 1.5, md: 2 }, bgcolor: "#edf3f9" }}>
-        {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
-        {!editing && hasDraft && (
-          <Alert severity="info" sx={{ mb: 2 }} action={
-            <Button size="small" onClick={() => { clearDraft(); window.location.reload(); }} color="error" variant="contained">Καθαρισμός</Button>
-          }>
-            Επαναφέραμε τα δεδομένα από την προηγούμενη σύνοδο.
-          </Alert>
-        )}
-        <Stack spacing={1.5} mt={1} sx={{
-          p: { xs: 1.25, md: 1.75 },
-          bgcolor: "#f8fafc",
-          border: "1px solid #d6e3f0",
-          borderRadius: 1.5,
-          "& .MuiTextField-root, & .MuiFormControl-root": { bgcolor: "#fff" },
-          "& .MuiOutlinedInput-notchedOutline": { borderColor: "#b8c9da" },
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg" aria-labelledby="policy-form-title"
+      PaperProps={{ sx: {
+        m: { xs: 1, sm: 1.5 }, width: { xs: "calc(100% - 16px)", sm: "calc(100% - 24px)" },
+        maxHeight: "calc(100dvh - 24px)", bgcolor: "#edf3f9", border: "1px solid #8799ae", borderRadius: 2,
+      } }}>
+      <DialogTitle id="policy-form-title" sx={{ px: { xs: 1.5, sm: 2 }, py: 1.25, color: "#102d55", fontWeight: 800, fontSize: 20 }}>
+        {editing ? t("policies.form.editTitle") : t("policies.form.createTitle")}
+      </DialogTitle>
+      <DialogContent sx={{ px: { xs: 1.5, sm: 2 }, pt: "12px !important", pb: 1.5, bgcolor: "#edf3f9" }}>
+        {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 1.5 }}>{error}</Alert>}
+        <Box sx={{
+          display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(3, minmax(0, 1fr))" },
+          gap: { xs: 1.5, md: 2 }, alignItems: "start",
+          "& .MuiFormControl-root, & .MuiAutocomplete-root": { minWidth: 0 },
+          "& .MuiInputLabel-root": { color: "#263f5d", fontWeight: 650 },
+          "& .MuiInputLabel-root.Mui-focused": { color: "#075ba9" },
+          "& .MuiOutlinedInput-root": { bgcolor: "#f8fafc", color: "#102d55", fontSize: 14, fontWeight: 600, minHeight: 44 },
+          "& .MuiOutlinedInput-notchedOutline": { borderColor: "#7b8fa7", borderWidth: "1.25px" },
+          "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#2e5076" },
+          "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#087ceb", borderWidth: 2 },
+          "& .MuiOutlinedInput-root.Mui-error .MuiOutlinedInput-notchedOutline": { borderColor: "#c62828" },
+          "& .MuiInputBase-input::placeholder": { color: "#4e627a", opacity: 1, fontWeight: 400 },
+          "& .MuiInputBase-input.Mui-disabled": { WebkitTextFillColor: "#52647a" },
+          "& .MuiInputLabel-root.Mui-disabled": { color: "#52647a" },
+          "& .MuiOutlinedInput-root.Mui-disabled": { bgcolor: "#e7edf3" },
+          "& .MuiOutlinedInput-root.Mui-disabled .MuiOutlinedInput-notchedOutline": { borderColor: "#9baabc" },
+          "& .MuiFormHelperText-root": { color: "#455c76", fontSize: 12, lineHeight: 1.3, mx: .25, mt: .5 },
+          "& .MuiFormHelperText-root.Mui-error": { color: "#c62828" },
+          "& .MuiAutocomplete-popupIndicator, & .MuiAutocomplete-clearIndicator": { color: "#355779" },
         }}>
-          <TextField label="Αριθμός συμβολαίου" value={form.policyNumber}
-            onChange={e => setForm({ ...form, policyNumber: e.target.value })}
-            placeholder="Κενό = αυτόματη αρίθμηση (P-000001)"
-            helperText="Για χειροκίνητη καταχώρηση" fullWidth />
-          <SearchableSelect
-            label={t("policies.form.customer")}
-            value={form.customerId}
-            onChange={(v) => setForm({ ...form, customerId: v })}
-            onInputChange={customerSearch.setInput}
-            required disabled={editing}
-            helperText={editing ? t("policies.form.customerLocked") : "Πληκτρολογήστε ΑΦΜ, όνομα, κινητό ή email"}
-            options={customerSearch.options}
-            createNewLabel="+ Νέος πελάτης"
-            onCreateNew={editing ? undefined : (input) => setInlineCustomerCreate(input || "")}
-          />
-          <InlineCreateCustomerDialog
-            open={inlineCustomerCreate !== null}
-            prefillText={inlineCustomerCreate ?? ""}
-            defaultStatus={form.status === "Prospect" ? "Prospect" : "Active"}
-            onClose={() => setInlineCustomerCreate(null)}
-            onCreated={(c) => {
-              // Feed the new id into the parent form so it's already selected
-              // the moment the dropdown re-reads its options.
-              setForm(prev => ({ ...prev, customerId: c.id }));
-              customerSearch.setInput(c.displayName);
-              setInlineCustomerCreate(null);
-            }}
-          />
-
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <SearchableSelect
-              label={t("policies.form.carrier")}
-              value={form.insuranceCompanyId}
-              onChange={(v) => setForm({ ...form, insuranceCompanyId: v, policyType: "Auto", vehicleUseCategory: "", coverCode: "", packageCode: "" })}
-              required
-              options={(carriersQuery.data ?? []).filter(c => !c.parentCompanyId).map(c => ({
-                value: c.id,
-                label: c.name,
-                hint: c.isBroker ? "πρακτορείο" : undefined,
-              }))}
-              createNewLabel="+ Νέα ασφαλιστική"
-              onCreateNew={editing ? undefined : (input) => setInlineCarrierCreate(input || "")}
-            />
-            <InlineCreateInsuranceCompanyDialog
-              open={inlineCarrierCreate !== null}
-              prefillText={inlineCarrierCreate ?? ""}
-              onClose={() => setInlineCarrierCreate(null)}
-              onCreated={(c) => { setForm(prev => ({ ...prev, insuranceCompanyId: c.id, policyType: "Auto", vehicleUseCategory: "", coverCode: "", packageCode: "" })); setInlineCarrierCreate(null); }}
-            />
+          <Stack spacing={1.5}>
+            <SearchableSelect label={t("policies.form.customer")} value={form.customerId}
+              onChange={v => setForm({ ...form, customerId: v })} onInputChange={customerSearch.setInput}
+              required disabled={editing} options={customerSearch.options}
+              helperText={editing ? t("policies.form.customerLocked") : "Αναζήτηση με όνομα, ΑΦΜ, τηλέφωνο ή email"}
+              createNewLabel="+ Νέος πελάτης" onCreateNew={editing ? undefined : input => setInlineCustomerCreate(input || "")} />
+            <SearchableSelect label={t("policies.form.carrier")} value={form.insuranceCompanyId}
+              onChange={v => setForm({ ...form, insuranceCompanyId: v, policyType: "Auto", vehicleUseCategory: "", coverCode: "", packageCode: "" })}
+              required options={(carriersQuery.data ?? []).filter(c => !c.parentCompanyId).map(c => ({ value: c.id, label: c.name, hint: c.isBroker ? "πρακτορείο" : undefined }))}
+              createNewLabel="+ Νέα ασφαλιστική" onCreateNew={editing ? undefined : input => setInlineCarrierCreate(input || "")} />
             {(() => {
               const carrierData = carriersQuery.data ?? [];
               const selected = carrierData.find(c => c.id === form.insuranceCompanyId);
-              const broker = selected?.isBroker
-                ? selected
-                : selected?.parentCompanyId
-                  ? carrierData.find(c => c.id === selected.parentCompanyId)
-                  : null;
+              const broker = selected?.isBroker ? selected : selected?.parentCompanyId ? carrierData.find(c => c.id === selected.parentCompanyId) : null;
               if (!broker?.isBroker) return null;
               const subs = carrierData.filter(c => c.parentCompanyId === broker.id);
               const subValue = selected?.id !== broker.id ? selected?.id ?? "" : "";
-              return (
-                <SearchableSelect
-                  label="Υποασφαλιστική"
-                  value={subValue}
-                  onChange={(v) => setForm({ ...form, insuranceCompanyId: v || broker.id, vehicleUseCategory: "", coverCode: "", packageCode: "" })}
-                  emptyLabel="— επιλέξτε υποασφαλιστική —"
-                  options={subs.map(s => ({ value: s.id, label: s.name }))}
-                />
-              );
+              return <SearchableSelect label="Υποασφαλιστική" value={subValue}
+                onChange={v => setForm({ ...form, insuranceCompanyId: v || broker.id, vehicleUseCategory: "", coverCode: "", packageCode: "" })}
+                emptyLabel="— επιλέξτε υποασφαλιστική —" options={subs.map(s => ({ value: s.id, label: s.name }))} />;
             })()}
-          </Stack>
-
-          {/* Producer picker — optional but recommended. Blank leaves the
-              policy «ασύνδετο»; picking one lets the bridge auto-inherit
-              on next renewal via the same policy number. */}
-          <SearchableSelect
-            label="Συνεργάτης"
-            value={form.producerId}
-            onChange={(v) => setForm({ ...form, producerId: v })}
-            emptyLabel="— Παραγωγή γραφείου · χωρίς συνεργάτη —"
-            options={(producersQuery.data ?? []).map(p => ({
-              value: p.id,
-              label: p.code ? `${p.code} — ${p.name}` : p.name,
-            }))}
-            helperText="Αφήστε το κενό για παραγωγή γραφείου: η έδρα λαμβάνει όλη την προμήθεια της ασφαλιστικής. Με συνεργάτη, η προμήθειά του αφαιρείται από το συνολικό ποσοστό."
-          />
-
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <SearchableSelect
-              label={t("policies.form.type")}
-              value={form.policyType}
-              onChange={(v) => setForm({ ...form, policyType: v as PolicyType })}
-              required
-              disabled={!form.insuranceCompanyId}
-              helperText={!form.insuranceCompanyId
-                ? "Επιλέξτε εταιρία πρώτα"
-                : dialogCatalogue.branches.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
-              options={dialogCatalogue.branches.map(b => ({ value: b.value, label: b.label }))}
-            />
-            <SearchableSelect
-              label="Χρήση οχήματος"
-              value={form.vehicleUseCategory}
-              onChange={(v) => setForm({ ...form, vehicleUseCategory: v })}
-              disabled={!form.insuranceCompanyId}
-              helperText={!form.insuranceCompanyId
-                ? "Επιλέξτε εταιρία"
-                : dialogCatalogue.uses.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
-              emptyLabel="—"
-              options={dialogCatalogue.uses.map(u => ({ value: u.value, label: u.label }))}
-            />
-          </Stack>
-
-          <TextField
-            label="Αριθμός κυκλοφορίας"
-            value={form.vehicleRegistrationPlate}
-            onChange={(e) => setForm({ ...form, vehicleRegistrationPlate: e.target.value.toUpperCase() })}
-            helperText="Για συμβόλαια οχήματος· χρησιμοποιείται για αυτόματη σύνδεση με την καρτέλα οχήματος."
-            placeholder="π.χ. ΑΒC1234"
-            fullWidth
-          />
-
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <SearchableSelect
-              label="Κάλυψη"
-              value={form.coverCode}
-              onChange={(v) => setForm({ ...form, coverCode: v })}
-              disabled={!form.insuranceCompanyId}
-              helperText={!form.insuranceCompanyId
-                ? "Επιλέξτε εταιρία"
-                : dialogCatalogue.coverages.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
-              emptyLabel="—"
-              options={dialogCatalogue.coverages.map(c => ({ value: c.value, label: c.label }))}
-            />
-            <SearchableSelect
-              label="Πακέτο"
-              value={form.packageCode}
-              onChange={(v) => setForm({ ...form, packageCode: v })}
-              disabled={!form.insuranceCompanyId}
-              helperText={!form.insuranceCompanyId
-                ? "Επιλέξτε εταιρία"
-                : dialogCatalogue.packages.length === 0 ? "Δεν υπάρχουν πακέτα" : ""}
-              emptyLabel="—"
-              options={dialogCatalogue.packages.map(p => ({ value: p.value, label: p.label }))}
-            />
-          </Stack>
-
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField
-              type="number"
-              label="Μικτά ασφάλιστρα"
-              value={form.premium}
-              onChange={(e) => setForm({ ...form, premium: Number(e.target.value) })}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    {form.currency}
-                    <FilterHelp title="Το συνολικό μικτό ασφάλιστρο του συμβολαίου." />
-                  </InputAdornment>
-                )
-              }}
-              fullWidth
-              required
-            />
-            <TextField
-              type="number"
-              label="Καθαρά ασφάλιστρα"
-              value={form.netPremium}
-              onChange={e => setForm({ ...form, netPremium: e.target.value })}
-              helperText="Κενό = υπολογισμός από μικτά / κανόνες"
-              fullWidth
-            />
-          </Stack>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField type="number" label="Προμήθεια συνεργάτη %" value={form.specialCommissionPercent}
-              onChange={e => setForm({ ...form, specialCommissionPercent: e.target.value })}
-              helperText="Κενό = χρήση κανόνα προμηθειών" fullWidth />
-          </Stack>
-          {(() => {
-            const gross = Number(form.premium) || 0;
-            const net = Number(form.netPremium) || 0;
-            const tax = gross > 0 && net > 0 ? Math.max(0, gross - net) : null;
-            const producerPct = Number(form.specialCommissionPercent);
-            const producerAmount = form.producerId && tax !== null && producerPct > 0 ? net * producerPct / 100 : null;
-            return producerAmount !== null ? (
-              <Alert severity="info">
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={3}>
-                  {producerAmount !== null && <span><strong>Προμήθεια συνεργάτη:</strong> {producerAmount.toFixed(2)} € ({producerPct.toFixed(2)}% επί καθαρών)</span>}
-                  {producerAmount !== null && <span><strong>Έδρα:</strong> υπολογίζεται από το συνολικό ποσοστό ασφαλιστικής μείον την προμήθεια συνεργάτη.</span>}
-                </Stack>
-              </Alert>
-            ) : null;
-          })()}
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField
-              type="date" label={t("policies.form.startDate")} InputLabelProps={{ shrink: true }}
-              value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-              fullWidth required
-              InputProps={{ endAdornment: <FilterHelp title="Ημερομηνία έναρξης ισχύος συμβολαίου. Καθορίζει και πότε αρχίζει η προμήθεια συνεργάτη." /> }}
-            />
-            <TextField
-              type="date" label={t("policies.form.endDate")} InputLabelProps={{ shrink: true }}
-              value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-              fullWidth required
-              InputProps={{ endAdornment: <FilterHelp title="Ημερομηνία λήξης συμβολαίου. Χρησιμοποιείται στις ειδοποιήσεις ανανέωσης." /> }}
-            />
-          </Stack>
-
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <SearchableTextField
-              select label={t("policies.col.status")}
-              value={form.status}
-              onChange={(e) => setForm({ ...form, status: e.target.value as PolicyStatus })}
-              fullWidth
-            >
+            <SearchableSelect label="Συνεργάτης" value={form.producerId}
+              onChange={v => setForm({ ...form, producerId: v })} emptyLabel="— Παραγωγή γραφείου —"
+              options={(producersQuery.data ?? []).map(p => ({ value: p.id, label: p.code ? `${p.code} — ${p.name}` : p.name }))}
+              helperText="Κενό: παραγωγή γραφείου"
+              textFieldProps={{ inputProps: { title: "Χωρίς συνεργάτη, η έδρα λαμβάνει όλη την προμήθεια της ασφαλιστικής. Με συνεργάτη, η προμήθειά του αφαιρείται από το συνολικό ποσοστό." } }} />
+            <TextField size="small" label="Αριθμός συμβολαίου" value={form.policyNumber}
+              onChange={e => setForm({ ...form, policyNumber: e.target.value })}
+              placeholder="π.χ. P-000001" helperText="Κενό: αυτόματη αρίθμηση" fullWidth />
+            <SearchableTextField select label={t("policies.col.status")} value={form.status}
+              onChange={e => setForm({ ...form, status: e.target.value as PolicyStatus })} fullWidth>
               {(["Prospect","Draft","AwaitingIssue","Active","Undelivered","PendingRenewal","Expired","Cancelled","Renewed"] as const).map(s =>
-                <MenuItem key={s} value={s}>{s === "Prospect" ? "Πιθανό συμβόλαιο" : t(`policies.statuses.${s}`)}</MenuItem>
-              )}
+                <MenuItem key={s} value={s}>{s === "Prospect" ? "Πιθανό συμβόλαιο" : t(`policies.statuses.${s}`)}</MenuItem>)}
             </SearchableTextField>
           </Stack>
-          <FormControlLabel
-            control={<Checkbox checked={form.paidDirectlyToCarrier}
-              onChange={e => setForm({ ...form, paidDirectlyToCarrier: e.target.checked, createReceipt: e.target.checked ? false : form.createReceipt })} />}
-            label="Ο πελάτης πλήρωσε απευθείας στην ασφαλιστική"
-          />
-          <FormControlLabel
-            control={<Checkbox checked={form.delivered}
-              onChange={e => setForm({ ...form, delivered: e.target.checked })} />}
-            label="Παραδόθηκε"
-          />
-          <FormControlLabel
-            control={<Checkbox checked={form.createReceipt} disabled={form.paidDirectlyToCarrier}
-              onChange={e => setForm({ ...form, createReceipt: e.target.checked })} />}
-            label="Εισπράχθηκε κατά την καταχώρηση"
-          />
+          <Stack spacing={1.5}>
+            <SearchableSelect label={t("policies.form.type")} value={form.policyType}
+              onChange={v => setForm({ ...form, policyType: v as PolicyType })} required disabled={!form.insuranceCompanyId}
+              helperText={!form.insuranceCompanyId ? "Επιλέξτε εταιρία πρώτα" : dialogCatalogue.branches.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
+              options={dialogCatalogue.branches.map(b => ({ value: b.value, label: b.label }))} />
+            <SearchableSelect label="Χρήση οχήματος" value={form.vehicleUseCategory}
+              onChange={v => setForm({ ...form, vehicleUseCategory: v })} disabled={!form.insuranceCompanyId}
+              helperText={!form.insuranceCompanyId ? "Επιλέξτε εταιρία" : dialogCatalogue.uses.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
+              emptyLabel="—" options={dialogCatalogue.uses.map(u => ({ value: u.value, label: u.label }))} />
+            <TextField size="small" label="Αριθμός κυκλοφορίας" value={form.vehicleRegistrationPlate}
+              onChange={e => setForm({ ...form, vehicleRegistrationPlate: e.target.value.toUpperCase() })}
+              helperText="Αυτόματη σύνδεση με την καρτέλα οχήματος" placeholder="π.χ. ΑΒC1234" fullWidth />
+            <SearchableSelect label="Κάλυψη" value={form.coverCode} onChange={v => setForm({ ...form, coverCode: v })}
+              disabled={!form.insuranceCompanyId} emptyLabel="—"
+              helperText={!form.insuranceCompanyId ? "Επιλέξτε εταιρία" : dialogCatalogue.coverages.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
+              options={dialogCatalogue.coverages.map(c => ({ value: c.value, label: c.label }))} />
+            <SearchableSelect label="Πακέτο" value={form.packageCode} onChange={v => setForm({ ...form, packageCode: v })}
+              disabled={!form.insuranceCompanyId} emptyLabel="—"
+              helperText={!form.insuranceCompanyId ? "Επιλέξτε εταιρία" : dialogCatalogue.packages.length === 0 ? "Δεν υπάρχουν πακέτα" : ""}
+              options={dialogCatalogue.packages.map(p => ({ value: p.value, label: p.label }))} />
+          </Stack>
+          <Box sx={{ gridColumn: { sm: "1 / -1", md: "auto" }, display: "grid", gap: 1.5,
+            gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))", md: "minmax(0, 1fr)" } }}>
+            <TextField size="small" type="date" label={t("policies.form.startDate")} InputLabelProps={{ shrink: true }}
+              value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} fullWidth required
+              InputProps={{ endAdornment: <FilterHelp title="Ημερομηνία έναρξης ισχύος συμβολαίου. Καθορίζει και πότε αρχίζει η προμήθεια συνεργάτη." /> }} />
+            <TextField size="small" type="date" label={t("policies.form.endDate")} InputLabelProps={{ shrink: true }}
+              value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} fullWidth required
+              InputProps={{ endAdornment: <FilterHelp title="Ημερομηνία λήξης συμβολαίου. Χρησιμοποιείται στις ειδοποιήσεις ανανέωσης." /> }} />
+            <TextField size="small" type="number" label="Μικτά ασφάλιστρα" value={form.premium}
+              onChange={e => setForm({ ...form, premium: Number(e.target.value) })} fullWidth required
+              InputProps={{ endAdornment: <InputAdornment position="end">{form.currency}<FilterHelp title="Το συνολικό μικτό ασφάλιστρο του συμβολαίου." /></InputAdornment> }} />
+            <TextField size="small" type="number" label="Καθαρά ασφάλιστρα" value={form.netPremium}
+              onChange={e => setForm({ ...form, netPremium: e.target.value })}
+              helperText="Κενό: υπολογισμός από μικτά / κανόνες" fullWidth />
+            <TextField size="small" type="number" label="Προμήθεια συνεργάτη %" value={form.specialCommissionPercent}
+              onChange={e => setForm({ ...form, specialCommissionPercent: e.target.value })}
+              helperText="Κενό: χρήση κανόνα προμηθειών" fullWidth />
+          </Box>
+        </Box>
+        {(() => {
+          const gross = Number(form.premium) || 0;
+          const net = Number(form.netPremium) || 0;
+          const tax = gross > 0 && net > 0 ? Math.max(0, gross - net) : null;
+          const producerPct = Number(form.specialCommissionPercent);
+          const producerAmount = form.producerId && tax !== null && producerPct > 0 ? net * producerPct / 100 : null;
+          return producerAmount !== null ? <Alert severity="info" sx={{ mt: 1.5, py: .25, fontSize: 13 }}>
+            <strong>Προμήθεια συνεργάτη:</strong> {producerAmount.toFixed(2)} € ({producerPct.toFixed(2)}% επί καθαρών).
+            Η έδρα λαμβάνει τη διαφορά από το συνολικό ποσοστό της ασφαλιστικής.
+          </Alert> : null;
+        })()}
+        <Box sx={{ mt: 1.5, pt: .75, borderTop: "1px solid #a9b8c8", display: "grid",
+          gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))", md: "1.35fr .7fr 1fr" }, gap: .5,
+          "& .MuiFormControlLabel-root": { m: 0, minWidth: 0 },
+          "& .MuiFormControlLabel-label": { fontSize: 13, color: "#263f5d", fontWeight: 600 },
+          "& .MuiCheckbox-root": { color: "#526c89", p: .75 }, "& .MuiCheckbox-root.Mui-checked": { color: "#087ceb" },
+          "& .MuiCheckbox-root.Mui-disabled": { color: "#9baabc" },
+        }}>
+          <FormControlLabel control={<Checkbox checked={form.paidDirectlyToCarrier}
+            onChange={e => setForm({ ...form, paidDirectlyToCarrier: e.target.checked, createReceipt: e.target.checked ? false : form.createReceipt })} />}
+            label="Ο πελάτης πλήρωσε απευθείας στην ασφαλιστική" />
+          <FormControlLabel control={<Checkbox checked={form.delivered}
+            onChange={e => setForm({ ...form, delivered: e.target.checked })} />} label="Παραδόθηκε" />
+          <FormControlLabel control={<Checkbox checked={form.createReceipt} disabled={form.paidDirectlyToCarrier}
+            onChange={e => setForm({ ...form, createReceipt: e.target.checked })} />} label="Εισπράχθηκε κατά την καταχώρηση" />
           {form.createReceipt && !form.paidDirectlyToCarrier && (
             <SearchableTextField label="Τρόπος είσπραξης" value={form.paymentCollectionMethod}
-              onChange={e => setForm({ ...form, paymentCollectionMethod: e.target.value })} fullWidth>
+              onChange={e => setForm({ ...form, paymentCollectionMethod: e.target.value })} fullWidth
+              sx={{ gridColumn: { sm: "1 / -1", md: "3" }, "& .MuiOutlinedInput-root": { bgcolor: "#f8fafc", color: "#102d55", minHeight: 44 }, "& .MuiOutlinedInput-notchedOutline": { borderColor: "#7b8fa7" }, "& .MuiInputLabel-root": { color: "#263f5d" } }}>
               {(["Cash", "Card", "BankTransfer", "Cheque", "PromissoryNote", "Other"] as const).map(method =>
                 <MenuItem key={method} value={method}>{({ Cash: "Μετρητά", Card: "Κάρτα", BankTransfer: "Τραπεζική μεταφορά", Cheque: "Επιταγή", PromissoryNote: "Γραμμάτιο", Other: "Άλλο" } as Record<string, string>)[method]}</MenuItem>)}
             </SearchableTextField>
           )}
-          <Typography variant="caption" color="text.secondary" sx={{ mt: -1.5 }}>
-            Η «Παραδόθηκε» ενημερώνει την παρακολούθηση παράδοσης. Η «Εισπράχθηκε» δημιουργεί πραγματική απόδειξη και κίνηση ταμείου για όλο το ασφάλιστρο. Για απευθείας πληρωμή στην ασφαλιστική δεν δημιουργείται είσπραξη γραφείου.
-          </Typography>
-        </Stack>
+        </Box>
+        <Typography sx={{ mt: .5, fontSize: 12, lineHeight: 1.4, color: "#455c76" }}>
+          Η είσπραξη δημιουργεί απόδειξη και κίνηση ταμείου για όλο το ασφάλιστρο. Η απευθείας πληρωμή στην ασφαλιστική δεν δημιουργεί είσπραξη γραφείου.
+        </Typography>
       </DialogContent>
-      <DialogActions>
+      <DialogActions sx={{ px: { xs: 1.5, sm: 2 }, py: 1.25, borderTop: "1px solid #a9b8c8", flexShrink: 0 }}>
         <Button onClick={onClose} color="error" variant="contained" startIcon={<CancelIcon />}>{t("common.cancel")}</Button>
         <Button variant="contained" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
           {saveMutation.isPending ? <CircularProgress size={18} /> : t("common.save")}
         </Button>
       </DialogActions>
+      <InlineCreateCustomerDialog open={inlineCustomerCreate !== null} prefillText={inlineCustomerCreate ?? ""}
+        defaultStatus={form.status === "Prospect" ? "Prospect" : "Active"} onClose={() => setInlineCustomerCreate(null)}
+        onCreated={c => { setForm(prev => ({ ...prev, customerId: c.id })); customerSearch.setInput(c.displayName); setInlineCustomerCreate(null); }} />
+      <InlineCreateInsuranceCompanyDialog open={inlineCarrierCreate !== null} prefillText={inlineCarrierCreate ?? ""}
+        onClose={() => setInlineCarrierCreate(null)}
+        onCreated={c => { setForm(prev => ({ ...prev, insuranceCompanyId: c.id, policyType: "Auto", vehicleUseCategory: "", coverCode: "", packageCode: "" })); setInlineCarrierCreate(null); }} />
     </Dialog>
   );
 }
