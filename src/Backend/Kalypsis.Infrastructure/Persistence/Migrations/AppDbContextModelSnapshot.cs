@@ -7543,6 +7543,9 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsBroker")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<bool>("IsProspect")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<string>("LogoUrl")
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");

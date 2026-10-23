@@ -223,7 +223,8 @@ public class InsuranceCompaniesController : ControllerBase
         // (universal catalog rows) OR the row is the tenant's own carrier
         // (which is implicitly opted-in). Filter surfaces gate on this flag.
         bool IsUsedByTenant = false,
-        string? LogoUrl = null);
+        string? LogoUrl = null,
+        bool IsProspect = false);
 
     public record UpsertCompanyBody(
         string Name, string Code, string? Country, string? Website, bool IsActive,
@@ -231,7 +232,7 @@ public class InsuranceCompaniesController : ControllerBase
         string? AfmVat, string? Notes,
         bool CreateBridge = true, string? BridgeName = null, bool BridgeAutoSync = false,
         string? BridgeConfigJson = null, bool InstallZeroCommissionDefaults = true,
-        bool IsBroker = false);
+        bool IsBroker = false, bool? IsProspect = null);
 
     public record ImportDefaultCompaniesResult(
         int Imported, int AlreadyImported, int BridgesCreated, int CommissionRulesCreated);
@@ -262,12 +263,12 @@ public class InsuranceCompaniesController : ControllerBase
             .GroupBy(c => c.Code, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
         var tenantCompanyIds = tenantRows.Select(c => c.Id).ToList();
-        var bridges = tenantId.HasValue && tenantCompanyIds.Count > 0
+        var bridgeRows = tenantId.HasValue && tenantCompanyIds.Count > 0
             ? await _db.CompanyBridges
                 .Where(b => b.TenantId == tenantId.Value && b.DeletedAt == null && tenantCompanyIds.Contains(b.InsuranceCompanyId))
-                .GroupBy(b => b.InsuranceCompanyId)
-                .ToDictionaryAsync(g => g.Key, g => g.First(), ct)
-            : new Dictionary<Guid, Kalypsis.Domain.Entities.CompanyBridge>();
+                .OrderBy(b => b.CreatedAt).ThenBy(b => b.Id).ToListAsync(ct)
+            : new List<Kalypsis.Domain.Entities.CompanyBridge>();
+        var bridges = bridgeRows.GroupBy(b => b.InsuranceCompanyId).ToDictionary(g => g.Key, g => g.First());
         // Only count rules the operator actually *authored* — any row with
         // a non-zero agency or producer percent. The zero-value safety-net
         // seeds we install per (carrier × cover) exist so the calculator has
@@ -282,7 +283,8 @@ public class InsuranceCompaniesController : ControllerBase
                     && tenantCompanyIds.Contains(r.InsuranceCompanyId.Value)
                     && ((r.AgencyPercent ?? 0m) != 0m || (r.ProducerPercent ?? r.Value) != 0m))
                 .GroupBy(r => r.InsuranceCompanyId!.Value)
-                .ToDictionaryAsync(g => g.Key, g => g.Count(), ct)
+                .Select(g => new { Id = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(g => g.Id, g => g.Count, ct)
             : new Dictionary<Guid, int>();
         // Parametric count per carrier ID (NOT per code). Keying by code used
         // to fold the Kalypsis-global catalogue (461 rows for code=ERGO) into
@@ -296,7 +298,8 @@ public class InsuranceCompaniesController : ControllerBase
                 .Where(p => p.DeletedAt == null && p.IsActive
                     && allCarrierIds.Contains(p.InsuranceCompanyId))
                 .GroupBy(p => p.InsuranceCompanyId)
-                .ToDictionaryAsync(g => g.Key, g => g.Count(), ct)
+                .Select(g => new { Id = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(g => g.Id, g => g.Count, ct)
             : new Dictionary<Guid, int>();
 
         // Which universal carriers the tenant has explicitly opted-in to. Empty
@@ -368,6 +371,7 @@ public class InsuranceCompaniesController : ControllerBase
             existing.Country = Clean(body.Country);
             existing.Website = Clean(body.Website);
             existing.IsActive = body.IsActive;
+            existing.IsProspect = body.IsProspect ?? false;
             existing.AgentCode = Clean(body.AgentCode);
             existing.ContactName = Clean(body.ContactName);
             existing.ContactEmail = Clean(body.ContactEmail);
@@ -389,6 +393,7 @@ public class InsuranceCompaniesController : ControllerBase
                 Country = Clean(body.Country),
                 Website = Clean(body.Website),
                 IsActive = body.IsActive,
+                IsProspect = body.IsProspect ?? false,
                 AgentCode = Clean(body.AgentCode),
                 ContactName = Clean(body.ContactName),
                 ContactEmail = Clean(body.ContactEmail),
@@ -426,7 +431,7 @@ public class InsuranceCompaniesController : ControllerBase
         return Ok(new InsuranceCompanyExtendedDto(c.Id, c.Name, c.Code, c.Country, c.Website, c.IsActive,
             c.TenantId, false, c.Id, true, bridge?.Id, bridge != null, ruleCount, await CountParameterItemsAsync(c.Id, ct),
             c.AgentCode, c.ContactName, c.ContactEmail, c.ContactPhone, c.AfmVat, c.Notes,
-            IsBroker: c.IsBroker, IsUsedByTenant: true, LogoUrl: LogoEndpoint(c)));
+            IsBroker: c.IsBroker, IsUsedByTenant: true, LogoUrl: LogoEndpoint(c), IsProspect: c.IsProspect));
     }
 
     [HttpPut("{id:guid}")]
@@ -449,6 +454,7 @@ public class InsuranceCompaniesController : ControllerBase
         c.Name = body.Name.Trim();
         c.Code = code;
         c.Country = Clean(body.Country); c.Website = Clean(body.Website); c.IsActive = body.IsActive;
+        if (body.IsProspect.HasValue) c.IsProspect = body.IsProspect.Value;
         c.AgentCode = Clean(body.AgentCode); c.ContactName = Clean(body.ContactName);
         c.ContactEmail = Clean(body.ContactEmail); c.ContactPhone = Clean(body.ContactPhone);
         c.AfmVat = Clean(body.AfmVat); c.Notes = Clean(body.Notes);
@@ -471,7 +477,7 @@ public class InsuranceCompaniesController : ControllerBase
         return Ok(new InsuranceCompanyExtendedDto(c.Id, c.Name, c.Code, c.Country, c.Website, c.IsActive,
             c.TenantId, false, c.Id, true, bridge?.Id, bridge != null, ruleCount, await CountParameterItemsAsync(c.Id, ct),
             c.AgentCode, c.ContactName, c.ContactEmail, c.ContactPhone, c.AfmVat, c.Notes,
-            IsBroker: c.IsBroker, IsUsedByTenant: true, LogoUrl: LogoEndpoint(c)));
+            IsBroker: c.IsBroker, IsUsedByTenant: true, LogoUrl: LogoEndpoint(c), IsProspect: c.IsProspect));
     }
 
     [HttpPost("{id:guid}/logo")]
@@ -599,7 +605,7 @@ public class InsuranceCompaniesController : ControllerBase
         return Ok(new InsuranceCompanyExtendedDto(tenantCompany.Id, tenantCompany.Name, tenantCompany.Code, tenantCompany.Country, tenantCompany.Website, tenantCompany.IsActive,
             tenantCompany.TenantId, false, tenantCompany.Id, true, bridge?.Id, bridge != null, ruleCount, await CountParameterItemsAsync(tenantCompany.Id, ct),
             tenantCompany.AgentCode, tenantCompany.ContactName, tenantCompany.ContactEmail, tenantCompany.ContactPhone, tenantCompany.AfmVat, tenantCompany.Notes,
-            IsBroker: tenantCompany.IsBroker, IsUsedByTenant: true, LogoUrl: LogoEndpoint(tenantCompany)));
+            IsBroker: tenantCompany.IsBroker, IsUsedByTenant: true, LogoUrl: LogoEndpoint(tenantCompany), IsProspect: tenantCompany.IsProspect));
     }
 
     [HttpPost("import-defaults")]
@@ -693,7 +699,8 @@ public class InsuranceCompaniesController : ControllerBase
         int BranchCount, int CoverageCount, int UseCount, int PackageCount,
         bool BridgeLinked, string? BridgeLinkedSourceCarrier,
         IReadOnlyList<CarrierProfileRecentPolicy> RecentPolicies,
-        string? LogoUrl = null);
+        string? LogoUrl = null,
+        bool IsProspect = false);
 
     public record CarrierProfileRecentPolicy(
         Guid Id, string PolicyNumber, string? CustomerName,
@@ -781,7 +788,7 @@ public class InsuranceCompaniesController : ControllerBase
             linkedMapping is not null,
             linkedMapping?.SourceCarrier,
             recent,
-            LogoEndpoint(c)));
+            LogoEndpoint(c), c.IsProspect));
     }
 
     /// <summary>
@@ -1123,7 +1130,7 @@ public class InsuranceCompaniesController : ControllerBase
             c.AgentCode, c.ContactName, c.ContactEmail, c.ContactPhone, c.AfmVat, c.Notes,
             c.IsBroker, c.ParentCompanyId,
             isUsedByTenant,
-            LogoEndpoint(c));
+            LogoEndpoint(c), c.IsProspect);
     }
 
     private static string? LogoEndpoint(Kalypsis.Domain.Entities.InsuranceCompany company)

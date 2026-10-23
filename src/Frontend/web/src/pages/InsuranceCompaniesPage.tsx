@@ -26,6 +26,7 @@ export interface CompanyDto {
   website: string | null;
   logoUrl: string | null;
   isActive: boolean;
+  isProspect?: boolean;
   tenantId: string | null;
   isGlobal: boolean;
   tenantCopyId: string | null;
@@ -663,7 +664,7 @@ export function CompanyDialog({ open, onClose, item, isBroker = false, onSaved }
    operator can jump straight into the edit dialog.
    ========================================================================= */
 export interface CarrierProfile {
-  id: string; code: string; name: string; isBroker?: boolean;
+  id: string; code: string; name: string; isBroker?: boolean; isProspect?: boolean;
   country: string | null; website: string | null; logoUrl: string | null;
   agentCode: string | null; afmVat: string | null;
   contactName: string | null; contactEmail: string | null; contactPhone: string | null;

@@ -283,7 +283,7 @@ export default function ProductionCompaniesAgenciesPage() {
   );
 }
 
-function CompanyDirectoryTable({ isBroker = false, companies, selectedIds, onToggle, onToggleAll, onOpen, onEdit, onDelete }: { isBroker?: boolean; companies: CompanyDto[]; selectedIds: Set<string>; onToggle: (id: string) => void; onToggleAll: (checked: boolean) => void; onOpen: (company: CompanyDto) => void; onEdit: (company: CompanyDto) => void; onDelete: (company: CompanyDto) => void }) {
+export function CompanyDirectoryTable({ isBroker = false, companies, selectedIds, onToggle, onToggleAll, onOpen, onEdit, onDelete }: { isBroker?: boolean; companies: CompanyDto[]; selectedIds: Set<string>; onToggle: (id: string) => void; onToggleAll: (checked: boolean) => void; onOpen: (company: CompanyDto) => void; onEdit: (company: CompanyDto) => void; onDelete: (company: CompanyDto) => void }) {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   useEffect(() => { setPage(0); }, [companies, isBroker]);
@@ -303,11 +303,11 @@ function CompanyDirectoryTable({ isBroker = false, companies, selectedIds, onTog
           <TableCell sx={{ fontWeight: 800 }}>Επικοινωνία</TableCell><TableCell align="right" sx={{ fontWeight: 800 }}>Παραμετρικά</TableCell>
           <TableCell align="right" sx={{ fontWeight: 800 }}>Ενέργειες</TableCell>
         </TableRow></TableHead>
-        <TableBody>{visibleRows.map(company => <TableRow key={company.id} hover onClick={() => onOpen(company)} sx={{ cursor: "pointer", "&:last-child td": { borderBottom: 0 } }}>
+        <TableBody>{visibleRows.map((company, index) => <TableRow key={company.id} hover onClick={() => onOpen(company)} sx={{ cursor: "pointer", bgcolor: company.isProspect ? "#FFF0D9" : index % 2 === 0 ? "#F8FAFC" : "#F0F2F5", "&:hover": { bgcolor: company.isProspect ? "#FFE3B5" : "#E5EDF7" }, "&:last-child td": { borderBottom: 0 } }}>
           <TableCell padding="checkbox"><Checkbox size="small" checked={selectedIds.has(company.id)} disabled={company.isGlobal} onClick={event => event.stopPropagation()} onChange={() => onToggle(company.id)} inputProps={{ "aria-label": `Επιλογή ${company.name}` }} /></TableCell>
           <TableCell><Stack direction="row" spacing={1} alignItems="center"><BusinessIcon color="primary" fontSize="small" /><Box><Typography fontWeight={750}>{company.name}</Typography>{company.bridgeLinked && <Chip size="small" color="info" variant="outlined" label="Γέφυρα" sx={{ mt: .25 }} />}</Box></Stack></TableCell>
           <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{company.code || "—"}</TableCell>
-          <TableCell><Chip size="small" color={company.isActive ? "success" : "default"} label={company.isActive ? "Ενεργή" : "Ανενεργή"} /></TableCell>
+          <TableCell><Chip size="small" color={company.isProspect ? "warning" : company.isActive ? "success" : "default"} label={company.isProspect ? "Πιθανή συνεργασία" : company.isActive ? "Ενεργή" : "Ανενεργή"} /></TableCell>
           <TableCell>{company.country || "—"}</TableCell>
           <TableCell>{company.contactName || company.contactEmail || company.contactPhone || "—"}</TableCell>
           <TableCell align="right">{company.parameterItemCount}</TableCell>
@@ -727,7 +727,7 @@ function CompanyCommunicationSection({ companyId, workspace }: { companyId: stri
 
 type CompanyEditorForm = {
   name: string; code: string; country: string | null; website: string | null; isActive: boolean;
-  isBroker: boolean;
+  isBroker: boolean; isProspect?: boolean;
   agentCode: string | null; contactName: string | null; contactEmail: string | null;
   contactPhone: string | null; afmVat: string | null; notes: string | null;
   address: string | null; city: string | null; postalCode: string | null;
@@ -738,7 +738,7 @@ type CompanyEditorForm = {
 };
 
 const blankCompanyEditorForm = (): CompanyEditorForm => ({
-  name: "", code: "", country: "", website: null, isActive: true, isBroker: false,
+  name: "", code: "", country: "", website: null, isActive: true, isBroker: false, isProspect: false,
   agentCode: null, contactName: null, contactEmail: null, contactPhone: null,
   afmVat: null, notes: null, address: null, city: null, postalCode: null,
   facebook: null, instagram: null, linkedin: null, twitter: null, googleMaps: null,
@@ -765,6 +765,7 @@ export const toCompanyApiPayload = (form: CompanyEditorForm, options?: {
     website: form.website?.trim() || null,
     isActive: Boolean(form.isActive),
     isBroker: Boolean(form.isBroker),
+    ...(form.isProspect === undefined ? {} : { isProspect: form.isProspect }),
     agentCode: form.agentCode?.trim() || null,
     contactName: form.contactName?.trim() || null,
     contactEmail: form.contactEmail?.trim() || null,
@@ -784,23 +785,23 @@ export const toCompanyApiPayload = (form: CompanyEditorForm, options?: {
  * the normal profile opens so the operator can use the full editor without
  * forcing a long form on the very first step.
  */
-function ProductionCompanyQuickCreateDialog({ open, isBroker = false, onClose, onSaved }: {
+export function ProductionCompanyQuickCreateDialog({ open, isBroker = false, onClose, onSaved }: {
   open: boolean;
   isBroker?: boolean;
   onClose: () => void;
   onSaved: (saved?: CompanyDto) => void;
 }) {
-  const [form, setForm] = useState({ name: "", code: "" });
+  const [form, setForm] = useState({ name: "", code: "", isProspect: false });
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (open) {
-      setForm({ name: "", code: "" });
+      setForm({ name: "", code: "", isProspect: false });
       setError(null);
     }
   }, [open]);
   const save = useMutation({
     mutationFn: async () => {
-      const draft = { ...blankCompanyEditorForm(), name: form.name, code: form.code, isBroker };
+      const draft = { ...blankCompanyEditorForm(), name: form.name, code: form.code, isBroker, isProspect: form.isProspect };
       const payload = toCompanyApiPayload(draft, {
         createBridge: false,
         installZeroCommissionDefaults: false,
@@ -815,8 +816,10 @@ function ProductionCompanyQuickCreateDialog({ open, isBroker = false, onClose, o
     <DialogContent dividers>
       {error && <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setError(null)}>{error}</Alert>}
       <Stack spacing={1.5} sx={{ pt: .5 }}>
-        <TextField autoFocus required fullWidth label="Επωνυμία ασφαλιστικής" value={form.name} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} />
-        <TextField required fullWidth label="Κωδικός εταιρείας" value={form.code} onChange={event => setForm(current => ({ ...current, code: event.target.value.toUpperCase() }))} helperText="Ο κωδικός χρησιμοποιείται στις γέφυρες και στα αρχεία παραγωγής." />
+        <TextField autoFocus required fullWidth label={isBroker ? "Επωνυμία πρακτορείου" : "Επωνυμία ασφαλιστικής"} value={form.name} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} />
+        <TextField required fullWidth label={isBroker ? "Κωδικός πρακτορείου" : "Κωδικός εταιρείας"} value={form.code} onChange={event => setForm(current => ({ ...current, code: event.target.value.toUpperCase() }))} helperText="Ο κωδικός χρησιμοποιείται στις γέφυρες και στα αρχεία παραγωγής." />
+        <FormControlLabel control={<Switch color="warning" checked={form.isProspect} onChange={event => setForm(current => ({ ...current, isProspect: event.target.checked }))} disabled={save.isPending} />} label="Πιθανή συνεργασία" />
+        {form.isProspect && <Alert severity="info" sx={{ bgcolor: "#FFF0D9", color: "#7A4300" }}>Η συνεργασία βρίσκεται σε αναμονή. Μπορείτε να την επιβεβαιώσετε αργότερα από την καρτέλα.</Alert>}
       </Stack>
     </DialogContent>
     <DialogActions sx={{ px: 2.5, py: 1.5 }}>
@@ -945,7 +948,7 @@ function ProductionCompanyEditorDialog({ open, item, onClose, onSaved }: {
     setTab(0);
     setError(null);
     setLogoFile(null);
-    if (item) setForm({ ...blankCompanyEditorForm(), name: item.name, code: item.code, country: item.country, website: item.website, isActive: item.isActive, isBroker: Boolean(item.isBroker), agentCode: item.agentCode, contactName: item.contactName, contactEmail: item.contactEmail, contactPhone: item.contactPhone, afmVat: item.afmVat, notes: item.notes });
+    if (item) setForm({ ...blankCompanyEditorForm(), name: item.name, code: item.code, country: item.country, website: item.website, isActive: item.isActive, isProspect: Boolean(item.isProspect), isBroker: Boolean(item.isBroker), agentCode: item.agentCode, contactName: item.contactName, contactEmail: item.contactEmail, contactPhone: item.contactPhone, afmVat: item.afmVat, notes: item.notes });
     else if (open) setForm(blankCompanyEditorForm());
   }, [item, open]);
 
@@ -1016,7 +1019,7 @@ function ProductionCompanyEditorDialog({ open, item, onClose, onSaved }: {
 
 const COMPANY_CORE_FIELDS = [
   ["name", "Επωνυμία"], ["code", "Κωδικός"], ["afmVat", "ΑΦΜ / VAT"], ["country", "Χώρα"],
-  ["website", "Ιστοσελίδα"], ["contactName", "Υπεύθυνος"], ["contactEmail", "Email"], ["contactPhone", "Τηλέφωνο"], ["isActive", "Κατάσταση"], ["notes", "Σημειώσεις"],
+  ["website", "Ιστοσελίδα"], ["contactName", "Υπεύθυνος"], ["contactEmail", "Email"], ["contactPhone", "Τηλέφωνο"], ["isActive", "Κατάσταση"], ["isProspect", "Πιθανή συνεργασία"], ["notes", "Σημειώσεις"],
 ] as const;
 
 export function CompanyProfileFields({ session, contact = false, isBroker = false, generalFields }: {
@@ -1026,7 +1029,7 @@ export function CompanyProfileFields({ session, contact = false, isBroker = fals
   const renderFields = (keys: readonly string[]) => keys.map(key => {
     const [field, label] = COMPANY_CORE_FIELDS.find(([field]) => field === key)!;
     return <ProfileEditableField key={field} field={field} label={label} session={session}
-      options={field === "isActive" ? [{ value: "true", label: "Ενεργή" }, { value: "false", label: "Ανενεργή" }] : undefined}
+      options={field === "isActive" ? [{ value: "true", label: "Ενεργή" }, { value: "false", label: "Ανενεργή" }] : field === "isProspect" ? [{ value: "true", label: "Πιθανή συνεργασία" }, { value: "false", label: "Επιβεβαιωμένη συνεργασία" }] : undefined}
       link={field === "website" ? session.values[field] : field === "contactEmail" && session.values[field] ? "mailto:" + session.values[field] : field === "contactPhone" && session.values[field] ? "tel:" + session.values[field] : undefined}
       type={field === "contactEmail" ? "email" : "text"} multiline={field === "notes"}
       validate={value => customerFieldError(field === "contactEmail" ? "email" : field === "contactPhone" ? "phone" : field, value)} />;
@@ -1034,7 +1037,7 @@ export function CompanyProfileFields({ session, contact = false, isBroker = fals
   // Contact keeps its existing layout; only General changes reading order.
   if (contact) return <Box sx={profileFieldGridSx}>{renderFields(["contactName", "contactEmail", "contactPhone", "notes"])}</Box>;
   return <PolicyFieldColumns section="company-general" groups={[
-    [...renderFields(["name", "code", "afmVat", "isActive"]), <ProfileEditableField key="company-type" label="Τύπος" value={isBroker ? "Πρακτορείο" : "Ασφαλιστική εταιρεία"} />],
+    [...renderFields(["name", "code", "afmVat", "isActive", "isProspect"]), <ProfileEditableField key="company-type" label="Τύπος" value={isBroker ? "Πρακτορείο" : "Ασφαλιστική εταιρεία"} />],
     [...renderFields(["country"]), ...(generalFields?.address ?? []), ...renderFields(["website"]), generalFields?.maps].filter(Boolean),
     [...renderFields(["contactName", "contactEmail", "contactPhone"]), ...(generalFields?.cooperation ?? []), ...renderFields(["notes"]), ...(generalFields?.additional ?? [])],
   ]} />;
@@ -1093,7 +1096,7 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
         const primary = Object.entries(primaryChanges);
         for (const [key, value] of primary) {
           if (!baseKeys.some(field => field === key)) throw new Error("Το πεδίο εταιρείας δεν υποστηρίζεται.");
-          if (key === "isActive" && !["true", "false"].includes(value)) throw new Error("Επιλέξτε Ενεργή ή Ανενεργή.");
+          if ((key === "isActive" || key === "isProspect") && !["true", "false"].includes(value)) throw new Error("Επιλέξτε Ενεργή ή Ανενεργή.");
           const error = customerFieldError(key === "contactEmail" ? "email" : key === "contactPhone" ? "phone" : key, value);
           if (error) throw new Error(error);
         }
@@ -1101,6 +1104,7 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
         const next = { ...blankCompanyEditorForm(), ...Object.fromEntries(baseKeys.map(key => [key, current[key]])),
           isBroker: current.isBroker ?? company.isBroker ?? false, ...Object.fromEntries(primary) } as CompanyEditorForm;
         if (changes.isActive !== undefined) next.isActive = changes.isActive === "true";
+        if (primaryChanges.isProspect !== undefined) next.isProspect = primaryChanges.isProspect === "true";
         if (!next.name.trim() || !next.code.trim()) throw new Error("Συμπληρώστε την επωνυμία και τον κωδικό.");
         const saved = (await api.put<CompanyDto>("/insurance-companies/" + company.id, toCompanyApiPayload(next, {
           createBridge: false, bridgeName: null, bridgeAutoSync: false, bridgeConfigJson: null, installZeroCommissionDefaults: false,

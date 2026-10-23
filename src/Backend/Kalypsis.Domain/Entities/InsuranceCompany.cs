@@ -11,6 +11,8 @@ public class InsuranceCompany : BaseEntity
     /// <summary>Tenant-owned company logo stored through the file-storage abstraction.</summary>
     public string? LogoUrl { get; set; }
     public bool IsActive { get; set; } = true;
+    /// <summary>The office has not yet confirmed cooperation with this company or broker.</summary>
+    public bool IsProspect { get; set; }
 
     /// <summary>
     /// Phase 8.7 — null = global carrier (visible to every tenant);

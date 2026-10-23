@@ -23,7 +23,7 @@ test("company and agency General fields read down semantic columns in identical 
       for(let index=0;index<additionalCount;index++) values[`custom:extra-${index}`]=String(index);
       const before = JSON.stringify(values);
       const groups = [
-        ["name","code","afmVat","isActive","Τύπος"],
+        ["name","code","afmVat","isActive","isProspect","Τύπος"],
         ["country","custom:address","custom:city","custom:postal","website","custom:maps"],
         ["contactName","contactEmail","contactPhone","custom:contract","custom:expiry","notes",...Array.from({length:additionalCount},(_,index)=>`custom:extra-${index}`)],
       ];
@@ -42,7 +42,7 @@ test("company and agency General fields read down semantic columns in identical 
         assert.ok(html.includes(`data-policy-columns="${count}"`));
         assert.deepEqual(ids(html),groups.flat());
         assert.deepEqual(html.split(/data-policy-column="\d+"/).slice(1).map(ids),policyFieldColumns(groups,count));
-        assert.equal(new Set(ids(html)).size,17+additionalCount);
+        assert.equal(new Set(ids(html)).size,18+additionalCount);
         assert.ok(html.includes(isBroker ? "Πρακτορείο" : "Ασφαλιστική εταιρεία"));
         assert.ok(html.includes(editAll ? "Αποθήκευση Επωνυμία" : "Αντιγραφή Επωνυμία"));
         assert.ok(!html.includes("Αποθήκευση Τύπος"));
@@ -105,11 +105,11 @@ test("notifications page uses a compact responsive Kalypsis table and modal filt
   assert.equal(source.includes('label="Ανά σελίδα"'), false);
 });
 
-test("hidden public insurance intake is unlisted, validated and persisted to the platform inbox", async () => {
+test("unlisted insurance intake requires login, validates submissions and persists to the platform inbox", async () => {
   const app = await readFile(new URL("../../App.tsx", import.meta.url), "utf8");
   const page = await readFile(new URL("../../pages/InsuranceRequestPage.tsx", import.meta.url), "utf8");
   const controller = await readFile(new URL("../../../../../Backend/Kalypsis.Api/Controllers/OfficeWebsiteController.cs", import.meta.url), "utf8");
-  assert.match(app, /path="\/insurance-request" element=\{<InsuranceRequestPage \/>\}/);
+  assert.match(app, /path="\/insurance-request" element=\{<ProtectedRoute><InsuranceRequestPage \/><\/ProtectedRoute>\}/);
   for (const label of ["Κλάδος ασφάλισης", "Ονοματεπώνυμο", "Email", "Τηλέφωνο", "Αποστολή αιτήματος ασφάλισης"]) assert.equal(page.includes(label), true, label);
   assert.match(page, /kalypsis\/insurance-request/);
   assert.match(controller, /EnableRateLimiting\("public-contact"\)/);
