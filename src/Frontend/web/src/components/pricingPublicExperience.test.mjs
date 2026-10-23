@@ -121,7 +121,8 @@ test("public pricing, contract form, disclosure and bilingual CLI links render w
           assert.ok(html.includes('href="/contact"')); assert.ok(!html.includes('<img'));
           assert.ok(html.includes(language === "el" ? "Όλα σε ένα περιβάλλον, χωρίς πολύπλοκες διαδικασίες" : "One workspace, without complicated processes"));
           assert.ok(html.includes(language === "el" ? "Αυτοματοποιείτε τα επαναλαμβανόμενα" : "Automate recurring work"));
-          for (const token of ["#087CEB","#305EC6","#12877F","#795DD8","prefers-reduced-motion","minmax(0, 1fr)","1200px"]) assert.ok(html.includes(token),token);
+          for (const token of ["#087CEB","#E7F1FD","prefers-reduced-motion","minmax(0, 1fr)","1200px"]) assert.ok(html.includes(token),token);
+          for (const obsolete of ["#305EC6","#12877F","#795DD8"]) assert.ok(!html.includes(obsolete));
         }
       }
       const source = await read("./PublicWorkflowSection.tsx");
@@ -140,6 +141,7 @@ test("public pricing, contract form, disclosure and bilingual CLI links render w
           assert.equal((html.match(/<h3\b/g)??[]).length,6);
           assert.equal((html.match(/href="\/contact"/g)??[]).length,6);
           assert.ok(html.includes('id="features"')); assert.ok(html.includes('aria-labelledby="public-offerings-title"'));
+          assert.ok(html.includes("/images/kalypsis-hero-bg.png")); assert.ok(html.includes("rotate(180deg)"));
           for(const key of ["bridges","prod","network","cash","access","portal"]) {
             assert.ok(html.includes(`id="offering-${key}-title"`));
             const title=i18n.t(`landing.v2.feat.${key}T`);

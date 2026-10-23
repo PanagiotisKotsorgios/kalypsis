@@ -10,9 +10,9 @@ import { useTranslation } from "react-i18next";
 
 const steps = [
   { icon: GroupsOutlinedIcon, color: "#087CEB", tint: "#E7F1FD", el: ["Ξεκινάτε από εκεί που χρειάζεστε", "Ενεργοποιείτε μόνο το περιβάλλον που ταιριάζει σήμερα στο γραφείο σας."], en: ["Start where you need to", "Activate only the workspace that suits your agency today."] },
-  { icon: DescriptionOutlinedIcon, color: "#305EC6", tint: "#EAF0FD", el: ["Δουλεύετε από μία καρτέλα", "Πελάτες, συμβόλαια, οχήματα, ζημιές και έγγραφα παραμένουν συνδεδεμένα."], en: ["Work from one record", "Customers, policies, vehicles, claims and documents stay connected."] },
-  { icon: SettingsOutlinedIcon, color: "#12877F", tint: "#E5F4F1", el: ["Αυτοματοποιείτε τα επαναλαμβανόμενα", "Υπενθυμίσεις, εισαγωγές, καμπάνιες και αναφορές αντλούν τα δεδομένα τους απευθείας από το σύστημα."], en: ["Automate recurring work", "Reminders, imports, campaigns and reports use data directly from the system."] },
-  { icon: LeaderboardOutlinedIcon, color: "#795DD8", tint: "#F0ECFC", el: ["Μεγαλώνετε χωρίς αλλαγή συστήματος", "Προσθέτετε χρήστες, γραφεία και πακέτα, με το ίδιο περιβάλλον και την ίδια ροή εργασίας."], en: ["Grow without switching systems", "Add users, offices and packages with the same workspace and workflow."] },
+  { icon: DescriptionOutlinedIcon, color: "#087CEB", tint: "#E7F1FD", el: ["Δουλεύετε από μία καρτέλα", "Πελάτες, συμβόλαια, οχήματα, ζημιές και έγγραφα παραμένουν συνδεδεμένα."], en: ["Work from one record", "Customers, policies, vehicles, claims and documents stay connected."] },
+  { icon: SettingsOutlinedIcon, color: "#087CEB", tint: "#E7F1FD", el: ["Αυτοματοποιείτε τα επαναλαμβανόμενα", "Υπενθυμίσεις, εισαγωγές, καμπάνιες και αναφορές αντλούν τα δεδομένα τους απευθείας από το σύστημα."], en: ["Automate recurring work", "Reminders, imports, campaigns and reports use data directly from the system."] },
+  { icon: LeaderboardOutlinedIcon, color: "#087CEB", tint: "#E7F1FD", el: ["Μεγαλώνετε χωρίς αλλαγή συστήματος", "Προσθέτετε χρήστες, γραφεία και πακέτα, με το ίδιο περιβάλλον και την ίδια ροή εργασίας."], en: ["Grow without switching systems", "Add users, offices and packages with the same workspace and workflow."] },
 ];
 
 /** Real, accessible page content; no screenshot text or decorative dashboard mockups. */

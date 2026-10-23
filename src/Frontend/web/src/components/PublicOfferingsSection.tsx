@@ -41,7 +41,13 @@ function CarrierImportDiagram({ english }: { english: boolean }) {
 export function PublicOfferingsSection() {
   const { t, i18n } = useTranslation();
   const english = i18n.resolvedLanguage?.startsWith("en") ?? false;
-  return <Box component="section" id="features" aria-labelledby="public-offerings-title" sx={{ bgcolor: "#F3F6FA", position: "relative", overflow: "hidden", py: { xs: 4, md: 6 } }}>
+  return <Box component="section" id="features" aria-labelledby="public-offerings-title" sx={{ bgcolor: "#F3F6FA", position: "relative", overflow: "hidden", isolation: "isolate", py: { xs: 4, md: 6 },
+    "&::before": { content: '""', position: "absolute", top: { xs: -40, md: -80 }, bottom: 0, left: 0, right: 0,
+      backgroundImage: 'url("/images/kalypsis-hero-bg.png")', backgroundRepeat: "no-repeat", backgroundPosition: "center top", backgroundSize: "cover",
+      transform: "rotate(180deg)", transformOrigin: "center", pointerEvents: "none", zIndex: -1,
+      maskImage: "linear-gradient(180deg, #000 0%, #000 70%, rgba(0,0,0,0.55) 88%, transparent 100%)",
+      WebkitMaskImage: "linear-gradient(180deg, #000 0%, #000 70%, rgba(0,0,0,0.55) 88%, transparent 100%)" }
+  }}>
     <Box component="img" src="/kalypsis-logo.png" alt="" aria-hidden sx={{ position: "absolute", right: { md: "3%", xl: "7%" }, top: 15, width: 210, opacity: .055, display: { xs: "none", lg: "block" }, pointerEvents: "none", mixBlendMode: "multiply" }} />
     <Container maxWidth={false} sx={{ maxWidth: { xs: "100%", md: "94%", xl: 1600 }, px: { xs: 2, sm: 3, lg: 4 }, position: "relative" }}>
       <Stack direction="row" alignItems="center" gap={2} sx={{ mb: 1.5 }}><Typography sx={{ color: "#145DA7", fontSize: 12, letterSpacing: ".17em", textTransform: "uppercase", fontWeight: 800 }}>{t("landing.v2.featuresEyebrow")}</Typography><Box aria-hidden sx={{ width: 65, height: 2, bgcolor: "#145DA7" }} /></Stack>
