@@ -61,12 +61,12 @@ export function CustomerNeedsTable({ needs, onEdit, onDelete, deleting = false }
   return <CustomerCompactTable rows={rows} rowKey={need => need.id} label="Περιουσία και ανάγκες ασφάλισης" minWidth={900}
     searchPlaceholder="Περιγραφή, τύπος ή σημειώσεις…" searchText={need => `${need.title} ${NEED_LABEL[need.kind] ?? need.kind} ${need.notes ?? ""}`}
     filters={<><TextField select size="small" label="Τύπος" value={kind} onChange={event => setKind(event.target.value)} sx={{ minWidth: 130 }}><MenuItem value="">Όλοι</MenuItem>{[...new Set(needs.map(need => need.kind))].map(value => <MenuItem key={value} value={value}>{NEED_LABEL[value] ?? value}</MenuItem>)}</TextField>
-      <TextField select size="small" label="Κάλυψη" value={coverage} onChange={event => setCoverage(event.target.value)} sx={{ minWidth: 160 }}><MenuItem value="">Όλες</MenuItem><MenuItem value="insured">Με κάλυψη</MenuItem><MenuItem value="uninsured">Χωρίς κάλυψη</MenuItem></TextField></>}
+      <TextField select size="small" label="Συμβόλαιο" value={coverage} onChange={event => setCoverage(event.target.value)} sx={{ minWidth: 180 }}><MenuItem value="">Όλα</MenuItem><MenuItem value="insured">Με συμβόλαιο</MenuItem><MenuItem value="uninsured">Χωρίς συμβόλαιο</MenuItem></TextField></>}
     columns={[
       { key: "kind", title: "Τύπος", cell: need => NEED_LABEL[need.kind] ?? need.kind },
       { key: "title", title: "Περιγραφή", cell: need => textCell(need.title, 200) },
       { key: "asset", title: "Υπάρχει", cell: need => need.hasAsset ? "Ναι" : "Όχι" },
-      { key: "coverage", title: "Κάλυψη", cell: need => <Chip size="small" color={need.isInsured ? "success" : "warning"} label={need.isInsured ? "Ασφαλισμένο" : "Χωρίς κάλυψη"} sx={{ height: 21, fontSize: 11 }} /> },
+      { key: "coverage", title: "Συμβόλαιο", cell: need => <Chip size="small" color={need.isInsured ? "success" : "warning"} label={need.isInsured ? "Με συμβόλαιο" : "Χωρίς συμβόλαιο"} sx={{ height: 21, fontSize: 11 }} /> },
       { key: "priority", title: "Προτερ.", cell: need => `${need.priority}/5` },
       { key: "contact", title: "Επόμ. επικοινωνία", cell: need => date(need.nextContactAt) },
       { key: "notes", title: "Σημειώσεις", cell: need => textCell(need.notes) },
@@ -85,13 +85,13 @@ export function FamilyMembersTable({ members, onRemove, removing = false }: { me
       searchPlaceholder="Μέλος, συμβόλαιο, ανάγκη ή σημειώσεις…"
       searchText={member => `${member.displayName} ${RELATION_LABEL[member.relationshipType] ?? member.relationshipType} ${member.notes ?? ""} ${member.policies.map(policy => `${policy.policyNumber} ${policy.policyType}`).join(" ")} ${member.needs.map(need => `${need.title} ${NEED_LABEL[need.kind] ?? need.kind} ${need.notes ?? ""}`).join(" ")}`}
       filters={<><TextField select size="small" label="Σχέση" value={relationship} onChange={event => setRelationship(event.target.value)} sx={{ minWidth: 150 }}><MenuItem value="">Όλες</MenuItem>{[...new Set(members.map(member => member.relationshipType))].map(value => <MenuItem key={value} value={value}>{RELATION_LABEL[value] ?? value}</MenuItem>)}</TextField>
-        <TextField select size="small" label="Εμφάνιση" value={coverage} onChange={event => setCoverage(event.target.value)} sx={{ minWidth: 170 }}><MenuItem value="">Όλα τα μέλη</MenuItem><MenuItem value="policies">Με συμβόλαια</MenuItem><MenuItem value="needs">Με ανάγκες</MenuItem><MenuItem value="uninsured">Με ακάλυπτες ανάγκες</MenuItem></TextField></>}
+        <TextField select size="small" label="Εμφάνιση" value={coverage} onChange={event => setCoverage(event.target.value)} sx={{ minWidth: 220 }}><MenuItem value="">Όλα τα μέλη</MenuItem><MenuItem value="policies">Με συμβόλαια</MenuItem><MenuItem value="needs">Με ανάγκες</MenuItem><MenuItem value="uninsured">Ανάγκες χωρίς συμβόλαιο</MenuItem></TextField></>}
       columns={[
         { key: "name", title: "Πελάτης", cell: member => <Button size="small" onClick={() => setDetailId(member.relationshipId)} sx={{ p: 0, minWidth: 0, fontWeight: 750 }}>{textCell(member.displayName, 210)}</Button> },
         { key: "relation", title: "Σχέση", cell: member => RELATION_LABEL[member.relationshipType] ?? member.relationshipType },
         { key: "policies", title: "Συμβόλαια", align: "center", cell: member => member.policies.length },
         { key: "needs", title: "Ανάγκες", align: "center", cell: member => member.needs.length },
-        { key: "uninsured", title: "Ακάλυπτες", align: "center", cell: member => <Chip size="small" color={member.needs.some(need => !need.isInsured) ? "warning" : "success"} label={member.needs.filter(need => !need.isInsured).length} sx={{ height: 21, fontSize: 11 }} /> },
+        { key: "uninsured", title: "Χωρίς συμβόλαιο", align: "center", cell: member => <Chip size="small" color={member.needs.some(need => !need.isInsured) ? "warning" : "success"} label={member.needs.filter(need => !need.isInsured).length} sx={{ height: 21, fontSize: 11 }} /> },
         { key: "notes", title: "Σημειώσεις", cell: member => textCell(member.notes) },
         { key: "actions", title: "Ενέργειες", align: "right", cell: member => <Stack direction="row" justifyContent="flex-end" spacing={.25}><Tooltip title="Συμβόλαια και ανάγκες μέλους"><IconButton size="small" color="primary" aria-label={`Προβολή ${member.displayName}`} onClick={() => setDetailId(member.relationshipId)}><VisibilityIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Αφαίρεση σχέσης"><IconButton size="small" color="error" disabled={removing} aria-label={`Αφαίρεση ${member.displayName}`} onClick={() => onRemove(member)}><DeleteIcon fontSize="small" /></IconButton></Tooltip></Stack> },
       ]} />
@@ -101,7 +101,7 @@ export function FamilyMembersTable({ members, onRemove, removing = false }: { me
         <Box><Typography fontWeight={800}>Συμβόλαια</Typography><FamilyPoliciesTable policies={detail.policies} /></Box>
         <Box><Typography fontWeight={800}>Ανάγκες ασφάλισης</Typography><CustomerCompactTable rows={detail.needs} rowKey={need => need.id} label="Ανάγκες μέλους" minWidth={630}
           searchPlaceholder="Περιγραφή ή τύπος…" searchText={need => `${need.title} ${NEED_LABEL[need.kind] ?? need.kind} ${need.notes ?? ""}`}
-          columns={[{ key: "kind", title: "Τύπος", cell: need => NEED_LABEL[need.kind] ?? need.kind }, { key: "title", title: "Περιγραφή", cell: need => textCell(need.title) }, { key: "coverage", title: "Κάλυψη", cell: need => need.isInsured ? "Ασφαλισμένο" : "Χωρίς κάλυψη" }, { key: "priority", title: "Προτεραιότητα", cell: need => `${need.priority}/5` }, { key: "notes", title: "Σημειώσεις", cell: need => textCell(need.notes, 300) }]} /></Box>
+          columns={[{ key: "kind", title: "Τύπος", cell: need => NEED_LABEL[need.kind] ?? need.kind }, { key: "title", title: "Περιγραφή", cell: need => textCell(need.title) }, { key: "coverage", title: "Συμβόλαιο", cell: need => need.isInsured ? "Με συμβόλαιο" : "Χωρίς συμβόλαιο" }, { key: "priority", title: "Προτεραιότητα", cell: need => `${need.priority}/5` }, { key: "notes", title: "Σημειώσεις", cell: need => textCell(need.notes, 300) }]} /></Box>
       </Stack>}
     </CustomerPopup>
   </>;

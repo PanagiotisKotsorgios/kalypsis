@@ -1738,7 +1738,7 @@ function CustomerNeedsCard({ customerId, needs }: { customerId: string; needs: C
   return (
     <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 }, bgcolor: "rgba(248,250,252,0.92)" }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={0.75} flexWrap="wrap" gap={1}>
-        <Box sx={{ px: 0.75, py: 0.5, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}><Typography variant="subtitle2" fontWeight={800}>Περιουσία και ανάγκες ασφάλισης</Typography><Typography variant="caption" color="text.secondary">Καταχωρήστε όχημα, σπίτι, υγεία ή οποιαδήποτε ανάγκη. Η κατάσταση «χωρίς κάλυψη» τροφοδοτεί τις προτάσεις.</Typography></Box>
+        <Box sx={{ px: 0.75, py: 0.5, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}><Typography variant="subtitle2" fontWeight={800}>Περιουσία και ανάγκες ασφάλισης</Typography><Typography variant="caption" color="text.secondary">Καταχωρήστε όχημα, σπίτι, υγεία ή οποιαδήποτε ανάγκη. Οι ανάγκες χωρίς συμβόλαιο εμφανίζονται στις λίστες αύξησης παραγωγής.</Typography></Box>
         <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={() => openCreate()}>Νέα ανάγκη</Button>
       </Stack>
       <Stack direction="row" spacing={.75} flexWrap="wrap" useFlexGap mb={.5} sx={{ "& .MuiButton-root": { bgcolor: "#159b59", color: "#fff", "&:hover": { bgcolor: "#107b46", color: "#fff" } } }}>
@@ -1754,7 +1754,7 @@ function CustomerNeedsCard({ customerId, needs }: { customerId: string; needs: C
         <SearchableTextField label="Τύπος" value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value })} fullWidth>{NEED_KINDS.map(kind => <MenuItem key={kind} value={kind}>{NEED_LABEL[kind]}</MenuItem>)}</SearchableTextField>
         <TextField label="Περιγραφή" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} fullWidth required placeholder="π.χ. Toyota Yaris, εξοχικό, ιδιωτική υγεία" />
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1}><FormControlLabel control={<Switch checked={form.hasAsset} onChange={e => setForm({ ...form, hasAsset: e.target.checked })} />} label="Έχει την περιουσία / ανάγκη" />
-          <FormControlLabel control={<Switch checked={form.isInsured} onChange={e => setForm({ ...form, isInsured: e.target.checked })} />} label="Είναι ήδη ασφαλισμένο" /></Stack>
+          <FormControlLabel control={<Switch checked={form.isInsured} onChange={e => setForm({ ...form, isInsured: e.target.checked })} />} label="Υπάρχει ήδη συμβόλαιο" /></Stack>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1}><SearchableTextField label="Προτεραιότητα" value={form.priority} onChange={e => setForm({ ...form, priority: Number(e.target.value) })} fullWidth>{[1,2,3,4,5].map(n => <MenuItem key={n} value={n}>{n}</MenuItem>)}</SearchableTextField>
           <TextField type="date" label="Επόμενη επικοινωνία" InputLabelProps={{ shrink: true }} value={form.nextContactAt} onChange={e => setForm({ ...form, nextContactAt: e.target.value })} fullWidth /></Stack>
         <TextField label="Σημειώσεις" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} multiline rows={3} fullWidth />

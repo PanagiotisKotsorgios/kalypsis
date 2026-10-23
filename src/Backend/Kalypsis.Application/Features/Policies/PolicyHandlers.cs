@@ -452,6 +452,8 @@ public class UpdatePolicyCommandValidator : AbstractValidator<UpdatePolicyComman
     {
         RuleFor(x => x.Body.Premium).GreaterThanOrEqualTo(0);
         RuleFor(x => x.Body.EndDate).GreaterThan(x => x.Body.StartDate);
+        RuleFor(x => x.Body.PolicyNumber).Must(number => number is null || (!string.IsNullOrWhiteSpace(number) && number.Trim().Length <= 64))
+            .WithMessage("Ο αριθμός συμβολαίου πρέπει να περιέχει από 1 έως 64 χαρακτήρες.");
     }
 }
 
@@ -478,6 +480,16 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
 
         var b = request.Body;
         VehicleDeletionProtection.EnsureCanClearPlate(p, string.IsNullOrWhiteSpace(b.VehicleRegistrationPlate));
+        var number = b.PolicyNumber?.Trim();
+        if (b.PolicyNumber is not null)
+        {
+            if (string.IsNullOrWhiteSpace(number) || number.Length > 64)
+                throw AppException.Validation("Ο αριθμός συμβολαίου πρέπει να περιέχει από 1 έως 64 χαρακτήρες.");
+            // The unique index covers other offices and the recycle bin too.
+            if (await _db.Policies.IgnoreQueryFilters().AnyAsync(x => x.TenantId == tenantId
+                && x.Id != p.Id && x.PolicyNumber == number, ct))
+                throw NumberTaken(number);
+        }
         // Cross-tenant FK guards — same rules as CreatePolicyCommand. See
         // TenantFkGuard docs for the attack this blocks.
         var carrierOk = await _db.InsuranceCompanies.IgnoreQueryFilters()
@@ -492,6 +504,7 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
         var (updBranchEnum, updBranchRaw) = PolicyTypeSplit.Parse(b.PolicyType);
         var mappingsChanged = !string.Equals(p.CarrierPackageCode, b.PackageCode?.Trim(), StringComparison.Ordinal)
             || !string.Equals(p.CarrierCoverageCode, b.CoverCode?.Trim(), StringComparison.Ordinal);
+        p.PolicyNumber = number ?? p.PolicyNumber;
         p.InsuranceCompanyId = b.InsuranceCompanyId;
         p.ProducerId = updProducerId;
         p.PolicyType = updBranchEnum;
@@ -545,7 +558,14 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
             .Where(c => c.PolicyId == p.Id && c.DeletedAt == null).ToListAsync(ct);
         PolicyPremiumMath.TrySyncPolicyPremiumFromCovers(p, covers);
 
-        await _db.SaveChangesAsync(ct);
+        try { await _db.SaveChangesAsync(ct); }
+        catch (DbUpdateException) when (b.PolicyNumber is not null)
+        {
+            if (await _db.Policies.IgnoreQueryFilters().AnyAsync(x => x.TenantId == tenantId
+                && x.Id != p.Id && x.PolicyNumber == p.PolicyNumber, ct))
+                throw NumberTaken(p.PolicyNumber);
+            throw;
+        }
 
         // Rebuild the commission matrix — premium, producer, or scope may
         // have shifted enough to change which rule matches and by how much.
@@ -566,6 +586,9 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
             .FirstAsync(x => x.Id == p.Id, ct);
         return ListPoliciesQueryHandler.ToDto(saved);
     }
+    private static AppException NumberTaken(string number) => new("duplicate_policy_number",
+        $"Ο αριθμός συμβολαίου «{number}» χρησιμοποιείται ήδη από άλλο συμβόλαιο. Επιλέξτε διαφορετικό αριθμό.",
+        409, title: "Ο αριθμός συμβολαίου χρησιμοποιείται");
 }
 
 /* ========= Cancel (soft-delete via status) ========= */

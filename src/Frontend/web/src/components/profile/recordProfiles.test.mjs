@@ -186,13 +186,13 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
       const values={...policy,status:"Active",policyType:"Auto",premium:"100",currency:"EUR"};
       const {view,edit}=layout(PolicyProfileFields,{policy,values,session:session(values),companies:[],customers:[]});
       assert.equal(view.includes("Επεξεργασία Έναρξη"),true); assert.equal(edit.includes("Αποθήκευση Έναρξη"),true);
-      assert.equal(edit.includes("Αποθήκευση Διάρκεια"),false); assert.equal(edit.includes("Αποθήκευση Αριθμός συμβολαίου"),false);
+      assert.equal(edit.includes("Αποθήκευση Διάρκεια"),false); assert.equal(edit.includes("Αποθήκευση Αριθμός συμβολαίου"),true);
     });
     await t.test("policy General, contract details and premiums read top-to-bottom at all breakpoints without losing view/edit controls", async () => {
       const { policyFieldColumns } = await server.ssrLoadModule("/src/components/profile/PolicyFieldColumns.tsx");
       const policy = { policyNumber: "POL1", customerDisplay: "Πελάτης", customerVat: "012345678", insuranceCompanyId: "carrier", insuranceCompanyName: "Ασφαλιστική", producerName: "Συνεργάτης", startDate: "2026-01-01", endDate: "2026-12-31", premium: 100, netPremium: 80, currency: "EUR" };
       const values = { ...policy, status: "Active", policyType: "Auto", premium: "100", netPremium: "80", currency: "EUR" };
-      const generalGroups = [["Αριθμός συμβολαίου", "applicationNumber", "insuranceCompanyId", "previousInsuranceCompanyId", "policyType", "status", "issuedAt", "startDate", "endDate", "Διάρκεια"],
+      const generalGroups = [["policyNumber", "applicationNumber", "insuranceCompanyId", "previousInsuranceCompanyId", "policyType", "status", "issuedAt", "startDate", "endDate", "Διάρκεια"],
         ["Πελάτης / ασφαλισμένος", "ΑΦΜ πελάτη", "Email ασφαλισμένου", "Τηλέφωνο ασφαλισμένου", "contractPartyCustomerId", "ΑΦΜ συμβαλλομένου", "Email συμβαλλομένου", "Τηλέφωνο συμβαλλομένου"],
         ["Συνεργάτης", "Κωδικός συνεργάτη", "Προμήθεια συνεργάτη (%)", "vehicleRegistrationPlate", "driverVatNumber", "reasonForCirculation", "premium", "netPremium", "currency"]];
       const cases = [[PolicyProfileFields, { policy, values, companies: [], customers: [] }, generalGroups],
@@ -280,10 +280,14 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
       assert.deepEqual(vehicleOwnerHistory([]), []);
     });
     await t.test("policy single-field PUT retains nonvisible cover/package and finance settings", () => {
-      const current={insuranceCompanyId:"carrier",producerId:"producer",policyType:"Auto",startDate:"2026-01-01",endDate:"2026-12-31",premium:100,currency:"EUR",status:"Active",coverCode:"COVER",packageCode:"PACKAGE",specialCommissionPercent:15,paidDirectlyToCarrier:false,vehicleRegistrationPlate:"ABC1234",id:"NO"};
+      const current={policyNumber:"POL-OLD",insuranceCompanyId:"carrier",producerId:"producer",policyType:"Auto",startDate:"2026-01-01",endDate:"2026-12-31",premium:100,currency:"EUR",status:"Active",coverCode:"COVER",packageCode:"PACKAGE",specialCommissionPercent:15,paidDirectlyToCarrier:false,vehicleRegistrationPlate:"ABC1234",id:"NO"};
       const result=policyCorePayload(current,{premium:"0"}); assert.equal(result.premium,0); assert.equal("id" in result,false);
       for(const key of ["coverCode","packageCode","specialCommissionPercent","paidDirectlyToCarrier","vehicleRegistrationPlate"]) assert.equal(result[key],current[key]);
       assert.equal("delivered" in result,false);
+      const renamed=policyCorePayload(current,{policyNumber:"  NEW-000123  "});
+      assert.equal(renamed.policyNumber,"NEW-000123");
+      for(const key of Object.keys(current).filter(key=>!["id","policyNumber"].includes(key))) assert.equal(renamed[key],current[key]);
+      for(const policyNumber of ["", "   ", "X".repeat(65)]) assert.throws(()=>policyCorePayload(current,{policyNumber}));
       assert.deepEqual(policyPreservedAmounts({netPremium:75,vatAmount:25,stampDutyAmount:0,insuranceContributionAmount:2,otherChargesAmount:null}),{netPremium:75,vatAmount:25,stampDutyAmount:0,insuranceContributionAmount:2,otherChargesAmount:null});
       for(const changes of [{startDate:"2026-02-30"},{endDate:"2025-01-01"},{premium:"-1"},{premium:""}]) assert.throws(()=>policyCorePayload(current,changes));
     });

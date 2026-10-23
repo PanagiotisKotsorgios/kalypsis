@@ -30,6 +30,8 @@ test("family popup keeps editable needs and related customers, but never renders
       client.setQueryData(["customer-family","family-test"],data);
       const html=renderToStaticMarkup(createElement(QueryClientProvider,{client},createElement(FamilyNeedsTab,{customerId:"family-test"})));
       assert.equal((html.match(/<table\b/g)??[]).length,2);
+      assert.ok(html.includes("Χωρίς συμβόλαιο")); assert.ok(html.includes("Με συμβόλαιο"));
+      assert.ok(!html.includes("Χωρίς κάλυψη")); assert.ok(!html.includes("χωρίς κάλυψη"));
       for(const text of ["Περιουσία και ανάγκες ασφάλισης","Οικογένεια και συνδεδεμένοι πελάτες","Νέα ανάγκη","Έχει σπίτι","Έχει όχημα","Υγεία","Σύνδεση μέλους","Κατοικία Αθήνας","Επεξεργασία Κατοικία Αθήνας","Μαρία Παπαδοπούλου"]) assert.ok(html.includes(text),text);
       for(const removed of ["Προτεινόμενες καλύψεις","Παράγονται από την καταχωρημένη","Δεν υπάρχουν ανοικτές προτάσεις","Hidden proposal","Recommendation should not render"]) assert.ok(!html.includes(removed),removed);
       assert.deepEqual(client.getQueryData(["customer-family","family-test"]),before);

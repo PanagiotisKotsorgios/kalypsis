@@ -88,7 +88,8 @@ public record UpdatePolicyBody(
     DateOnly? IssuedAt = null,
     string? VehicleRegistrationPlate = null,
     bool PaidDirectlyToCarrier = false,
-    bool? Delivered = null);
+    bool? Delivered = null,
+    string? PolicyNumber = null);
 
 public record RenewPolicyBody(
     DateOnly StartDate,

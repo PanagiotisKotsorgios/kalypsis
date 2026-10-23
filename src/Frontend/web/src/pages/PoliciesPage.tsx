@@ -1193,7 +1193,7 @@ function PolicyFormDialog({
         delivered: form.delivered,
       };
       if (editing && policy) {
-        return (await api.put<PolicyDto>(`/policies/${policy.id}`, body)).data;
+        return (await api.put<PolicyDto>(`/policies/${policy.id}`, { ...body, policyNumber: form.policyNumber.trim() || null })).data;
       } else {
         return (await api.post<PolicyDto>("/policies", {
           customerId: form.customerId,

@@ -541,6 +541,10 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
           vehicleUseCategory: current.vehicleUseCategory || current.carrierUseCode,
           coverCode: current.carrierCoverageCode, packageCode: current.carrierPackageCode,
         }, core));
+        if ("policyNumber" in core) {
+          for (const key of ["receipts", "payments", "financial-movements", "carrier-commissions", "customer-policies", "customer-account", "customer-family", "policy-lifecycle", "production-list"])
+            void qc.invalidateQueries({ queryKey: [key] });
+        }
         // Cache the full detail, not a partial list DTO, before the next independent write.
         qc.setQueryData(["policy-detail", policyId], (await api.get<PolicyDetail>("/policies/" + policyId + "/detail")).data);
         accept(Object.keys(core));
@@ -2634,7 +2638,7 @@ export function PolicyProfileFields({session, values, policy, companies, custome
   if (values.policyType && !types.some(option => option.value === values.policyType)) types.push({value:values.policyType,label:values.policyType});
   const statuses = Object.keys(POLICY_STATUS_LABELS).map(value => ({value,label:policyStatusLabel(value)}));
   return <PolicyFieldColumns section="general" groups={[
-    [<ProfileEditableField key="number" label="Αριθμός συμβολαίου" value={policy.policyNumber} mono />,
+    [field("policyNumber", "Αριθμός συμβολαίου", {mono: true}),
       field("applicationNumber","Αριθμός αίτησης"), field("insuranceCompanyId","Ασφαλιστική", {options:carrierOptions}),
       field("previousInsuranceCompanyId","Προηγούμενη ασφαλιστική",{options:[{value:"",label:"Δεν έχει οριστεί"}, ...carrierOptions]}),
       field("policyType","Κλάδος",{options:types}), field("status","Κατάσταση",{options:statuses}),
