@@ -62,6 +62,7 @@ test("public pricing, contract form, disclosure and bilingual CLI links render w
     const {PublicNav} = await server.ssrLoadModule("/src/components/PublicNav.tsx");
     const {LandingPage} = await server.ssrLoadModule("/src/pages/LandingPage.tsx");
     const {PublicProductShowcase,WEB_SCREENSHOTS} = await server.ssrLoadModule("/src/components/PublicProductShowcase.tsx");
+    const {PublicRemoteAccessSection,REMOTE_ACCESS_TOOLS} = await server.ssrLoadModule("/src/components/PublicRemoteAccessSection.tsx");
     const {DESKTOP_SCREENSHOTS,CLI_SCREENSHOTS} = await server.ssrLoadModule("/src/components/DownloadShowcase.tsx");
     const {PublicOfferingsSection} = await server.ssrLoadModule("/src/components/PublicOfferingsSection.tsx");
     const {PublicPricingCooperationSection} = await server.ssrLoadModule("/src/components/PublicPricingCooperationSection.tsx");
@@ -114,7 +115,7 @@ test("public pricing, contract form, disclosure and bilingual CLI links render w
         }
       }
     });
-    await context.test("Web, Desktop and CLI have separate bilingual showcases with real screenshots and working next steps", async () => {
+    await context.test("product showcases and remote access tools have real images and bilingual links to their downloads", async () => {
       assert.equal(WEB_SCREENSHOTS.length,6);
       assert.equal(DESKTOP_SCREENSHOTS.length,4);
       assert.equal(CLI_SCREENSHOTS.length,5);
@@ -122,6 +123,13 @@ test("public pricing, contract form, disclosure and bilingual CLI links render w
         const bytes = await readFile(new URL(`../../public/images/download/${image.file}`,import.meta.url));
         assert.equal(bytes.readUInt16BE(0),0xffd8,image.file);
         assert.ok(bytes.length > 1000,image.file);
+      }
+      assert.deepEqual(REMOTE_ACCESS_TOOLS.map(tool=>tool.website),['https://rustdesk.com/','https://www.anyviewer.com/']);
+      for (const tool of REMOTE_ACCESS_TOOLS) {
+        const logo = await readFile(new URL(`../../public/images/remote-access/${tool.logo}`,import.meta.url));
+        assert.ok(logo.length > 500,tool.name);
+        if(tool.logo.endsWith('.svg')) assert.ok(logo.toString().startsWith('<svg'));
+        else assert.equal(logo.subarray(1,4).toString(),'PNG');
       }
       for (const language of ["el","en"]) {
         await i18n.changeLanguage(language);
@@ -143,6 +151,16 @@ test("public pricing, contract form, disclosure and bilingual CLI links render w
           assert.ok(html.includes(language === "el" ? "Μεγέθυνση" : "Enlarge"));
           for (const token of ["#F1F7FD","#0B2B54","minmax(0, 1fr)","900px"]) assert.ok(html.includes(token),token);
           assert.ok(!html.includes('public-workflow-title'));
+          const remote = render(h(PublicRemoteAccessSection),width);
+          assert.equal((remote.match(/<article\b/g)??[]).length,2);
+          assert.ok(remote.includes(language === 'el' ? 'Προγράμματα απομακρυσμένης πρόσβασης' : 'Remote access software'));
+          for (const tool of REMOTE_ACCESS_TOOLS) {
+            assert.ok(remote.includes(`src="/images/remote-access/${tool.logo}"`));
+            assert.ok(remote.includes(`href="${tool.website}"`));
+            assert.ok(remote.includes(`href="${tool.download}"`));
+          }
+          assert.ok(remote.includes('target="_blank"')); assert.ok(remote.includes('rel="noopener noreferrer"'));
+          assert.ok(remote.includes('prefers-reduced-motion'));
         }
       }
       await assert.rejects(read("./PublicWorkflowSection.tsx"),{code:"ENOENT"});
@@ -192,6 +210,7 @@ test("public pricing, contract form, disclosure and bilingual CLI links render w
       assert.ok(!landing.includes('<table'));
       assert.ok(landing.includes('public-pricing-cooperation-title'));
       assert.equal((landing.match(/id="offering-[a-z]+-title"/g)??[]).length,6);
+      assert.ok(landing.indexOf('id="remote-access-title"') > landing.indexOf('id="public-cli-title"'));
     });
   } finally {client.clear();await server.close();}
 });

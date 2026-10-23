@@ -44,6 +44,7 @@ import { PublicTechnologiesSection } from "../components/PublicTechnologiesSecti
 import { PublicPricingCooperationSection } from "../components/PublicPricingCooperationSection";
 import { CliProjectLink } from "../components/CliProjectLink";
 import { PublicProductShowcase } from "../components/PublicProductShowcase";
+import { PublicRemoteAccessSection } from "../components/PublicRemoteAccessSection";
 import { PublicOfferingsSection } from "../components/PublicOfferingsSection";
 import { api } from "../api/client";
 
@@ -742,6 +743,7 @@ export function LandingPage() {
       <PublicPricingCooperationSection />
       <PublicTechnologiesSection />
       <PublicProductShowcase />
+      <PublicRemoteAccessSection />
       <Container
         maxWidth={false}
         sx={{
