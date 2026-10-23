@@ -38,6 +38,7 @@ import { AccessibilityWidget } from "../components/AccessibilityWidget";
 import { PageEnter } from "../components/PageEnter";
 import { LanguageToggle } from "../components/LanguageToggle";
 import { DesktopDownloadButton } from "../components/DesktopDownloadButton";
+import { PreloginDesktopDownload } from "../components/PreloginDesktopDownload";
 import { PUBLIC_NAVIGATION_Z_INDEX } from "../components/publicOverlayLayers";
 import { PublicTechnologiesSection } from "../components/PublicTechnologiesSection";
 import { PublicPricingCooperationSection } from "../components/PublicPricingCooperationSection";
@@ -401,6 +402,9 @@ export function LandingPage() {
               <MenuIcon sx={{ fontSize: 26 }} />
             </IconButton>
           </Stack>
+          <Box sx={{ px: { xs: 1.5, md: 4.5 }, mt: 1.5 }}>
+            <PreloginDesktopDownload />
+          </Box>
         </Container>
 
         {/* Right-anchored mobile / laptop drawer. Slides in from the right

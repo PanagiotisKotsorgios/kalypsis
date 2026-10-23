@@ -28,12 +28,10 @@ test("manual periods reject missing, reversed, impossible or excessive ranges be
   ]) assert.ok(trendRangeError(range), JSON.stringify(range));
 });
 
-test("public navigation backdrop and drawer cover installer and accessibility layers in both public headers", async () => {
+test("public navigation backdrop and drawer cover accessibility controls in both public headers", async () => {
   assert.ok(PUBLIC_NAVIGATION_Z_INDEX > 1500);
   assert.ok(PUBLIC_FLOATING_Z_INDEX < 1200);
-  for (const path of ["./PreloginDesktopDownload.tsx", "./AccessibilityWidget.tsx"]) {
-    assert.match(await read(path), /zIndex: PUBLIC_FLOATING_Z_INDEX/);
-  }
+  assert.match(await read("./AccessibilityWidget.tsx"), /zIndex: PUBLIC_FLOATING_Z_INDEX/);
   for (const path of ["./LandingNavbar.tsx", "../pages/LandingPage.tsx"]) {
     const source = await read(path);
     assert.match(source, /<Drawer\s+(?:anchor="right"\s+)?sx=\{\{ zIndex: PUBLIC_NAVIGATION_Z_INDEX \}\}/);

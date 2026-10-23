@@ -1,5 +1,6 @@
 ﻿import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { lazy, Suspense } from "react";
+import Box from "@mui/material/Box";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import PeopleIcon from "@mui/icons-material/People";
 import DescriptionIcon from "@mui/icons-material/Description";
@@ -782,20 +783,25 @@ export default function App() {
     && !location.pathname.startsWith("/app")
     && !location.pathname.startsWith("/insurance")
     && !location.pathname.startsWith("/ermes-app");
+  const showPreloginDownload = !location.pathname.startsWith("/app")
+    && !location.pathname.startsWith("/insurance")
+    && !location.pathname.startsWith("/ermes-app")
+    && !location.pathname.startsWith("/frontoffice-quoting")
+    && !location.pathname.startsWith("/insureone/")
+    && !location.pathname.startsWith("/download");
+  const downloadIsInPublicHeader = ["/", "/pricing", "/faq"].includes(
+    location.pathname.replace(/\/+$/, "") || "/");
   // Site-wide maintenance hides everything except platform staff
   const isPlatformStaff = user?.role === "PlatformAdmin" || user?.role === "PlatformEmployee";
   if (maintenance.maintenanceModeEnabled && !isPlatformStaff && !staffOverride) {
     return (
       <>
         {showPreloginNotice && <InfrastructureNoticeBanner />}
+        {showPreloginDownload && <Box sx={{ px: { xs: 2, sm: 3 }, py: 2 }}><PreloginDesktopDownload /></Box>}
         <SiteMaintenancePage
           title={maintenance.maintenanceTitle}
           message={maintenance.maintenanceMessage}
         />
-        {!location.pathname.startsWith("/frontoffice-quoting")
-          && !location.pathname.startsWith("/insureone/partners")
-          && !location.pathname.startsWith("/insureone/")
-          && <PreloginDesktopDownload />}
       </>
     );
   }
@@ -813,6 +819,10 @@ export default function App() {
       {showPreloginNotice && <InfrastructureNoticeBanner />}
       <ScrollToTop />
       <SeoController />
+      {/* Marketing headers own the download row below their navigation.
+          Other public pages keep the same action in normal document flow. */}
+      {showPreloginDownload && !downloadIsInPublicHeader
+        && <Box sx={{ px: { xs: 2, sm: 3 }, py: 2 }}><PreloginDesktopDownload /></Box>}
       <PreloginResponsiveStyles />
       <UserImpersonationBanner />
       <UpgradePlanDialogHost />
@@ -1260,18 +1270,6 @@ export default function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      {/* Prelogin overlays skip authed app shells: /app/* (main app) AND
-          /ermes-app (standalone ΕΡΜΗΣ shell) — no cookie banner or
-          «Download for Windows» pill in either. The standalone
-          /frontoffice-quoting plugin hides it as well. /download itself hides
-          the download pill so it doesn't self-recurse. */}
-      {!location.pathname.startsWith("/app")
-        && !location.pathname.startsWith("/insurance")
-        && !location.pathname.startsWith("/ermes-app")
-        && !location.pathname.startsWith("/frontoffice-quoting")
-        && !location.pathname.startsWith("/insureone/partners")
-        && !location.pathname.startsWith("/insureone/")
-        && !location.pathname.startsWith("/download") && <PreloginDesktopDownload />}
     </>
   );
 }

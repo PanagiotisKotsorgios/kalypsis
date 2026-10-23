@@ -44,7 +44,8 @@ export function PreloginResponsiveStyles() {
     <GlobalStyles styles={{
       // Every Button on a pre-login page stays single-line and gets an
       // ellipsis if the text truly can't fit — so no two-line wraps.
-      "body[data-prelogin] .MuiButton-root": {
+      // The download row has its own larger, responsive button layout.
+      "body[data-prelogin] .MuiButton-root:not([data-desktop-download-action])": {
         whiteSpace: "nowrap",
         maxWidth: "100%",
         overflow: "hidden",
@@ -57,12 +58,12 @@ export function PreloginResponsiveStyles() {
       },
       // Inline label spans inside buttons (icon + text combos) — same rule
       // applies so the label doesn't push past the icon slot.
-      "body[data-prelogin] .MuiButton-root > *": {
+      "body[data-prelogin] .MuiButton-root:not([data-desktop-download-action]) > *": {
         whiteSpace: "nowrap",
       },
       // Horizontal padding shrinks in lockstep with the font size so small
       // buttons don't feel disproportionately hollow.
-      "body[data-prelogin] .MuiButton-sizeMedium, body[data-prelogin] .MuiButton-sizeLarge": {
+      "body[data-prelogin] .MuiButton-sizeMedium:not([data-desktop-download-action]), body[data-prelogin] .MuiButton-sizeLarge:not([data-desktop-download-action])": {
         paddingLeft: "clamp(10px, 1.2vw + 4px, 22px)",
         paddingRight: "clamp(10px, 1.2vw + 4px, 22px)",
       },

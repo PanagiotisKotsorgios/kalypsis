@@ -809,6 +809,7 @@
         "allReleases": "All releases",
         "windowsOnly": "Kalypsis Desktop currently supports Windows 10/11 (64-bit) only. You can still download the installer to copy it to a Windows PC.",
         "moreOptions": "Installation details and system requirements",
+        "moreInformation": "More information",
         "featuresLabel": "Features",
         "slides": {
           "s1T": "Receipts & Payments",
