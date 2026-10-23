@@ -28,7 +28,7 @@ test("minimal partner creation opens the standard editor and office categories r
     await context.test("empty catalogue stays unclassified; actual office names are shown instead of hardcoded A-E labels", () => {
       const values={code:"P1",name:"Συνεργάτης",status:"Active",tier:"B",categoryId:"",hasContract:"false"};
       const empty=render(h(ProducerProfileFields,{values,categories:[]}));
-      assert.ok(empty.includes("Χωρίς κατηγορία")); assert.ok(!empty.includes("Κατηγορία B"));
+      assert.ok(empty.includes("Κατηγορία συνεργάτη")); assert.ok(!empty.includes("Χωρίς κατηγορία")); assert.ok(!empty.includes("Κατηγορία B"));
       const own=render(h(ProducerProfileFields,{values:{...values,categoryId:"custom-id"},categories:[{id:"custom-id",code:"EXT",name:"Εξωτερικό δίκτυο",isActive:true,displayOrder:0}]}));
       assert.ok(own.includes("Εξωτερικό δίκτυο")); assert.ok(own.includes("Βαθμίδα B"));
       const updated=producerUpdatePayload({...values,tier:"B",additionalInfoJson:'{"keep":true}'},{categoryId:"custom-id"});

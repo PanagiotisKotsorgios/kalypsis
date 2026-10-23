@@ -420,7 +420,6 @@ public class DeleteProducerCommandHandler : IRequestHandler<DeleteProducerComman
             new DeletionBlocker("συμβόλαια", await _db.Policies.CountAsync(x =>
                 (x.ProducerId == p.Id || x.RenewalTransferToProducerId == p.Id) && x.DeletedAt == null, ct)),
             new DeletionBlocker("υφιστάμενους συνεργάτες", await _db.Producers.CountAsync(x => x.ParentProducerId == p.Id && x.DeletedAt == null, ct)),
-            new DeletionBlocker("συνδεδεμένους χρήστες", await _db.Users.CountAsync(x => x.ProducerId == p.Id && x.DeletedAt == null, ct)),
             new DeletionBlocker("κινήσεις προμηθειών", await _db.CommissionTransactions.CountAsync(x => x.ProducerId == p.Id && x.DeletedAt == null, ct)),
             new DeletionBlocker("γραμμές εκκαθαρίσεων", await _db.CommissionRunLines.CountAsync(x =>
                 (x.ProducerId == p.Id || x.OnBehalfOfProducerId == p.Id) && x.DeletedAt == null, ct)),
@@ -444,7 +443,28 @@ public class DeleteProducerCommandHandler : IRequestHandler<DeleteProducerComman
         };
         DeletionProtection.ThrowIfBlocked($"συνεργάτη «{p.Name}»", blockers);
 
-        p.DeletedAt = DateTime.UtcNow;
+        // A login identity is not production history. Creation with an email
+        // automatically adds/links one, so it must not make a new empty producer
+        // undeletable. Preserve the identity/audit history and detach it only
+        // AFTER all substantive dependency checks have passed.
+        var now = DateTime.UtcNow;
+        var users = await _db.Users.Where(u => u.TenantId == tenantId && u.ProducerId == p.Id).ToListAsync(ct);
+        var portalUserIds = new List<Guid>();
+        foreach (var user in users)
+        {
+            user.ProducerId = null;
+            if (user.Role != Role.Producer) continue; // Never disable office staff/admin accounts.
+            portalUserIds.Add(user.Id);
+            if (user.CustomerId.HasValue) user.Role = Role.Customer;
+            else user.IsActive = false;
+        }
+        if (portalUserIds.Count > 0)
+        {
+            var sessions = await _db.RefreshTokens.Where(token => portalUserIds.Contains(token.UserId)
+                && token.RevokedAt == null).ToListAsync(ct);
+            foreach (var token in sessions) token.RevokedAt = now;
+        }
+        p.DeletedAt = now;
         p.Status = ProducerStatus.Terminated;
         await _db.SaveChangesAsync(ct);
         return Unit.Value;

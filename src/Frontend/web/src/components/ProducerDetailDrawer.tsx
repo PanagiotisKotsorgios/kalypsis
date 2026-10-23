@@ -170,7 +170,7 @@ export function ProducerProfileFields({ session, values, parents = [], categorie
   const enums: Record<string, { value: string; label: string }[]> = {
     status: [{value:"Active",label:"Ενεργός"}, {value:"Prospect",label:"Πιθανός συνεργάτης"}, {value:"Suspended",label:"Σε αναστολή"}, {value:"Terminated",label:"Τερματισμένος"}],
     hasContract: [{value:"true",label:"Ναι"}, {value:"false",label:"Όχι"}],
-    categoryId: [{value:"",label:"Χωρίς κατηγορία"}, ...categories.filter(row => row.isActive || row.id === values.categoryId).map(row => ({value:row.id,label:row.name}))],
+    categoryId: [{value:"",label:"—"}, ...categories.filter(row => row.isActive || row.id === values.categoryId).map(row => ({value:row.id,label:row.name}))],
     tier: ["None", "A", "B", "C", "D", "E"].map(value => ({value,label: value === "None" ? "Χωρίς βαθμίδα" : "Βαθμίδα " + value})),
     hierarchyLevel: Object.entries({Producer:"Συνεργάτης", Manager:"Υπεύθυνος ομάδας", Unit:"Μονάδα", Assistant:"Βοηθός διοίκησης", Agency:"Γραφείο"}).map(([value,label]) => ({value,label})),
     parentProducerId: [{value:"",label:"Χωρίς προϊστάμενο"}, ...parents.map(row => ({value:row.id,label:row.name}))],
