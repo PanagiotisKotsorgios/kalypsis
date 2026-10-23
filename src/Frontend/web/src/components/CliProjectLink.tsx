@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 export const CLI_REPOSITORY = "https://github.com/PanagiotisKotsorgios/kalypsis-cli";
 export const cliContributionUrl = (english: boolean) => `${CLI_REPOSITORY}/blob/main/CONTRIBUTING${english ? "" : ".el"}.md`;
 
-/** Repository navigation only: the CLI is not an available download yet. */
+/** Public repository navigation; downloadable CLI builds live in GitHub Releases. */
 export function CliProjectLink() {
   const { i18n } = useTranslation();
   const english = i18n.resolvedLanguage?.startsWith("en") ?? false;

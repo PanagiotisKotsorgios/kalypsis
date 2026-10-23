@@ -19,6 +19,7 @@ import { KalypsisLogo } from "../components/KalypsisLogo";
 import { LanguageToggle } from "../components/LanguageToggle";
 import { PageEnter } from "../components/PageEnter";
 import { PublicFooter } from "../components/PublicFooter";
+import { CliDownloadSection, DesktopScreenshotsSection } from "../components/DownloadShowcase";
 
 // Same visual system as LandingPage/#features.
 const NAVY = "#0b2545";
@@ -122,6 +123,8 @@ export function DownloadPage() {
           ))}
         </Box>
 
+        <DesktopScreenshotsSection />
+
         <Box component="section" sx={{ pt: { xs: 8, md: 11 } }}>
           <SectionHeading
             eyebrow="Setup.exe"
@@ -196,6 +199,7 @@ export function DownloadPage() {
             {t("landing.v2.desktop.downloadPage.signatureNote")}
           </Typography>
         </Box>
+        <CliDownloadSection />
       </Container>
 
       <PublicFooter />
