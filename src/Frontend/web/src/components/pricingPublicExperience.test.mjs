@@ -62,7 +62,7 @@ test("public pricing, contract form, disclosure and bilingual CLI links render w
     const {PublicNav} = await server.ssrLoadModule("/src/components/PublicNav.tsx");
     const {LandingPage} = await server.ssrLoadModule("/src/pages/LandingPage.tsx");
     const {PublicProductShowcase,WEB_SCREENSHOTS} = await server.ssrLoadModule("/src/components/PublicProductShowcase.tsx");
-    const {DESKTOP_SCREENSHOTS} = await server.ssrLoadModule("/src/components/DownloadShowcase.tsx");
+    const {DESKTOP_SCREENSHOTS,CLI_SCREENSHOTS} = await server.ssrLoadModule("/src/components/DownloadShowcase.tsx");
     const {PublicOfferingsSection} = await server.ssrLoadModule("/src/components/PublicOfferingsSection.tsx");
     const {PublicPricingCooperationSection} = await server.ssrLoadModule("/src/components/PublicPricingCooperationSection.tsx");
     client.setQueryData(["public-pricing"], {version:1,plans:[{code:"test",name:"Πλάνο δοκιμής",description:"Δοκιμή",tagline:"",pricePerYear:100,includedOffices:1,includedUsers:1,includedPackages:1,extraOfficePerYear:20,extraUserPerYear:10,packages:["core"],isFeatured:true,isActive:true,sortOrder:1,buttonText:"Επιλογή",buttonUrl:"/register"}],addons:[],services:[],features:[{key:"core",label:"Πελάτες",sortOrder:1,isActive:true}],settings:{currency:"EUR",pricesIncludeVat:false,vatRate:24,publicTitle:"Τιμές",publicSubtitle:"",vatLabel:"ΦΠΑ"}});
@@ -114,10 +114,11 @@ test("public pricing, contract form, disclosure and bilingual CLI links render w
         }
       }
     });
-    await context.test("Web and Desktop have separate bilingual showcases with real screenshots and working next steps", async () => {
+    await context.test("Web, Desktop and CLI have separate bilingual showcases with real screenshots and working next steps", async () => {
       assert.equal(WEB_SCREENSHOTS.length,6);
       assert.equal(DESKTOP_SCREENSHOTS.length,4);
-      for (const image of [...WEB_SCREENSHOTS,...DESKTOP_SCREENSHOTS]) {
+      assert.equal(CLI_SCREENSHOTS.length,5);
+      for (const image of [...WEB_SCREENSHOTS,...DESKTOP_SCREENSHOTS,...CLI_SCREENSHOTS]) {
         const bytes = await readFile(new URL(`../../public/images/download/${image.file}`,import.meta.url));
         assert.equal(bytes.readUInt16BE(0),0xffd8,image.file);
         assert.ok(bytes.length > 1000,image.file);
@@ -126,14 +127,19 @@ test("public pricing, contract form, disclosure and bilingual CLI links render w
         await i18n.changeLanguage(language);
         for (const width of [320,360,600,900,1280,1920]) {
           const html = render(h(PublicProductShowcase),width);
-          assert.equal((html.match(/<section\b/g)??[]).length,2);
+          assert.equal((html.match(/<section\b/g)??[]).length,3);
           assert.ok(html.includes('aria-labelledby="public-web-title"'));
           assert.ok(html.includes('aria-labelledby="public-desktop-title"'));
+          assert.ok(html.includes('aria-labelledby="public-cli-title"'));
+          assert.ok(html.indexOf('id="public-web-title"') < html.indexOf('id="public-desktop-title"'));
+          assert.ok(html.indexOf('id="public-desktop-title"') < html.indexOf('id="public-cli-title"'));
           assert.ok(html.includes('href="/register"')); assert.ok(html.includes('href="/download"'));
           assert.ok(html.includes('/releases/latest/download/kalypsis-desktop-win-Setup.exe'));
-          for (const image of [...WEB_SCREENSHOTS,...DESKTOP_SCREENSHOTS]) assert.ok(html.includes(`/images/download/${image.file}`),image.file);
+          assert.ok(html.includes(`${CLI_REPOSITORY}/releases/latest`));
+          for (const image of [...WEB_SCREENSHOTS,...DESKTOP_SCREENSHOTS,...CLI_SCREENSHOTS]) assert.ok(html.includes(`/images/download/${image.file}`),image.file);
           assert.ok(html.includes(language === "el" ? "Το γραφείο σας, οργανωμένο από τον browser." : "Your agency, organised in your browser."));
           assert.ok(html.includes(language === "el" ? "Η καθημερινή σας εργασία, σε εφαρμογή Windows." : "Everyday work, in a Windows application."));
+          assert.ok(html.includes(language === "el" ? "Δωρεάν backoffice στο τερματικό σας." : "Free backoffice in your terminal."));
           assert.ok(html.includes(language === "el" ? "Μεγέθυνση" : "Enlarge"));
           for (const token of ["#F1F7FD","#0B2B54","minmax(0, 1fr)","900px"]) assert.ok(html.includes(token),token);
           assert.ok(!html.includes('public-workflow-title'));

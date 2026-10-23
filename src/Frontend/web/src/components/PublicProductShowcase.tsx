@@ -2,10 +2,12 @@ import { Box, Button, Container, Stack, Typography } from "@mui/material";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import DownloadIcon from "@mui/icons-material/Download";
+import GitHubIcon from "@mui/icons-material/GitHub";
 import { Link as RouterLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { DESKTOP_INSTALLER_URL } from "./DesktopDownloadButton";
-import { DESKTOP_SCREENSHOTS, ScreenshotGallery, type Screenshot } from "./DownloadShowcase";
+import { CLI_SCREENSHOTS, DESKTOP_SCREENSHOTS, ScreenshotGallery, type Screenshot } from "./DownloadShowcase";
+import { CLI_REPOSITORY } from "./CliProjectLink";
 
 const LIGHT = "#F1F7FD";
 const NAVY = "#0B2B54";
@@ -33,6 +35,7 @@ export const WEB_SCREENSHOTS: Screenshot[] = [
 ];
 
 type Product = {
+  kind: "web" | "desktop" | "cli";
   id: string;
   name: string;
   title: string;
@@ -43,7 +46,7 @@ type Product = {
 };
 
 function ProductSection({ product, english }: { product: Product; english: boolean }) {
-  const { id, name, title, description, features, images, reversed = false } = product;
+  const { kind, id, name, title, description, features, images, reversed = false } = product;
   return <Box component="section" aria-labelledby={`${id}-title`} sx={{
     bgcolor: LIGHT,
     backgroundImage: { xs: "none", md: `linear-gradient(90deg, ${reversed ? NAVY : LIGHT} 50%, ${reversed ? LIGHT : NAVY} 50%)` },
@@ -71,7 +74,15 @@ function ProductSection({ product, english }: { product: Product; english: boole
             </Box>)}
           </Box>
           <Stack direction="row" useFlexGap flexWrap="wrap" gap={1.5} sx={{ mt: 3.5 }}>
-            {reversed ? <>
+            {kind === "cli" ? <>
+              <Button component="a" href={`${CLI_REPOSITORY}/releases/latest`} target="_blank" rel="noopener noreferrer" variant="contained" startIcon={<DownloadIcon />}
+                sx={{ bgcolor: NAVY, color: "#fff", textTransform: "none", fontWeight: 800, borderRadius: 1.5, px: 3, py: 1.25, boxShadow: "none", "&:hover": { bgcolor: "#164D85", boxShadow: "none" } }}>
+                {english ? "Download CLI for Windows" : "Λήψη CLI για Windows"}
+              </Button>
+              <Button component="a" href={CLI_REPOSITORY} target="_blank" rel="noopener noreferrer" startIcon={<GitHubIcon />} sx={{ color: "#14599F", fontWeight: 750, textTransform: "none" }}>
+                {english ? "Source code on GitHub" : "Κώδικας στο GitHub"}
+              </Button>
+            </> : kind === "desktop" ? <>
               <Button component="a" href={DESKTOP_INSTALLER_URL} download="kalypsis-desktop-win-Setup.exe" variant="contained" startIcon={<DownloadIcon />}
                 sx={{ bgcolor: NAVY, color: "#fff", textTransform: "none", fontWeight: 800, borderRadius: 1.5, px: 3, py: 1.25, boxShadow: "none", "&:hover": { bgcolor: "#164D85", boxShadow: "none" } }}>
                 {english ? "Download for Windows" : "Λήψη για Windows"}
@@ -101,7 +112,7 @@ export function PublicProductShowcase() {
   const { i18n } = useTranslation();
   const english = (i18n.resolvedLanguage ?? i18n.language).startsWith("en");
   const web: Product = {
-    id: "public-web", name: "KALYPSIS WEB BACKOFFICE", images: WEB_SCREENSHOTS,
+    kind: "web", id: "public-web", name: "KALYPSIS WEB BACKOFFICE", images: WEB_SCREENSHOTS,
     title: english ? "Your agency, organised in your browser." : "Το γραφείο σας, οργανωμένο από τον browser.",
     description: english
       ? "Manage customers, policies, production and finances in one backoffice, with a shared overview for your team and offices."
@@ -117,7 +128,7 @@ export function PublicProductShowcase() {
     ],
   };
   const desktop: Product = {
-    id: "public-desktop", name: "KALYPSIS DESKTOP", images: DESKTOP_SCREENSHOTS, reversed: true,
+    kind: "desktop", id: "public-desktop", name: "KALYPSIS DESKTOP", images: DESKTOP_SCREENSHOTS, reversed: true,
     title: english ? "Everyday work, in a Windows application." : "Η καθημερινή σας εργασία, σε εφαρμογή Windows.",
     description: english
       ? "KALYPSIS Desktop brings the backoffice to your computer, with a local database and a workspace designed for daily data entry. New installations receive a 30-day free trial."
@@ -132,5 +143,21 @@ export function PublicProductShowcase() {
       ["Εγκατάσταση με όλα τα απαραίτητα", "Ο εγκαταστάτης περιλαμβάνει το περιβάλλον λειτουργίας και τη βάση δεδομένων. Απαιτείται Internet για εγγραφή και έλεγχο άδειας στην εκκίνηση."],
     ],
   };
-  return <><ProductSection product={web} english={english} /><ProductSection product={desktop} english={english} /></>;
+  const cli: Product = {
+    kind: "cli", id: "public-cli", name: "KALYPSIS CLI", images: CLI_SCREENSHOTS,
+    title: english ? "Free backoffice in your terminal." : "Δωρεάν backoffice στο τερματικό σας.",
+    description: english
+      ? "A free, standalone Windows application with a Greek interactive menu, clear tables and coloured statuses. It works offline with its own local database, without a cloud account."
+      : "Μια δωρεάν, αυτόνομη εφαρμογή για το τερματικό των Windows, με ελληνικό διαδραστικό μενού, καθαρούς πίνακες και χρωματικές ενδείξεις. Λειτουργεί offline με δική της τοπική βάση, χωρίς λογαριασμό cloud.",
+    features: english ? [
+      ["The essential backoffice workflow", "Customers, insurers, partners, policies and renewals through an interactive menu and keyboard commands."],
+      ["Receipts, credits and financial summaries", "Partial or full receipts, policy credits and financial totals by currency."],
+      ["Search, exports and backups", "Search paged tables, export Excel-compatible CSV files and back up your local database."],
+    ] : [
+      ["Οι βασικές εργασίες του backoffice", "Πελάτες, ασφαλιστικές, συνεργάτες, συμβόλαια και ανανεώσεις μέσα από διαδραστικό μενού και εντολές πληκτρολογίου."],
+      ["Εισπράξεις, πιστωτικά και οικονομική εικόνα", "Μερικές ή πλήρεις εισπράξεις, πιστωτικά συμβολαίων και οικονομικά σύνολα ανά νόμισμα."],
+      ["Αναζήτηση, εξαγωγές και αντίγραφα", "Αναζητήστε σε πίνακες με σελιδοποίηση, εξαγάγετε CSV για Excel και κρατήστε αντίγραφα της τοπικής βάσης."],
+    ],
+  };
+  return <><ProductSection product={web} english={english} /><ProductSection product={desktop} english={english} /><ProductSection product={cli} english={english} /></>;
 }
