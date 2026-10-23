@@ -1,7 +1,7 @@
 import { FinancialFilters } from "../components/FinancialFilters";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, MenuItem, Stack, Table, TableBody, TableCell,
+  Box, Button, Card, CardContent, Chip, CircularProgress, MenuItem, Stack, Table, TableBody, TableCell,
   TableHead, TablePagination, TableRow, TextField, Tooltip as MuiTooltip, Typography
 } from "@mui/material";
 import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
@@ -115,10 +115,6 @@ export function FinancialMovementsPage() {
           <Typography color="text.secondary">{t("financials.subtitle")}</Typography></Box>
         <ExportButton href={`/api/exports/financial-movements.csv?year=${year}`} />
       </Stack>
-
-      <Alert severity="info" sx={{ mb: 2 }}>
-        Οι γέφυρες εταιρειών ενημερώνουν αυτόματα τις χρεώσεις και τις προμήθειες. Όταν η πηγή δηλώνει ρητά ότι ένα συμβόλαιο εξοφλήθηκε, δημιουργείται και είσπραξη σε πραγματικό χρόνο.
-      </Alert>
 
       <Card sx={{ mb: 3 }}>
         <CardContent>
