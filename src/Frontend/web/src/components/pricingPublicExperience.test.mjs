@@ -71,6 +71,9 @@ test("public pricing, contract form, disclosure and bilingual CLI links render w
         const html = render(h(ContractRequestDialog,{open:true,onClose(){}}),width);
         for (const label of ["Στοιχεία επικοινωνίας","Όνομα","Επώνυμο","Email","Τηλέφωνο","Επωνυμία γραφείου / εταιρείας","Περιοχή","Σύντομο μήνυμα","Ακύρωση","Αποστολή αιτήματος σύμβασης"]) assert.ok(html.includes(label),`${width}: ${label}`);
         assert.ok(html.includes('type="email"')); assert.ok(html.includes('type="tel"'));
+        assert.ok(html.includes('autoComplete="address-level2"') || html.includes('autocomplete="address-level2"'));
+        assert.ok(!html.includes('role="combobox"'), "city is free text rather than a predefined dropdown");
+        assert.ok(html.includes('form="'), "fixed footer submits the actual form");
         assert.ok(html.includes('name="website"')); assert.ok(html.includes('href="/privacy"'));
         assert.ok(render(h(ContractRequestSection),width).includes("Ζητήστε σύμβαση συνεργασίας"));
         const pricing = render(h(PricingPage),width);

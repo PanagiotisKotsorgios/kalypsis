@@ -1,5 +1,5 @@
 import { useId, useState, type FormEvent } from "react";
-import { Alert, Autocomplete, Box, Button, Checkbox, CircularProgress, Dialog, FormControlLabel, IconButton, InputAdornment, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Checkbox, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, IconButton, InputAdornment, Stack, TextField, Typography } from "@mui/material";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import HandshakeOutlinedIcon from "@mui/icons-material/HandshakeOutlined";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
@@ -59,38 +59,71 @@ export function ContractRequestDialog({ open, onClose }: { open: boolean; onClos
     catch (failure) { setError(extractErrorMessage(failure, "Δεν ήταν δυνατή η αποστολή του αιτήματος. Δοκιμάστε ξανά.")); }
     finally { setSubmitting(false); }
   };
-  const field = (key: "firstName" | "lastName" | "email" | "phone" | "companyName" | "message", label: string, placeholder: string, Icon: typeof PersonOutlinedIcon, wide = false) => <Box sx={{ gridColumn: wide ? "1 / -1" : "auto", minWidth: 0 }}>
-    <Typography component="label" htmlFor={`${id}-${key}`} sx={{ display: "block", color: "#102D55", fontSize: 13, fontWeight: 750, mb: .75 }}>{label}{key !== "message" && <Box component="span" sx={{ color: "#D93547", ml: .5 }}>*</Box>}</Typography>
-    <TextField id={`${id}-${key}`} fullWidth size="small" required={key !== "message"} type={key === "email" ? "email" : key === "phone" ? "tel" : "text"} value={form[key]} onChange={event => set(key, key === "phone" ? event.target.value.replace(/[^0-9+ ()-]/g, "") : event.target.value)} placeholder={placeholder} multiline={key === "message"} minRows={key === "message" ? 2 : undefined} autoComplete={{ firstName: "given-name", lastName: "family-name", email: "email", phone: "tel", companyName: "organization", message: "off" }[key]} inputProps={{ maxLength: { firstName: 120, lastName: 120, email: 160, phone: 40, companyName: 200, message: 2000 }[key] }} InputProps={{ startAdornment: <InputAdornment position="start"><Icon sx={{ color: "#557398", fontSize: 20 }} /></InputAdornment> }} />
-  </Box>;
-  return <Dialog open={open} onClose={close} fullWidth maxWidth="lg" aria-labelledby={`${id}-title`} PaperProps={{ sx: { width: "calc(100% - 24px)", maxWidth: 1080, maxHeight: "calc(100dvh - 24px)", m: 1.5, borderRadius: 3, overflow: "hidden", border: "1px solid #C4D8EB", bgcolor: "#F8FBFE" } }}>
-    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0,1fr)", md: "31% minmax(0,1fr)" }, minHeight: 0, overflowY: "auto" }}>
-      <Box sx={{ display: { xs: "none", md: "flex" }, flexDirection: "column", p: 3.25, color: "#fff", background: "radial-gradient(ellipse at top right, #133E67, transparent 65%), #0B233D" }}>
-        <Box component="img" src="/kalypsis-logo.png" alt="KALYPSIS" sx={{ width: 145, height: 85, objectFit: "contain", filter: "brightness(0) invert(1)", alignSelf: "flex-start", mb: 1 }} />
-        <Typography sx={{ fontSize: 30, fontWeight: 900, lineHeight: 1.3 }}>Ζητήστε σύμβαση συνεργασίας</Typography>
-        <Typography sx={{ color: "#BCD3E8", fontSize: 15, lineHeight: 1.7, mt: 1.75 }}>Ζητήστε τη σύμβαση συνεργασίας του KALYPSIS στο email σας και ξεκινήστε τη διαδικασία ενεργοποίησης.</Typography>
-        <Box sx={{ my: 2 }}><ContractIllustration /></Box>
-        <Stack gap={1.5} sx={{ mt: "auto" }}>{["Άμεση αποστολή αιτήματος", "Πλήρες & επίσημο έγγραφο", "Χωρίς δέσμευση"].map(text => <Stack direction="row" gap={1.25} alignItems="center" key={text}><CheckCircleIcon sx={{ color: "#74ABD4" }} /><Typography sx={{ color: "#C6DBED", fontSize: 13 }}>{text}</Typography></Stack>)}</Stack>
-      </Box>
-      <Box component="form" onSubmit={submit} sx={{ minWidth: 0, p: { xs: 2.25, sm: 3.5 }, position: "relative", "& .MuiOutlinedInput-root": { bgcolor: "#F7FAFE", borderRadius: 1.5, "& fieldset": { borderColor: "#BCCFE4" }, "&:hover fieldset": { borderColor: "#6C97C3" }, "&.Mui-focused fieldset": { borderColor: "#087CEB" } } }}>
-        <IconButton onClick={close} disabled={submitting} aria-label="Κλείσιμο αίτησης σύμβασης" sx={{ position: "absolute", top: 10, right: 10, color: "#557398" }}><CloseIcon /></IconButton>
-        <Typography id={`${id}-title`} component="h2" sx={{ color: "#102D55", fontWeight: 900, fontSize: { xs: 23, sm: 27 }, pr: 3 }}>Στοιχεία επικοινωνίας</Typography>
-        {result ? <Stack alignItems="center" textAlign="center" gap={2} role="status" sx={{ py: 5 }}><CheckCircleIcon sx={{ fontSize: 58, color: "#159B59" }} /><Typography sx={{ color: "#102D55", fontWeight: 850 }}>Το αίτημα σύμβασης καταχωρήθηκε επιτυχώς.</Typography><Typography color="text.secondary">{result.delivered ? "Το αίτημά σας στάλθηκε στην ομάδα KALYPSIS. Θα επικοινωνήσουμε μαζί σας για τη σύμβαση συνεργασίας." : "Το αίτημά σας είναι διαθέσιμο στην ομάδα KALYPSIS. Η ειδοποίηση email δεν επιβεβαιώθηκε· δεν χρειάζεται να το υποβάλετε ξανά."}</Typography><Typography variant="caption">Κωδικός αναφοράς: {result.reference}</Typography><Button variant="contained" onClick={close}>Κλείσιμο</Button></Stack> : <>
-          <Typography sx={{ color: "#667F9F", lineHeight: 1.6, fontSize: 14, mt: .75, mb: 2.5 }}>Συμπληρώστε τα στοιχεία σας για να λάβετε τη σύμβαση συνεργασίας του KALYPSIS.</Typography>
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0,1fr)", sm: "repeat(2,minmax(0,1fr))" }, gap: 1.75 }}>
-            {field("firstName", "Όνομα", "Το όνομά σας", PersonOutlinedIcon)}{field("lastName", "Επώνυμο", "Το επώνυμό σας", PersonOutlinedIcon)}
-            {field("email", "Email", "Το email σας", MailOutlineIcon, true)}
-            {field("phone", "Τηλέφωνο", "Το τηλέφωνό σας", PhoneOutlinedIcon)}{field("companyName", "Επωνυμία γραφείου / εταιρείας", "Η επωνυμία σας", BusinessOutlinedIcon)}
-            <Box sx={{ gridColumn: "1 / -1" }}><Typography component="label" htmlFor={`${id}-region`} sx={{ display: "block", color: "#102D55", fontSize: 13, fontWeight: 750, mb: .75 }}>Περιοχή</Typography><Autocomplete id={`${id}-region`} freeSolo forcePopupIcon autoHighlight openText="Επιλογή περιοχής" closeText="Κλείσιμο λίστας" clearText="Καθαρισμός" size="small" inputValue={form.region} onInputChange={(_,value) => set("region", value)} options={["Αθήνα", "Θεσσαλονίκη", "Πάτρα", "Ηράκλειο", "Λάρισα", "Βόλος", "Ιωάννινα", "Χανιά", "Αγρίνιο"]} renderInput={params => <TextField {...params} placeholder="Π.χ. Αθήνα" inputProps={{ ...params.inputProps, maxLength: 120 }} InputProps={{ ...params.InputProps, startAdornment: <InputAdornment position="start"><PlaceOutlinedIcon sx={{ color: "#557398", fontSize: 20 }} /></InputAdornment> }} />} /></Box>
-            {field("message", "Σύντομο μήνυμα (προαιρετικό)", "Π.χ. οποιαδήποτε επιπλέον πληροφορία…", MailOutlineIcon, true)}
-          </Box>
-          <Box sx={{ position: "absolute", left: -10000, width: 1, height: 1, overflow: "hidden" }} aria-hidden><input name="website" value={form.website} onChange={event => set("website",event.target.value)} tabIndex={-1} autoComplete="off" /></Box>
-          <FormControlLabel sx={{ mt: 1.25, alignItems: "flex-start", "& .MuiFormControlLabel-label": { fontSize: 12, color: "#536B89", pt: 1 } }} control={<Checkbox size="small" checked={form.consent} onChange={event => set("consent",event.target.checked)} inputProps={{ "aria-label": "Συγκατάθεση επικοινωνίας για το αίτημα σύμβασης" }} />} label={<span>Συμφωνώ να επικοινωνήσει το KALYPSIS για το αίτημά μου και έχω διαβάσει την <a href="/privacy" target="_blank" rel="noopener noreferrer">πολιτική απορρήτου</a>.</span>} />
-          <Alert severity="info" sx={{ mt: 1, bgcolor: "#E6F2FC", color: "#185181", borderRadius: 1.5, fontSize: 13 }}>Το αίτημα θα σταλεί στην ομάδα KALYPSIS για να λάβετε τη σύμβαση στο email σας. Δεν υπάρχει καμία δέσμευση.</Alert>
-          {error && <Alert severity="error" sx={{ mt: 1 }} role="alert">{error}</Alert>}
-          <Stack direction={{ xs: "column-reverse", sm: "row" }} gap={1.5} sx={{ mt: 2.25 }}><Button onClick={close} disabled={submitting} variant="outlined" sx={{ flex: 1, py: 1.15, borderColor: "#BED0E3", color: "#102D55" }}>Ακύρωση</Button><Button type="submit" disabled={submitting} variant="contained" startIcon={submitting ? <CircularProgress size={19} color="inherit" /> : <DescriptionOutlinedIcon />} endIcon={<ArrowForwardIcon />} sx={{ flex: 2, py: 1.15, bgcolor: "#076CC9", color: "#fff", fontWeight: 850, "&:hover": { bgcolor: "#0456A4" } }}>{submitting ? "Αποστολή…" : "Αποστολή αιτήματος σύμβασης"}</Button></Stack>
-        </>}
-      </Box>
-    </Box>
+  const formId = `${id}-form`;
+  const field = (key: "firstName" | "lastName" | "email" | "phone" | "companyName" | "region" | "message", label: string, placeholder: string, Icon: typeof PersonOutlinedIcon, wide = false) => {
+    const optional = key === "message" || key === "region";
+    return <Box sx={{ gridColumn: wide ? "1 / -1" : "auto", minWidth: 0 }}>
+      <Typography component="label" htmlFor={`${id}-${key}`} sx={{ display: "block", color: "#102D55", fontSize: 14, fontWeight: 750, mb: .75 }}>
+        {label}{!optional && <Box component="span" sx={{ color: "#C52D40", ml: .5 }}>*</Box>}
+      </Typography>
+      <TextField id={`${id}-${key}`} fullWidth required={!optional} disabled={submitting}
+        autoFocus={key === "firstName"} size="medium"
+        type={key === "email" ? "email" : key === "phone" ? "tel" : "text"}
+        value={form[key]} onChange={event => set(key, key === "phone" ? event.target.value.replace(/[^0-9+ ()-]/g, "") : event.target.value)}
+        placeholder={placeholder} multiline={key === "message"} minRows={key === "message" ? 2 : undefined} maxRows={key === "message" ? 4 : undefined}
+        autoComplete={{ firstName: "given-name", lastName: "family-name", email: "email", phone: "tel", companyName: "organization", region: "address-level2", message: "off" }[key]}
+        inputProps={{ maxLength: { firstName: 120, lastName: 120, email: 160, phone: 40, companyName: 200, region: 120, message: 2000 }[key] }}
+        InputProps={{ startAdornment: <InputAdornment position="start"><Icon sx={{ color: "#557398", fontSize: 21 }} /></InputAdornment> }} />
+    </Box>;
+  };
+  return <Dialog open={open} onClose={close} fullWidth maxWidth="md" aria-labelledby={`${id}-title`} aria-describedby={result ? undefined : `${id}-description`}
+    PaperProps={{ sx: { width: "calc(100% - 32px)", maxWidth: 920, maxHeight: "calc(100dvh - 32px)", height: "auto", minHeight: 0, m: 2, borderRadius: 3, overflow: "hidden", border: "1px solid #C4D8EB", bgcolor: "#F8FBFE" } }}>
+    <DialogTitle id={`${id}-title`} sx={{ p: { xs: 2, sm: 2.5 }, flexShrink: 0, color: "#fff", background: "linear-gradient(110deg,#0B305C,#155784)" }}>
+      <Stack direction="row" gap={1.5} alignItems="center">
+        <Box sx={{ width: 44, height: 44, borderRadius: 1.5, bgcolor: "#ffffff18", border: "1px solid #ffffff35", display: { xs: "none", sm: "grid" }, placeItems: "center", flexShrink: 0 }}><HandshakeOutlinedIcon /></Box>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography component="span" sx={{ display: "block", fontWeight: 850, fontSize: { xs: 20, sm: 25 }, lineHeight: 1.25 }}>Ζητήστε σύμβαση συνεργασίας</Typography>
+          <Typography component="span" sx={{ display: "block", color: "#D4E6F5", fontSize: 13, mt: .5 }}>Στοιχεία επικοινωνίας · Χωρίς δέσμευση</Typography>
+        </Box>
+        <IconButton onClick={close} disabled={submitting} aria-label="Κλείσιμο αίτησης σύμβασης" sx={{ width: 36, height: 36, flexShrink: 0, color: "#fff", borderRadius: 1, bgcolor: "#ffffff14", "&:hover": { bgcolor: "#ffffff28" } }}><CloseIcon /></IconButton>
+      </Stack>
+    </DialogTitle>
+    <DialogContent sx={{ p: { xs: 2, sm: 2.5 }, minHeight: 0, overflowY: "auto", overscrollBehavior: "contain", "&.MuiDialogContent-root": { pt: { xs: 2, sm: 2.5 } } }}>
+      {result ? <Stack alignItems="center" textAlign="center" gap={2} role="status" sx={{ py: 3, px: { sm: 4 } }}>
+        <CheckCircleIcon sx={{ fontSize: 58, color: "#159B59" }} />
+        <Typography sx={{ color: "#102D55", fontWeight: 850, fontSize: 21 }}>Το αίτημα σύμβασης καταχωρήθηκε επιτυχώς.</Typography>
+        <Typography color="text.secondary">{result.delivered ? "Το αίτημά σας στάλθηκε στην ομάδα KALYPSIS. Θα επικοινωνήσουμε μαζί σας για τη σύμβαση συνεργασίας." : "Το αίτημά σας είναι διαθέσιμο στην ομάδα KALYPSIS. Η ειδοποίηση email δεν επιβεβαιώθηκε· δεν χρειάζεται να το υποβάλετε ξανά."}</Typography>
+        <Typography variant="caption">Κωδικός αναφοράς: {result.reference}</Typography>
+      </Stack> : <Box component="form" id={formId} onSubmit={submit} sx={{ position: "relative", minWidth: 0,
+        "& .MuiOutlinedInput-root": { bgcolor: "#fff", color: "#102D55", borderRadius: 1.5, fontSize: 16,
+          "&:not(.MuiInputBase-multiline)": { minHeight: 52 },
+          "& fieldset": { borderColor: "#AABFD6" }, "&:hover fieldset": { borderColor: "#5D83AC" },
+          "&.Mui-focused": { boxShadow: "0 0 0 3px #087CEB16" }, "&.Mui-focused fieldset": { borderColor: "#087CEB" },
+        }, "& .MuiInputBase-input::placeholder": { color: "#667B98", opacity: 1 },
+      }}>
+        <Typography id={`${id}-description`} sx={{ color: "#536B89", fontSize: 14, lineHeight: 1.6, mb: 2 }}>Συμπληρώστε τα στοιχεία σας. Η ομάδα KALYPSIS θα επικοινωνήσει μαζί σας για τη σύμβαση συνεργασίας.</Typography>
+        {error && <Alert severity="error" sx={{ mb: 2 }} role="alert">{error}</Alert>}
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0,1fr)", sm: "repeat(2,minmax(0,1fr))" }, columnGap: 2.5, rowGap: 1.75 }}>
+          {field("firstName", "Όνομα", "Το όνομά σας", PersonOutlinedIcon)}
+          {field("lastName", "Επώνυμο", "Το επώνυμό σας", PersonOutlinedIcon)}
+          {field("email", "Email", "name@example.gr", MailOutlineIcon)}
+          {field("phone", "Τηλέφωνο", "Π.χ. 210 123 4567", PhoneOutlinedIcon)}
+          {field("companyName", "Επωνυμία γραφείου / εταιρείας", "Η επωνυμία του γραφείου σας", BusinessOutlinedIcon)}
+          {field("region", "Πόλη / Περιοχή (προαιρετικό)", "Γράψτε την πόλη ή την περιοχή σας", PlaceOutlinedIcon)}
+          {field("message", "Σύντομο μήνυμα (προαιρετικό)", "Τι θα θέλατε να γνωρίζουμε για το γραφείο ή το αίτημά σας;", MailOutlineIcon, true)}
+        </Box>
+        <Box sx={{ position: "absolute", top: 0, left: 0, width: 1, height: 1, overflow: "hidden", clipPath: "inset(50%)", pointerEvents: "none" }} aria-hidden>
+          <input name="website" value={form.website} onChange={event => set("website",event.target.value)} tabIndex={-1} autoComplete="off" />
+        </Box>
+        <FormControlLabel sx={{ mt: 1.5, ml: -1, mr: 0, alignItems: "flex-start", "& .MuiFormControlLabel-label": { fontSize: 13, color: "#536B89", lineHeight: 1.65, pt: .85 }, "& a": { color: "#076CC9", textUnderlineOffset: 3 } }}
+          control={<Checkbox checked={form.consent} disabled={submitting} onChange={event => set("consent",event.target.checked)} inputProps={{ "aria-label": "Συγκατάθεση επικοινωνίας για το αίτημα σύμβασης" }} />}
+          label={<span>Συμφωνώ να επικοινωνήσει το KALYPSIS για το αίτημά μου και έχω διαβάσει την <a href="/privacy" target="_blank" rel="noopener noreferrer">πολιτική απορρήτου</a>.</span>} />
+      </Box>}
+    </DialogContent>
+    <DialogActions sx={{ p: { xs: 2, sm: 2.5 }, pt: { xs: 1.5, sm: 1.75 }, flexShrink: 0, bgcolor: "#EEF4FA", borderTop: "1px solid #D6E3F0", gap: 1.25, flexWrap: "wrap", "& > :not(style) ~ :not(style)": { ml: 0 } }}>
+      <Button onClick={close} disabled={submitting} variant="contained" color="error" startIcon={<CloseIcon />} sx={{ minHeight: 48, px: 2.5, textTransform: "none", fontWeight: 750, boxShadow: "none", flex: { xs: "1 1 100%", sm: "0 0 auto" }, order: { xs: 2, sm: 0 } }}>{result ? "Κλείσιμο" : "Ακύρωση"}</Button>
+      {!result && <Button type="submit" form={formId} disabled={submitting} variant="contained" startIcon={submitting ? <CircularProgress size={19} color="inherit" /> : <DescriptionOutlinedIcon />} endIcon={<ArrowForwardIcon />}
+        sx={{ minHeight: 48, px: { xs: 1.5, sm: 3 }, flex: { xs: "1 1 100%", sm: "0 1 auto" }, bgcolor: "#076CC9", color: "#fff", fontSize: { xs: 14, sm: 15 }, textTransform: "none", fontWeight: 850, boxShadow: "none", "&:hover": { bgcolor: "#0456A4" } }}>{submitting ? "Αποστολή…" : "Αποστολή αιτήματος σύμβασης"}</Button>}
+    </DialogActions>
   </Dialog>;
 }
