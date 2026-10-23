@@ -1,8 +1,7 @@
-import { Box, Container, type SxProps, type Theme } from "@mui/material";
+import { Box, type SxProps, type Theme } from "@mui/material";
 import type { ReactNode } from "react";
 import { PublicNav } from "./PublicNav";
 import { PublicFooter } from "./PublicFooter";
-import { PreloginDesktopDownload } from "./PreloginDesktopDownload";
 
 interface PublicShellProps {
   overlayHero?: boolean;
@@ -30,11 +29,6 @@ export function PublicShell({ overlayHero, children, mainSx, hideFooter, modernN
       }}
     >
       <PublicNav overlayHero={overlayHero} modern={modernNav} />
-      <Container maxWidth={false} sx={{ maxWidth: { xs: "100%", md: "96%", lg: "88%", xl: "1600px" }, px: { xs: 2, md: 3 }, mt: 1.5 }}>
-        <Box sx={{ px: { xs: 1.5, md: 4.5 } }}>
-          <PreloginDesktopDownload />
-        </Box>
-      </Container>
       <Box component="main" sx={{ flex: 1, ...mainSx }}>
         {children}
       </Box>

@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 
 export const REMOTE_ACCESS_TOOLS = [
   {
-    name: "RustDesk", logo: "rustdesk.svg", wordmark: false,
+    name: "RustDesk", logo: "rustdesk.svg", wordmark: false, logoWidth: 26, logoHeight: 26,
     website: "https://rustdesk.com/", download: "https://rustdesk.com/download",
     el: {
       description: "Απομακρυσμένη πρόσβαση στον υπολογιστή σας και τεχνική υποστήριξη, με δυνατότητα χρήσης δικών σας αυτοδιαχειριζόμενων διακομιστών.",
@@ -18,7 +18,7 @@ export const REMOTE_ACCESS_TOOLS = [
     },
   },
   {
-    name: "AnyViewer", logo: "anyviewer.png", wordmark: true,
+    name: "AnyViewer", logo: "anyviewer.png", wordmark: true, logoWidth: 336, logoHeight: 120,
     website: "https://www.anyviewer.com/", download: "https://www.anyviewer.com/download.html",
     el: {
       description: "Αποκτήστε πρόσβαση και ελέγξτε τον υπολογιστή σας από άλλη συσκευή, με εύχρηστα εργαλεία για απομακρυσμένη εργασία, μεταφορά αρχείων και τεχνική βοήθεια.",
@@ -27,6 +27,30 @@ export const REMOTE_ACCESS_TOOLS = [
     en: {
       description: "Access and control your computer from another device, with easy-to-use tools for remote work, file transfers and technical assistance.",
       features: ["Computers & mobile devices", "File transfer", "Remote support"],
+    },
+  },
+  {
+    name: "AnyDesk", logo: "anydesk.png", wordmark: true, logoWidth: 2029, logoHeight: 479,
+    website: "https://anydesk.com/en", download: "https://anydesk.com/en/downloads/windows",
+    el: {
+      description: "Απομακρυσμένος έλεγχος και κοινή χρήση οθόνης για εργασία και τεχνική υποστήριξη, με σύνδεση μεταξύ διαφορετικών λειτουργικών συστημάτων.",
+      features: ["Απομακρυσμένος έλεγχος", "Κοινή χρήση οθόνης", "Πολλαπλές πλατφόρμες"],
+    },
+    en: {
+      description: "Remote control and screen sharing for work and technical support, with connections across different operating systems.",
+      features: ["Remote control", "Screen sharing", "Multiple platforms"],
+    },
+  },
+  {
+    name: "TeamViewer", logo: "teamviewer.svg", wordmark: true, logoWidth: 831, logoHeight: 111,
+    website: "https://www.teamviewer.com/", download: "https://www.teamviewer.com/en/download/windows/",
+    el: {
+      description: "Συνδεθείτε σε υπολογιστές και κινητές συσκευές για απομακρυσμένη υποστήριξη, έλεγχο και κοινή χρήση οθόνης.",
+      features: ["Τεχνική υποστήριξη", "Υπολογιστές & κινητά", "Κοινή χρήση οθόνης"],
+    },
+    en: {
+      description: "Connect to computers and mobile devices for remote support, control and screen sharing.",
+      features: ["Technical support", "Computers & mobile devices", "Screen sharing"],
     },
   },
 ];
@@ -68,7 +92,7 @@ export function PublicRemoteAccessSection() {
               sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, p: { xs: 2.5, sm: 3 }, minHeight: 128, bgcolor: "#F5F9FE", borderBottom: "1px solid #DFEAF5", textDecoration: "none", color: "#0B2B54", "&:focus-visible": { outline: "3px solid #087CEB", outlineOffset: -3 } }}>
               <Box component="h3" id={`remote-${tool.name.toLowerCase()}-title`} sx={{ m: 0, display: "flex", alignItems: "center", gap: 1.75, minWidth: 0, fontSize: { xs: 27, sm: 31 }, fontWeight: 800 }}>
                 <Box component="img" src={`/images/remote-access/${tool.logo}`} alt={tool.name} loading="lazy" decoding="async"
-                  width={tool.wordmark ? 336 : 26} height={tool.wordmark ? 120 : 26}
+                  width={tool.logoWidth} height={tool.logoHeight}
                   sx={{ display: "block", width: tool.wordmark ? { xs: 180, sm: 205 } : 52, height: tool.wordmark ? "auto" : 52, maxWidth: "100%", objectFit: "contain" }} />
                 {!tool.wordmark && <Box component="span" aria-hidden>RustDesk</Box>}
               </Box>

@@ -124,11 +124,11 @@ test("public pricing, contract form, disclosure and bilingual CLI links render w
         assert.equal(bytes.readUInt16BE(0),0xffd8,image.file);
         assert.ok(bytes.length > 1000,image.file);
       }
-      assert.deepEqual(REMOTE_ACCESS_TOOLS.map(tool=>tool.website),['https://rustdesk.com/','https://www.anyviewer.com/']);
+      assert.deepEqual(REMOTE_ACCESS_TOOLS.map(tool=>tool.website),['https://rustdesk.com/','https://www.anyviewer.com/','https://anydesk.com/en','https://www.teamviewer.com/']);
       for (const tool of REMOTE_ACCESS_TOOLS) {
         const logo = await readFile(new URL(`../../public/images/remote-access/${tool.logo}`,import.meta.url));
         assert.ok(logo.length > 500,tool.name);
-        if(tool.logo.endsWith('.svg')) assert.ok(logo.toString().startsWith('<svg'));
+        if(tool.logo.endsWith('.svg')) assert.match(logo.toString(),/<svg[\s>]/);
         else assert.equal(logo.subarray(1,4).toString(),'PNG');
       }
       for (const language of ["el","en"]) {
@@ -152,7 +152,7 @@ test("public pricing, contract form, disclosure and bilingual CLI links render w
           for (const token of ["#F1F7FD","#0B2B54","minmax(0, 1fr)","900px"]) assert.ok(html.includes(token),token);
           assert.ok(!html.includes('public-workflow-title'));
           const remote = render(h(PublicRemoteAccessSection),width);
-          assert.equal((remote.match(/<article\b/g)??[]).length,2);
+          assert.equal((remote.match(/<article\b/g)??[]).length,4);
           assert.ok(remote.includes(language === 'el' ? 'Προγράμματα απομακρυσμένης πρόσβασης' : 'Remote access software'));
           for (const tool of REMOTE_ACCESS_TOOLS) {
             assert.ok(remote.includes(`src="/images/remote-access/${tool.logo}"`));
@@ -211,6 +211,10 @@ test("public pricing, contract form, disclosure and bilingual CLI links render w
       assert.ok(landing.includes('public-pricing-cooperation-title'));
       assert.equal((landing.match(/id="offering-[a-z]+-title"/g)??[]).length,6);
       assert.ok(landing.indexOf('id="remote-access-title"') > landing.indexOf('id="public-cli-title"'));
+      assert.ok(landing.includes('data-desktop-download-action'));
+      assert.ok(!render(h(PublicNav,{modern:true}),1920).includes('data-desktop-download-action'));
+      assert.ok(!(await read('../App.tsx')).includes('PreloginDesktopDownload'));
+      assert.ok(!(await read('./PublicShell.tsx')).includes('PreloginDesktopDownload'));
     });
   } finally {client.clear();await server.close();}
 });

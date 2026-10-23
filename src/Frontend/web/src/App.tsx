@@ -1,6 +1,5 @@
 ﻿import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { lazy, Suspense } from "react";
-import Box from "@mui/material/Box";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import PeopleIcon from "@mui/icons-material/People";
 import DescriptionIcon from "@mui/icons-material/Description";
@@ -56,7 +55,6 @@ import { PageLoader } from "./components/PageLoader";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { SeoController } from "./components/SeoController";
 import { PreloginResponsiveStyles } from "./components/PreloginResponsiveStyles";
-import { PreloginDesktopDownload } from "./components/PreloginDesktopDownload";
 import { InfrastructureNoticeBanner } from "./components/InfrastructureNoticeBanner";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -783,22 +781,12 @@ export default function App() {
     && !location.pathname.startsWith("/app")
     && !location.pathname.startsWith("/insurance")
     && !location.pathname.startsWith("/ermes-app");
-  const showPreloginDownload = !location.pathname.startsWith("/app")
-    && location.pathname.replace(/\/+$/, "") !== "/contact"
-    && !location.pathname.startsWith("/insurance")
-    && !location.pathname.startsWith("/ermes-app")
-    && !location.pathname.startsWith("/frontoffice-quoting")
-    && !location.pathname.startsWith("/insureone/")
-    && !location.pathname.startsWith("/download");
-  const downloadIsInPublicHeader = ["/", "/pricing", "/faq"].includes(
-    location.pathname.replace(/\/+$/, "") || "/");
   // Site-wide maintenance hides everything except platform staff
   const isPlatformStaff = user?.role === "PlatformAdmin" || user?.role === "PlatformEmployee";
   if (maintenance.maintenanceModeEnabled && !isPlatformStaff && !staffOverride) {
     return (
       <>
         {showPreloginNotice && <InfrastructureNoticeBanner />}
-        {showPreloginDownload && <Box sx={{ px: { xs: 2, sm: 3 }, py: 2 }}><PreloginDesktopDownload /></Box>}
         <SiteMaintenancePage
           title={maintenance.maintenanceTitle}
           message={maintenance.maintenanceMessage}
@@ -820,10 +808,6 @@ export default function App() {
       {showPreloginNotice && <InfrastructureNoticeBanner />}
       <ScrollToTop />
       <SeoController />
-      {/* Marketing headers own the download row below their navigation.
-          Other public pages keep the same action in normal document flow. */}
-      {showPreloginDownload && !downloadIsInPublicHeader
-        && <Box sx={{ px: { xs: 2, sm: 3 }, py: 2 }}><PreloginDesktopDownload /></Box>}
       <PreloginResponsiveStyles />
       <UserImpersonationBanner />
       <UpgradePlanDialogHost />
