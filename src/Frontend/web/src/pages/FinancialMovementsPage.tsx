@@ -14,7 +14,7 @@ import { ExportButton } from "../components/ExportButton";
 import { money, date } from "../utils/format";
 import { SearchableTextField } from "../components/SearchableTextField";
 
-const KINDS = ["CustomerCharge","CustomerCredit","PartnerCharge","PartnerCredit","CompanyCharge","CompanyCredit","CommissionEarned","OverCommissionEarned","Adjustment"] as const;
+const KINDS = ["CustomerCharge","CustomerCredit","PartnerCharge","PartnerCredit","CompanyCharge","CompanyCredit","CommissionEarned","OverCommissionEarned","CarrierCommissionReceived","Adjustment"] as const;
 type Kind = typeof KINDS[number];
 
 const FINANCIAL_TOOLS = [

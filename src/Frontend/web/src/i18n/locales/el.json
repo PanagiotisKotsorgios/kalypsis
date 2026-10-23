@@ -2739,6 +2739,7 @@
       "CompanyCredit": "Πίστωση εταιρείας",
       "CommissionEarned": "Προμήθεια",
       "OverCommissionEarned": "Υπερπρομήθεια",
+      "CarrierCommissionReceived": "Καταβολή προμήθειας ασφαλιστικής",
       "Adjustment": "Διόρθωση"
     }
   },

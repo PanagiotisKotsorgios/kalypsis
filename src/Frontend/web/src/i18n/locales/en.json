@@ -2512,6 +2512,7 @@
       "CompanyCredit": "Company credit",
       "CommissionEarned": "Commission",
       "OverCommissionEarned": "Over-commission",
+      "CarrierCommissionReceived": "Insurer commission remittance",
       "Adjustment": "Adjustment"
     }
   },

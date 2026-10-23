@@ -147,13 +147,15 @@ public class GetProductionListHandler : IRequestHandler<GetProductionListQuery, 
 public static class ProductionListBuilder
 {
     public static async Task<List<ProductionRowDto>> BuildRowsAsync(
-        IAppDbContext _db, Guid tenantId, ProductionFilters f, CancellationToken ct)
+        IAppDbContext _db, Guid tenantId, ProductionFilters f, CancellationToken ct,
+        Guid? policyId = null, bool includeAll = false)
     {
         var query = _db.Policies
             .Include(p => p.Customer)
             .Include(p => p.InsuranceCompany)
             .Include(p => p.Producer)
             .Where(p => p.TenantId == tenantId && p.DeletedAt == null);
+        if (policyId.HasValue) query = query.Where(p => p.Id == policyId.Value);
 
         // Date-field switch (Έναρξη κάλυψης | Έκδοση | Καταχώρηση).
         //   IssuedAt is nullable — rows without a carrier issuance date
@@ -188,7 +190,7 @@ public static class ProductionListBuilder
         var requestedCovers = ProductionMultiFilters.Codes(f.CoverCode, f.CoverCodes);
         var requestedPackages = ProductionMultiFilters.Codes(f.PackageCode, f.PackageCodes);
         var policies = await query.OrderByDescending(p => p.StartDate)
-            .Take(requestedCovers.Length == 0 && requestedPackages.Length == 0 ? 5000 : int.MaxValue).ToListAsync(ct);
+            .Take(!includeAll && requestedCovers.Length == 0 && requestedPackages.Length == 0 ? 5000 : int.MaxValue).ToListAsync(ct);
         if (requestedCovers.Length > 0)
         {
             var codes = requestedCovers.Select(code => code.ToUpperInvariant()).ToArray();
@@ -206,7 +208,7 @@ public static class ProductionListBuilder
             policies = policies.Where(p =>
                 requestedPackages.Contains(ExtractPackageCode(p.SpecsJson) ?? "", StringComparer.OrdinalIgnoreCase)
                 || requestedPackages.Contains(p.CarrierPackageCode ?? "", StringComparer.OrdinalIgnoreCase)).ToList();
-        policies = policies.Take(5000).ToList();
+        if (!includeAll) policies = policies.Take(5000).ToList();
 
         // Pull active commission rules so partner commission % can be read from
         // parameterization (NOT the bridge). Most-specific rule wins.

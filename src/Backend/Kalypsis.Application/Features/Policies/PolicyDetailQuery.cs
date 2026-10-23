@@ -1,5 +1,6 @@
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
+using Kalypsis.Application.Features.Financials;
 using Kalypsis.Domain.Entities;
 using Kalypsis.Domain.Enums;
 using MediatR;
@@ -129,7 +130,11 @@ public record PolicyDetailDto(
     string? CarrierCoverageCode = null,
     string? ContractPartyVat = null,
     string? ContractPartyEmail = null,
-    string? ContractPartyPhone = null);
+    string? ContractPartyPhone = null,
+    decimal CarrierCommissionDue = 0m,
+    decimal CarrierCommissionReceived = 0m,
+    decimal CarrierCommissionOutstanding = 0m,
+    decimal CarrierCommissionCredit = 0m);
 
 public record GetPolicyDetailQuery(Guid Id) : IRequest<PolicyDetailDto>;
 
@@ -417,6 +422,10 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
         var createdByName = p.CreatedByUser is null ? null : $"{p.CreatedByUser.FirstName} {p.CreatedByUser.LastName}".Trim();
         var contractParty = p.ContractPartyCustomerId.HasValue ? p.ContractPartyCustomer : p.Customer;
 
+        var carrierCommission = _current.Role is Role.AgencyAdmin or Role.AgencyOfficeAdmin or Role.AgencyUser or Role.PlatformAdmin or Role.PlatformEmployee
+            ? (await CarrierCommissionLedger.BalancesAsync(_db, tenantId, ct, p.Id)).SingleOrDefault()
+            : null;
+
         return new PolicyDetailDto(
             p.Id, p.PolicyNumber, p.PolicyType, p.Status,
             p.StartDate, p.EndDate, p.CreatedAt, p.UpdatedAt, createdByName,
@@ -474,7 +483,11 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
             p.CarrierCoverageCode,
             contractParty?.VatNumber,
             contractParty?.Email,
-            contractParty?.MobilePhone ?? contractParty?.Phone);
+            contractParty?.MobilePhone ?? contractParty?.Phone,
+            carrierCommission?.Expected ?? 0m,
+            carrierCommission?.Received ?? 0m,
+            carrierCommission?.Outstanding ?? 0m,
+            carrierCommission?.Credit ?? 0m);
     }
 }
 

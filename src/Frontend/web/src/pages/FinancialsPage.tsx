@@ -13,6 +13,7 @@ import { GeneralFinancialEntriesPage } from "./GeneralFinancialEntriesPage";
 import { SecuritiesPage } from "./SecuritiesPage";
 import { CreditNotesPage } from "./CreditNotesPage";
 import { CustomerAccountsPage } from "./CustomerAccountsPage";
+import { CarrierCommissionsPage } from "./CarrierCommissionsPage";
 
 /**
  * Wrapper that folds the previously separate «Ταμείο», «Εισπράξεις»,
@@ -66,6 +67,7 @@ const TABS = [
   { key: "securities", label: "Αξιόγραφα", Component: SecuritiesPage },
   { key: "creditNotes", label: "Πιστωτικά", Component: CreditNotesPage },
   { key: "customerAccounts", label: "Υπόλοιπα πελατών", Component: CustomerAccountsPage },
+  { key: "carrierCommissions", label: "Προμήθειες ασφαλιστικών", Component: CarrierCommissionsPage },
 ] as const;
 
 // Every deep-link that could target one of the three merged sub-views

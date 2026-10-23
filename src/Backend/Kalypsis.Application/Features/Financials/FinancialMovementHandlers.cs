@@ -83,13 +83,13 @@ public class GetFinancialSummaryQueryHandler : IRequestHandler<GetFinancialSumma
         {
             var monthRows = rows.Where(x => x.MovementDate.Month == m).ToList();
             return new MonthBucket(m,
-                monthRows.Where(x => x.Kind == FinancialMovementKind.CustomerCredit).Sum(x => x.Amount),
+                monthRows.Where(x => x.Kind == FinancialMovementKind.CustomerCredit || x.Kind == FinancialMovementKind.CarrierCommissionReceived).Sum(x => x.Amount),
                 monthRows.Where(x => x.Kind == FinancialMovementKind.PartnerCharge || x.Kind == FinancialMovementKind.CompanyCharge).Sum(x => x.Amount));
         }).ToList();
 
         return new FinancialSummaryDto(
             year,
-            sum(FinancialMovementKind.CustomerCredit),
+            sum(FinancialMovementKind.CustomerCredit) + sum(FinancialMovementKind.CarrierCommissionReceived),
             sum(FinancialMovementKind.PartnerCharge) + sum(FinancialMovementKind.CompanyCharge),
             sum(FinancialMovementKind.CommissionEarned),
             sum(FinancialMovementKind.PartnerCharge),

@@ -2,6 +2,7 @@ import { DetailProfileTabs } from "./profile/DetailProfileTabs";
 import { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback, useProfileFieldEditor, type ProfileFieldSession } from "./profile/ProfileFieldEditor";
 import { POLICY_CORE_KEYS, policyCorePayload, policyPreservedAmounts } from "./profile/policyProfile";
 import { policyPaymentStatus } from "./profile/policyPaymentStatus";
+import { CarrierCommissionReceiptsDialog } from "./CarrierCommissionReceiptsDialog";
 import { PolicyCoverageTable } from "./PolicyCoverageTable";
 import { policyCoverPayload, type PolicyCoverDraft } from "./profile/policyCoverEdit";
 import { PolicyFieldColumns } from "./profile/PolicyFieldColumns";
@@ -70,6 +71,7 @@ export interface PolicyDetail {
   carrierDue: number; carrierPaid: number; carrierOutstanding: number;
   producerDue: number; producerPaid: number; producerOutstanding: number;
   agencyCommissionExpected: number; agencyCommissionReceived: number; agencyCommissionOutstanding: number;
+  carrierCommissionDue?: number; carrierCommissionReceived?: number; carrierCommissionOutstanding?: number; carrierCommissionCredit?: number;
   covers: PolicyCoverRow[]; coversGrossTotal: number;
   netPremium: number | null;
   vatAmount: number | null;
@@ -220,6 +222,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   const [commissionDetailsOpen, setCommissionDetailsOpen] = useState(false);
   const [claimsOpen, setClaimsOpen] = useState(false);
   const [settlementMode, setSettlementMode] = useState<PolicySettlementMode | null>(null);
+  const [carrierCommissionOpen, setCarrierCommissionOpen] = useState(false);
   const modalPresentation = presentation === "modal";
   const selectTab = (next: number | string) => {
     const normalized = Number(next);
@@ -759,7 +762,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                         <TextField key="special" profileKey="specialCommissionPercent" type="number" label={t("policyDetail.specialCommission")} value={form.specialCommissionPercent} />],
                     ]} />
                   </PolicySummarySection>
-                  <PolicySettlementPanel policy={p} readOnly={readOnly} onSettle={setSettlementMode} />
+                  <PolicySettlementPanel policy={p} readOnly={readOnly} onSettle={setSettlementMode} onCarrierCommission={() => setCarrierCommissionOpen(true)} />
                   <Dialog open={commissionDetailsOpen} onClose={() => setCommissionDetailsOpen(false)} fullWidth maxWidth="lg" sx={{ zIndex: 1800 }}>
                     <DialogTitle>Κατανομή προμηθειών & ειδικά ποσοστά</DialogTitle>
                     <DialogContent dividers sx={{ overflowX: "auto" }}>
@@ -939,6 +942,13 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
           onClose={() => { if (!linkVehicle.isPending) { setVehiclePickerOpen(false); setVehicleSearch(""); } }}
         />
       )}
+      <CarrierCommissionReceiptsDialog policy={p && carrierCommissionOpen ? {
+        policyId: p.id, policyNumber: p.policyNumber, insuranceCompanyId: p.insuranceCompanyId,
+        insuranceCompanyName: p.insuranceCompanyName, customerName: p.customerDisplay, startDate: p.startDate,
+        currency: p.currency, paidDirectlyToCarrier: p.paidDirectlyToCarrier,
+        expected: p.carrierCommissionDue ?? p.agencyCommissionExpected, received: p.carrierCommissionReceived ?? 0,
+        outstanding: p.carrierCommissionOutstanding ?? 0, credit: p.carrierCommissionCredit ?? 0,
+      } : null} onClose={() => setCarrierCommissionOpen(false)} />
       {p && !readOnly && settlementMode && (
         <PolicySettlementDialog
           open
@@ -1190,11 +1200,15 @@ function settlementAmount(value: number | undefined, currency: string) {
   return `${(value ?? 0).toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
 }
 
-export function PolicySettlementPanel({ policy, readOnly, onSettle }: {
+export function PolicySettlementPanel({ policy, readOnly, onSettle, onCarrierCommission }: {
   policy: PolicyDetail;
   readOnly: boolean;
   onSettle: (mode: PolicySettlementMode) => void;
+  onCarrierCommission?: () => void;
 }) {
+  const commissionDue = policy.carrierCommissionDue ?? policy.agencyCommissionExpected;
+  const commissionReceived = policy.carrierCommissionReceived ?? policy.agencyCommissionReceived;
+  const commissionOutstanding = policy.carrierCommissionOutstanding ?? Math.max(0, commissionDue - commissionReceived);
   const rows = [
     {
       title: "Πελάτης προς γραφείο",
@@ -1246,17 +1260,25 @@ export function PolicySettlementPanel({ policy, readOnly, onSettle }: {
           </Box>
         ))}
         <Box data-commission-income="agency" sx={{ p: .9, borderRadius: 1, bgcolor: "#edf7f0", border: "1px solid", borderColor: "success.light" }}>
-          <Typography variant="caption" fontWeight={800} display="block" color="success.dark">{policy.paidDirectlyToCarrier ? "Προμήθεια έδρας από ασφαλιστική" : "Προμήθεια έδρας"}</Typography>
+          <Typography variant="caption" fontWeight={800} display="block" color="success.dark">Προμήθεια έδρας από ασφαλιστική</Typography>
           <Stack spacing={.5} sx={{ mt: .45 }}>
-            <Typography variant="body2"><strong>Προμήθεια συμβολαίου:</strong> {settlementAmount(policy.agencyCommissionExpected, policy.currency)}</Typography>
-            <Typography variant="body2" color="success.dark"><strong>Εισπραχθείσα προμήθεια:</strong> {settlementAmount(policy.agencyCommissionReceived, policy.currency)}</Typography>
+            <Typography variant="body2"><strong>Προμήθεια συμβολαίου:</strong> {settlementAmount(commissionDue, policy.currency)}</Typography>
+            <Typography variant="body2" color="success.dark"><strong>Εισπραχθείσα προμήθεια:</strong> {settlementAmount(commissionReceived, policy.currency)}</Typography>
+            <Typography variant="body2" sx={{ fontWeight: 800, borderRadius: .65, px: .65, py: .3,
+              bgcolor: commissionOutstanding > .005 ? "#D00000" : "#dff1e6", color: commissionOutstanding > .005 ? "#fff" : "#155c38" }}>
+              <strong>Μας οφείλει η ασφαλιστική:</strong> {settlementAmount(commissionOutstanding, policy.currency)}
+            </Typography>
+            {(policy.carrierCommissionCredit ?? 0) > .005 && <Typography variant="body2" color="info.dark"><strong>Υπερκαταβολή ασφαλιστικής:</strong> {settlementAmount(policy.carrierCommissionCredit, policy.currency)}</Typography>}
+            {!readOnly && onCarrierCommission && <Button size="small" variant="contained" color="success" startIcon={<ReceiptLongOutlinedIcon />} onClick={onCarrierCommission}>
+              Καταβολές ασφαλιστικής
+            </Button>}
           </Stack>
         </Box>
       </Box>
       <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: .9 }}>
         {policy.paidDirectlyToCarrier
           ? "Το ασφάλιστρο έχει δηλωθεί εξοφλημένο απευθείας στην ασφαλιστική. Δεν υπάρχει οφειλή πελάτη προς το γραφείο. Η εξόφληση του ασφαλίστρου δεν δηλώνει καταβολή της προμήθειας στο γραφείο."
-          : "Οι πληρωμές ενημερώνονται μετά την καταχώρησή τους. Η προμήθεια έδρας είναι έσοδο του γραφείου και ενημερώνεται αναλογικά με τις εισπράξεις του συμβολαίου."}
+          : "Το υπόλοιπο της ασφαλιστικής ενημερώνεται από τις καταβολές προμήθειας, ανεξάρτητα από τις εισπράξεις ασφαλίστρων."}
       </Typography>
     </Box>
   );

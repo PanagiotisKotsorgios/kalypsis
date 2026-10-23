@@ -17,6 +17,7 @@ public enum FinancialMovementKind
     CompanyCredit = 6,
     CommissionEarned = 7,
     OverCommissionEarned = 8,
+    CarrierCommissionReceived = 9,
     Adjustment = 99
 }
 
