@@ -23,6 +23,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TablePagination,
   TextField,
   Typography,
   useMediaQuery
@@ -54,6 +55,7 @@ import { useNavigate, useParams, Link as RouterLink } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { VehicleDetailDialog, vehicleStatusLabel } from "./CustomerVehiclesPage";
+import { vehicleBelongsToCustomer, vehicleUseLabel, type VehicleRow as RegisteredVehicleRow } from "./vehicleRegister";
 import { VehicleOwnershipInputs } from "../components/profile/VehicleOwnershipFields";
 import { mergeVehicleOwnership, ownershipCreationChanges } from "../components/profile/vehicleOwnership";
 import { mergeVehicleSpecs } from "../components/profile/vehicleProfile";
@@ -679,51 +681,33 @@ interface CustomerVehicleRow {
 
 function CustomerVehiclesTab({ customerId, compact = false }: { customerId: string; compact?: boolean }) {
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
-  const [selectedPlate, setSelectedPlate] = useState<string | null>(null);
+  const [page,setPage]=useState(0);
+  const [selected, setSelected] = useState<RegisteredVehicleRow | null>(null);
   const [addOpen, setAddOpen] = useState(false);
-  const q = useQuery({
-    queryKey: ["customer-vehicles", customerId],
-    queryFn: async () => (await api.get<CustomerVehicleRow[]>("/policies", { params: { customerId, type: "Auto" } })).data
-  });
+  const q = useQuery({ queryKey: ["customer-vehicles", customerId, "ownership-register"],
+    queryFn: async () => (await api.get<RegisteredVehicleRow[]>("/vehicles")).data.filter(row => vehicleBelongsToCustomer(row,customerId)) });
+  const choices = useQuery({ queryKey: ["customer-vehicle-policy-choices", customerId], enabled: addOpen,
+    queryFn: async () => (await api.get<CustomerVehicleRow[]>("/policies", { params: { customerId, type: "Auto" } })).data });
   if (q.isLoading) return <Card variant="outlined" sx={{ p: 2 }}><CircularProgress size={22} /></Card>;
   if (q.isError) return <Alert severity="error">{extractErrorMessage(q.error)}</Alert>;
-  const rows = q.data ?? [];
-  const visibleRows = rows.filter(row => (!status || row.status === status) &&
-    `${row.vehicleRegistrationPlate ?? ""} ${row.policyNumber} ${row.insuranceCompanyName}`.toLocaleLowerCase("el-GR").includes(search.trim().toLocaleLowerCase("el-GR")));
-  return (
-    <Card variant="outlined" sx={{ p: compact ? .75 : 1 }}>
-      <Stack direction="row" useFlexGap flexWrap="wrap" gap={1} justifyContent="space-between" alignItems="center" sx={{ mb: compact ? 0.75 : 1.5 }}>
-        <Box><Typography variant={compact ? "subtitle1" : "h6"} fontWeight={800}>Οχήματα πελάτη</Typography><Typography variant="body2" color="text.secondary">Αυτόματη προβολή από τα συμβόλαια αυτοκινήτου.</Typography></Box>
-        <Stack direction="row" spacing={0.75} alignItems="center">
-          <Button size="small" variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => setAddOpen(true)}>Νέο όχημα</Button>
-          <Chip size="small" icon={<DirectionsCarIcon />} label={`${rows.length} συμβόλαια`} />
-        </Stack>
-      </Stack>
-      <Stack direction="row" useFlexGap flexWrap="wrap" gap={1} sx={{ mb: 1 }}>
-        <TextField size="small" label="Πινακίδα, συμβόλαιο ή ασφαλιστική" value={search} onChange={e => setSearch(e.target.value)} sx={{ flex: "1 1 220px" }} />
-        <TextField select size="small" label="Κατάσταση" value={status} onChange={e => setStatus(e.target.value)} sx={{ minWidth: 160 }}><MenuItem value="">Όλες</MenuItem>
-          {[...new Set(rows.map(r => r.status))].map(s => <MenuItem key={s} value={s}>{vehicleStatusLabel(s)}</MenuItem>)}
-        </TextField>
-      </Stack>
-      {visibleRows.length === 0 ? <Alert severity="info">{rows.length ? "Δεν βρέθηκαν οχήματα με αυτά τα φίλτρα." : "Δεν έχει καταχωρηθεί ακόμη συμβόλαιο αυτοκινήτου ή πινακίδα για τον πελάτη."}</Alert> : (
-        <TableContainer tabIndex={0}><Table size="small">
-          <TableHead><TableRow><TableCell>Πινακίδα</TableCell><TableCell>Συμβόλαιο</TableCell><TableCell>Ασφαλιστική</TableCell><TableCell>Ισχύς</TableCell><TableCell align="right">Ασφάλιστρο</TableCell><TableCell>Κατάσταση</TableCell><TableCell /></TableRow></TableHead>
-          <TableBody>{visibleRows.map(row => <TableRow key={row.id} hover>
-            <TableCell sx={{ fontFamily: "monospace", fontWeight: 800 }}>{row.vehicleRegistrationPlate ?? "—"}</TableCell>
-            <TableCell><Button size="small" component={RouterLink} to={`/app/policies?focus=${row.id}`}>{row.policyNumber}</Button></TableCell>
-            <TableCell>{row.insuranceCompanyName}</TableCell>
-            <TableCell>{row.startDate} → {row.endDate}</TableCell>
-            <TableCell align="right">{row.premium?.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {row.currency}</TableCell>
-            <TableCell><Chip size="small" label={vehicleStatusLabel(row.status)} /></TableCell>
-            <TableCell><Button size="small" onClick={() => setSelectedPlate(row.vehicleRegistrationPlate ?? "")}>Καρτέλα</Button></TableCell>
-          </TableRow>)}</TableBody>
-        </Table></TableContainer>
-      )}
-      <VehicleDetailDialog open={selectedPlate !== null} plate={selectedPlate ?? ""} policyIds={rows.filter(row => (row.vehicleRegistrationPlate ?? "") === (selectedPlate ?? "")).map(row => row.id)} onClose={() => setSelectedPlate(null)} />
-      <AddCustomerVehicleDialog open={addOpen} rows={rows} onClose={() => setAddOpen(false)} onSaved={() => { setAddOpen(false); void q.refetch(); }} />
-    </Card>
-  );
+  const rows = q.data ?? [], visible = rows.filter(row => [row.plate,row.make,row.model,row.vin].join(" ").toLocaleLowerCase("el-GR").includes(search.trim().toLocaleLowerCase("el-GR")));
+  const currentPage=Math.min(page,Math.max(0,Math.ceil(visible.length/10)-1));
+  return <Card variant="outlined" sx={{ p: compact ? .75 : 1 }}>
+    <Stack direction="row" useFlexGap flexWrap="wrap" gap={1} alignItems="center" sx={{ mb: .75 }}>
+      <Typography variant="subtitle1" fontWeight={800}>Οχήματα πελάτη</Typography><Chip size="small" label={`${rows.length} οχήματα`} sx={{ bgcolor:"#159b59",color:"white" }} />
+      <Button size="small" variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => setAddOpen(true)} sx={{ ml:"auto" }}>Νέο όχημα</Button>
+    </Stack>
+    <TextField size="small" fullWidth label="Αναζήτηση πινακίδας, μάρκας, μοντέλου ή VIN" value={search} onChange={e => {setSearch(e.target.value);setPage(0);}} sx={{ mb:1 }} />
+    <TableContainer tabIndex={0}><Table size="small" sx={{ "& th":{bgcolor:"#e1e9f1",fontWeight:800},"& td":{py:.45},"& tbody tr:nth-of-type(even)":{bgcolor:"#edf1f5"} }}>
+      <TableHead><TableRow><TableCell>Πινακίδα</TableCell><TableCell>Μάρκα / μοντέλο</TableCell><TableCell>VIN</TableCell><TableCell>Χρήση</TableCell><TableCell>Ποσοστό ιδιοκτησίας</TableCell><TableCell>Ενέργειες</TableCell></TableRow></TableHead>
+      <TableBody>{visible.slice(currentPage*10,currentPage*10+10).map(row=><TableRow key={row.id}><TableCell sx={{fontFamily:"monospace",fontWeight:800}}>{row.plate}</TableCell><TableCell>{[row.make,row.model].filter(Boolean).join(" ")||"—"}</TableCell><TableCell>{row.vin||"—"}</TableCell><TableCell>{vehicleUseLabel(row.use)}</TableCell><TableCell>{row.owners.find(p=>p.customerId===customerId)?.percentage==null?"—":row.owners.find(p=>p.customerId===customerId)!.percentage!.toLocaleString("el-GR")+"%"}</TableCell><TableCell><Button size="small" variant="contained" color="success" onClick={()=>setSelected(row)}>Καρτέλα οχήματος</Button></TableCell></TableRow>)}</TableBody>
+    </Table></TableContainer>
+    {visible.length>10&&<TablePagination component="div" count={visible.length} page={currentPage} rowsPerPage={10} rowsPerPageOptions={[10]} onPageChange={(_,p)=>setPage(p)} labelDisplayedRows={({from,to,count})=>`${from}–${to} από ${count}`} />}
+    {!visible.length&&<Alert severity="info">{rows.length?"Δεν βρέθηκαν οχήματα με αυτή την αναζήτηση.":"Δεν υπάρχουν οχήματα στην τρέχουσα ιδιοκτησία του πελάτη."}</Alert>}
+    <VehicleDetailDialog open={selected!==null} plate={selected?.plate??""} policyIds={selected?.policyIds??[]} onClose={()=>setSelected(null)} />
+    {choices.isError&&<Alert severity="error">{extractErrorMessage(choices.error)}</Alert>}
+    <AddCustomerVehicleDialog open={addOpen&&!choices.isLoading&&!choices.isError} rows={choices.data??[]} onClose={()=>setAddOpen(false)} onSaved={()=>{setAddOpen(false);void q.refetch();}} />
+  </Card>;
 }
 
 type AddVehicleForm = {

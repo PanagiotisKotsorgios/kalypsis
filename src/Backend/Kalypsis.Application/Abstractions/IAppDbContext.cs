@@ -25,6 +25,7 @@ public interface IAppDbContext
     DbSet<InsuranceCompanyFieldValue> InsuranceCompanyFieldValues { get; }
     DbSet<CompanyParameterItem> CompanyParameterItems { get; }
     DbSet<Policy> Policies { get; }
+    DbSet<VehicleOwnershipRegister> VehicleOwnershipRegisters { get; }
     DbSet<PolicyDocument> PolicyDocuments { get; }
     DbSet<GreenCard> GreenCards { get; }
     DbSet<PolicyObject> PolicyObjects { get; }

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Kalypsis.VehicleOwnership;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
 using Kalypsis.Domain.Enums;
@@ -49,6 +50,7 @@ public sealed class VehicleRegisterQueryHandler(IAppDbContext db, ICurrentUser c
             p.VehicleUseCategory, p.CarrierUseCode,
         }).ToListAsync(ct);
 
+        var ownership = current.Role is Role.Customer or Role.Producer ? [] : await db.VehicleOwnershipRegisters.AsNoTracking().Where(r => r.TenantId == tenantId).ToListAsync(ct);
         return source.Where(p => !string.IsNullOrWhiteSpace(p.VehicleRegistrationPlate) && NormalizePlate(p.VehicleRegistrationPlate!).Length > 0)
             .GroupBy(p => NormalizePlate(p.VehicleRegistrationPlate!))
             .Select(group => {
@@ -57,6 +59,10 @@ public sealed class VehicleRegisterQueryHandler(IAppDbContext db, ICurrentUser c
                 var latest = rows[0];
                 var specs = ReadSpecs(latest.SpecsJson);
                 var owners = ReadOwners(specs, latest.OwnerName ?? "", latest.OwnerVat, latest.CustomerId);
+                var vin = NormalizePlate(Text(specs,"vin") ?? "");
+                var registered = ownership.FirstOrDefault(r => rows.Any(p=>p.Id==r.AnchorPolicyId) || vin.Length>0&&r.Vin==vin)
+                    ?? ownership.FirstOrDefault(r=>r.Plate==group.Key&&(vin.Length==0||r.Vin.Length==0||r.Vin==vin));
+                if(registered!=null)owners=OwnershipRules.Deserialize(registered.LedgerJson).Owners.Select(p=>new VehicleRegisterOwner(p.Name,p.VatNumber,p.Percentage,p.CustomerId)).ToArray();
                 var use = !string.IsNullOrWhiteSpace(latest.CarrierUseCode) ? latest.CarrierUseCode
                     : latest.VehicleUseCategory is null or VehicleUseCategory.None ? null : latest.VehicleUseCategory.ToString();
                 return new VehicleRegisterRow(group.Key, latest.VehicleRegistrationPlate!.Trim().ToUpperInvariant(), latest.Id,

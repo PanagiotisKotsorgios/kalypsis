@@ -75,6 +75,7 @@ public static class DataSeeder
         // also be left behind when MySQL commits DDL before the history row.
         // They are included here so a redeploy can recover from an interrupted
         // first boot instead of looping forever on "table already exists".
+        ("20261024173401_AddVehicleOwnershipRegister", ["vehicle_ownership_registers"]),
         ("20260807170000_AddDesktopLicensing", [
             "desktop_licenses", "desktop_license_payments"
         ]),

@@ -32,8 +32,10 @@ public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerComman
 
         var relationshipCount = await _db.CustomerRelationships.CountAsync(x =>
             (x.CustomerId == request.Id || x.RelatedCustomerId == request.Id) && x.DeletedAt == null, ct);
+        var ownershipLinks = await _db.VehicleOwnershipRegisters.CountAsync(r => r.TenantId == tenantId && r.LedgerJson.Contains(request.Id.ToString()), ct);
         var blockers = new[]
         {
+            new DeletionBlocker("ιδιοκτησία / ιστορικό οχημάτων", ownershipLinks),
             new DeletionBlocker("συμβόλαια", await _db.Policies.CountAsync(x =>
                 (x.CustomerId == request.Id || x.ContractPartyCustomerId == request.Id) && x.DeletedAt == null, ct)),
             new DeletionBlocker("εισπράξεις", await _db.Receipts.CountAsync(x => x.CustomerId == request.Id && x.DeletedAt == null, ct)),

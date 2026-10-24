@@ -8,7 +8,8 @@ import { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback, prof
 import { VEHICLE_SPEC_FIELDS, VEHICLE_CARD_FIELDS, VEHICLE_CARD_TABS, mergeVehicleSpecs, vehicleFieldColumns, vehicleOwnerValues, type VehicleOwnerDetails } from "../components/profile/vehicleProfile";
 import { vehicleOwnerHistory } from "../components/profile/vehicleHistory";
 import { vehicleCoOwners, ownershipFieldValues, mergeVehicleOwnership, ownershipCreationChanges } from "../components/profile/vehicleOwnership";
-import { VehicleOwnershipFields, VehicleOwnershipInputs } from "../components/profile/VehicleOwnershipFields";
+import { VehicleOwnershipManager, useVehicleOwnership } from "../components/profile/VehicleOwnershipManager";
+import { VehicleOwnershipInputs } from "../components/profile/VehicleOwnershipFields";
 import { filterVehicleRegister, vehicleRegisterColumns, vehicleOwnerText, vehicleUseLabel, type VehicleRow } from "./vehicleRegister";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, InputAdornment, ListItemIcon, ListItemText, Menu, MenuItem, Snackbar, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow, TextField, Tooltip, Typography, useMediaQuery, useTheme } from "@mui/material";
@@ -173,9 +174,12 @@ export function VehicleDetailDialog({ open, plate, policyIds: suppliedPolicyIds,
   const invalidateVehicle = () => {
     for (const key of [queryKey, ["customer-vehicles-all"], ["customer-vehicles"], ["vehicle-policy-options"], ["policies"], ["policy-detail"]]) void qc.invalidateQueries({ queryKey: key });
   };
+  const ownershipQ = useVehicleOwnership(first?.id, open);
+  const currentOwner = ownershipQ.data?.ledger.owners.find(p => p.id === ownershipQ.data?.ledger.primaryOwnerId);
+  const currentOwnerId = currentOwner ? currentOwner.customerId ?? undefined : first?.customerId;
   const canReadCustomer = usePermission("customers.read");
-  const ownerQ = useQuery({ queryKey: ["vehicle-owner-profile", first?.customerId], enabled: open && !!first?.customerId && canReadCustomer,
-    queryFn: async () => (await api.get<VehicleOwnerDetails>(`/customers/${first!.customerId}`)).data });
+  const ownerQ = useQuery({ queryKey: ["vehicle-owner-profile", currentOwnerId], enabled: open && !!currentOwnerId && canReadCustomer,
+    queryFn: async () => (await api.get<VehicleOwnerDetails>(`/customers/${currentOwnerId}`)).data });
   const specs = parseSpecs(first?.specsJson);
   const values = Object.fromEntries([
     ["vehicleRegistrationPlate", first?.vehicleRegistrationPlate ?? plate],
@@ -183,6 +187,7 @@ export function VehicleDetailDialog({ open, plate, policyIds: suppliedPolicyIds,
     ["reasonForCirculation", first?.reasonForCirculation ?? ""],
     ...VEHICLE_SPEC_FIELDS.map(([key]) => ["spec:" + key, String(specs[key] ?? "")]),
     ...Object.entries(vehicleOwnerValues(ownerQ.data)),
+    ["spec:ownerCount", String(ownershipQ.data?.ledger.owners.length ?? specs.ownerCount ?? 1)],
     ...Object.entries(ownershipFieldValues(vehicleCoOwners(first?.specsJson, first?.customerDisplay, first?.customerVat ?? ""))),
   ]);
   const session = useProfileFieldEditor({
@@ -232,21 +237,9 @@ export function VehicleDetailDialog({ open, plate, policyIds: suppliedPolicyIds,
       {tab === 4 && claimsQ.isLoading && <CircularProgress size={22} />}
       {tab === 4 && claimsQ.isError && <Alert severity="error">Δεν φορτώθηκαν οι συνδεδεμένες ζημιές. {extractErrorMessage(claimsQ.error)}</Alert>}
       {[removeAllVehicle].map((mutation, index) => mutation.isError ? <Alert key={index} severity="error">{extractErrorMessage(mutation.error)}</Alert> : null)}
-      {first && tab === 0 && <VehicleProfileFields session={canWrite ? session : undefined} values={values} owner={first.customerDisplay} ownerVat={first.customerVat} />}
+      {first && tab === 0 && <VehicleProfileFields session={canWrite ? session : undefined} values={values} owner={currentOwner?.name ?? first.customerDisplay} ownerVat={currentOwner?.vatNumber ?? first.customerVat} />}
       {first && tab === 1 && <VehicleProfileFields section="additional" session={canWrite ? session : undefined} values={values} />}
-      {tab === 2 && <Stack spacing={1}>
-        <VehicleOwnershipFields values={values} session={canWrite ? session : undefined} />
-        <Typography variant="body2" color="text.secondary">Ιστορικό ιδιοκτητών βάσει καταχωρημένων ασφαλιστηρίων. Οι περίοδοι αφορούν ασφαλιστική κάλυψη και όχι πιστοποίηση μεταβίβασης.</Typography>
-        <Box sx={{ overflowX: "auto" }}><Table size="small">
-          <TableHead><TableRow><TableCell>Ιδιοκτήτης / πελάτης</TableCell><TableCell>ΑΦΜ</TableCell><TableCell>Πρώτη κάλυψη</TableCell><TableCell>Τελευταία κάλυψη</TableCell><TableCell>Συμβόλαια</TableCell><TableCell /></TableRow></TableHead>
-          <TableBody>{owners.map(owner => <TableRow key={owner.key}>
-            <TableCell>{owner.customerDisplay}</TableCell><TableCell>{owner.customerVat || "—"}</TableCell>
-            <TableCell>{owner.from}</TableCell><TableCell>{owner.to}</TableCell><TableCell>{owner.policyNumbers.join(", ")}</TableCell>
-            <TableCell>{owner.customerId && <Button component={RouterLink} to={"/app/customers/" + owner.customerId} size="small" variant="contained" color="success" sx={{ color: "#fff", whiteSpace: "nowrap" }}>Καρτέλα πελάτη</Button>}</TableCell>
-          </TableRow>)}</TableBody>
-        </Table></Box>
-        {!owners.length && <Typography color="text.secondary">Δεν υπάρχει καταχωρημένο ιστορικό ιδιοκτητών.</Typography>}
-      </Stack>}
+      {first && tab === 2 && <VehicleOwnershipManager policyId={first.id} canWrite={canWrite} onChanged={invalidateVehicle} zIndex={zIndex} coverageHistory={owners} />}
       {first && tab === 3 && <Stack spacing={1}>
         <Stack direction="row" gap={1} flexWrap="wrap" sx={{ pt: .75 }}>
           <TextField size="small" label="Αναζήτηση συμβολαίου, εταιρείας ή πελάτη" value={policySearch} onChange={event => { setPolicySearch(event.target.value); setPolicyPage(0); }} sx={{ flex: "1 1 250px" }} />

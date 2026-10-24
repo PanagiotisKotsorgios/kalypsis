@@ -32,6 +32,8 @@ public class DeletePolicyHandler : IRequestHandler<DeletePolicyCommand, DeletePo
             ?? throw AppException.NotFound("Συμβόλαιο");
 
         var blockers = new List<DeletePolicyBlocker>();
+        var ownership = await _db.VehicleOwnershipRegisters.CountAsync(r => r.TenantId == tenantId && r.AnchorPolicyId == policy.Id, ct);
+        if (ownership > 0) blockers.Add(new DeletePolicyBlocker("vehicle_ownership", ownership, "Το συμβόλαιο συνδέεται με μητρώο ιδιοκτησίας και ιστορικό μεταβιβάσεων οχήματος."));
 
         // 1) Other policies that renewed from this one — must be deleted first.
         var renewals = await _db.Policies.IgnoreQueryFilters()

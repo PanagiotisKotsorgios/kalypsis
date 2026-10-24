@@ -51,6 +51,18 @@ public class PoliciesController : ControllerBase
     public async Task<ActionResult<PolicyHistoryDto>> History(Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new GetPolicyHistoryQuery(id), ct));
 
+    [HttpGet("{id:guid}/vehicle/ownership")]
+    [Authorize(Policy = "AgencyStaff")]
+    [RequirePermission("policies.read")]
+    public async Task<ActionResult<VehicleOwnershipWorkspace>> Ownership(Guid id, CancellationToken ct)
+        => Ok(await _mediator.Send(new GetVehicleOwnership(id), ct));
+
+    [HttpPost("{id:guid}/vehicle/ownership")]
+    [Authorize(Policy = "AgencyStaff")]
+    [RequirePermission("policies.write")]
+    public async Task<ActionResult<VehicleOwnershipWorkspace>> ChangeOwnership(Guid id, [FromBody] ChangeVehicleOwnershipBody body, CancellationToken ct)
+        => Ok(await _mediator.Send(new ChangeVehicleOwnership(id, body), ct));
+
     [HttpPatch("{id:guid}/vehicle")]
     [Authorize(Policy = "AgencyStaff")]
     [RequirePermission("policies.write")]

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { filterVehicleRegister, vehicleRegisterColumns, vehicleOwnerText, vehicleUseLabel } from "./vehicleRegister.ts";
+import { filterVehicleRegister, vehicleRegisterColumns, vehicleOwnerText, vehicleUseLabel, vehicleBelongsToCustomer } from "./vehicleRegister.ts";
 import { buildTableExportSnapshot } from "../utils/tableExportSnapshot.ts";
 
 const toyota = { id: "ABC1234", plate: "ABC1234", primaryPolicyId: "p1", policyIds: ["p1", "p2", "p3"], owners: [
@@ -31,4 +31,12 @@ test("every vehicle export has the exact vehicle column order and filtered rows,
   assert.ok(!JSON.stringify(result).includes("Opel"));
   assert.equal(vehicleOwnerText(opel), "Ελένη");
   assert.equal(vehicleUseLabel("CUSTOM"), "CUSTOM");
+});
+
+test("customer vehicle lists follow current linked ownership, including co-owners, not former policyholders",()=>{
+  assert.equal(vehicleBelongsToCustomer(toyota,"c1"),true);
+  const transferred={...toyota,owners:[{name:"Νέος",customerId:"c2",percentage:100}]};
+  assert.equal(vehicleBelongsToCustomer(transferred,"c1"),false);assert.equal(vehicleBelongsToCustomer(transferred,"c2"),true);
+  const shared={...toyota,owners:[{name:"Α",customerId:"c1",percentage:75},{name:"Β",customerId:"c2",percentage:25}]};
+  assert.equal(vehicleBelongsToCustomer(shared,"c2"),true);
 });

@@ -29,3 +29,6 @@ export const vehicleRegisterColumns = [
   { key: "engineCapacity", label: "Κυβισμός (cc)", map: (row: VehicleRow) => row.engineCapacity || "—" },
   { key: "vin", label: "VIN / πλαίσιο", map: (row: VehicleRow) => row.vin || "—" },
 ];
+
+/** Current ownership only; historic policyholders remain in the policy history. */
+export const vehicleBelongsToCustomer = (row: VehicleRow, customerId: string) => row.owners.some(owner => owner.customerId === customerId);

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createServer } from "vite";
+import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import i18next from "i18next";
 import { I18nextProvider } from "react-i18next";
@@ -14,11 +15,12 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
   const server = await createServer({ server: { middlewareMode: true, hmr: false }, ssr: { noExternal: [/@mui\//] }, appType: "custom" });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const i18n = i18next.createInstance(); await i18n.init({ lng: "el", resources: { el: { translation: {} } }, initImmediate: false });
-  const render = (Component, props) => renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(I18nextProvider, { i18n }, createElement(Component, props))));
+  const render = (Component, props) => renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(I18nextProvider, { i18n }, createElement(MemoryRouter, null, createElement(Component, props)))));
   const session = values => ({ values, drafts: {}, editAll: false, busy: false, change() {}, commit: async () => {}, begin() {}, saveAll() {}, cancel() {}, requestClose() {} });
   const ids = html => [...html.matchAll(/data-profile-field="([^"]+)"/g)].map(match => match[1]);
   try {
     const { VehicleProfileFields } = await server.ssrLoadModule("/src/pages/CustomerVehiclesPage.tsx");
+    const { VehicleOwnershipManager, filterOwnershipEvents, ownershipPercentage } = await server.ssrLoadModule("/src/components/profile/VehicleOwnershipManager.tsx");
     const { VehicleOwnershipFields, VehicleOwnershipInputs } = await server.ssrLoadModule("/src/components/profile/VehicleOwnershipFields.tsx");
     const { PolicyProfileFields, PolicyPremiumFields, PolicyContractFields, PolicyOutstandingField, policyOverlayTheme } = await server.ssrLoadModule("/src/components/PolicyDetailDrawer.tsx");
     const { vehicleOwnerHistory } = await server.ssrLoadModule("/src/components/profile/vehicleHistory.ts");
@@ -35,12 +37,12 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
       assert.deepEqual(ids(view), ids(edit)); assert.equal(view.includes("<input"), false); assert.equal(/<(input|textarea)\b/.test(edit), true);
       return { view, edit };
     };
-    await t.test("vehicle uses a compact customer-style main card and a separate technical popup with identical view/edit fields", () => {
+    await t.test("vehicle uses a compact customer-style main card and a separate technical tab with identical view/edit fields", () => {
       const values = { vehicleRegistrationPlate: "ABC1234", "spec:make": "Toyota", "spec:sunroof": "true" };
       const main = layout(VehicleProfileFields, { values, owner: "Ιδιοκτήτης", ownerVat: "012345678", session: session(values) });
       const extra = layout(VehicleProfileFields, { section: "additional", values, session: session(values) });
       const all = ids(main.view).concat(ids(extra.view));
-      for (const [key] of VEHICLE_SPEC_FIELDS) assert.equal(all.filter(id => id === "spec:" + key).length, 1, key);
+      for (const [key] of VEHICLE_SPEC_FIELDS) { const definition=VEHICLE_CARD_FIELDS.find(f=>f.key==="spec:"+key); const id=definition.path.startsWith("@")?definition.label:definition.key; assert.equal(all.filter(value=>value===id).length,1,key); }
       assert.equal(ids(main.view).length, 28); assert.equal(ids(extra.view).length, 40);
       assert.equal(main.view.includes("Αντιγραφή Μάρκα / εργοστάσιο"), true);
       assert.equal(extra.view.includes("Επεξεργασία Ηλιοροφή"), true); assert.equal(extra.edit.includes("Αποθήκευση Ηλιοροφή"), true);
@@ -64,6 +66,18 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
       const result=JSON.parse(mergeVehicleSpecs('{"insurer":{"id":1}}',{requestedStartDate:"2027-01-01",requestedDurationMonths:"12",enginePowerKw:"85,5",otherDriverName:"Οδηγός"}));
       assert.equal(result.enginePowerKw,"85.5");assert.equal(result.requestedStartDate,"2027-01-01");assert.equal(result.insurer.id,1);assert.equal(result.otherDriverName,"Οδηγός");
       assert.throws(()=>mergeVehicleSpecs("{}",{enginePowerKw:"-10"}));assert.throws(()=>mergeVehicleSpecs("{}",{wheelCount:"2.5"}));assert.throws(()=>mergeVehicleSpecs("{}",{requestedStartDate:"2026-02-30"}));
+    });
+    await t.test("ownership manager renders current owners, real transfer history and permitted actions without replacing policy history", () => {
+      const owner={id:"owner-a",customerId:"customer-a",name:"Άννα",vatNumber:"012345678",percentage:100,acquiredOn:"2026-07-01",capacity:"",notes:""};
+      const entry={id:"event-1",kind:"FullTransfer",date:"2026-07-20",recordedAt:"2026-07-20T12:00:00Z",reason:"Πώληση",reference:"REF-1",notes:"",before:[owner],after:[{...owner,id:"owner-b",name:"Βασίλης"}],fromId:"owner-a",toId:"owner-b",percentage:100,beforePrimaryId:"owner-a",afterPrimaryId:"owner-b",actor:"Γραφείο"};
+      client.setQueryData(["vehicle-ownership","ownership-test"],{plate:"ABC1234",vin:"",ledger:{version:1,revision:1,primaryOwnerId:owner.id,owners:[owner],events:[entry]}});
+      const html=render(VehicleOwnershipManager,{policyId:"ownership-test",canWrite:true,onChanged(){}});
+      assert.match(html,/Προσθήκη ιδιοκτήτη/);assert.match(html,/Επεξεργασία ιδιοκτητών/);assert.match(html,/Μεταβίβαση/);assert.match(html,/Αναίρεση τελευταίας/);assert.match(html,/012345678/);assert.match(html,/Λεπτομέρειες/);
+      const readonly=render(VehicleOwnershipManager,{policyId:"ownership-test",canWrite:false,onChanged(){}});assert.equal(readonly.includes("Προσθήκη ιδιοκτήτη"),false);
+      assert.equal(filterOwnershipEvents([entry],"Βασίλης","2026-07-01","2026-07-31").length,1);
+      assert.equal(filterOwnershipEvents([entry],"","2026-08-01","").length,0);
+      assert.equal(filterOwnershipEvents([entry],"REF-1","","").length,1);
+      assert.equal(ownershipPercentage("33,33"),33.33);for(const text of ["0","101","1.234","abc"])assert.throws(()=>ownershipPercentage(text));
     });
     await t.test("multiple owners get individual percentage fields in view/edit and creation; single owners do not", () => {
       const values = { "spec:ownerCount": "2", "owner:0:name": "Άννα", "owner:0:percentage": "60", "owner:1:name": "Γιάννης", "owner:1:percentage": "40" };
@@ -154,7 +168,7 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
         const theme = createTheme({ components: { MuiUseMediaQuery: { defaultProps: { ssrMatchMedia: query => {
           const min = query.match(/min-width:\s*([\d.]+)px/); return { matches: !min || width >= Number(min[1]) };
         } } } } });
-        const themedRender = (Component, props) => renderToStaticMarkup(createElement(ThemeProvider, { theme }, createElement(I18nextProvider, { i18n }, createElement(Component, props))));
+        const themedRender = (Component, props) => renderToStaticMarkup(createElement(ThemeProvider, { theme }, createElement(I18nextProvider, { i18n }, createElement(MemoryRouter, null, createElement(Component, props)))));
         for (const editAll of [false, true]) {
           const html = themedRender(ClaimProfileFields, { claim, session: { ...session(values), editAll } });
           const expected = policyFieldColumns(expectedGroups, count);

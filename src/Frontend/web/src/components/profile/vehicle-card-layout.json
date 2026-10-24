@@ -332,7 +332,7 @@
     {
       "key": "spec:ownerCount",
       "label": "Αριθμός ιδιοκτητών",
-      "path": "OwnerCount",
+      "path": "@OwnershipCount",
       "kind": "integer",
       "section": "main",
       "choices": null

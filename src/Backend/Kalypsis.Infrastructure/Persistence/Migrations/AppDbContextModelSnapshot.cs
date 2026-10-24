@@ -15510,6 +15510,68 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.ToTable("VehicleModels");
                 });
 
+            modelBuilder.Entity("Kalypsis.Domain.Entities.VehicleOwnershipRegister", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("AgencyOfficeScopeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("AnchorPolicyId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("LedgerJson")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Plate")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<Guid>("PrimaryCustomerId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("VehicleKey")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("varchar(160)");
+
+                    b.Property<string>("Vin")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("varchar(80)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PrimaryCustomerId");
+
+                    b.HasIndex("TenantId", "Plate");
+
+                    b.HasIndex("TenantId", "VehicleKey")
+                        .IsUnique();
+
+                    b.ToTable("vehicle_ownership_registers", (string)null);
+                });
+
             modelBuilder.Entity("Kalypsis.Domain.Entities.ViberLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -18010,6 +18072,15 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Navigation("Announcement");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.VehicleOwnershipRegister", b =>
+                {
+                    b.HasOne("Kalypsis.Domain.Entities.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("PrimaryCustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.WorkflowExecution", b =>

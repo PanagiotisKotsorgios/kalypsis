@@ -26,6 +26,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<CustomerRelationship> CustomerRelationships => Set<CustomerRelationship>();
     public DbSet<CustomerInsuranceNeed> CustomerInsuranceNeeds => Set<CustomerInsuranceNeed>();
     public DbSet<Producer> Producers => Set<Producer>();
+    public DbSet<VehicleOwnershipRegister> VehicleOwnershipRegisters => Set<VehicleOwnershipRegister>();
     public DbSet<PartnerNetwork> PartnerNetworks => Set<PartnerNetwork>();
     public DbSet<PartnerNetworkMember> PartnerNetworkMembers => Set<PartnerNetworkMember>();
     public DbSet<PartnerNetworkDocument> PartnerNetworkDocuments => Set<PartnerNetworkDocument>();

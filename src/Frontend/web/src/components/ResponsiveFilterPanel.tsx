@@ -24,6 +24,7 @@ export function ResponsiveFilterPanel({
   onCompactOpenChange,
   compactAt = "md",
   compactButtonSx,
+  overlayZIndex,
 }: {
   children: ReactNode;
   quickFilters?: ReactNode;
@@ -44,6 +45,8 @@ export function ResponsiveFilterPanel({
   compactAt?: "sm" | "md" | "lg" | "xl";
   /** Page-scoped visual treatment for the compact full-filter trigger. */
   compactButtonSx?: object;
+  /** Keep filter drawers above a containing record dialog. */
+  overlayZIndex?: number;
 }) {
   const theme = useTheme();
   // Treat phones and narrow tablets as compact so dense filter forms never
@@ -63,7 +66,7 @@ export function ResponsiveFilterPanel({
   };
 
   const quickDrawer = quickFilters ? (
-    <Drawer
+    <Drawer sx={overlayZIndex ? { zIndex: overlayZIndex } : undefined}
       anchor="bottom"
       open={quickOpen}
       onClose={() => setQuickOpen(false)}
@@ -113,7 +116,7 @@ export function ResponsiveFilterPanel({
             </Stack>
           </Box>
         )}
-        <Drawer
+        <Drawer sx={overlayZIndex ? { zIndex: overlayZIndex } : undefined}
           anchor="bottom"
           open={compactOpen}
           onClose={() => setCompactOpen(false)}
