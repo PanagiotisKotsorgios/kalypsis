@@ -14,6 +14,9 @@ public class ClaimConfiguration : IEntityTypeConfiguration<Claim>
         b.Property(x => x.Status).HasConversion<int>();
         b.Property(x => x.ClaimedAmount).HasPrecision(14, 2);
         b.Property(x => x.ApprovedAmount).HasPrecision(14, 2);
+        b.Property(x => x.SettledAmount).HasPrecision(14, 2);
+        b.Property(x => x.Kind).HasMaxLength(40);
+        b.Property(x => x.Currency).HasMaxLength(3);
         b.Property(x => x.Description).HasMaxLength(2000);
 
         b.HasOne(x => x.Policy).WithMany(p => p.Claims).HasForeignKey(x => x.PolicyId).OnDelete(DeleteBehavior.Restrict);

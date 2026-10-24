@@ -7,5 +7,8 @@ public enum ClaimStatus
     Approved = 3,
     Rejected = 4,
     Paid = 5,
-    Closed = 6
+    Closed = 6,
+    Pending = 7,
+    InProgress = 8,
+    Settled = 9
 }

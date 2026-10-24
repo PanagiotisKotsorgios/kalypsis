@@ -64,7 +64,7 @@ export type ProfileFieldSession = ReturnType<typeof useProfileFieldEditor>;
 
 export function ProfileEditableField({ label, field, session, value, options, type = "text", mono = false, multiline = false, validate, onRequestEdit, link, readOnly = false }: {
   label: string; field?: string; session?: ProfileFieldSession; value?: string | null;
-  options?: InlineValueOption[]; type?: "text" | "date" | "email" | "number"; mono?: boolean; multiline?: boolean;
+  options?: InlineValueOption[]; type?: "text" | "date" | "datetime-local" | "email" | "number"; mono?: boolean; multiline?: boolean;
   validate?: (value: string) => string | undefined;
   onRequestEdit?: () => void;
   link?: string;

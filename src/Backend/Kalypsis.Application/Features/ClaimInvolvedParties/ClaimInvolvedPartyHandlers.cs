@@ -29,7 +29,7 @@ public record ClaimInvolvedPartyDto(
     string? InsuranceCompany,
     string? PolicyNumberOther,
     string? Notes,
-    DateTime CreatedAt);
+    DateTime CreatedAt, string? IdNumber = null, string? Address = null, decimal? ClaimedAmount = null, bool AtFault = false);
 
 public record ClaimInvolvedPartyBody(
     string Role,
@@ -40,7 +40,7 @@ public record ClaimInvolvedPartyBody(
     string? VehiclePlate,
     string? InsuranceCompany,
     string? PolicyNumberOther,
-    string? Notes);
+    string? Notes, string? IdNumber = null, string? Address = null, decimal? ClaimedAmount = null, bool AtFault = false, bool ReplaceAdditional = false);
 
 public class ClaimInvolvedPartyBodyValidator : AbstractValidator<ClaimInvolvedPartyBody>
 {
@@ -55,6 +55,9 @@ public class ClaimInvolvedPartyBodyValidator : AbstractValidator<ClaimInvolvedPa
         RuleFor(x => x.InsuranceCompany).MaximumLength(160);
         RuleFor(x => x.PolicyNumberOther).MaximumLength(64);
         RuleFor(x => x.Notes).MaximumLength(2000);
+        RuleFor(x=>x.IdNumber).MaximumLength(60);
+        RuleFor(x=>x.Address).MaximumLength(300);
+        RuleFor(x=>x.ClaimedAmount).GreaterThanOrEqualTo(0);
     }
 }
 
@@ -93,7 +96,7 @@ public class ListInvolvedPartiesByCustomerHandler
                 p.Role, p.FullName,
                 p.Phone, p.Email, p.VatNumber, p.VehiclePlate,
                 p.InsuranceCompany, p.PolicyNumber, p.Notes,
-                p.CreatedAt)
+                p.CreatedAt, p.IdNumber, p.Address, p.ClaimedAmount, p.AtFault)
         ).ToListAsync(ct);
         return rows;
     }
@@ -137,6 +140,7 @@ public class CreateInvolvedPartyHandler
             InsuranceCompany = TrimOrNull(r.Body.InsuranceCompany),
             PolicyNumber = TrimOrNull(r.Body.PolicyNumberOther),
             Notes = TrimOrNull(r.Body.Notes),
+            IdNumber=TrimOrNull(r.Body.IdNumber),Address=TrimOrNull(r.Body.Address),ClaimedAmount=r.Body.ClaimedAmount,AtFault=r.Body.AtFault,
             CreatedAt = DateTime.UtcNow
         };
         _db.ClaimInvolvedParties.Add(p);
@@ -149,7 +153,7 @@ public class CreateInvolvedPartyHandler
             p.Role, p.FullName,
             p.Phone, p.Email, p.VatNumber, p.VehiclePlate,
             p.InsuranceCompany, p.PolicyNumber, p.Notes,
-            p.CreatedAt);
+            p.CreatedAt, p.IdNumber, p.Address, p.ClaimedAmount, p.AtFault);
     }
 
     private static string? TrimOrNull(string? v)
@@ -192,6 +196,7 @@ public class UpdateInvolvedPartyHandler
         p.InsuranceCompany = TrimOrNull(r.Body.InsuranceCompany);
         p.PolicyNumber = TrimOrNull(r.Body.PolicyNumberOther);
         p.Notes = TrimOrNull(r.Body.Notes);
+        if(r.Body.ReplaceAdditional){p.IdNumber=TrimOrNull(r.Body.IdNumber);p.Address=TrimOrNull(r.Body.Address);p.ClaimedAmount=r.Body.ClaimedAmount;p.AtFault=r.Body.AtFault;}
         p.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
 
@@ -202,7 +207,7 @@ public class UpdateInvolvedPartyHandler
             p.Role, p.FullName,
             p.Phone, p.Email, p.VatNumber, p.VehiclePlate,
             p.InsuranceCompany, p.PolicyNumber, p.Notes,
-            p.CreatedAt);
+            p.CreatedAt, p.IdNumber, p.Address, p.ClaimedAmount, p.AtFault);
     }
 
     private static string? TrimOrNull(string? v)

@@ -1,20 +1,18 @@
 import { DetailProfileTabs } from "./profile/DetailProfileTabs";
 import { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback, profileDialogPaperSx, useProfileFieldEditor, type ProfileFieldSession } from "./profile/ProfileFieldEditor";
-import { CLAIM_FIELDS, CLAIM_PROFILE_GROUPS, claimInformationGroups, claimUpdatePayload } from "./profile/claimProfile";
+import { CLAIM_FIELDS, CLAIM_CARD_FIELDS, CLAIM_CARD_TABS, claimInformationGroups, claimFieldValue, claimUpdatePayload } from "./profile/claimProfile";
 import { PolicyFieldColumns } from "./profile/PolicyFieldColumns";
 import { Children, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Alert,
   Box,
   Button,
-  Card,
   Chip,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Grid,
   IconButton,
   Stack,
   Table,
@@ -40,6 +38,10 @@ import { money, date, dateTime } from "../utils/format";
 import { EntityAuditTable } from "./EntityAuditTable";
 
 interface ClaimRow {
+  kind?: string;
+  settledAmount?: number | null;
+  currency?: string;
+  updatedAt?: string;
   id: string;
   claimNumber: string;
   policyId: string;
@@ -202,26 +204,7 @@ function claimStatusLabel(status: string | null | undefined, t: TFunction) {
   return CLAIM_STATUS_LABELS[status] ?? t(`claims.statuses.${status}`, status);
 }
 
-const PROFILE_TABS = [
-  { label: "Γενικά", icon: <InfoOutlinedIcon fontSize="small" /> },
-  {
-    label: "Στοιχεία ζημιάς",
-    icon: <DescriptionOutlinedIcon fontSize="small" />,
-  },
-  {
-    label: "Συμβόλαιο & όχημα",
-    icon: <DirectionsCarOutlinedIcon fontSize="small" />,
-  },
-  {
-    label: "Οικονομικά",
-    icon: <AccountBalanceWalletOutlinedIcon fontSize="small" />,
-  },
-  {
-    label: "Εμπλεκόμενοι & επικοινωνίες",
-    icon: <GroupsOutlinedIcon fontSize="small" />,
-  },
-  { label: "Ιστορικό", icon: <HistoryOutlinedIcon fontSize="small" /> },
-];
+const PROFILE_TABS = CLAIM_CARD_TABS.map((label,index)=>({label,icon:[<InfoOutlinedIcon fontSize="small"/>,<DescriptionOutlinedIcon fontSize="small"/>,<DirectionsCarOutlinedIcon fontSize="small"/>,<AccountBalanceWalletOutlinedIcon fontSize="small"/>,<GroupsOutlinedIcon fontSize="small"/>][index]}));
 
 export function ClaimDetailDrawer({
   claim,
@@ -242,6 +225,7 @@ export function ClaimDetailDrawer({
 }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState(0);
+  const [historyOpen,setHistoryOpen]=useState(false);
   const [snapshot, setSnapshot] = useState<ClaimRow | null>(claim);
   useEffect(() => { setSnapshot(claim); setTab(0); }, [claim?.id, open]);
   const profileQ = useQuery({
@@ -314,50 +298,43 @@ export function ClaimDetailDrawer({
   const qc = useQueryClient();
   const session = useProfileFieldEditor({
     initialEditing: initialEditing && canEdit,
-    sessionKey: open ? claim?.id ?? "" : "", values: Object.fromEntries(CLAIM_FIELDS.map(([key]) => [key, String(snapshot?.[key] ?? "")])), onClose,
+    sessionKey: open ? claim?.id ?? "" : "", values: Object.fromEntries(CLAIM_FIELDS.map(([key]) => [key, claimFieldValue(key,(snapshot as unknown as Record<string,unknown>)?.[key] ?? (key==="currency"?"EUR":key==="kind"?"VehicleDamage":key==="affectsBonusMalus"?true:""))])), onClose,
     refresh: () => { void qc.invalidateQueries({ queryKey: ["claim-profile", claim?.id] }); void qc.invalidateQueries({ queryKey: ["claims"] }); onSaved?.(); },
     write: async (changes, accept) => {
       if (!canEdit || !snapshot) throw new Error("Δεν επιτρέπεται η επεξεργασία ζημιάς.");
       if (!Object.keys(changes).length) return;
       const body = claimUpdatePayload({ ...snapshot }, changes);
-      const baseKeys = Object.keys(changes).filter(key => key !== "status");
-      let updated = snapshot;
-      if (baseKeys.length) {
-        updated = { ...snapshot, ...(await api.put<ClaimRow>("/claims/" + snapshot.id, body)).data };
-        setSnapshot(updated); accept(baseKeys);
-      }
-      if (changes.status !== undefined && changes.status !== updated.status) {
-        const saved = (await api.post<ClaimRow>("/claims/" + snapshot.id + "/status", { status: changes.status, approvedAmount: body.approvedAmount })).data;
-        setSnapshot({ ...updated, ...saved }); accept(["status"]);
-      } else if (changes.status !== undefined) accept(["status"]);
+      const saved=(await api.put<ClaimRow>("/claims/"+snapshot.id,body)).data;
+      setSnapshot({...snapshot,...saved});accept(Object.keys(changes));
     }
   });
 
   const policy = profileQ.data?.policy;
   const customer = profileQ.data?.customer;
+  const currency=snapshot?.currency||policy?.currency||"EUR";
   const reserves = useMemo(
     () =>
-      (profileQ.data?.provisions ?? []).reduce(
+      (profileQ.data?.provisions ?? []).filter(row=>(row.currency||currency)===currency).reduce(
         (sum, row) => sum + Number(row.reserveAmount ?? 0),
         0,
       ),
-    [profileQ.data?.provisions],
+    [profileQ.data?.provisions,currency],
   );
   const indemnityTotal = useMemo(
     () =>
-      (profileQ.data?.indemnities ?? []).reduce(
+      (profileQ.data?.indemnities ?? []).filter(row=>(row.currency||currency)===currency).reduce(
         (sum, row) => sum + Number(row.amount ?? 0),
         0,
       ),
-    [profileQ.data?.indemnities],
+    [profileQ.data?.indemnities,currency],
   );
   const victimPaid = useMemo(
     () =>
-      (profileQ.data?.victims ?? []).reduce(
+      (profileQ.data?.victims ?? []).filter(row=>(row.currency||currency)===currency).reduce(
         (sum, row) => sum + Number(row.paidAmount ?? 0),
         0,
       ),
-    [profileQ.data?.victims],
+    [profileQ.data?.victims,currency],
   );
   if (!snapshot) return null;
 
@@ -368,8 +345,8 @@ export function ClaimDetailDrawer({
     customer?.companyName ??
     ([customer?.firstName, customer?.lastName].filter(Boolean).join(" ") ||
       "—");
-  const fmt = (value: number | null | undefined) =>
-    value == null ? "—" : money(value);
+  const fmt = (value: number | null | undefined, moneyCurrency=currency) =>
+    value == null ? "—" : money(value,moneyCurrency);
   const openLink = (path: string) => {
     window.location.href = path;
   };
@@ -382,7 +359,7 @@ export function ClaimDetailDrawer({
       maxWidth="xl"
       PaperProps={{ sx: profileDialogPaperSx }}
     >
-      <DialogTitle sx={{ py: 1.5, borderBottom: 1, borderColor: "divider" }}>
+      <DialogTitle sx={{ py: .75, borderBottom: 1, borderColor: "divider" }}>
         <Stack
           direction={{ xs: "column", md: "row" }}
           justifyContent="space-between"
@@ -395,7 +372,7 @@ export function ClaimDetailDrawer({
               color="text.secondary"
               sx={{ fontWeight: 800 }}
             >
-              Πλήρης καρτέλα ζημιάς
+              Καρτέλα Ζημιάς
             </Typography>
             <Stack
               direction="row"
@@ -406,7 +383,7 @@ export function ClaimDetailDrawer({
               <Typography
                 sx={{
                   fontWeight: 900,
-                  fontSize: { xs: "1.45rem", md: "1.8rem" },
+                  fontSize: { xs: "1.1rem", md: "1.35rem" },
                   fontFamily: "monospace",
                 }}
               >
@@ -442,6 +419,7 @@ export function ClaimDetailDrawer({
           p: { xs: 1, md: 1.75 },
           bgcolor: "#f7f9fc",
           "& .MuiTypography-root": { lineHeight: 1.3 },
+          "& .MuiTable-root":{minWidth:620},"& .MuiTableCell-root":{py:.5,px:1,fontSize:12,borderColor:"#d2dae3"},"& .MuiTableHead-root":{bgcolor:"#e0e7ef"},"& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)":{bgcolor:"#e9edf2"},
         }}
       >
         <DetailProfileTabs value={tab} onChange={setTab} items={PROFILE_TABS} />
@@ -470,12 +448,12 @@ export function ClaimDetailDrawer({
               />
             )}
             {tab === 1 && (
-              <ClaimFieldsTab
+              <><Button variant="contained" color="success" size="small" startIcon={<HistoryOutlinedIcon/>} sx={{mb:1,color:"#fff"}} onClick={()=>setHistoryOpen(true)}>Ιστορικό ζημιάς</Button><ClaimFieldsTab
                 claim={snapshot}
                 session={canEdit ? session : undefined}
                 t={t}
                 fmt={fmt}
-              />
+              /></>
             )}
             {tab === 2 && (
               <PolicyVehicleTab
@@ -492,6 +470,7 @@ export function ClaimDetailDrawer({
                 provisions={profileQ.data?.provisions ?? []}
                 indemnities={profileQ.data?.indemnities ?? []}
                 victims={profileQ.data?.victims ?? []}
+                session={canEdit?session:undefined}
                 reserves={reserves}
                 indemnityTotal={indemnityTotal}
                 victimPaid={victimPaid}
@@ -500,17 +479,16 @@ export function ClaimDetailDrawer({
               />
             )}
             {tab === 4 && (
-              <PeopleCommunicationsTab
+              <PeopleCommunicationsTab claimId={snapshot.id} canEdit={canEdit} onSaved={()=>void qc.invalidateQueries({queryKey:["claim-profile",snapshot.id]})}
                 involved={profileQ.data?.involved ?? []}
                 communications={profileQ.data?.communications ?? []}
               />
             )}
-            {tab === 5 && (
-              <HistoryTab claim={snapshot} onOpen={openLink} />
-            )}
+
           </>
         )}
       </DialogContent>
+      <Dialog open={historyOpen} onClose={()=>setHistoryOpen(false)} fullWidth maxWidth="lg"><DialogTitle>Ιστορικό ζημιάς</DialogTitle><DialogContent><HistoryTab claim={snapshot} onOpen={openLink}/></DialogContent><DialogActions><Button variant="contained" color="error" onClick={()=>setHistoryOpen(false)}>Κλείσιμο</Button></DialogActions></Dialog>
       <DialogActions sx={{ px: 1.25, py: .6 }}>
         {canEdit ? <ProfileEditorActions session={session} label="ζημιάς" /> : <Button color="error" variant="contained" onClick={session.requestClose}>Κλείσιμο</Button>}
       </DialogActions>
@@ -530,14 +508,13 @@ function Panel({
   action?: ReactNode;
 }) {
   return (
-    <Card
-      variant="outlined"
+    <Box
       sx={{
-        p: { xs: 1, md: 1.35 },
+        p: .5, overflowX:"auto",
         mb: 1,
         borderRadius: 2,
         borderColor: "#c4d0de",
-        boxShadow: "0 6px 18px rgba(15,23,42,.06)",
+        boxShadow: "none",
       }}
     >
       <Stack
@@ -564,7 +541,7 @@ function Panel({
         {action}
       </Stack>
       {children}
-    </Card>
+    </Box>
   );
 }
 export function ClaimInfoFields({ children }: { children: ReactNode }) {
@@ -572,44 +549,6 @@ export function ClaimInfoFields({ children }: { children: ReactNode }) {
 }
 function InfoItem({ label, value, color }: { label: string; value: ReactNode; color?: string }) {
   return <Box sx={{ color, minWidth: 0 }}><ProfileEditableField label={label} value={typeof value === "string" || typeof value === "number" ? String(value) : undefined} /></Box>;
-}
-function KPI({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: ReactNode;
-  color?: string;
-}) {
-  return (
-    <Box
-      sx={{
-        p: 1.1,
-        borderRadius: 1.5,
-        bgcolor: "#eef4fb",
-        border: "1px solid #d7e3f0",
-      }}
-    >
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        sx={{ display: "block", fontWeight: 700 }}
-      >
-        {label}
-      </Typography>
-      <Typography
-        sx={{
-          mt: 0.15,
-          fontSize: { xs: "1.05rem", md: "1.2rem" },
-          fontWeight: 900,
-          color: color ?? "#162235",
-        }}
-      >
-        {value}
-      </Typography>
-    </Box>
-  );
 }
 function EmptyState({ text }: { text: string }) {
   return (
@@ -644,143 +583,13 @@ function SummaryTab({
 }) {
   return (
     <Stack spacing={1}>
-      <ClaimProfileFields claim={claim} session={session} />
-      <Panel
-        title="Σύνδεση ζημιάς"
-        icon={<DescriptionOutlinedIcon />}
-        action={
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<OpenInNewIcon />}
-            onClick={() =>
-              onOpen(
-                `/app/policies?search=${encodeURIComponent(claim.policyNumber ?? "")}`,
-              )
-            }
-          >
-            Άνοιγμα συμβολαίου
-          </Button>
-        }
-      >
-        <ClaimInfoFields>
-          <InfoItem label="Αριθμός ζημιάς" value={claim.claimNumber} />
-          <InfoItem label="Αριθμός συμβολαίου" value={claim.policyNumber} />
-          <InfoItem label="Πελάτης / ασφαλισμένος" value={customerName} />
-          <InfoItem
-            label="Ασφαλιστική εταιρεία"
-            value={claim.insuranceCompanyName ?? policy?.insuranceCompanyName}
-          />
-          <InfoItem
-            label="Κλάδος"
-            value={claim.policyType ?? policy?.policyType}
-          />
-          <InfoItem
-            label="Όχημα / πινακίδα"
-            value={policy?.vehicleRegistrationPlate ?? "Δεν έχει συνδεθεί"}
-          />
-        </ClaimInfoFields>
-      </Panel>
-      <Panel
-        title="Πελάτης και στοιχεία επικοινωνίας"
-        icon={<GroupsOutlinedIcon />}
-        action={
-          customer?.id ? (
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<OpenInNewIcon />}
-              onClick={() => onOpen(`/app/customers/${customer.id}`)}
-            >
-              Άνοιγμα καρτέλας πελάτη
-            </Button>
-          ) : undefined
-        }
-      >
-        <ClaimInfoFields>
-          <InfoItem label="Ονοματεπώνυμο / επωνυμία" value={customerName} />
-          <InfoItem label="ΑΦΜ" value={customer?.vatNumber} />
-          <InfoItem label="Email" value={customer?.email} />
-          <InfoItem label="Τηλέφωνο" value={customer?.phone} />
-          <InfoItem label="Κινητό" value={customer?.mobilePhone} />
-          <InfoItem
-            label="Διεύθυνση"
-            value={[customer?.address, customer?.city, customer?.postalCode]
-              .filter(Boolean)
-              .join(", ")}
-          />
-        </ClaimInfoFields>
-      </Panel>
-      <Panel title="Περιγραφή" icon={<InfoOutlinedIcon />}>
-        {claim.description ? (
-          <Typography sx={{ whiteSpace: "pre-wrap", color: "#26364a" }}>
-            {claim.description}
-          </Typography>
-        ) : (
-          <EmptyState text="Δεν έχει καταχωρηθεί περιγραφή για τη ζημιά." />
-        )}
-      </Panel>
+      <ClaimProfileFields claim={claim} session={session} related={{policyNumber:claim.policyNumber,customerName,insuranceCompanyName:claim.insuranceCompanyName??policy?.insuranceCompanyName,customerVat:customer?.vatNumber,customerPhone:customer?.phone,customerMobile:customer?.mobilePhone,customerEmail:customer?.email,customerAddress:[customer?.address,customer?.city,customer?.postalCode].filter(Boolean).join(", ")}}/>
+      <Stack direction="row" spacing={1}><Button size="small" variant="contained" color="success" sx={{color:"#fff"}} onClick={()=>onOpen(`/app/policies?search=${encodeURIComponent(claim.policyNumber??"")}`)}>Καρτέλα συμβολαίου</Button>{claim.customerId&&<Button size="small" variant="contained" color="success" sx={{color:"#fff"}} onClick={()=>onOpen(`/app/customers/${claim.customerId}`)}>Καρτέλα πελάτη</Button>}</Stack>
     </Stack>
   );
 }
-
-function ClaimFieldsTab({ claim, session }: { claim: ClaimRow; session?: ProfileFieldSession; t: TFunction; fmt: (value: number | null | undefined) => string }) {
-  return (<Stack spacing={1}>
-    <ClaimProfileFields claim={claim} session={session} />
-      <Panel
-        title="ΥΣΑΕ και ασφαλιστική διαχείριση"
-        icon={<InfoOutlinedIcon />}
-      >
-        <ClaimInfoFields>
-          <InfoItem
-            label="Επηρεάζει Bonus-Malus"
-            value={claim.affectsBonusMalus === false ? "Όχι" : "Ναι"}
-            color={claim.affectsBonusMalus === false ? "#15803d" : undefined}
-          />
-          <InfoItem label="Κωδικός ΥΣΑΕ" value={claim.usaeCode} />
-          <InfoItem label="Είδος ΥΣΑΕ" value={claim.usaeKind} />
-          <InfoItem label="Κατάσταση ΥΣΑΕ" value={claim.usaeStatus} />
-          <InfoItem
-            label="Ποσοστό ευθύνης"
-            value={
-              claim.liabilityPercent == null
-                ? "—"
-                : `${claim.liabilityPercent}%`
-            }
-          />
-          <InfoItem
-            label="Εσωτερική ζημιά"
-            value={claim.isInternalDamage ? "Ναι" : "Όχι"}
-          />
-          <InfoItem
-            label="Κωδικός παραλαβής ΥΣΑΕ"
-            value={claim.usaeReceiptCode}
-          />
-          <InfoItem
-            label="Αποστολή ΥΣΑΕ"
-            value={
-              claim.usaeSentAt
-                ? dateTime(claim.usaeSentAt)
-                : "Δεν έχει αποσταλεί"
-            }
-          />
-          <InfoItem
-            label="Φιλικός διακανονισμός"
-            value={claim.isFriendlySettlement ? "Ναι" : "Όχι"}
-          />
-        </ClaimInfoFields>
-      </Panel>
-      <Panel title="Περιγραφή ζημιάς" icon={<InfoOutlinedIcon />}>
-        {claim.description ? (
-          <Typography sx={{ whiteSpace: "pre-wrap" }}>
-            {claim.description}
-          </Typography>
-        ) : (
-          <EmptyState text="Δεν υπάρχει περιγραφή." />
-        )}
-      </Panel>
-    </Stack>
-  );
+function ClaimFieldsTab({claim,session}:{claim:ClaimRow;session?:ProfileFieldSession;t:TFunction;fmt:(value:number|null|undefined)=>string}){
+  return <ClaimProfileFields claim={claim} session={session} section="additional"/>;
 }
 
 function PolicyVehicleTab({
@@ -937,6 +746,7 @@ function PolicyVehicleTab({
 
 function FinancialTab({
   claim,
+  session,
   policy,
   provisions,
   indemnities,
@@ -948,6 +758,7 @@ function FinancialTab({
   fmt,
 }: {
   claim: ClaimRow;
+  session?: ProfileFieldSession;
   policy: PolicyDetail | null | undefined;
   provisions: any[];
   indemnities: any[];
@@ -956,36 +767,12 @@ function FinancialTab({
   indemnityTotal: number;
   victimPaid: number;
   t: TFunction;
-  fmt: (value: number | null | undefined) => string;
+  fmt: (value: number | null | undefined, currency?:string) => string;
 }) {
   return (
     <Stack spacing={1}>
-      <Grid container spacing={1}>
-        <Grid item xs={12} sm={6} md={3}>
-          <KPI
-            label="Αιτούμενο"
-            value={fmt(claim.claimedAmount)}
-            color="#b45309"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <KPI
-            label="Εγκεκριμένο"
-            value={fmt(claim.approvedAmount)}
-            color="#15803d"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <KPI label="Προβλέψεις" value={fmt(reserves)} color="#7c3aed" />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <KPI
-            label="Αποζημιώσεις"
-            value={fmt(indemnityTotal)}
-            color="#0b5cad"
-          />
-        </Grid>
-      </Grid>
+      <ClaimProfileFields claim={claim} session={session} section="financial"/>
+      <ClaimInfoFields><InfoItem label="Προβλέψεις" value={fmt(reserves)}/><InfoItem label="Αποζημιώσεις" value={fmt(indemnityTotal)}/><InfoItem label="Πληρωμένο σε παθόντες" value={fmt(victimPaid)}/></ClaimInfoFields>
       <Panel
         title="Οικονομική εικόνα συμβολαίου"
         icon={<AccountBalanceWalletOutlinedIcon />}
@@ -1031,7 +818,7 @@ function FinancialTab({
                     {row.evaluationDate ? date(row.evaluationDate) : "—"}
                   </TableCell>
                   <TableCell>{row.assessorName ?? "—"}</TableCell>
-                  <TableCell align="right">{fmt(row.reserveAmount)}</TableCell>
+                  <TableCell align="right">{fmt(row.reserveAmount,row.currency)}</TableCell>
                   <TableCell>{row.notes ?? "—"}</TableCell>
                 </TableRow>
               ))}
@@ -1062,7 +849,7 @@ function FinancialTab({
                   <TableCell>Αποζημίωση</TableCell>
                   <TableCell>{row.payeeName ?? row.payeeType ?? "—"}</TableCell>
                   <TableCell>{row.paidOn ? date(row.paidOn) : "—"}</TableCell>
-                  <TableCell align="right">{fmt(row.amount)}</TableCell>
+                  <TableCell align="right">{fmt(row.amount,row.currency)}</TableCell>
                   <TableCell>
                     <Chip size="small" color="success" label="Καταχωρημένη" />
                   </TableCell>
@@ -1074,7 +861,7 @@ function FinancialTab({
                   <TableCell>{row.fullName}</TableCell>
                   <TableCell>—</TableCell>
                   <TableCell align="right">
-                    {fmt(row.paidAmount ?? row.reserveAmount)}
+                    {fmt(row.paidAmount ?? row.reserveAmount,row.currency)}
                   </TableCell>
                   <TableCell>{claimStatusLabel(row.status, t)}</TableCell>
                 </TableRow>
@@ -1089,19 +876,20 @@ function FinancialTab({
   );
 }
 
-function PeopleCommunicationsTab({
-  involved,
-  communications,
-}: {
-  involved: any[];
-  communications: any[];
-}) {
+function PeopleCommunicationsTab({involved,communications,claimId,canEdit,onSaved}:{involved:any[];communications:any[];claimId:string;canEdit:boolean;onSaved:()=>void}) {
+  const [party,setParty]=useState<Record<string,unknown>|null>(null);
+  const [error,setError]=useState("");
+  async function remove(row:any){if(!window.confirm("Θέλετε να διαγράψετε τον επιλεγμένο εμπλεκόμενο;"))return;try{await api.delete("/claim-involved-parties/"+row.id);onSaved();}catch{setError("Δεν ήταν δυνατή η διαγραφή.");}}
+
   return (
     <Stack spacing={1}>
       <Panel
         title={`Εμπλεκόμενα πρόσωπα (${involved.length})`}
         icon={<GroupsOutlinedIcon />}
+        action={canEdit?<Button variant="contained" color="success" size="small" onClick={()=>setParty({role:"OtherDriver",fullName:"",atFault:false})}>Προσθήκη</Button>:undefined}
       >
+        {error&&<Alert severity="error">{error}</Alert>}
+        {party&&<ClaimPartyDialog party={party} claimId={claimId} canEdit={canEdit} onClose={()=>setParty(null)} onSaved={onSaved}/>}
         {involved.length ? (
           <Table size="small">
             <TableHead>
@@ -1112,7 +900,7 @@ function PeopleCommunicationsTab({
                 <TableCell>Email</TableCell>
                 <TableCell>Όχημα</TableCell>
                 <TableCell>Ασφαλιστική</TableCell>
-                <TableCell>Σημειώσεις</TableCell>
+                <TableCell>Σημειώσεις</TableCell><TableCell>Ενέργειες</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -1124,7 +912,7 @@ function PeopleCommunicationsTab({
                   <TableCell>{row.email ?? "—"}</TableCell>
                   <TableCell>{row.vehiclePlate ?? "—"}</TableCell>
                   <TableCell>{row.insuranceCompany ?? "—"}</TableCell>
-                  <TableCell>{row.notes ?? "—"}</TableCell>
+                  <TableCell>{row.notes ?? "—"}</TableCell><TableCell><Stack direction="row" spacing={.5}><Button size="small" variant="contained" color="success" onClick={()=>setParty(row)}>{canEdit?"Επεξεργασία":"Προβολή"}</Button>{canEdit&&<Button size="small" color="error" onClick={()=>void remove(row)}>Διαγραφή</Button>}</Stack></TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -1209,15 +997,27 @@ export function HistoryTab({
 }
 
 
-export function ClaimProfileFields({ claim, session }: { claim: ClaimRow; session?: ProfileFieldSession }) {
-  const statuses = ["Reported", "UnderReview", "Approved", "Rejected", "Paid", "Closed"];
-  const { t } = useTranslation();
-  const fields = new Map<string, ReactNode>([
-    ["claimNumber", <ProfileEditableField key="claimNumber" label="Αριθμός ζημιάς" value={claim.claimNumber} mono />],
-    ...CLAIM_FIELDS.map(([key, label]): [string, ReactNode] => [key,
-      <ProfileEditableField key={key} field={session ? key : undefined} session={session} label={label} value={String(claim[key] ?? "")}
-        type={key.endsWith("Date") ? "date" : key.endsWith("Amount") ? "number" : "text"} multiline={key === "description"}
-        options={key === "status" ? statuses.map(value => ({value, label: claimStatusLabel(value, t)})) : undefined} />]),
-  ]);
-  return <PolicyFieldColumns section="claim-general" groups={CLAIM_PROFILE_GROUPS.map(group => group.map(key => fields.get(key)))} />;
+export function ClaimProfileFields({claim,session,section="main",related={}}:{claim:ClaimRow;session?:ProfileFieldSession;section?:string;related?:Record<string,unknown>}) {
+  const definitions=CLAIM_CARD_FIELDS.filter(f=>f.section===section);
+  const fields=definitions.map(field=>{
+    const readonly=field.path.startsWith("@");const raw=related[field.key]??(claim as unknown as Record<string,unknown>)[field.key]??(field.key==="currency"?"EUR":field.key==="kind"?"VehicleDamage":field.key==="affectsBonusMalus"?true:"");
+    const options=field.kind==="boolean"?[{value:"true",label:"Ναι"},{value:"false",label:"Όχι"}]:field.choices;
+    return <ProfileEditableField key={field.key} field={!readonly&&session?field.key:undefined} session={session} label={field.label} value={claimFieldValue(field.key,raw)} type={field.kind==="date"?"date":field.kind==="datetime-local"?"datetime-local":field.kind==="number"?"number":"text"} multiline={field.kind==="multiline"} options={options}/>;
+  });
+  return <PolicyFieldColumns section={"claim-"+section} groups={claimInformationGroups(fields)}/>;
+}
+
+const PARTY_FIELDS=[["role","Ρόλος"],["fullName","Ονοματεπώνυμο"],["vatNumber","ΑΦΜ"],["idNumber","Ταυτότητα"],["phone","Τηλέφωνο"],["email","Email"],["address","Διεύθυνση"],["vehiclePlate","Πινακίδα"],["insuranceCompany","Ασφαλιστική"],["policyNumberOther","Συμβόλαιο"],["claimedAmount","Αιτούμενο ποσό"],["atFault","Υπαίτιος"],["notes","Σημειώσεις"]] as const;
+function ClaimPartyDialog({party,claimId,canEdit,onClose,onSaved}:{party:Record<string,unknown>;claimId:string;canEdit:boolean;onClose:()=>void;onSaved:()=>void}){
+ const [snapshot,setSnapshot]=useState(party);
+ const session=useProfileFieldEditor({initialEditing:canEdit,sessionKey:String(party.id??"new"),values:Object.fromEntries(PARTY_FIELDS.map(([key])=>[key,String(snapshot[key]??(key==="atFault"?false:""))])),onClose,refresh:onSaved,write:async(changes,accept)=>{
+  const body:Record<string,unknown>={...snapshot,...changes,replaceAdditional:true};if(!String(body.fullName??"").trim())throw new Error("Συμπληρώστε ονοματεπώνυμο.");
+  if(body.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(body.email)))throw new Error("Συμπληρώστε έγκυρο email.");
+  if(body.phone&&!/^[+0-9 ()-]{7,40}$/.test(String(body.phone)))throw new Error("Συμπληρώστε έγκυρο τηλέφωνο.");
+  body.atFault=body.atFault===true||body.atFault==="true";body.claimedAmount=body.claimedAmount==null||body.claimedAmount===""?null:Number(String(body.claimedAmount).replace(",","."));
+  if(body.claimedAmount!=null&&(!Number.isFinite(body.claimedAmount)||Number(body.claimedAmount)<0))throw new Error("Το ποσό δεν μπορεί να είναι αρνητικό.");
+  const saved=party.id?(await api.put("/claim-involved-parties/"+party.id,body)).data:(await api.post("/claims/"+claimId+"/involved-parties",body)).data;
+  setSnapshot(saved);accept(Object.keys(changes));onSaved();if(!party.id)onClose();
+ }});
+ return <Dialog open onClose={session.requestClose} fullWidth maxWidth="md" PaperProps={{sx:profileDialogPaperSx}}><DialogTitle>Εμπλεκόμενος ζημιάς</DialogTitle><DialogContent><ProfileEditorFeedback session={session}/><PolicyFieldColumns section="claim-party" groups={claimInformationGroups(PARTY_FIELDS.map(([key,label])=><ProfileEditableField key={key} label={label} value={String(snapshot[key]??"")} field={canEdit?key:undefined} session={session} type={key==="claimedAmount"?"number":"text"} multiline={key==="notes"} options={key==="atFault"?[{value:"true",label:"Ναι"},{value:"false",label:"Όχι"}]:key==="role"?[{value:"OtherDriver",label:"Άλλος οδηγός"},{value:"Passenger",label:"Επιβάτης"},{value:"Pedestrian",label:"Πεζός"},{value:"Witness",label:"Μάρτυρας"},{value:"Owner",label:"Ιδιοκτήτης"},{value:"Insurer",label:"Ασφαλιστική"},{value:"Other",label:"Άλλο"}]:undefined}/>))}/></DialogContent><DialogActions>{canEdit?<ProfileEditorActions session={session} label="εμπλεκομένου"/>:<Button variant="contained" color="error" onClick={session.requestClose}>Κλείσιμο</Button>}</DialogActions></Dialog>;
 }

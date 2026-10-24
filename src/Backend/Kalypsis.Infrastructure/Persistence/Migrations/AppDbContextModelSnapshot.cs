@@ -2639,6 +2639,11 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("varchar(3)");
+
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
@@ -2655,6 +2660,11 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsInternalDamage")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
+
                     b.Property<decimal?>("LiabilityPercent")
                         .HasColumnType("decimal(65,30)");
 
@@ -2663,6 +2673,10 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
 
                     b.Property<DateOnly>("ReportedDate")
                         .HasColumnType("date");
+
+                    b.Property<decimal?>("SettledAmount")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("decimal(14,2)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -2787,11 +2801,20 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
+                    b.Property<string>("Address")
+                        .HasColumnType("longtext");
+
                     b.Property<Guid?>("AgencyOfficeScopeId")
                         .HasColumnType("char(36)");
 
+                    b.Property<bool>("AtFault")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<Guid>("ClaimId")
                         .HasColumnType("char(36)");
+
+                    b.Property<decimal?>("ClaimedAmount")
+                        .HasColumnType("decimal(65,30)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
@@ -2807,6 +2830,9 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(160)
                         .HasColumnType("varchar(160)");
+
+                    b.Property<string>("IdNumber")
+                        .HasColumnType("longtext");
 
                     b.Property<string>("InsuranceCompany")
                         .HasMaxLength(160)

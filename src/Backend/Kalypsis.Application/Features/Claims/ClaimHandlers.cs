@@ -86,7 +86,7 @@ public class ListClaimsQueryHandler : IRequestHandler<ListClaimsQuery, IReadOnly
             c.IsInternalDamage,
             c.UsaeSentAt,
             c.UsaeReceiptCode,
-            c.IsFriendlySettlement);
+            c.IsFriendlySettlement, c.Kind, c.SettledAmount, c.Currency, c.UpdatedAt);
     }
 
     private static string? ExtractSpecsCode(string? specsJson, params string[] keys)
@@ -155,6 +155,7 @@ public class CreateClaimCommandHandler : IRequestHandler<CreateClaimCommand, Cla
             TenantId = tenantId,
             ClaimNumber = number,
             PolicyId = policy.Id,
+            Currency = policy.Currency,
             IncidentDate = r.IncidentDate,
             ReportedDate = r.ReportedDate ?? DateOnly.FromDateTime(_clock.UtcNow),
             Status = ClaimStatus.Reported,
@@ -176,6 +177,27 @@ public class CreateClaimCommandHandler : IRequestHandler<CreateClaimCommand, Cla
 
 public record UpdateClaimCommand(Guid Id, UpdateClaimBody Body) : IRequest<ClaimDto>;
 
+public class UpdateClaimCommandValidator : AbstractValidator<UpdateClaimCommand>
+{
+    public UpdateClaimCommandValidator()
+    {
+        RuleFor(x=>x.Body.ClaimNumber).MaximumLength(64);
+        RuleFor(x=>x.Body.ClaimNumber).NotEmpty().When(x=>x.Body.ClaimNumber != null);
+        RuleFor(x=>x.Body.Status).IsInEnum();
+        RuleFor(x=>x.Body.ClaimedAmount).GreaterThanOrEqualTo(0);
+        RuleFor(x=>x.Body.ApprovedAmount).GreaterThanOrEqualTo(0);
+        RuleFor(x=>x.Body.SettledAmount).GreaterThanOrEqualTo(0);
+        RuleFor(x=>x.Body.LiabilityPercent).InclusiveBetween(0,100);
+        RuleFor(x=>x.Body.Description).MaximumLength(2000);
+        RuleFor(x=>x.Body.Kind).Must(x=>new[]{"VehicleDamage","ThirdPartyLiability","Theft","WaterDamage","Fire","Other"}.Contains(x)).When(x=>x.Body.Kind!=null);
+        RuleFor(x=>x.Body.Currency).Matches("^[A-Z]{3}$").When(x=>x.Body.Currency!=null);
+        RuleFor(x=>x.Body.UsaeCode).MaximumLength(100);
+        RuleFor(x=>x.Body.UsaeKind).MaximumLength(100);
+        RuleFor(x=>x.Body.UsaeReceiptCode).MaximumLength(100);
+        RuleFor(x=>x.Body.UsaeStatus).Must(x=>new[]{"NotSent","Pending","Accepted","Rejected"}.Contains(x)).When(x=>x.Body.UsaeStatus!=null);
+    }
+}
+
 public class UpdateClaimCommandHandler : IRequestHandler<UpdateClaimCommand, ClaimDto>
 {
     private readonly IAppDbContext _db;
@@ -194,6 +216,26 @@ public class UpdateClaimCommandHandler : IRequestHandler<UpdateClaimCommand, Cla
             .FirstOrDefaultAsync(x => x.Id == request.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Ζημιά");
 
+        var body = request.Body;
+        if(body.ClaimNumber != null)
+        {
+            var number=body.ClaimNumber.Trim();
+            if(await _db.Claims.IgnoreQueryFilters().AnyAsync(x=>x.TenantId==tenantId && x.Id!=c.Id && x.ClaimNumber==number,ct))
+                throw new AppException("claim_number_exists","Ο αριθμός ζημιάς χρησιμοποιείται ήδη.",409);
+            c.ClaimNumber=number;
+        }
+        if(body.Status.HasValue)c.Status=body.Status.Value;
+        if(body.Kind != null)c.Kind=body.Kind;
+        if(body.Currency != null)c.Currency=body.Currency;
+        if(body.AffectsBonusMalus.HasValue)c.AffectsBonusMalus=body.AffectsBonusMalus.Value;
+        if(body.IsInternalDamage.HasValue)c.IsInternalDamage=body.IsInternalDamage.Value;
+        if(body.IsFriendlySettlement.HasValue)c.IsFriendlySettlement=body.IsFriendlySettlement.Value;
+        if(body.ReplaceAdditional)
+        {
+            c.SettledAmount=body.SettledAmount;c.UsaeCode=body.UsaeCode?.Trim();c.UsaeKind=body.UsaeKind?.Trim();
+            c.UsaeStatus=body.UsaeStatus??c.UsaeStatus;c.LiabilityPercent=body.LiabilityPercent;
+            c.UsaeSentAt=body.UsaeSentAt;c.UsaeReceiptCode=body.UsaeReceiptCode?.Trim();
+        }
         c.IncidentDate = request.Body.IncidentDate;
         c.ReportedDate = request.Body.ReportedDate;
         c.ClaimedAmount = request.Body.ClaimedAmount;

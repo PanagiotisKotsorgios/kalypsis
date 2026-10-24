@@ -549,15 +549,7 @@ public sealed class DesktopSyncController : ControllerBase
                 DateOnlyAlias("IncidentDate", "IncidentDate");
                 DateOnlyAlias("ReportedDate", "ReportedDate");
                 Alias("ClaimedAmount", "EstimatedAmount");
-                Alias("ApprovedAmount", "SettledAmount");
-                if (node["Status"] is JsonValue claimStatus &&
-                    claimStatus.TryGetValue<string>(out var claimStatusName))
-                    node["Status"] = claimStatusName switch
-                    {
-                        "Pending" or "InProgress" => "UnderReview",
-                        "Settled" => "Paid",
-                        _ => claimStatusName,
-                    };
+                Alias("Description", "Notes");
                 break;
             case nameof(AgencyTask):
                 Alias("CustomerId", "RelatedCustomerId");

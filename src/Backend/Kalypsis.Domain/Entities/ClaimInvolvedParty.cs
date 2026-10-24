@@ -11,6 +11,10 @@ namespace Kalypsis.Domain.Entities;
 /// </summary>
 public class ClaimInvolvedParty : TenantEntity
 {
+    public string? IdNumber { get; set; }
+    public string? Address { get; set; }
+    public decimal? ClaimedAmount { get; set; }
+    public bool AtFault { get; set; }
     public Guid ClaimId { get; set; }
     public Claim Claim { get; set; } = null!;
 

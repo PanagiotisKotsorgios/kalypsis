@@ -5,6 +5,9 @@ namespace Kalypsis.Domain.Entities;
 
 public class Claim : TenantEntity
 {
+    public string Kind { get; set; } = "VehicleDamage";
+    public decimal? SettledAmount { get; set; }
+    public string Currency { get; set; } = "EUR";
     public string ClaimNumber { get; set; } = string.Empty;
 
     public Guid PolicyId { get; set; }

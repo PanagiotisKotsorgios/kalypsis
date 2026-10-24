@@ -1,0 +1,297 @@
+{
+  "version": 1,
+  "tabs": [
+    "Καρτέλα Ζημιάς",
+    "Πρόσθετα στοιχεία",
+    "Όχημα",
+    "Οικονομικά",
+    "Εμπλεκόμενοι"
+  ],
+  "fields": [
+    {
+      "key": "claimNumber",
+      "path": "ClaimNumber",
+      "label": "Αριθμός ζημιάς",
+      "section": "main",
+      "kind": "text"
+    },
+    {
+      "key": "status",
+      "path": "Status",
+      "label": "Κατάσταση",
+      "section": "main",
+      "kind": "text",
+      "choices": [
+        {
+          "value": "Reported",
+          "label": "Δηλωμένη"
+        },
+        {
+          "value": "UnderReview",
+          "label": "Υπό εξέταση"
+        },
+        {
+          "value": "Approved",
+          "label": "Εγκεκριμένη"
+        },
+        {
+          "value": "Paid",
+          "label": "Πληρωμένη"
+        },
+        {
+          "value": "Closed",
+          "label": "Κλειστή"
+        },
+        {
+          "value": "Pending",
+          "label": "Σε αναμονή"
+        },
+        {
+          "value": "InProgress",
+          "label": "Σε εξέλιξη"
+        },
+        {
+          "value": "Settled",
+          "label": "Διακανονισμένη"
+        },
+        {
+          "value": "Rejected",
+          "label": "Απορριφθείσα"
+        }
+      ]
+    },
+    {
+      "key": "kind",
+      "path": "Kind",
+      "label": "Είδος ζημιάς",
+      "section": "main",
+      "kind": "text",
+      "choices": [
+        {
+          "value": "VehicleDamage",
+          "label": "Ζημιά οχήματος"
+        },
+        {
+          "value": "ThirdPartyLiability",
+          "label": "Ζημιά τρίτου"
+        },
+        {
+          "value": "Theft",
+          "label": "Κλοπή"
+        },
+        {
+          "value": "WaterDamage",
+          "label": "Πλημμύρα / νερά"
+        },
+        {
+          "value": "Fire",
+          "label": "Πυρκαγιά"
+        },
+        {
+          "value": "Other",
+          "label": "Άλλο"
+        }
+      ]
+    },
+    {
+      "key": "incidentDate",
+      "path": "IncidentDate",
+      "label": "Ημερομηνία συμβάντος",
+      "section": "main",
+      "kind": "date"
+    },
+    {
+      "key": "reportedDate",
+      "path": "ReportedDate",
+      "label": "Ημερομηνία δήλωσης",
+      "section": "main",
+      "kind": "date"
+    },
+    {
+      "key": "policyNumber",
+      "path": "@PolicyNumber",
+      "label": "Αριθμός συμβολαίου",
+      "section": "main",
+      "kind": "text"
+    },
+    {
+      "key": "description",
+      "path": "Notes",
+      "label": "Περιγραφή",
+      "section": "main",
+      "kind": "multiline"
+    },
+    {
+      "key": "customerName",
+      "path": "@CustomerName",
+      "label": "Πελάτης / ασφαλισμένος",
+      "section": "main",
+      "kind": "text"
+    },
+    {
+      "key": "insuranceCompanyName",
+      "path": "@CarrierName",
+      "label": "Ασφαλιστική εταιρεία",
+      "section": "main",
+      "kind": "text"
+    },
+    {
+      "key": "customerVat",
+      "path": "@CustomerVat",
+      "label": "ΑΦΜ",
+      "section": "main",
+      "kind": "text"
+    },
+    {
+      "key": "customerPhone",
+      "path": "@CustomerPhone",
+      "label": "Τηλέφωνο",
+      "section": "main",
+      "kind": "text"
+    },
+    {
+      "key": "customerMobile",
+      "path": "@CustomerMobile",
+      "label": "Κινητό",
+      "section": "main",
+      "kind": "text"
+    },
+    {
+      "key": "customerEmail",
+      "path": "@CustomerEmail",
+      "label": "Email",
+      "section": "main",
+      "kind": "text"
+    },
+    {
+      "key": "customerAddress",
+      "path": "@CustomerAddress",
+      "label": "Διεύθυνση",
+      "section": "main",
+      "kind": "text"
+    },
+    {
+      "key": "affectsBonusMalus",
+      "path": "AffectsBonusMalus",
+      "label": "Επηρεάζει Bonus-Malus",
+      "section": "additional",
+      "kind": "boolean"
+    },
+    {
+      "key": "liabilityPercent",
+      "path": "LiabilityPercent",
+      "label": "Ποσοστό ευθύνης (%)",
+      "section": "additional",
+      "kind": "number"
+    },
+    {
+      "key": "isInternalDamage",
+      "path": "IsInternalDamage",
+      "label": "Εσωτερική ζημιά",
+      "section": "additional",
+      "kind": "boolean"
+    },
+    {
+      "key": "isFriendlySettlement",
+      "path": "IsFriendlySettlement",
+      "label": "Φιλικός διακανονισμός",
+      "section": "additional",
+      "kind": "boolean"
+    },
+    {
+      "key": "usaeCode",
+      "path": "UsaeCode",
+      "label": "Κωδικός ΥΣΑΕ",
+      "section": "additional",
+      "kind": "text"
+    },
+    {
+      "key": "usaeKind",
+      "path": "UsaeKind",
+      "label": "Είδος ΥΣΑΕ",
+      "section": "additional",
+      "kind": "text"
+    },
+    {
+      "key": "usaeStatus",
+      "path": "UsaeStatus",
+      "label": "Κατάσταση ΥΣΑΕ",
+      "section": "additional",
+      "kind": "text",
+      "choices": [
+        {
+          "value": "NotSent",
+          "label": "Δεν έχει αποσταλεί"
+        },
+        {
+          "value": "Pending",
+          "label": "Σε αναμονή"
+        },
+        {
+          "value": "Accepted",
+          "label": "Αποδεκτή"
+        },
+        {
+          "value": "Rejected",
+          "label": "Απορρίφθηκε"
+        }
+      ]
+    },
+    {
+      "key": "usaeSentAt",
+      "path": "UsaeSentAt",
+      "label": "Αποστολή ΥΣΑΕ",
+      "section": "additional",
+      "kind": "datetime-local"
+    },
+    {
+      "key": "usaeReceiptCode",
+      "path": "UsaeReceiptCode",
+      "label": "Κωδικός παραλαβής ΥΣΑΕ",
+      "section": "additional",
+      "kind": "text"
+    },
+    {
+      "key": "createdAt",
+      "path": "@CreatedAt",
+      "label": "Ημερομηνία δημιουργίας",
+      "section": "additional",
+      "kind": "datetime-local"
+    },
+    {
+      "key": "updatedAt",
+      "path": "@UpdatedAt",
+      "label": "Ημερομηνία ενημέρωσης",
+      "section": "additional",
+      "kind": "datetime-local"
+    },
+    {
+      "key": "claimedAmount",
+      "path": "EstimatedAmount",
+      "label": "Αιτούμενο ποσό",
+      "section": "financial",
+      "kind": "number"
+    },
+    {
+      "key": "approvedAmount",
+      "path": "ApprovedAmount",
+      "label": "Εγκεκριμένο ποσό",
+      "section": "financial",
+      "kind": "number"
+    },
+    {
+      "key": "settledAmount",
+      "path": "SettledAmount",
+      "label": "Καταβληθέν ποσό",
+      "section": "financial",
+      "kind": "number"
+    },
+    {
+      "key": "currency",
+      "path": "Currency",
+      "label": "Νόμισμα",
+      "section": "financial",
+      "kind": "text"
+    }
+  ]
+}

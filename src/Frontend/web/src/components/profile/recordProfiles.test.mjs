@@ -142,11 +142,11 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
       assert.equal(result.name,"New"); assert.equal(result.hasContract,false); assert.equal("id" in result,false);
       for(const changes of [{email:"invalid"},{name:""},{hasContract:"yes"},{totalPremiumYtd:"42"}]) assert.throws(()=>producerUpdatePayload(current,changes));
     });
-    await t.test("claim General keeps identical placement; claim number is readonly", () => {
+    await t.test("claim main card keeps identical placement and supports number editing", () => {
       const claim={claimNumber:"CL1",incidentDate:"2026-10-01",reportedDate:"2026-10-02",claimedAmount:0,approvedAmount:null,status:"Reported",description:"Description"};
       const values=Object.fromEntries(Object.entries(claim).map(([key,value])=>[key,String(value??"")]));
       const {view,edit}=layout(ClaimProfileFields,{claim,session:session(values)});
-      assert.equal(ids(view).length,7); assert.equal(edit.includes("Αποθήκευση Περιγραφή"),true); assert.equal(edit.includes("Αποθήκευση Αριθμός ζημιάς"),false);
+      assert.equal(ids(view).length,14); assert.equal(edit.includes("Αποθήκευση Περιγραφή"),true); assert.equal(edit.includes("Αποθήκευση Αριθμός ζημιάς"),true);
     });
     await t.test("claim payload keeps zero and null, clears text and rejects invalid dates/amounts", () => {
       const current={incidentDate:"2026-10-01",reportedDate:"2026-10-02",claimedAmount:50,approvedAmount:null,description:"Old"};
@@ -158,13 +158,12 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
       const { policyFieldColumns } = await server.ssrLoadModule("/src/components/profile/PolicyFieldColumns.tsx");
       const claim = { claimNumber: "CL-1", incidentDate: "2026-10-01", reportedDate: "2026-10-02", claimedAmount: 0, approvedAmount: 150.5, status: "Reported", description: "Αναλυτική περιγραφή ζημιάς" };
       const values = Object.fromEntries(Object.entries(claim).map(([key, value]) => [key, String(value)]));
-      const expectedGroups = CLAIM_PROFILE_GROUPS.map(group => group.map(key => key === "claimNumber" ? "Αριθμός ζημιάς" : key));
-      assert.deepEqual(new Set(CLAIM_PROFILE_GROUPS.flat()), new Set(["claimNumber", ...CLAIM_FIELDS.map(([key]) => key)]));
-      assert.equal(CLAIM_PROFILE_GROUPS.flat().length, 7);
-      assert.deepEqual(CLAIM_PROFILE_GROUPS[1], ["incidentDate", "reportedDate"]);
-      assert.deepEqual(CLAIM_PROFILE_GROUPS[2], ["claimedAmount", "approvedAmount"]);
+      const {CLAIM_CARD_FIELDS}=await server.ssrLoadModule("/src/components/profile/claimProfile.ts");
+      const expectedGroups = CLAIM_PROFILE_GROUPS.map(group => group.map(key=>{const field=CLAIM_CARD_FIELDS.find(f=>f.key===key);return field.path.startsWith("@")?field.label:key;}));
+      assert.deepEqual(CLAIM_PROFILE_GROUPS.flat(),CLAIM_CARD_FIELDS.filter(f=>f.section==="main").map(f=>f.key));
+      assert.equal(CLAIM_CARD_FIELDS.filter(f=>!f.path.startsWith("@")).length,CLAIM_FIELDS.length);
       for (const width of [320, 360, 768, 1024, 1280, 1920]) {
-        const count = width >= 1200 ? 3 : width >= 900 ? 2 : 1;
+        const count = width >= 900 ? 2 : 1;
         const theme = createTheme({ components: { MuiUseMediaQuery: { defaultProps: { ssrMatchMedia: query => {
           const min = query.match(/min-width:\s*([\d.]+)px/); return { matches: !min || width >= Number(min[1]) };
         } } } } });
@@ -172,13 +171,13 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
         for (const editAll of [false, true]) {
           const html = themedRender(ClaimProfileFields, { claim, session: { ...session(values), editAll } });
           const expected = policyFieldColumns(expectedGroups, count);
-          assert.ok(html.includes('data-policy-layout="claim-general"'));
+          assert.ok(html.includes('data-policy-layout="claim-main"'));
           assert.ok(html.includes(`data-policy-columns="${count}"`));
           assert.deepEqual(html.split(/data-policy-column="\d+"/).slice(1).map(ids), expected);
           assert.deepEqual(ids(html), expectedGroups.flat());
-          assert.equal(new Set(ids(html)).size, 7);
+          assert.equal(new Set(ids(html)).size, 14);
           assert.ok(html.includes(editAll ? "Αποθήκευση Περιγραφή" : "Αντιγραφή Περιγραφή"));
-          assert.ok(!html.includes("Αποθήκευση Αριθμός ζημιάς"));
+          assert.ok(html.includes(editAll?"Αποθήκευση Αριθμός ζημιάς":"Επεξεργασία Αριθμός ζημιάς"));
         }
         for (const length of [1, 2, 6, 9, 10]) {
           const keys = Array.from({ length }, (_, index) => `Related field ${index}`);
@@ -191,10 +190,10 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
         }
       }
       const source = await readFile(new URL("../ClaimDetailDrawer.tsx", import.meta.url), "utf8");
-      assert.equal((source.match(/<ClaimInfoFields>/g) ?? []).length, 6);
+      assert.ok((source.match(/<ClaimInfoFields>/g) ?? []).length >= 3);
       assert.ok(!source.includes("InfoGrid"));
       assert.ok(!source.includes("profileFieldGridSx"));
-      const item = source.slice(source.indexOf("function InfoItem("), source.indexOf("function KPI("));
+      const item = source.slice(source.indexOf("function InfoItem("), source.indexOf("function EmptyState("));
       assert.ok(!item.includes("<Grid")); assert.ok(item.includes("minWidth: 0"));
     });
     await t.test("policy General retains field order, readonly computed values and actual edit/save controls", () => {

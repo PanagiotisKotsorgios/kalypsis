@@ -34,7 +34,11 @@ public record ClaimDto(
     bool IsInternalDamage = false,
     DateTime? UsaeSentAt = null,
     string? UsaeReceiptCode = null,
-    bool IsFriendlySettlement = false);
+    bool IsFriendlySettlement = false,
+    string Kind = "VehicleDamage",
+    decimal? SettledAmount = null,
+    string Currency = "EUR",
+    DateTime? UpdatedAt = null);
 
 public record CreateClaimBody(
     Guid PolicyId,
@@ -48,6 +52,21 @@ public record UpdateClaimBody(
     DateOnly ReportedDate,
     decimal? ClaimedAmount,
     decimal? ApprovedAmount,
-    string? Description);
+    string? Description,
+    string? ClaimNumber = null,
+    ClaimStatus? Status = null,
+    string? Kind = null,
+    decimal? SettledAmount = null,
+    string? Currency = null,
+    bool? AffectsBonusMalus = null,
+    string? UsaeCode = null,
+    string? UsaeKind = null,
+    string? UsaeStatus = null,
+    decimal? LiabilityPercent = null,
+    bool? IsInternalDamage = null,
+    DateTime? UsaeSentAt = null,
+    string? UsaeReceiptCode = null,
+    bool? IsFriendlySettlement = null,
+    bool ReplaceAdditional = false);
 
 public record UpdateClaimStatusBody(ClaimStatus Status, decimal? ApprovedAmount);
