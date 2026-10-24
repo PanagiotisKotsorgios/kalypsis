@@ -48,18 +48,19 @@ test("card-wide editing uses the existing field controls without autofocus or ed
     const editing = { editAll: false, drafts: {}, saving: false, canEdit: true, onDraftChange() {}, async onCommitField() {} };
     try {
       const general = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(DesktopCustomerFields, { customer, editing })));
-      const expected = ["birthDate", "gender", "nationality", "fatherName", "occupation", "mobilePhone", "hasDrivingLicense", "isDriver", "isNewDriver",
-        "taxOffice", "passportNumber", "maritalStatus", "spouseName", "motherName", "gemiNumber", "legalForm", "notes",
-        "driverLicenseNumber", "driverLicenseClass", "driverLicenseIssueDate", "driverLicenseExpiryDate"];
+      const layout = JSON.parse(await readFile(new URL("./customer-card-layout.json", import.meta.url), "utf8"));
+      const expected = layout.fields.filter(field => field.section === "general").map(field => field.key);
       for (const field of expected) assert.equal(general.split(`data-customer-field="${field}"`).length - 1, 1, `${field} must appear once in General`);
       const orderedFields = [...general.matchAll(/data-customer-field="([^"]+)"/g)].map(match => match[1]);
-      assert.deepEqual(orderedFields.slice(0, 5), ["firstName", "lastName", "fatherName", "motherName", "gender"]);
-      assert.equal(orderedFields.indexOf("postalCode"), orderedFields.indexOf("city") + 1);
+      assert.deepEqual(orderedFields, expected);
+      assert.deepEqual(orderedFields.slice(0, 7), ["vatNumber", "lastName", "firstName", "fatherName", "gender", "birthDate", "age"]);
       const contact = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(DesktopCustomerFields, { customer, editing, section: "contact" })));
       for (const field of ["city", "postalCode"]) assert.equal(contact.includes(`data-customer-field="${field}"`), false);
-      for (const removedField of ["activityCode", "employer", "source", "tagsJson", "photoUrl", "zone"]) assert.equal(general.includes(`data-customer-field="${removedField}"`), false, removedField);
+      for (const removedField of ["taxOffice", "motherName", "passportNumber", "maritalStatus", "gemiNumber", "activityCode", "employer", "source", "tagsJson", "photoUrl", "zone"]) assert.equal(general.includes(`data-customer-field="${removedField}"`), false, removedField);
+      const otherFields = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(DesktopCustomerFields, { customer, editing, section: "other" })));
+      assert.deepEqual([...otherFields.matchAll(/data-customer-field="([^"]+)"/g)].map(match => match[1]), layout.fields.filter(field => field.section === "other").map(field => field.key));
+      for (const group of ["Προσωπικά &amp; οικογενειακά", "Επαγγελματικά &amp; φορολογικά", "Σημειώσεις", "Στοιχεία εγγραφής"]) assert.equal(otherFields.includes(group), true, group);
       assert.equal(general.includes('data-customer-field="paymentDueDate"'), false);
-      assert.equal(general.includes("Προφίλ και οικογενειακή κατάσταση"), false);
       const editable = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(DesktopCustomerFields, { customer, editing: { ...editing, editAll: true } })));
       for (const field of expected) assert.equal(editable.includes(`data-customer-field="${field}"`), true);
       assert.equal(editable.includes("Αποθήκευση Ηλικία"), false);
@@ -67,7 +68,7 @@ test("card-wide editing uses the existing field controls without autofocus or ed
       assert.equal(editable.includes("Αποθήκευση Έχει δίπλωμα"), true);
       const tabs = renderToStaticMarkup(createElement(CustomerProfileTabs, { value: 0, onChange() {} }));
       assert.equal(tabs.includes("Ζημιές"), false);
-      assert.equal(tabs.includes("Λοιπά"), false);
+      assert.equal(tabs.includes("Λοιπά"), true);
       assert.equal(tabs.includes("Έγγραφα"), false);
       assert.equal(tabs.includes("Ιστορικό"), true);
       const other = renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(DesktopCustomerFields, { customer, editing, fieldKeys: [] })));

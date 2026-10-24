@@ -1,3 +1,4 @@
+import customerCardLayout from "../components/customer/customer-card-layout.json";
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -70,6 +71,7 @@ interface CustomerDto {
   type: string;
   status: string;
   createdAt?: string;
+  updatedAt?: string | null;
   hasPortalAccount?: boolean;
   firstName?: string;
   lastName?: string;
@@ -202,11 +204,12 @@ const CONSENT_TYPES_MARKETING = [
 
 const CUSTOMER_PROFILE_TAB_LABELS = [
   { label: "Γενικά", icon: <InfoOutlinedIcon fontSize="small" /> },
+  { label: "Λοιπά", icon: <InfoOutlinedIcon fontSize="small" /> },
   { label: "Επικοινωνία", icon: <ContactPhoneIcon fontSize="small" /> },
   { label: "Συμβόλαια", icon: <FolderIcon fontSize="small" /> },
   { label: "Οχήματα", icon: <DirectionsCarIcon fontSize="small" /> },
   { label: "Οικονομικά", icon: <AccountBalanceWalletOutlinedIcon fontSize="small" /> },
-  { label: "Εκκρεμή", icon: <InfoOutlinedIcon fontSize="small" /> },
+  { label: "Εκκρεμότητες", icon: <InfoOutlinedIcon fontSize="small" /> },
   { label: "Ιστορικό", icon: <HistoryIcon fontSize="small" /> },
 ];
 
@@ -440,7 +443,8 @@ export function CustomerDetailPage({ customerId, initialCustomer, initialEditMod
       {saveFields.isError && <Alert severity="error" sx={{ mb: .75, flexShrink: 0 }}>{extractErrorMessage(saveFields.error, saveFields.error instanceof Error ? saveFields.error.message : "Η αποθήκευση απέτυχε.")} Οι μη αποθηκευμένες αλλαγές παραμένουν διαθέσιμες για διόρθωση ή νέα προσπάθεια.</Alert>}
 
       {tab === 0 && <DesktopCustomerFields customer={customer} editing={fieldEditing} />}
-      {tab === 1 && <CustomerTabLayout>
+      {tab === 1 && <DesktopCustomerFields customer={customer} section="other" editing={fieldEditing} />}
+      {tab === 2 && <CustomerTabLayout>
         <Stack direction="row" useFlexGap flexWrap="wrap" gap={1}>
           <Button size="small" variant="contained" startIcon={<HistoryIcon />} onClick={() => setPopup("communications")}>Ιστορικό επικοινωνίας</Button>
           <Button size="small" variant="outlined" startIcon={<PersonOutlineIcon />} onClick={() => setPopup("family")}>Οικογένεια & πρόσθετα στοιχεία</Button>
@@ -449,20 +453,20 @@ export function CustomerDetailPage({ customerId, initialCustomer, initialEditMod
         <ContactsTab customerId={id} customerType={customer.type} />
         <Box><Typography variant="subtitle2" sx={{ mb: .5 }}>Ειδοποιήσεις</Typography><CustomerNotificationsTab customerId={id} /></Box>
       </CustomerTabLayout>}
-      {tab === 2 && <CustomerTabLayout>
+      {tab === 3 && <CustomerTabLayout>
         <CustomerPoliciesTab customerId={id} />
       </CustomerTabLayout>}
-      {tab === 3 && <CustomerTabLayout>
+      {tab === 4 && <CustomerTabLayout>
         <CustomerVehiclesTab customerId={id} />
       </CustomerTabLayout>}
-      {tab === 4 && <CustomerTabLayout>
+      {tab === 5 && <CustomerTabLayout>
         <Box><Button size="small" variant="outlined" startIcon={<PersonOutlineIcon />} onClick={() => setPopup("producers")}>Συνεργάτες πελάτη</Button></Box>
         <CustomerAccountTab customerId={id} />
       </CustomerTabLayout>}
-      {tab === 5 && <CustomerTabLayout>
+      {tab === 6 && <CustomerTabLayout>
         <CustomerObligations customerId={id} />
       </CustomerTabLayout>}
-      {tab === 6 && <CustomerTabLayout>
+      {tab === 7 && <CustomerTabLayout>
         <CustomerHistory customerId={id} />
       </CustomerTabLayout>}
       </Box>
@@ -1159,133 +1163,46 @@ interface CustomerFieldEditing {
 }
 
 export function DesktopCustomerFields({ customer, section = "general", editing, fieldKeys }: {
-  customer: CustomerDto; section?: "general" | "contact"; editing: CustomerFieldEditing;
+  customer: CustomerDto; section?: "general" | "other" | "contact"; editing: CustomerFieldEditing;
   /** Reuse the exact same controls for a selected subset without duplicating field metadata. */
   fieldKeys?: readonly (keyof CustomerDto)[];
 }) {
-  const wide = useMediaQuery("(min-width:1200px)");
+  const wide = useMediaQuery("(min-width:900px)");
   const occupations = useQuery({ queryKey: ["lookup", "occupations"], enabled: section === "general",
     queryFn: async () => (await api.get<Array<{ name: string }>>("/lookups/occupations")).data });
   const nationalities = useQuery({ queryKey: ["lookup", "nationalities"], enabled: section === "general",
     queryFn: async () => (await api.get<Array<{ name: string }>>("/lookups/nationalities")).data });
   const dash = "—";
-  const age = customerAge(editing.drafts.birthDate ?? customer.birthDate);
-  const booleanOptions: InlineValueOption[] = [{ value: "", label: "Δεν έχει οριστεί" }, { value: "true", label: "Ναι" }, { value: "false", label: "Όχι" }];
-  const driving = (key: "hasDrivingLicense" | "isDriver" | "isNewDriver", label: string): DesktopCustomerField => ({
-    key, label, value: customer[key] == null ? "" : String(customer[key]),
-    displayValue: customer[key] == null ? "Δεν έχει οριστεί" : customer[key] ? "Ναι" : "Όχι", options: booleanOptions,
-  });
-  const dateTime = customer.createdAt ? new Date(customer.createdAt).toLocaleString("el-GR", { dateStyle: "short", timeStyle: "short" }) : dash;
-  const typeLabel = customer.type === "Company" ? "Νομικό πρόσωπο" : "Φυσικό πρόσωπο";
-  const statusLabel = ({ Prospect: "Πιθανός πελάτης", Active: "Ενεργός πελάτης", Inactive: "Ανενεργός", Churned: "Απώλεια", Blocked: "Αποκλεισμένος" } as Record<string, string>)[customer.status] ?? customer.status;
-  const typeOptions: InlineValueOption[] = [
-    { value: "Individual", label: "Φυσικό πρόσωπο" },
-    { value: "Company", label: "Νομικό πρόσωπο" },
-  ];
-  const statusOptions: InlineValueOption[] = [
-    { value: "Prospect", label: "Πιθανός πελάτης" },
-    { value: "Active", label: "Ενεργός πελάτης" },
-    { value: "Inactive", label: "Ανενεργός" },
-    { value: "Churned", label: "Απώλεια" },
-    { value: "Blocked", label: "Αποκλεισμένος" },
-  ];
-  const left: DesktopCustomerField[] = [
-    { id: "customerNumber", label: "Κωδ. πελάτη", value: customer.customerNumber },
-    { label: "ΑΦΜ", key: "vatNumber", value: customer.vatNumber },
-    { label: "Επώνυμο", key: "lastName", value: customer.lastName },
-    { label: "Όνομα", key: "firstName", value: customer.firstName },
-    { label: "Διεύθυνση", key: "address", value: customer.address },
-    { label: "Περιοχή", key: "region", value: customer.region },
-    { label: "Πόλη", key: "city", value: customer.city },
-    { label: "Τηλέφωνο", key: "phone", value: customer.phone },
-    { label: "Κινητό τηλ.", key: "mobilePhone", value: customer.mobilePhone },
-    { label: "Επάγγελμα / κλάδος", key: "occupation", value: customer.occupation },
-    { label: "Ταχ. κώδικας", key: "postalCode", value: customer.postalCode },
-    { label: "Σημ. πελάτη", key: "notes", value: customer.notes },
-  ];
-  const right: DesktopCustomerField[] = [
-    { id: "createdAt", label: "Ημ. δημιουργίας", value: dateTime },
-    { id: "updatedAt", label: "Ημ. ενημέρωσης", value: dash },
-    { label: "Δ.Ο.Υ.", key: "taxOffice", value: customer.taxOffice },
-    { label: "Αριθ. ταυτότητας", key: "idNumber", value: customer.idNumber },
-    { label: "e-mail", key: "email", value: customer.email, type: "email" },
-    { label: "Τύπος προσώπου", key: "type", value: customer.type, displayValue: typeLabel, options: typeOptions },
-    { label: "Επωνυμία νομ. προσώπου", key: "companyName", value: customer.companyName },
-    { label: "ΑΜΚΑ", key: "amka", value: customer.amka },
-    { label: "Κατάσταση", key: "status", value: customer.status, displayValue: statusLabel, options: statusOptions },
-  ];
-
-  const contactLeft: DesktopCustomerField[] = [
-    { label: "Τηλέφωνο", key: "phone", value: customer.phone },
-    { label: "2ο τηλέφωνο", key: "altPhone", value: customer.altPhone },
-    { label: "3ο τηλέφωνο", key: "thirdPhone", value: customer.thirdPhone },
-    { label: "Κινητό", key: "mobilePhone", value: customer.mobilePhone },
-    { label: "2ο κινητό", key: "secondaryMobilePhone", value: customer.secondaryMobilePhone },
-  ];
-  const contactRight: DesktopCustomerField[] = [
-    { label: "Email", key: "email", value: customer.email, type: "email" },
-    { label: "2ο email", key: "secondaryEmail", value: customer.secondaryEmail, type: "email" },
-    { label: "Διεύθυνση", key: "address", value: customer.address },
-    { label: "Περιφέρεια", key: "region", value: customer.region },
-  ];
-
-  const additional: DesktopCustomerField[] = [
-    { label: "Ημ. γέννησης", key: "birthDate", value: customer.birthDate, type: "date" },
-    { id: "age", label: "Ηλικία (αυτόματα)", value: age == null ? dash : `${age} έτη` },
-    driving("hasDrivingLicense", "Έχει δίπλωμα"),
-    driving("isDriver", "Είναι οδηγός"),
-    driving("isNewDriver", "Νέος οδηγός"),
-    { label: "Φύλο", key: "gender", value: customer.gender, displayValue: ({ Male: "Άνδρας", Female: "Γυναίκα", Other: "Άλλο", PreferNotToSay: "Δεν επιθυμεί να δηλώσει" } as Record<string, string>)[customer.gender ?? ""] || customer.gender || dash,
-      options: [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Male", label: "Άνδρας" }, { value: "Female", label: "Γυναίκα" }, { value: "Other", label: "Άλλο" }, { value: "PreferNotToSay", label: "Δεν επιθυμεί να δηλώσει" }] },
-    { label: "Εθνικότητα", key: "nationality", value: customer.nationality },
-    { label: "Οικογενειακή κατάσταση", key: "maritalStatus", value: customer.maritalStatus,
-      displayValue: ({ Single: "Άγαμος / άγαμη", Married: "Έγγαμος / έγγαμη", Divorced: "Διαζευγμένος / διαζευγμένη", Widowed: "Χήρος / χήρα", Other: "Άλλο" } as Record<string, string>)[customer.maritalStatus ?? ""] || customer.maritalStatus || dash,
-      options: [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Single", label: "Άγαμος / άγαμη" }, { value: "Married", label: "Έγγαμος / έγγαμη" }, { value: "Divorced", label: "Διαζευγμένος / διαζευγμένη" }, { value: "Widowed", label: "Χήρος / χήρα" }, { value: "Other", label: "Άλλο" }] },
-    { label: "Διαβατήριο", key: "passportNumber", value: customer.passportNumber },
-    { label: "Πατρώνυμο", key: "fatherName", value: customer.fatherName },
-    { label: "Μητρώνυμο", key: "motherName", value: customer.motherName },
-    { label: "Σύζυγος / σύντροφος", key: "spouseName", value: customer.spouseName },
-    { label: "ΓΕΜΗ", key: "gemiNumber", value: customer.gemiNumber },
-    { label: "Νομική μορφή", key: "legalForm", value: customer.legalForm,
-      options: [
-        { value: "", label: "Δεν έχει οριστεί" }, { value: "Ατομική επιχείρηση", label: "Ατομική επιχείρηση" },
-        { value: "Ο.Ε.", label: "Ο.Ε." }, { value: "Ε.Ε.", label: "Ε.Ε." }, { value: "Ι.Κ.Ε.", label: "Ι.Κ.Ε." },
-        { value: "Ε.Π.Ε.", label: "Ε.Π.Ε." }, { value: "Α.Ε.", label: "Α.Ε." },
-        { value: "Σωματείο / σύλλογος", label: "Σωματείο / σύλλογος" }, { value: "Άλλη", label: "Άλλη" },
-      ] },
-    { label: "Αριθμός διπλώματος", key: "driverLicenseNumber", value: customer.driverLicenseNumber },
-    { label: "Κατηγορία διπλώματος", key: "driverLicenseClass", value: customer.driverLicenseClass,
-      options: [{ value: "", label: "Δεν έχει οριστεί" }, ...["ΑΜ", "Α1", "Α2", "Α", "Β", "ΒΕ", "Γ", "ΓΕ", "Δ", "ΔΕ"].map(value => ({ value, label: value }))] },
-    { label: "Έκδοση διπλώματος", key: "driverLicenseIssueDate", value: customer.driverLicenseIssueDate, type: "date" },
-    { label: "Λήξη διπλώματος", key: "driverLicenseExpiryDate", value: customer.driverLicenseExpiryDate, type: "date" },
-  ];
-
-  // All customer identity, tax, family and driving information now lives in
-  // General. This avoids a second catch-all tab and keeps one edit workflow.
-  const fieldOrder = [
-    ...(customer.type === "Company" ? ["companyName"] : []),
-    "firstName", "lastName", "fatherName", "motherName", "gender",
-    "birthDate", "age", "nationality", "idNumber", "passportNumber", "amka",
-    "maritalStatus", "spouseName",
-    "phone", "mobilePhone", "email", "address", "city", "postalCode", "region",
-    "occupation", "companyName", "vatNumber", "taxOffice", "gemiNumber", "legalForm", "notes",
-    "customerNumber", "type", "status",
-    "hasDrivingLicense", "isDriver", "isNewDriver", "driverLicenseNumber",
-    "driverLicenseClass", "driverLicenseIssueDate", "driverLicenseExpiryDate",
-    "createdAt", "updatedAt",
-  ];
-  const allGeneralFields = [...left, ...right, ...additional].sort((a, b) =>
-    fieldOrder.indexOf(a.key ?? a.id ?? "") - fieldOrder.indexOf(b.key ?? b.id ?? ""));
-  const generalFields = fieldKeys !== undefined ? allGeneralFields.filter(field => field.key && fieldKeys.includes(field.key))
-    : allGeneralFields;
-  const columnCount = wide ? 3 : 2;
-  const columnSize = Math.ceil(generalFields.length / columnCount);
-  const columns = section === "contact" ? [contactLeft, contactRight]
-    : Array.from({ length: columnCount }, (_, index) => generalFields.slice(index * columnSize, (index + 1) * columnSize));
+  const definitions = fieldKeys !== undefined
+    ? customerCardLayout.fields.filter((field, index, all) => fieldKeys.includes(field.key as keyof CustomerDto) && all.findIndex(other => other.key === field.key) === index)
+    : customerCardLayout.fields.filter(field => field.section === section);
+  const toField = (definition: typeof customerCardLayout.fields[number]): DesktopCustomerField => {
+    const key = definition.key as keyof CustomerDto;
+    const stored = customer[key];
+    let value = stored == null ? "" : String(stored);
+    if (key === "createdAt" || key === "updatedAt") value = value ? new Date(value).toLocaleString("el-GR", { dateStyle: "short", timeStyle: "short" }) : dash;
+    if (definition.key === "age" || definition.key === "drivingYears") {
+      const years = customerAge(definition.key === "age" ? editing.drafts.birthDate ?? customer.birthDate : editing.drafts.driverLicenseIssueDate ?? customer.driverLicenseIssueDate);
+      value = years == null ? dash : `${years} έτη`;
+    }
+    const choices: InlineValueOption[] | undefined = definition.choices?.map(choice => ({ ...choice }));
+    // Keep historic free-text values visible until the user deliberately replaces them.
+    if (choices && value && !choices.some(choice => choice.value === value)) choices.push({ value, label: value });
+    return {
+      ...(definition.readOnly ? { id: definition.key } : { key }),
+      label: definition.label, value,
+      displayValue: choices?.find(choice => choice.value === value)?.label ?? (value || dash),
+      options: choices, type: definition.kind === "date" ? "date" : definition.kind === "email" ? "email" : "text",
+    };
+  };
+  const fields = definitions.map(toField);
+  const columnCount = wide ? 2 : 1;
+  const columnSize = Math.ceil(fields.length / columnCount);
+  const columns = Array.from({ length: columnCount }, (_, index) => fields.slice(index * columnSize, (index + 1) * columnSize));
 
   const renderField = (field: DesktopCustomerField) => {
     const stored = field.key ? customer[field.key] : field.value;
-    const raw = typeof stored === "string" || typeof stored === "number" ? stored : stored == null ? "" : String(stored);
+    const raw = field.key ? (typeof stored === "string" || typeof stored === "number" ? stored : stored == null ? "" : String(stored)) : field.value ?? "";
     const display = field.displayValue ?? (field.value || dash);
     return (
       <Box key={field.label} data-customer-field={field.key ?? field.id ?? field.label} sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(104px, .36fr) minmax(0, 1fr)", sm: "132px minmax(0, 1fr)" }, alignItems: "center", minHeight: 32, gap: .5 }}>
@@ -1320,9 +1237,20 @@ export function DesktopCustomerFields({ customer, section = "general", editing, 
       {fieldKeys?.length === 0 && <Typography role="status" variant="body2" color="text.secondary" sx={{ p: 1 }}>
         Δεν έχουν οριστεί ακόμη πεδία για αυτή την ενότητα.
       </Typography>}
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))", lg: `repeat(${section !== "contact" ? 3 : 2}, minmax(0, 1fr))` }, columnGap: { xs: 0, md: 1 }, alignItems: "start" }}>
-        {columns.map((fields, index) => <Stack key={index} spacing={.25}>{fields.map(renderField)}</Stack>)}
-      </Box>
+      {section === "other" && fieldKeys === undefined ? (
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))" }, gap: 1.25 }}>
+          {[...new Set(definitions.map(field => field.group))].map(group => (
+            <Box key={group}>
+              <Typography variant="subtitle2" sx={{ color: "#17345f", mb: 1 }}>{group}</Typography>
+              <Stack spacing={.3}>{definitions.filter(field => field.group === group).map(field => renderField(toField(field)))}</Stack>
+            </Box>
+          ))}
+        </Box>
+      ) : (
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))" }, gap: 1.25 }}>
+          {columns.map((column, index) => <Stack key={index} spacing={.3} sx={{ minWidth: 0 }}>{column.map(renderField)}</Stack>)}
+        </Box>
+      )}
     </Box>
   );
 }

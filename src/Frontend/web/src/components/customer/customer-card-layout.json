@@ -1,0 +1,706 @@
+{
+  "version": 1,
+  "tabs": [
+    "Γενικά",
+    "Λοιπά",
+    "Επικοινωνία",
+    "Συμβόλαια",
+    "Οχήματα",
+    "Οικονομικά",
+    "Εκκρεμότητες",
+    "Ιστορικό"
+  ],
+  "fields": [
+    {
+      "section": "general",
+      "key": "vatNumber",
+      "path": "AfmVat",
+      "label": "ΑΦΜ",
+      "group": "",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "general",
+      "key": "lastName",
+      "path": "LastName",
+      "label": "Επώνυμο",
+      "group": "",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "general",
+      "key": "firstName",
+      "path": "FirstName",
+      "label": "Όνομα",
+      "group": "",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "general",
+      "key": "fatherName",
+      "path": "FatherName",
+      "label": "Πατρώνυμο",
+      "group": "",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "general",
+      "key": "gender",
+      "path": "Gender",
+      "label": "Φύλο",
+      "group": "",
+      "kind": "text",
+      "readOnly": false,
+      "choices": [
+        {
+          "value": "",
+          "label": "—"
+        },
+        {
+          "value": "Male",
+          "label": "Άνδρας"
+        },
+        {
+          "value": "Female",
+          "label": "Γυναίκα"
+        },
+        {
+          "value": "Other",
+          "label": "Άλλο"
+        },
+        {
+          "value": "PreferNotToSay",
+          "label": "Δεν επιθυμεί να δηλώσει"
+        }
+      ]
+    },
+    {
+      "section": "general",
+      "key": "birthDate",
+      "path": "BirthDate",
+      "label": "Ημ. γέννησης",
+      "group": "",
+      "kind": "date",
+      "readOnly": false
+    },
+    {
+      "section": "general",
+      "key": "age",
+      "path": "AgeText",
+      "label": "Ηλικία (αυτόματα)",
+      "group": "",
+      "kind": "text",
+      "readOnly": true
+    },
+    {
+      "section": "general",
+      "key": "phone",
+      "path": "Phone",
+      "label": "Τηλέφωνο",
+      "group": "",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "general",
+      "key": "mobilePhone",
+      "path": "MobilePhone",
+      "label": "Κινητό τηλ.",
+      "group": "",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "general",
+      "key": "email",
+      "path": "Email",
+      "label": "e-mail",
+      "group": "",
+      "kind": "email",
+      "readOnly": false
+    },
+    {
+      "section": "general",
+      "key": "address",
+      "path": "Address",
+      "label": "Διεύθυνση",
+      "group": "",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "general",
+      "key": "city",
+      "path": "City",
+      "label": "Πόλη",
+      "group": "",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "general",
+      "key": "region",
+      "path": "Region",
+      "label": "Περιοχή",
+      "group": "",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "general",
+      "key": "postalCode",
+      "path": "PostalCode",
+      "label": "Ταχ. κώδικας",
+      "group": "",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "general",
+      "key": "idNumber",
+      "path": "IdNumber",
+      "label": "Αριθ. ταυτότητας",
+      "group": "",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "general",
+      "key": "isDriver",
+      "path": "IsDriver",
+      "label": "Είναι οδηγός",
+      "group": "",
+      "kind": "text",
+      "readOnly": false,
+      "choices": [
+        {
+          "value": "",
+          "label": "—"
+        },
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "section": "general",
+      "key": "hasDrivingLicense",
+      "path": "HasDrivingLicense",
+      "label": "Έχει δίπλωμα",
+      "group": "",
+      "kind": "text",
+      "readOnly": false,
+      "choices": [
+        {
+          "value": "",
+          "label": "—"
+        },
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "section": "general",
+      "key": "driverLicenseNumber",
+      "path": "DriverLicenseNumber",
+      "label": "Αριθμός διπλώματος",
+      "group": "",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "general",
+      "key": "driverLicenseClass",
+      "path": "DriverLicenseClass",
+      "label": "Κατηγορία διπλώματος",
+      "group": "",
+      "kind": "text",
+      "readOnly": false,
+      "choices": [
+        {
+          "value": "",
+          "label": "—"
+        },
+        {
+          "value": "AM",
+          "label": "AM"
+        },
+        {
+          "value": "A1",
+          "label": "A1"
+        },
+        {
+          "value": "A2",
+          "label": "A2"
+        },
+        {
+          "value": "A",
+          "label": "A"
+        },
+        {
+          "value": "B",
+          "label": "B"
+        },
+        {
+          "value": "BE",
+          "label": "BE"
+        },
+        {
+          "value": "C1",
+          "label": "C1"
+        },
+        {
+          "value": "C",
+          "label": "C"
+        },
+        {
+          "value": "CE",
+          "label": "CE"
+        },
+        {
+          "value": "D1",
+          "label": "D1"
+        },
+        {
+          "value": "D",
+          "label": "D"
+        },
+        {
+          "value": "DE",
+          "label": "DE"
+        }
+      ]
+    },
+    {
+      "section": "general",
+      "key": "driverLicenseIssueDate",
+      "path": "DriverLicenseIssuedOn",
+      "label": "Έκδοση διπλώματος",
+      "group": "",
+      "kind": "date",
+      "readOnly": false
+    },
+    {
+      "section": "general",
+      "key": "drivingYears",
+      "path": "DriverLicenseYearsText",
+      "label": "Έτη διπλώματος",
+      "group": "",
+      "kind": "text",
+      "readOnly": true
+    },
+    {
+      "section": "general",
+      "key": "driverLicenseExpiryDate",
+      "path": "DriverLicenseExpiresOn",
+      "label": "Λήξη διπλώματος",
+      "group": "",
+      "kind": "date",
+      "readOnly": false
+    },
+    {
+      "section": "general",
+      "key": "isNewDriver",
+      "path": "IsNewDriver",
+      "label": "Νέος οδηγός",
+      "group": "",
+      "kind": "text",
+      "readOnly": false,
+      "choices": [
+        {
+          "value": "",
+          "label": "—"
+        },
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "section": "general",
+      "key": "occupation",
+      "path": "Occupation",
+      "label": "Επάγγελμα / κλάδος",
+      "group": "",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "general",
+      "key": "nationality",
+      "path": "Nationality",
+      "label": "Εθνικότητα",
+      "group": "",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "general",
+      "key": "amka",
+      "path": "Amka",
+      "label": "ΑΜΚΑ",
+      "group": "",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "general",
+      "key": "companyName",
+      "path": "LegalName",
+      "label": "Επωνυμία νομ. προσώπου",
+      "group": "",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "other",
+      "key": "motherName",
+      "path": "MotherName",
+      "label": "Μητρώνυμο",
+      "group": "Προσωπικά & οικογενειακά",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "other",
+      "key": "passportNumber",
+      "path": "PassportNumber",
+      "label": "Διαβατήριο",
+      "group": "Προσωπικά & οικογενειακά",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "other",
+      "key": "maritalStatus",
+      "path": "MaritalStatus",
+      "label": "Οικογενειακή κατάσταση",
+      "group": "Προσωπικά & οικογενειακά",
+      "kind": "text",
+      "readOnly": false,
+      "choices": [
+        {
+          "value": "",
+          "label": "—"
+        },
+        {
+          "value": "Single",
+          "label": "Άγαμος / άγαμη"
+        },
+        {
+          "value": "Married",
+          "label": "Έγγαμος / έγγαμη"
+        },
+        {
+          "value": "Divorced",
+          "label": "Διαζευγμένος / διαζευγμένη"
+        },
+        {
+          "value": "Widowed",
+          "label": "Χήρος / χήρα"
+        },
+        {
+          "value": "Other",
+          "label": "Άλλο"
+        }
+      ]
+    },
+    {
+      "section": "other",
+      "key": "spouseName",
+      "path": "SpouseName",
+      "label": "Σύζυγος / σύντροφος",
+      "group": "Προσωπικά & οικογενειακά",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "other",
+      "key": "taxOffice",
+      "path": "TaxOffice",
+      "label": "Δ.Ο.Υ.",
+      "group": "Επαγγελματικά & φορολογικά",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "other",
+      "key": "gemiNumber",
+      "path": "GemiNumber",
+      "label": "ΓΕΜΗ",
+      "group": "Επαγγελματικά & φορολογικά",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "other",
+      "key": "legalForm",
+      "path": "LegalForm",
+      "label": "Νομική μορφή",
+      "group": "Επαγγελματικά & φορολογικά",
+      "kind": "text",
+      "readOnly": false,
+      "choices": [
+        {
+          "value": "",
+          "label": "—"
+        },
+        {
+          "value": "Ατομική επιχείρηση",
+          "label": "Ατομική επιχείρηση"
+        },
+        {
+          "value": "Ο.Ε.",
+          "label": "Ο.Ε."
+        },
+        {
+          "value": "Ε.Ε.",
+          "label": "Ε.Ε."
+        },
+        {
+          "value": "Ι.Κ.Ε.",
+          "label": "Ι.Κ.Ε."
+        },
+        {
+          "value": "Ε.Π.Ε.",
+          "label": "Ε.Π.Ε."
+        },
+        {
+          "value": "Α.Ε.",
+          "label": "Α.Ε."
+        },
+        {
+          "value": "Σωματείο / σύλλογος",
+          "label": "Σωματείο / σύλλογος"
+        },
+        {
+          "value": "Άλλη",
+          "label": "Άλλη"
+        }
+      ]
+    },
+    {
+      "section": "other",
+      "key": "activityCode",
+      "path": "ActivityCode",
+      "label": "Κωδ. δραστηριότητας",
+      "group": "Επαγγελματικά & φορολογικά",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "other",
+      "key": "employer",
+      "path": "Employer",
+      "label": "Εργοδότης / επιχείρηση",
+      "group": "Επαγγελματικά & φορολογικά",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "other",
+      "key": "notes",
+      "path": "Notes",
+      "label": "Σημ. πελάτη",
+      "group": "Σημειώσεις",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "other",
+      "key": "customerNumber",
+      "path": "CustomerCode",
+      "label": "Κωδ. πελάτη",
+      "group": "Στοιχεία εγγραφής",
+      "kind": "text",
+      "readOnly": true
+    },
+    {
+      "section": "other",
+      "key": "type",
+      "path": "Kind",
+      "label": "Τύπος προσώπου",
+      "group": "Στοιχεία εγγραφής",
+      "kind": "text",
+      "readOnly": false,
+      "choices": [
+        {
+          "value": "Individual",
+          "label": "Φυσικό πρόσωπο"
+        },
+        {
+          "value": "Company",
+          "label": "Νομικό πρόσωπο"
+        }
+      ]
+    },
+    {
+      "section": "other",
+      "key": "status",
+      "path": "Status",
+      "label": "Κατάσταση",
+      "group": "Στοιχεία εγγραφής",
+      "kind": "text",
+      "readOnly": false,
+      "choices": [
+        {
+          "value": "Active",
+          "label": "Ενεργός πελάτης"
+        },
+        {
+          "value": "Prospect",
+          "label": "Πιθανός πελάτης"
+        },
+        {
+          "value": "Inactive",
+          "label": "Ανενεργός"
+        },
+        {
+          "value": "Churned",
+          "label": "Απώλεια"
+        },
+        {
+          "value": "Blocked",
+          "label": "Αποκλεισμένος"
+        }
+      ]
+    },
+    {
+      "section": "other",
+      "key": "source",
+      "path": "Origin",
+      "label": "Πηγή",
+      "group": "Στοιχεία εγγραφής",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "other",
+      "key": "tagsJson",
+      "path": "TagsJson",
+      "label": "Ετικέτες",
+      "group": "Στοιχεία εγγραφής",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "other",
+      "key": "photoUrl",
+      "path": "PhotoUrl",
+      "label": "URL φωτογραφίας",
+      "group": "Στοιχεία εγγραφής",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "other",
+      "key": "zone",
+      "path": "Zone",
+      "label": "Ζώνη",
+      "group": "Στοιχεία εγγραφής",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "other",
+      "key": "createdAt",
+      "path": "CreatedAt",
+      "label": "Ημ. δημιουργίας",
+      "group": "Στοιχεία εγγραφής",
+      "kind": "datetime",
+      "readOnly": true
+    },
+    {
+      "section": "other",
+      "key": "updatedAt",
+      "path": "UpdatedAt",
+      "label": "Ημ. ενημέρωσης",
+      "group": "Στοιχεία εγγραφής",
+      "kind": "datetime",
+      "readOnly": true
+    },
+    {
+      "section": "contact",
+      "key": "phone",
+      "path": "Phone",
+      "label": "Τηλέφωνο",
+      "group": "",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "contact",
+      "key": "altPhone",
+      "path": "AltPhone",
+      "label": "2ο τηλέφωνο",
+      "group": "",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "contact",
+      "key": "thirdPhone",
+      "path": "ThirdPhone",
+      "label": "3ο τηλέφωνο",
+      "group": "",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "contact",
+      "key": "mobilePhone",
+      "path": "MobilePhone",
+      "label": "Κινητό τηλ.",
+      "group": "",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "contact",
+      "key": "secondaryMobilePhone",
+      "path": "MobilePhone2",
+      "label": "2ο κινητό",
+      "group": "",
+      "kind": "text",
+      "readOnly": false
+    },
+    {
+      "section": "contact",
+      "key": "email",
+      "path": "Email",
+      "label": "e-mail",
+      "group": "",
+      "kind": "email",
+      "readOnly": false
+    },
+    {
+      "section": "contact",
+      "key": "secondaryEmail",
+      "path": "Email2",
+      "label": "2ο e-mail",
+      "group": "",
+      "kind": "email",
+      "readOnly": false
+    }
+  ]
+}

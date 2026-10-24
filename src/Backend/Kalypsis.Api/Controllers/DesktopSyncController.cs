@@ -124,6 +124,7 @@ public sealed class DesktopSyncController : ControllerBase
             return 0;
 
         var items = new List<T>();
+        var customerFields=new Dictionary<Guid,HashSet<string>>();
         var rowNumber = 0;
         foreach (var rawRow in rows.EnumerateArray())
         {
@@ -132,7 +133,11 @@ public sealed class DesktopSyncController : ControllerBase
             {
                 var normalized = NormalizeDesktopRow<T>(rawRow);
                 var item = normalized.Deserialize<T>(SyncJson);
-                if (item is not null) items.Add(item);
+                if (item is not null)
+                {
+                    items.Add(item);
+                    if(item is Customer)customerFields[item.Id]=normalized.EnumerateObject().Select(p=>p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                }
             }
             catch (Exception ex)
             {
@@ -168,6 +173,7 @@ public sealed class DesktopSyncController : ControllerBase
 
             var existing = await _db.Set<T>().IgnoreQueryFilters()
                 .FirstOrDefaultAsync(x => x.Id == item.Id, ct);
+            if(existing is TenantEntity foreignTenant&&foreignTenant.TenantId!=tenantId)continue;
 
             // Global carriers are read-only catalog rows.  Never allow a
             // desktop tenant to overwrite one belonging to another tenant.
@@ -209,7 +215,16 @@ public sealed class DesktopSyncController : ControllerBase
                 if (incomingUpdated <= localUpdated) continue;
             }
 
-            _db.Entry(existing).CurrentValues.SetValues(item);
+            if(existing is Customer&&customerFields.TryGetValue(item.Id,out var fields))
+            {
+                // A desktop snapshot owns its supplied customer fields. It must
+                // not clear web-only office/advisor references that it never sent.
+                var entry=_db.Entry(existing);
+                foreach(var property in entry.Properties)
+                    if(property.Metadata.Name is not ("Id" or "TenantId")&&fields.Contains(property.Metadata.Name))
+                        property.CurrentValue=typeof(T).GetProperty(property.Metadata.Name)?.GetValue(item);
+            }
+            else _db.Entry(existing).CurrentValues.SetValues(item);
             if (existing is TenantEntity existingTenant) existingTenant.TenantId = tenantId;
             if (existing is InsuranceCompany existingScopedCarrier) existingScopedCarrier.TenantId = tenantId;
             processed++;
@@ -431,9 +446,9 @@ public sealed class DesktopSyncController : ControllerBase
             if (node.ContainsKey(canonical)) return;
             foreach (var alias in aliases)
             {
-                if (node.TryGetPropertyValue(alias, out var value) && value is not null)
+                if (node.TryGetPropertyValue(alias, out var value))
                 {
-                    node[canonical] = value.DeepClone();
+                    node[canonical] = value?.DeepClone();
                     return;
                 }
             }
@@ -462,6 +477,14 @@ public sealed class DesktopSyncController : ControllerBase
                 Alias("CompanyName", "LegalName");
                 Alias("VatNumber", "AfmVat");
                 Alias("Source", "Origin");
+                Alias("SecondaryEmail","Email2");
+                Alias("SecondaryMobilePhone","MobilePhone2");
+                if (!node.ContainsKey("Status")&&(node.ContainsKey("IsInactive")||node.ContainsKey("CustomerCategory")))
+                {
+                    var category=node["CustomerCategory"]?.GetValue<string>()??"";
+                    var prospect=category.Contains("πιθαν",StringComparison.OrdinalIgnoreCase)||category.Contains("prospect",StringComparison.OrdinalIgnoreCase)||category.Contains("potential",StringComparison.OrdinalIgnoreCase);
+                    node["Status"]=prospect?"Prospect":node["IsInactive"] is JsonValue inactive&&inactive.TryGetValue<bool>(out var isInactive)&&isInactive?"Inactive":"Active";
+                }
                 DateOnlyAlias("BirthDate", "BirthDate");
                 DateOnlyAlias("DriverLicenseIssueDate", "DriverLicenseIssuedOn");
                 DateOnlyAlias("DriverLicenseExpiryDate", "DriverLicenseExpiresOn");
@@ -691,7 +714,7 @@ public sealed class DesktopSyncController : ControllerBase
 
         var data = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
         {
-            ["customers"] = JsonSerializer.SerializeToElement(customers, SyncJson),
+            ["customers"] = JsonSerializer.SerializeToElement(customers, new JsonSerializerOptions(SyncJson){DefaultIgnoreCondition=JsonIgnoreCondition.Never}),
             ["producers"] = JsonSerializer.SerializeToElement(producers, SyncJson),
             ["carriers"] = JsonSerializer.SerializeToElement(carriers, SyncJson),
             ["policies"] = JsonSerializer.SerializeToElement(policies, SyncJson),
