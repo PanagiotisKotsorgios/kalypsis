@@ -2627,6 +2627,30 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .HasPrecision(14, 2)
                         .HasColumnType("decimal(14,2)");
 
+                    b.Property<string>("AssessorEmail")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<string>("AssessorName")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<string>("AssessorPhone")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<string>("CarrierClaimNumber")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<string>("CarrierContactName")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<string>("CarrierContactPhone")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
                     b.Property<string>("ClaimNumber")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -2636,6 +2660,9 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .HasPrecision(14, 2)
                         .HasColumnType("decimal(14,2)");
 
+                    b.Property<DateOnly?>("ClosedDate")
+                        .HasColumnType("date");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
@@ -2644,6 +2671,10 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .HasMaxLength(3)
                         .HasColumnType("varchar(3)");
 
+                    b.Property<string>("DamageDescription")
+                        .HasMaxLength(4000)
+                        .HasColumnType("varchar(4000)");
+
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
@@ -2651,7 +2682,29 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("varchar(2000)");
 
+                    b.Property<Guid?>("GarageId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("IncidentCause")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<string>("IncidentCity")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
                     b.Property<DateOnly>("IncidentDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("IncidentLocation")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<string>("IncidentTime")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<DateOnly?>("InspectionDate")
                         .HasColumnType("date");
 
                     b.Property<bool>("IsFriendlySettlement")
@@ -2668,10 +2721,33 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Property<decimal?>("LiabilityPercent")
                         .HasColumnType("decimal(65,30)");
 
+                    b.Property<DateOnly?>("NextActionDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool?>("PoliceInvolved")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("PoliceReportNumber")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<string>("PoliceStation")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
                     b.Property<Guid>("PolicyId")
                         .HasColumnType("char(36)");
 
+                    b.Property<DateOnly?>("RepairCompletedDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("RepairStartedDate")
+                        .HasColumnType("date");
+
                     b.Property<DateOnly>("ReportedDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("ReportedToCarrierDate")
                         .HasColumnType("date");
 
                     b.Property<decimal?>("SettledAmount")
@@ -2705,6 +2781,8 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("GarageId");
+
                     b.HasIndex("PolicyId");
 
                     b.HasIndex("TenantId", "ClaimNumber")
@@ -2713,6 +2791,71 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId", "PolicyId");
 
                     b.ToTable("claims", (string)null);
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.ClaimAttachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("AgencyOfficeScopeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("ClaimId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("DocumentKind")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("MimeType")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("varchar(160)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("StoragePath")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClaimId");
+
+                    b.HasIndex("TenantId", "ClaimId");
+
+                    b.ToTable("claim_attachments", (string)null);
                 });
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.ClaimIndemnity", b =>
@@ -2876,6 +3019,53 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId", "ClaimId");
 
                     b.ToTable("claim_involved_parties", (string)null);
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.ClaimKind", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("AgencyOfficeScopeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("BranchCode")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("varchar(60)");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("varchar(60)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("varchar(160)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "Code", "BranchCode")
+                        .IsUnique();
+
+                    b.ToTable("claim_kinds", (string)null);
                 });
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.ClaimProvision", b =>
@@ -16147,13 +16337,31 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.Claim", b =>
                 {
+                    b.HasOne("Kalypsis.Domain.Entities.Garage", "Garage")
+                        .WithMany()
+                        .HasForeignKey("GarageId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Kalypsis.Domain.Entities.Policy", "Policy")
                         .WithMany("Claims")
                         .HasForeignKey("PolicyId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.Navigation("Garage");
+
                     b.Navigation("Policy");
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.ClaimAttachment", b =>
+                {
+                    b.HasOne("Kalypsis.Domain.Entities.Claim", "Claim")
+                        .WithMany()
+                        .HasForeignKey("ClaimId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Claim");
                 });
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.ClaimIndemnity", b =>

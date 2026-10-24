@@ -27,7 +27,7 @@ public class ListClaimsQueryHandler : IRequestHandler<ListClaimsQuery, IReadOnly
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
 
-        var q = _db.Claims
+        var q = _db.Claims.Include(claim=>claim.Garage)
             .Include(c => c.Policy).ThenInclude(p => p.Customer)
             .Include(c => c.Policy).ThenInclude(p => p.InsuranceCompany)
             .Where(c => c.TenantId == tenantId && c.DeletedAt == null);
@@ -86,7 +86,8 @@ public class ListClaimsQueryHandler : IRequestHandler<ListClaimsQuery, IReadOnly
             c.IsInternalDamage,
             c.UsaeSentAt,
             c.UsaeReceiptCode,
-            c.IsFriendlySettlement, c.Kind, c.SettledAmount, c.Currency, c.UpdatedAt);
+            c.IsFriendlySettlement, c.Kind, c.SettledAmount, c.Currency, c.UpdatedAt,
+            c.CarrierClaimNumber, c.IncidentTime, c.IncidentLocation, c.IncidentCity, c.IncidentCause, c.DamageDescription, c.PoliceInvolved, c.PoliceStation, c.PoliceReportNumber, c.GarageId, c.AssessorName, c.AssessorPhone, c.AssessorEmail, c.CarrierContactName, c.CarrierContactPhone, c.ReportedToCarrierDate, c.InspectionDate, c.RepairStartedDate, c.RepairCompletedDate, c.NextActionDate, c.ClosedDate, c.Garage?.Name);
     }
 
     private static string? ExtractSpecsCode(string? specsJson, params string[] keys)
@@ -116,6 +117,7 @@ public class CreateClaimCommandValidator : AbstractValidator<CreateClaimCommand>
         RuleFor(x => x.Body.PolicyId).NotEqual(Guid.Empty);
         RuleFor(x => x.Body.ClaimedAmount).GreaterThanOrEqualTo(0).When(x => x.Body.ClaimedAmount.HasValue);
         RuleFor(x => x.Body.Description).MaximumLength(2000);
+        RuleFor(x=>x.Body.Kind).NotEmpty().MaximumLength(60).When(x=>x.Body.Kind!=null);
     }
 }
 
@@ -146,6 +148,10 @@ public class CreateClaimCommandHandler : IRequestHandler<CreateClaimCommand, Cla
                 fix: "Επιλέξτε άλλο συμβόλαιο από τη λίστα ή δημιουργήστε νέο συμβόλαιο για τον πελάτη.",
                 fixLink: "/app/policies");
 
+        var branch=policy.PolicyType.ToString();var configured=await _db.ClaimKinds.Where(k=>k.TenantId==tenantId&&(k.BranchCode==""||k.BranchCode==branch)).ToListAsync(ct);
+        var options=configured.Select(k=>(k.Code,k.Name,k.BranchCode,k.IsActive)).Concat(Kalypsis.Claims.ClaimDossierRules.LegacyKinds.Where(k=>!configured.Any(x=>x.Code==k.Code&&x.BranchCode=="")).Select(k=>(k.Code,k.Name,BranchCode:"",IsActive:true))).OrderByDescending(k=>k.BranchCode==branch&&branch!="").GroupBy(k=>k.Code).Select(g=>g.First()).Where(k=>k.IsActive).ToArray();
+        var kind=r.Kind?.Trim()??(policy.PolicyType==PolicyType.Auto?"VehicleDamage":"Other");if(!options.Any(k=>k.Code==kind)){if(r.Kind!=null||options.Length==0)throw new AppException("claim_kind_invalid","Επιλέξτε ενεργό είδος ζημιάς από τον κατάλογο του κλάδου.",400);kind=options[0].Code;}
+
         var count = await _db.Claims.CountAsync(c => c.TenantId == tenantId, ct);
         var number = $"CL-{(count + 1):D6}";
 
@@ -154,6 +160,7 @@ public class CreateClaimCommandHandler : IRequestHandler<CreateClaimCommand, Cla
             Id = Guid.NewGuid(),
             TenantId = tenantId,
             ClaimNumber = number,
+            Kind = kind,
             PolicyId = policy.Id,
             Currency = policy.Currency,
             IncidentDate = r.IncidentDate,
@@ -165,7 +172,7 @@ public class CreateClaimCommandHandler : IRequestHandler<CreateClaimCommand, Cla
         _db.Claims.Add(c);
         await _db.SaveChangesAsync(ct);
 
-        var saved = await _db.Claims
+        var saved = await _db.Claims.Include(claim=>claim.Garage)
             .Include(x => x.Policy).ThenInclude(p => p.Customer)
             .Include(x => x.Policy).ThenInclude(p => p.InsuranceCompany)
             .FirstAsync(x => x.Id == c.Id, ct);
@@ -189,7 +196,10 @@ public class UpdateClaimCommandValidator : AbstractValidator<UpdateClaimCommand>
         RuleFor(x=>x.Body.SettledAmount).GreaterThanOrEqualTo(0);
         RuleFor(x=>x.Body.LiabilityPercent).InclusiveBetween(0,100);
         RuleFor(x=>x.Body.Description).MaximumLength(2000);
-        RuleFor(x=>x.Body.Kind).Must(x=>new[]{"VehicleDamage","ThirdPartyLiability","Theft","WaterDamage","Fire","Other"}.Contains(x)).When(x=>x.Body.Kind!=null);
+        RuleFor(x=>x.Body.Kind).NotEmpty().MaximumLength(60).When(x=>x.Body.Kind!=null);
+        foreach(var key in new[]{"CarrierClaimNumber","IncidentTime","IncidentLocation","IncidentCity","IncidentCause","DamageDescription","PoliceStation","PoliceReportNumber","AssessorName","AssessorPhone","AssessorEmail","CarrierContactName","CarrierContactPhone"})
+            RuleFor(x=>(string?)typeof(UpdateClaimBody).GetProperty(key)!.GetValue(x.Body)).Must(value=>Kalypsis.Claims.ClaimDossierRules.FieldError(key,value)==null).WithMessage(x=>Kalypsis.Claims.ClaimDossierRules.FieldError(key,(string?)typeof(UpdateClaimBody).GetProperty(key)!.GetValue(x.Body))??"Μη έγκυρο πεδίο.");
+        RuleFor(x=>x.Body.RepairCompletedDate).GreaterThanOrEqualTo(x=>x.Body.RepairStartedDate).When(x=>x.Body.RepairCompletedDate.HasValue&&x.Body.RepairStartedDate.HasValue);
         RuleFor(x=>x.Body.Currency).Matches("^[A-Z]{3}$").When(x=>x.Body.Currency!=null);
         RuleFor(x=>x.Body.UsaeCode).MaximumLength(100);
         RuleFor(x=>x.Body.UsaeKind).MaximumLength(100);
@@ -212,7 +222,8 @@ public class UpdateClaimCommandHandler : IRequestHandler<UpdateClaimCommand, Cla
     public async Task<ClaimDto> Handle(UpdateClaimCommand request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var c = await _db.Claims
+        var c = await _db.Claims.Include(claim=>claim.Garage)
+            .Include(x=>x.Policy)
             .FirstOrDefaultAsync(x => x.Id == request.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Ζημιά");
 
@@ -225,7 +236,7 @@ public class UpdateClaimCommandHandler : IRequestHandler<UpdateClaimCommand, Cla
             c.ClaimNumber=number;
         }
         if(body.Status.HasValue)c.Status=body.Status.Value;
-        if(body.Kind != null)c.Kind=body.Kind;
+
         if(body.Currency != null)c.Currency=body.Currency;
         if(body.AffectsBonusMalus.HasValue)c.AffectsBonusMalus=body.AffectsBonusMalus.Value;
         if(body.IsInternalDamage.HasValue)c.IsInternalDamage=body.IsInternalDamage.Value;
@@ -236,6 +247,38 @@ public class UpdateClaimCommandHandler : IRequestHandler<UpdateClaimCommand, Cla
             c.UsaeStatus=body.UsaeStatus??c.UsaeStatus;c.LiabilityPercent=body.LiabilityPercent;
             c.UsaeSentAt=body.UsaeSentAt;c.UsaeReceiptCode=body.UsaeReceiptCode?.Trim();
         }
+        if(body.ReplaceDossier)
+        {
+            if(body.GarageId.HasValue&&body.GarageId!=c.GarageId&&!await _db.Garages.AnyAsync(g=>g.Id==body.GarageId&&g.TenantId==tenantId&&g.IsActive&&g.DeletedAt==null,ct))throw new AppException("garage_not_found","Το συνεργείο δεν είναι διαθέσιμο στο γραφείο σας.",400);
+            c.CarrierClaimNumber=body.CarrierClaimNumber?.Trim();
+            c.IncidentTime=body.IncidentTime?.Trim();
+            c.IncidentLocation=body.IncidentLocation?.Trim();
+            c.IncidentCity=body.IncidentCity?.Trim();
+            c.IncidentCause=body.IncidentCause?.Trim();
+            c.DamageDescription=body.DamageDescription?.Trim();
+            c.PoliceInvolved=body.PoliceInvolved;
+            c.PoliceStation=body.PoliceStation?.Trim();
+            c.PoliceReportNumber=body.PoliceReportNumber?.Trim();
+            c.GarageId=body.GarageId;
+            c.AssessorName=body.AssessorName?.Trim();
+            c.AssessorPhone=body.AssessorPhone?.Trim();
+            c.AssessorEmail=body.AssessorEmail?.Trim();
+            c.CarrierContactName=body.CarrierContactName?.Trim();
+            c.CarrierContactPhone=body.CarrierContactPhone?.Trim();
+            c.ReportedToCarrierDate=body.ReportedToCarrierDate;
+            c.InspectionDate=body.InspectionDate;
+            c.RepairStartedDate=body.RepairStartedDate;
+            c.RepairCompletedDate=body.RepairCompletedDate;
+            c.NextActionDate=body.NextActionDate;
+            c.ClosedDate=body.ClosedDate;
+        }
+        if(body.Kind!=null&&body.Kind!=c.Kind)
+        {
+            var branch=c.Policy.PolicyType.ToString();var choices=await _db.ClaimKinds.Where(k=>k.TenantId==tenantId&&k.Code==body.Kind&&(k.BranchCode==""||k.BranchCode==branch)).OrderByDescending(k=>k.BranchCode==branch&&branch!="").ToListAsync(ct);
+            if(choices.Count>0?!choices[0].IsActive:!Kalypsis.Claims.ClaimDossierRules.LegacyKinds.Any(k=>k.Code==body.Kind))throw new AppException("claim_kind_invalid","Επιλέξτε ενεργό είδος ζημιάς από τον κατάλογο του κλάδου.",400);
+        }
+
+        if(body.Kind != null)c.Kind=body.Kind;
         c.IncidentDate = request.Body.IncidentDate;
         c.ReportedDate = request.Body.ReportedDate;
         c.ClaimedAmount = request.Body.ClaimedAmount;
@@ -244,7 +287,7 @@ public class UpdateClaimCommandHandler : IRequestHandler<UpdateClaimCommand, Cla
 
         await _db.SaveChangesAsync(ct);
 
-        var saved = await _db.Claims
+        var saved = await _db.Claims.Include(claim=>claim.Garage)
             .Include(x => x.Policy).ThenInclude(p => p.Customer)
             .Include(x => x.Policy).ThenInclude(p => p.InsuranceCompany)
             .FirstAsync(x => x.Id == c.Id, ct);
@@ -270,7 +313,8 @@ public class UpdateClaimStatusCommandHandler : IRequestHandler<UpdateClaimStatus
     public async Task<ClaimDto> Handle(UpdateClaimStatusCommand request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var c = await _db.Claims
+        var c = await _db.Claims.Include(claim=>claim.Garage)
+            .Include(x=>x.Policy)
             .FirstOrDefaultAsync(x => x.Id == request.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Ζημιά");
 
@@ -279,7 +323,7 @@ public class UpdateClaimStatusCommandHandler : IRequestHandler<UpdateClaimStatus
 
         await _db.SaveChangesAsync(ct);
 
-        var saved = await _db.Claims
+        var saved = await _db.Claims.Include(claim=>claim.Garage)
             .Include(x => x.Policy).ThenInclude(p => p.Customer)
             .Include(x => x.Policy).ThenInclude(p => p.InsuranceCompany)
             .FirstAsync(x => x.Id == c.Id, ct);

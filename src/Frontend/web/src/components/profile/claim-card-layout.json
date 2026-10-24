@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "tabs": [
     "Καρτέλα Ζημιάς",
     "Πρόσθετα στοιχεία",
@@ -12,6 +12,13 @@
       "key": "claimNumber",
       "path": "ClaimNumber",
       "label": "Αριθμός ζημιάς",
+      "section": "main",
+      "kind": "text"
+    },
+    {
+      "key": "carrierClaimNumber",
+      "path": "CarrierClaimNumber",
+      "label": "Αρ. φακέλου ασφαλιστικής",
       "section": "main",
       "kind": "text"
     },
@@ -101,6 +108,27 @@
       "kind": "date"
     },
     {
+      "key": "incidentTime",
+      "path": "IncidentTime",
+      "label": "Ώρα συμβάντος",
+      "section": "main",
+      "kind": "time"
+    },
+    {
+      "key": "incidentLocation",
+      "path": "IncidentLocation",
+      "label": "Τόπος / διεύθυνση συμβάντος",
+      "section": "main",
+      "kind": "text"
+    },
+    {
+      "key": "incidentCity",
+      "path": "IncidentCity",
+      "label": "Πόλη συμβάντος",
+      "section": "main",
+      "kind": "text"
+    },
+    {
       "key": "reportedDate",
       "path": "ReportedDate",
       "label": "Ημερομηνία δήλωσης",
@@ -169,6 +197,125 @@
       "label": "Διεύθυνση",
       "section": "main",
       "kind": "text"
+    },
+    {
+      "key": "incidentCause",
+      "path": "IncidentCause",
+      "label": "Αιτία συμβάντος",
+      "section": "additional",
+      "kind": "text"
+    },
+    {
+      "key": "damageDescription",
+      "path": "DamageDescription",
+      "label": "Περιγραφή ζημιών",
+      "section": "additional",
+      "kind": "multiline"
+    },
+    {
+      "key": "policeInvolved",
+      "path": "PoliceInvolved",
+      "label": "Καταγραφή από αστυνομία",
+      "section": "additional",
+      "kind": "boolean"
+    },
+    {
+      "key": "policeStation",
+      "path": "PoliceStation",
+      "label": "Αστυνομική υπηρεσία",
+      "section": "additional",
+      "kind": "text"
+    },
+    {
+      "key": "policeReportNumber",
+      "path": "PoliceReportNumber",
+      "label": "Αρ. αστυνομικής αναφοράς",
+      "section": "additional",
+      "kind": "text"
+    },
+    {
+      "key": "garageId",
+      "path": "GarageId",
+      "label": "Συνεργείο επισκευής",
+      "section": "additional",
+      "kind": "garage"
+    },
+    {
+      "key": "assessorName",
+      "path": "AssessorName",
+      "label": "Πραγματογνώμονας",
+      "section": "additional",
+      "kind": "text"
+    },
+    {
+      "key": "assessorPhone",
+      "path": "AssessorPhone",
+      "label": "Τηλέφωνο πραγματογνώμονα",
+      "section": "additional",
+      "kind": "tel"
+    },
+    {
+      "key": "assessorEmail",
+      "path": "AssessorEmail",
+      "label": "Email πραγματογνώμονα",
+      "section": "additional",
+      "kind": "email"
+    },
+    {
+      "key": "carrierContactName",
+      "path": "CarrierContactName",
+      "label": "Υπεύθυνος ζημιάς ασφαλιστικής",
+      "section": "additional",
+      "kind": "text"
+    },
+    {
+      "key": "carrierContactPhone",
+      "path": "CarrierContactPhone",
+      "label": "Τηλέφωνο υπευθύνου",
+      "section": "additional",
+      "kind": "tel"
+    },
+    {
+      "key": "reportedToCarrierDate",
+      "path": "ReportedToCarrierDate",
+      "label": "Αναγγελία στην ασφαλιστική",
+      "section": "additional",
+      "kind": "date"
+    },
+    {
+      "key": "inspectionDate",
+      "path": "InspectionDate",
+      "label": "Ημερομηνία πραγματογνωμοσύνης",
+      "section": "additional",
+      "kind": "date"
+    },
+    {
+      "key": "repairStartedDate",
+      "path": "RepairStartedDate",
+      "label": "Έναρξη επισκευής",
+      "section": "additional",
+      "kind": "date"
+    },
+    {
+      "key": "repairCompletedDate",
+      "path": "RepairCompletedDate",
+      "label": "Ολοκλήρωση επισκευής",
+      "section": "additional",
+      "kind": "date"
+    },
+    {
+      "key": "nextActionDate",
+      "path": "NextActionDate",
+      "label": "Επόμενη ενέργεια έως",
+      "section": "additional",
+      "kind": "date"
+    },
+    {
+      "key": "closedDate",
+      "path": "ClosedDate",
+      "label": "Ημερομηνία κλεισίματος",
+      "section": "additional",
+      "kind": "date"
     },
     {
       "key": "affectsBonusMalus",

@@ -1,6 +1,7 @@
+import { ClaimDossierActions, type ClaimKindRow, type ClaimGarageRow } from "./profile/ClaimDossierDialogs";
 import { DetailProfileTabs } from "./profile/DetailProfileTabs";
 import { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback, profileDialogPaperSx, useProfileFieldEditor, type ProfileFieldSession } from "./profile/ProfileFieldEditor";
-import { CLAIM_FIELDS, CLAIM_CARD_FIELDS, CLAIM_CARD_TABS, claimInformationGroups, claimFieldValue, claimUpdatePayload } from "./profile/claimProfile";
+import { CLAIM_FIELDS, CLAIM_CARD_FIELDS, CLAIM_CARD_TABS, claimInformationGroups, claimFieldValue, claimKindOptions, claimUpdatePayload } from "./profile/claimProfile";
 import { PolicyFieldColumns } from "./profile/PolicyFieldColumns";
 import { Children, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
@@ -38,6 +39,28 @@ import { money, date, dateTime } from "../utils/format";
 import { EntityAuditTable } from "./EntityAuditTable";
 
 interface ClaimRow {
+  garageName?:string|null;
+  carrierClaimNumber?: string | null;
+  incidentTime?: string | null;
+  incidentLocation?: string | null;
+  incidentCity?: string | null;
+  incidentCause?: string | null;
+  damageDescription?: string | null;
+  policeInvolved?: boolean | null;
+  policeStation?: string | null;
+  policeReportNumber?: string | null;
+  garageId?: string | null;
+  assessorName?: string | null;
+  assessorPhone?: string | null;
+  assessorEmail?: string | null;
+  carrierContactName?: string | null;
+  carrierContactPhone?: string | null;
+  reportedToCarrierDate?: string | null;
+  inspectionDate?: string | null;
+  repairStartedDate?: string | null;
+  repairCompletedDate?: string | null;
+  nextActionDate?: string | null;
+  closedDate?: string | null;
   kind?: string;
   settledAmount?: number | null;
   currency?: string;
@@ -187,6 +210,8 @@ const STATUS_COLOR: Record<
 };
 
 const CLAIM_STATUS_LABELS: Record<string, string> = {
+  Pending:"Σε αναμονή",
+  InProgress:"Σε εξέλιξη",
   Reported: "Δηλώθηκε",
   UnderReview: "Υπό εξέταση",
   Investigating: "Υπό διερεύνηση",
@@ -296,6 +321,13 @@ export function ClaimDetailDrawer({
   });
 
   const qc = useQueryClient();
+  const kindCatalogue=useQuery({queryKey:["claim-kinds"],enabled:open,queryFn:async()=>(await api.get<ClaimKindRow[]>("/claim-kinds",{params:{all:true}})).data});
+  const garageCatalogue=useQuery({queryKey:["garages"],enabled:open,queryFn:async()=>(await api.get<ClaimGarageRow[]>("/garages")).data});
+  const branch=profileQ.data?.policy?.policyType||snapshot?.policyType||"";
+  const kindOptions=kindCatalogue.data?claimKindOptions(kindCatalogue.data,branch,snapshot?.kind):undefined;
+  const garageOptions=(garageCatalogue.data??[]).filter(g=>g.isActive||g.id===snapshot?.garageId).map(g=>({value:g.id,label:g.name+" · "+g.code}));
+  if(snapshot?.garageId&&!garageOptions.some(g=>g.value===snapshot.garageId))garageOptions.push({value:snapshot.garageId,label:snapshot.garageName||"Καταχωρημένο συνεργείο"});
+  const reloadDossier=()=>{void qc.invalidateQueries({queryKey:["claim-kinds"]});void qc.invalidateQueries({queryKey:["garages"]});};
   const session = useProfileFieldEditor({
     initialEditing: initialEditing && canEdit,
     sessionKey: open ? claim?.id ?? "" : "", values: Object.fromEntries(CLAIM_FIELDS.map(([key]) => [key, claimFieldValue(key,(snapshot as unknown as Record<string,unknown>)?.[key] ?? (key==="currency"?"EUR":key==="kind"?"VehicleDamage":key==="affectsBonusMalus"?true:""))])), onClose,
@@ -444,11 +476,12 @@ export function ClaimDetailDrawer({
                 policy={policy}
                 customer={customer}
                 customerName={customerName}
+                kindOptions={kindOptions}
                 onOpen={openLink}
               />
             )}
             {tab === 1 && (
-              <><Button variant="contained" color="success" size="small" startIcon={<HistoryOutlinedIcon/>} sx={{mb:1,color:"#fff"}} onClick={()=>setHistoryOpen(true)}>Ιστορικό ζημιάς</Button><ClaimFieldsTab
+              <><Stack direction="row" gap={1} useFlexGap flexWrap="wrap" sx={{mb:1,"& .MuiButton-contained":{color:"#fff"}}}><Button variant="contained" color="success" size="small" startIcon={<HistoryOutlinedIcon/>} onClick={()=>setHistoryOpen(true)}>Ιστορικό ζημιάς</Button><ClaimDossierActions claimId={snapshot.id} branch={branch} kinds={kindCatalogue.data??[]} garages={garageCatalogue.data??[]} canEdit={canEdit} onReload={reloadDossier} onGarage={async id=>{await session.commit("garageId",id);}}/></Stack><ClaimFieldsTab garageOptions={garageOptions}
                 claim={snapshot}
                 session={canEdit ? session : undefined}
                 t={t}
@@ -572,6 +605,7 @@ function SummaryTab({
   policy,
   customer,
   customerName,
+  kindOptions,
   onOpen,
 }: {
   claim: ClaimRow;
@@ -579,17 +613,18 @@ function SummaryTab({
   policy: PolicyDetail | null | undefined;
   customer: CustomerDetail | null | undefined;
   customerName: string;
+  kindOptions?: {value:string;label:string}[];
   onOpen: (path: string) => void;
 }) {
   return (
     <Stack spacing={1}>
-      <ClaimProfileFields claim={claim} session={session} related={{policyNumber:claim.policyNumber,customerName,insuranceCompanyName:claim.insuranceCompanyName??policy?.insuranceCompanyName,customerVat:customer?.vatNumber,customerPhone:customer?.phone,customerMobile:customer?.mobilePhone,customerEmail:customer?.email,customerAddress:[customer?.address,customer?.city,customer?.postalCode].filter(Boolean).join(", ")}}/>
+      <ClaimProfileFields claim={claim} session={session} kindOptions={kindOptions} related={{policyNumber:claim.policyNumber,customerName,insuranceCompanyName:claim.insuranceCompanyName??policy?.insuranceCompanyName,customerVat:customer?.vatNumber,customerPhone:customer?.phone,customerMobile:customer?.mobilePhone,customerEmail:customer?.email,customerAddress:[customer?.address,customer?.city,customer?.postalCode].filter(Boolean).join(", ")}}/>
       <Stack direction="row" spacing={1}><Button size="small" variant="contained" color="success" sx={{color:"#fff"}} onClick={()=>onOpen(`/app/policies?search=${encodeURIComponent(claim.policyNumber??"")}`)}>Καρτέλα συμβολαίου</Button>{claim.customerId&&<Button size="small" variant="contained" color="success" sx={{color:"#fff"}} onClick={()=>onOpen(`/app/customers/${claim.customerId}`)}>Καρτέλα πελάτη</Button>}</Stack>
     </Stack>
   );
 }
-function ClaimFieldsTab({claim,session}:{claim:ClaimRow;session?:ProfileFieldSession;t:TFunction;fmt:(value:number|null|undefined)=>string}){
-  return <ClaimProfileFields claim={claim} session={session} section="additional"/>;
+function ClaimFieldsTab({claim,session,garageOptions}:{claim:ClaimRow;session?:ProfileFieldSession;garageOptions?:{value:string;label:string}[];t:TFunction;fmt:(value:number|null|undefined)=>string}){
+  return <ClaimProfileFields claim={claim} session={session} section="additional" garageOptions={garageOptions}/>;
 }
 
 function PolicyVehicleTab({
@@ -997,14 +1032,15 @@ export function HistoryTab({
 }
 
 
-export function ClaimProfileFields({claim,session,section="main",related={}}:{claim:ClaimRow;session?:ProfileFieldSession;section?:string;related?:Record<string,unknown>}) {
+export function ClaimProfileFields({claim,session,section="main",related={},kindOptions,garageOptions}:{claim:ClaimRow;session?:ProfileFieldSession;section?:string;related?:Record<string,unknown>;kindOptions?:{value:string;label:string}[];garageOptions?:{value:string;label:string}[]}) {
   const definitions=CLAIM_CARD_FIELDS.filter(f=>f.section===section);
   const fields=definitions.map(field=>{
     const readonly=field.path.startsWith("@");const raw=related[field.key]??(claim as unknown as Record<string,unknown>)[field.key]??(field.key==="currency"?"EUR":field.key==="kind"?"VehicleDamage":field.key==="affectsBonusMalus"?true:"");
-    const options=field.kind==="boolean"?[{value:"true",label:"Ναι"},{value:"false",label:"Όχι"}]:field.choices;
-    return <ProfileEditableField key={field.key} field={!readonly&&session?field.key:undefined} session={session} label={field.label} value={claimFieldValue(field.key,raw)} type={field.kind==="date"?"date":field.kind==="datetime-local"?"datetime-local":field.kind==="number"?"number":"text"} multiline={field.kind==="multiline"} options={options}/>;
+    const options=field.key==="kind"?(kindOptions??field.choices):field.key==="garageId"?[{value:"",label:"—"},...(garageOptions??[])]:field.kind==="boolean"?[...(field.key==="policeInvolved"?[{value:"",label:"—"}]:[]),{value:"true",label:"Ναι"},{value:"false",label:"Όχι"}]:field.choices;
+    return <ProfileEditableField key={field.key} field={!readonly&&session?field.key:undefined} session={session} label={field.label} value={claimFieldValue(field.key,raw)} type={field.kind==="date"?"date":field.kind==="time"?"time":field.kind==="email"?"email":field.kind==="datetime-local"?"datetime-local":field.kind==="number"?"number":"text"} multiline={field.kind==="multiline"} options={options}/>;
   });
-  return <PolicyFieldColumns section={"claim-"+section} groups={claimInformationGroups(fields)}/>;
+  const split=section==="main"?definitions.findIndex(f=>f.key==="customerName"):Math.ceil(fields.length/2);
+  return <PolicyFieldColumns section={"claim-"+section} groups={[fields.slice(0,split),fields.slice(split)]}/>;
 }
 
 const PARTY_FIELDS=[["role","Ρόλος"],["fullName","Ονοματεπώνυμο"],["vatNumber","ΑΦΜ"],["idNumber","Ταυτότητα"],["phone","Τηλέφωνο"],["email","Email"],["address","Διεύθυνση"],["vehiclePlate","Πινακίδα"],["insuranceCompany","Ασφαλιστική"],["policyNumberOther","Συμβόλαιο"],["claimedAmount","Αιτούμενο ποσό"],["atFault","Υπαίτιος"],["notes","Σημειώσεις"]] as const;

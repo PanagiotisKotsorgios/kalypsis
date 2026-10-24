@@ -33,6 +33,8 @@ public interface IAppDbContext
     DbSet<PolicyInstallment> PolicyInstallments { get; }
     DbSet<SavedReport> SavedReports { get; }
     DbSet<Claim> Claims { get; }
+    DbSet<ClaimKind> ClaimKinds { get; }
+    DbSet<ClaimAttachment> ClaimAttachments { get; }
     DbSet<ClaimInvolvedParty> ClaimInvolvedParties { get; }
     DbSet<CommissionRule> CommissionRules { get; }
     DbSet<CommissionTransaction> CommissionTransactions { get; }

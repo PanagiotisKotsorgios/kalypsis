@@ -40,6 +40,8 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<PolicyDocument> PolicyDocuments => Set<PolicyDocument>();
     public DbSet<GreenCard> GreenCards => Set<GreenCard>();
     public DbSet<Claim> Claims => Set<Claim>();
+    public DbSet<ClaimKind> ClaimKinds => Set<ClaimKind>();
+    public DbSet<ClaimAttachment> ClaimAttachments => Set<ClaimAttachment>();
     public DbSet<ClaimInvolvedParty> ClaimInvolvedParties => Set<ClaimInvolvedParty>();
     public DbSet<CommissionRule> CommissionRules => Set<CommissionRule>();
     public DbSet<CommissionTransaction> CommissionTransactions => Set<CommissionTransaction>();

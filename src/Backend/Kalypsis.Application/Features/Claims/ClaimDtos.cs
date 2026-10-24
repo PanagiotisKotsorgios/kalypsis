@@ -38,14 +38,37 @@ public record ClaimDto(
     string Kind = "VehicleDamage",
     decimal? SettledAmount = null,
     string Currency = "EUR",
-    DateTime? UpdatedAt = null);
+    DateTime? UpdatedAt = null,
+    string? CarrierClaimNumber = null,
+    string? IncidentTime = null,
+    string? IncidentLocation = null,
+    string? IncidentCity = null,
+    string? IncidentCause = null,
+    string? DamageDescription = null,
+    bool? PoliceInvolved = null,
+    string? PoliceStation = null,
+    string? PoliceReportNumber = null,
+    Guid? GarageId = null,
+    string? AssessorName = null,
+    string? AssessorPhone = null,
+    string? AssessorEmail = null,
+    string? CarrierContactName = null,
+    string? CarrierContactPhone = null,
+    DateOnly? ReportedToCarrierDate = null,
+    DateOnly? InspectionDate = null,
+    DateOnly? RepairStartedDate = null,
+    DateOnly? RepairCompletedDate = null,
+    DateOnly? NextActionDate = null,
+    DateOnly? ClosedDate = null,
+    string? GarageName = null);
 
 public record CreateClaimBody(
     Guid PolicyId,
     DateOnly IncidentDate,
     DateOnly? ReportedDate,
     decimal? ClaimedAmount,
-    string? Description);
+    string? Description,
+    string? Kind = null);
 
 public record UpdateClaimBody(
     DateOnly IncidentDate,
@@ -67,6 +90,28 @@ public record UpdateClaimBody(
     DateTime? UsaeSentAt = null,
     string? UsaeReceiptCode = null,
     bool? IsFriendlySettlement = null,
-    bool ReplaceAdditional = false);
+    bool ReplaceAdditional = false,
+    string? CarrierClaimNumber = null,
+    string? IncidentTime = null,
+    string? IncidentLocation = null,
+    string? IncidentCity = null,
+    string? IncidentCause = null,
+    string? DamageDescription = null,
+    bool? PoliceInvolved = null,
+    string? PoliceStation = null,
+    string? PoliceReportNumber = null,
+    Guid? GarageId = null,
+    string? AssessorName = null,
+    string? AssessorPhone = null,
+    string? AssessorEmail = null,
+    string? CarrierContactName = null,
+    string? CarrierContactPhone = null,
+    DateOnly? ReportedToCarrierDate = null,
+    DateOnly? InspectionDate = null,
+    DateOnly? RepairStartedDate = null,
+    DateOnly? RepairCompletedDate = null,
+    DateOnly? NextActionDate = null,
+    DateOnly? ClosedDate = null,
+    bool ReplaceDossier = false);
 
 public record UpdateClaimStatusBody(ClaimStatus Status, decimal? ApprovedAmount);

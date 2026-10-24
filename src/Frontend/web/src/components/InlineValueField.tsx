@@ -28,7 +28,7 @@ interface InlineValueFieldProps {
   validate?: (value: string) => string | undefined;
   maxLength?: number;
   inputMode?: "text" | "tel" | "email" | "numeric" | "url";
-  type?: "text" | "date" | "datetime-local" | "email" | "number";
+  type?: "text" | "date" | "datetime-local" | "time" | "email" | "number";
   mono?: boolean;
   valueColor?: string;
   multiline?: boolean;

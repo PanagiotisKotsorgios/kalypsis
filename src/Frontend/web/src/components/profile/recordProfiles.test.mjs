@@ -146,7 +146,7 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
       const claim={claimNumber:"CL1",incidentDate:"2026-10-01",reportedDate:"2026-10-02",claimedAmount:0,approvedAmount:null,status:"Reported",description:"Description"};
       const values=Object.fromEntries(Object.entries(claim).map(([key,value])=>[key,String(value??"")]));
       const {view,edit}=layout(ClaimProfileFields,{claim,session:session(values)});
-      assert.equal(ids(view).length,14); assert.equal(edit.includes("Αποθήκευση Περιγραφή"),true); assert.equal(edit.includes("Αποθήκευση Αριθμός ζημιάς"),true);
+      assert.equal(ids(view).length,CLAIM_PROFILE_GROUPS.flat().length); assert.equal(edit.includes("Αποθήκευση Περιγραφή"),true); assert.equal(edit.includes("Αποθήκευση Αριθμός ζημιάς"),true);
     });
     await t.test("claim payload keeps zero and null, clears text and rejects invalid dates/amounts", () => {
       const current={incidentDate:"2026-10-01",reportedDate:"2026-10-02",claimedAmount:50,approvedAmount:null,description:"Old"};
@@ -175,7 +175,7 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
           assert.ok(html.includes(`data-policy-columns="${count}"`));
           assert.deepEqual(html.split(/data-policy-column="\d+"/).slice(1).map(ids), expected);
           assert.deepEqual(ids(html), expectedGroups.flat());
-          assert.equal(new Set(ids(html)).size, 14);
+          assert.equal(new Set(ids(html)).size, CLAIM_PROFILE_GROUPS.flat().length);
           assert.ok(html.includes(editAll ? "Αποθήκευση Περιγραφή" : "Αντιγραφή Περιγραφή"));
           assert.ok(html.includes(editAll?"Αποθήκευση Αριθμός ζημιάς":"Επεξεργασία Αριθμός ζημιάς"));
         }

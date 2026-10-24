@@ -1,3 +1,5 @@
+import { claimKindOptions } from "../components/profile/claimProfile";
+import type { ClaimKindRow } from "../components/profile/ClaimDossierDialogs";
 import { ClaimListFilters, ClaimListTableFrame } from "../components/ClaimListLayout";
 import { useEffect, useMemo, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
@@ -42,7 +44,7 @@ import { SavedReportsButton } from "../components/SavedReportsButton";
 import { UnifiedActionsMenu, type UnifiedExportAction } from "../components/UnifiedActionsMenu";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
-type ClaimStatus = "Reported" | "UnderReview" | "Approved" | "Rejected" | "Paid" | "Closed";
+type ClaimStatus = "Pending" | "InProgress" | "Settled" | "Reported" | "UnderReview" | "Approved" | "Rejected" | "Paid" | "Closed";
 
 interface ClaimDto {
   id: string;
@@ -116,6 +118,9 @@ function useMemoAllowed(
 }
 
 const STATUS_COLOR: Record<ClaimStatus, "default" | "info" | "warning" | "success" | "error"> = {
+  Pending:"warning",
+  InProgress:"info",
+  Settled:"success",
   Reported: "info",
   UnderReview: "warning",
   Approved: "success",
@@ -279,7 +284,7 @@ export function ClaimsPage() {
   const claimAdvancedFilters = <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, pt: .5 }}>
                 <SearchableTextField size="small" label={t("claims.col.status")} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ClaimStatus | "")}>
                   <MenuItem value="">Όλες οι καταστάσεις</MenuItem>
-                  {(["Reported", "UnderReview", "Approved", "Rejected", "Paid", "Closed"] as const).map(s => <MenuItem key={s} value={s}>{t(`claims.statuses.${s}`)}</MenuItem>)}
+                  {(["Pending", "Reported", "InProgress", "UnderReview", "Approved", "Settled", "Rejected", "Paid", "Closed"] as const).map(s => <MenuItem key={s} value={s}>{({Pending:"Σε αναμονή",InProgress:"Σε εξέλιξη",Settled:"Διακανονισμένη"} as Record<string,string>)[s]??t(`claims.statuses.${s}`)}</MenuItem>)}
                 </SearchableTextField>
                 <TextField select size="small" label="Χρονικό διάστημα" value={dateWindow} onChange={event => setDateWindow(event.target.value as typeof dateWindow)}>
                   <MenuItem value="">Όλο το διάστημα</MenuItem>{["7", "30", "90"].map(days => <MenuItem key={days} value={days}>Τελευταίες {days} ημέρες</MenuItem>)}
@@ -434,7 +439,7 @@ export function ClaimsPage() {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip label={t(`claims.statuses.${c.status}`)} color={STATUS_COLOR[c.status]} size="small" />
+                      <Chip label={({Pending:"Σε αναμονή",InProgress:"Σε εξέλιξη",Settled:"Διακανονισμένη"} as Record<string,string>)[c.status]??t(`claims.statuses.${c.status}`)} color={STATUS_COLOR[c.status]} size="small" />
                     </TableCell>
                     {canEdit && (
                       <TableCell align="right">
@@ -472,7 +477,7 @@ export function ClaimsPage() {
           <CreateClaimDialog
             open={createOpen}
             onClose={() => setCreateOpen(false)}
-            onSaved={() => { void qc.invalidateQueries({ queryKey: ["claims"] }); setCreateOpen(false); }}
+            onSaved={(created) => { void qc.invalidateQueries({ queryKey: ["claims"] }); setCreateOpen(false); openClaimCard(created,true); }}
           />
         </>
       )}
@@ -496,7 +501,7 @@ export function ClaimsPage() {
 function CreateClaimDialog({ open, onClose, onSaved }: {
   open: boolean;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (created:ClaimDto) => void;
 }) {
   const { t } = useTranslation();
   const policiesQuery = useQuery({
@@ -507,6 +512,7 @@ function CreateClaimDialog({ open, onClose, onSaved }: {
 
   const [form, setForm] = useState({
     policyId: "",
+    kind:"",
     incidentDate: new Date().toISOString().slice(0, 10),
     claimedAmount: 0,
     description: ""
@@ -515,8 +521,10 @@ function CreateClaimDialog({ open, onClose, onSaved }: {
 
   useEffect(() => {
     if (open) {
+      setError(null);
       setForm({
         policyId: "",
+        kind:"",
         incidentDate: new Date().toISOString().slice(0, 10),
         claimedAmount: 0,
         description: ""
@@ -524,10 +532,15 @@ function CreateClaimDialog({ open, onClose, onSaved }: {
     }
   }, [open]);
 
+  const kinds=useQuery({queryKey:["claim-kinds"],enabled:open,queryFn:async()=>(await api.get<ClaimKindRow[]>("/claim-kinds",{params:{all:true}})).data});
+  const branch=policiesQuery.data?.find(p=>p.id===form.policyId)?.policyType||"";const kindOptions=claimKindOptions(kinds.data??[],branch);
+  useEffect(()=>{if(!form.policyId||!kindOptions.length)return;if(!kindOptions.some(k=>k.value===form.kind)){const preferred=branch==="Auto"?"VehicleDamage":"Other";setForm(current=>({...current,kind:kindOptions.find(k=>k.value===preferred)?.value??kindOptions[0].value}));}},[form.policyId,form.kind,branch,kinds.data]);
+
   const save = useMutation({
     mutationFn: async () =>
       (await api.post<ClaimDto>("/claims", {
         policyId: form.policyId,
+        kind:form.kind||null,
         incidentDate: form.incidentDate,
         reportedDate: new Date().toISOString().slice(0, 10),
         claimedAmount: form.claimedAmount > 0 ? form.claimedAmount : null,
@@ -537,17 +550,18 @@ function CreateClaimDialog({ open, onClose, onSaved }: {
     onError: (err) => setError(extractErrorMessage(err))
   });
 
+  const requestClose=()=>{if(save.isPending)return;if((form.policyId||form.description.trim()||form.claimedAmount>0)&&!window.confirm("Έχετε μη αποθηκευμένα στοιχεία ζημιάς. Θέλετε να κλείσετε χωρίς αποθήκευση;"))return;onClose();};
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={requestClose} fullWidth maxWidth="sm">
       <DialogTitle>{t("claims.form.createTitle")}</DialogTitle>
       <DialogContent>
         {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
-        <Stack spacing={2.5} mt={1}>
+        <Stack spacing={1.25} mt={1}>
           <SearchableTextField
             select required fullWidth
             label={t("claims.form.policy")}
             value={form.policyId}
-            onChange={(e) => setForm({ ...form, policyId: e.target.value })}
+            onChange={(e) => setForm({ ...form, policyId: e.target.value,kind:"" })}
           >
             {(policiesQuery.data ?? []).map((p) => (
               <MenuItem key={p.id} value={p.id}>
@@ -555,6 +569,7 @@ function CreateClaimDialog({ open, onClose, onSaved }: {
               </MenuItem>
             ))}
           </SearchableTextField>
+          <SearchableTextField select label="Είδος ζημιάς" value={form.kind} onChange={e=>setForm({...form,kind:e.target.value})} fullWidth required>{kindOptions.map(option=><MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}</SearchableTextField>
           <TextField
             type="date" label={t("claims.form.incidentDate")}
             InputLabelProps={{ shrink: true }} value={form.incidentDate}
@@ -571,14 +586,14 @@ function CreateClaimDialog({ open, onClose, onSaved }: {
           <TextField
             label={t("claims.form.description")} value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
-            fullWidth multiline rows={4}
+            fullWidth multiline rows={2}
             helperText={t("claims.form.descriptionHelp")}
           />
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>{t("common.cancel")}</Button>
-        <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending || !form.policyId}>
+        <Button variant="contained" color="error" onClick={requestClose}>{t("common.cancel")}</Button>
+        <Button variant="contained" color="success" onClick={() => save.mutate()} disabled={save.isPending || !form.policyId || !form.kind}>
           {save.isPending ? <CircularProgress size={18} /> : t("common.create")}
         </Button>
       </DialogActions>

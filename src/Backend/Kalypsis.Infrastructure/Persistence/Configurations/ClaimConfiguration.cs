@@ -18,6 +18,9 @@ public class ClaimConfiguration : IEntityTypeConfiguration<Claim>
         b.Property(x => x.Kind).HasMaxLength(40);
         b.Property(x => x.Currency).HasMaxLength(3);
         b.Property(x => x.Description).HasMaxLength(2000);
+        b.HasOne(x=>x.Garage).WithMany().HasForeignKey(x=>x.GarageId).OnDelete(DeleteBehavior.Restrict);
+        foreach(var name in new[]{"CarrierClaimNumber","IncidentTime","IncidentLocation","IncidentCity","IncidentCause","PoliceStation","PoliceReportNumber","AssessorName","AssessorPhone","AssessorEmail","CarrierContactName","CarrierContactPhone"})b.Property<string?>(name).HasMaxLength(300);
+        b.Property(x=>x.DamageDescription).HasMaxLength(4000);
 
         b.HasOne(x => x.Policy).WithMany(p => p.Claims).HasForeignKey(x => x.PolicyId).OnDelete(DeleteBehavior.Restrict);
         b.HasIndex(x => new { x.TenantId, x.ClaimNumber }).IsUnique();
@@ -44,4 +47,13 @@ public class ClaimInvolvedPartyConfiguration : IEntityTypeConfiguration<ClaimInv
         b.HasOne(x => x.Claim).WithMany().HasForeignKey(x => x.ClaimId).OnDelete(DeleteBehavior.Cascade);
         b.HasIndex(x => new { x.TenantId, x.ClaimId });
     }
+}
+
+public class ClaimKindConfiguration : IEntityTypeConfiguration<ClaimKind>
+{
+ public void Configure(EntityTypeBuilder<ClaimKind> b){b.ToTable("claim_kinds");b.HasKey(x=>x.Id);b.Property(x=>x.Code).HasMaxLength(60);b.Property(x=>x.Name).HasMaxLength(160);b.Property(x=>x.BranchCode).HasMaxLength(60);b.HasIndex(x=>new{x.TenantId,x.Code,x.BranchCode}).IsUnique();}
+}
+public class ClaimAttachmentConfiguration : IEntityTypeConfiguration<ClaimAttachment>
+{
+ public void Configure(EntityTypeBuilder<ClaimAttachment> b){b.ToTable("claim_attachments");b.HasKey(x=>x.Id);b.Property(x=>x.Title).HasMaxLength(200);b.Property(x=>x.FileName).HasMaxLength(200);b.Property(x=>x.StoragePath).HasMaxLength(500);b.Property(x=>x.DocumentKind).HasMaxLength(40);b.Property(x=>x.MimeType).HasMaxLength(160);b.Property(x=>x.Notes).HasMaxLength(2000);b.HasOne(x=>x.Claim).WithMany().HasForeignKey(x=>x.ClaimId).OnDelete(DeleteBehavior.Restrict);b.HasIndex(x=>new{x.TenantId,x.ClaimId});}
 }

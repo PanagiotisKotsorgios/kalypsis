@@ -5,6 +5,29 @@ namespace Kalypsis.Domain.Entities;
 
 public class Claim : TenantEntity
 {
+    public string? CarrierClaimNumber { get; set; }
+    public string? IncidentTime { get; set; }
+    public string? IncidentLocation { get; set; }
+    public string? IncidentCity { get; set; }
+    public string? IncidentCause { get; set; }
+    public string? DamageDescription { get; set; }
+    public bool? PoliceInvolved { get; set; }
+    public string? PoliceStation { get; set; }
+    public string? PoliceReportNumber { get; set; }
+    public Guid? GarageId { get; set; }
+    public Garage? Garage { get; set; }
+    public string? AssessorName { get; set; }
+    public string? AssessorPhone { get; set; }
+    public string? AssessorEmail { get; set; }
+    public string? CarrierContactName { get; set; }
+    public string? CarrierContactPhone { get; set; }
+    public DateOnly? ReportedToCarrierDate { get; set; }
+    public DateOnly? InspectionDate { get; set; }
+    public DateOnly? RepairStartedDate { get; set; }
+    public DateOnly? RepairCompletedDate { get; set; }
+    public DateOnly? NextActionDate { get; set; }
+    public DateOnly? ClosedDate { get; set; }
+
     public string Kind { get; set; } = "VehicleDamage";
     public decimal? SettledAmount { get; set; }
     public string Currency { get; set; } = "EUR";
