@@ -1,4 +1,4 @@
-using System.Linq.Expressions;
+﻿using System.Linq.Expressions;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Domain.Common;
 using Kalypsis.Domain.Entities;
@@ -25,6 +25,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<CustomerRelationship> CustomerRelationships => Set<CustomerRelationship>();
     public DbSet<CustomerInsuranceNeed> CustomerInsuranceNeeds => Set<CustomerInsuranceNeed>();
+    public DbSet<ProducerCardEntry> ProducerCardEntries => Set<ProducerCardEntry>();
     public DbSet<Producer> Producers => Set<Producer>();
     public DbSet<VehicleOwnershipRegister> VehicleOwnershipRegisters => Set<VehicleOwnershipRegister>();
     public DbSet<PartnerNetwork> PartnerNetworks => Set<PartnerNetwork>();
@@ -636,15 +637,15 @@ public class AppDbContext : DbContext, IAppDbContext
                     .ToList();
                 if (changed.Count > 0)
                 {
-                    oldValuesJson = JsonSerialize(changed.ToDictionary(p => p.Metadata.Name, p => RedactIfSensitive(p.Metadata.Name, p.OriginalValue)));
-                    newValuesJson = JsonSerialize(changed.ToDictionary(p => p.Metadata.Name, p => RedactIfSensitive(p.Metadata.Name, p.CurrentValue)));
+                    oldValuesJson = JsonSerialize(changed.ToDictionary(p => p.Metadata.Name, p => RedactIfSensitive(p.Metadata.Name, ProducerAuditValue(p, p.OriginalValue))));
+                    newValuesJson = JsonSerialize(changed.ToDictionary(p => p.Metadata.Name, p => RedactIfSensitive(p.Metadata.Name, ProducerAuditValue(p, p.CurrentValue))));
                 }
             }
             else if (entry.State == EntityState.Added)
             {
                 newValuesJson = JsonSerialize(entry.Properties
                     .Where(p => p.CurrentValue is not null && !IsAuditExcluded(p))
-                    .ToDictionary(p => p.Metadata.Name, p => RedactIfSensitive(p.Metadata.Name, p.CurrentValue)));
+                    .ToDictionary(p => p.Metadata.Name, p => RedactIfSensitive(p.Metadata.Name, ProducerAuditValue(p, p.CurrentValue))));
             }
 
             list.Add(new AuditLog
@@ -701,6 +702,13 @@ public class AppDbContext : DbContext, IAppDbContext
             || n.Equals("ImageBytes", StringComparison.Ordinal))
             return true;
         return false;
+    }
+
+    private static object? ProducerAuditValue(Microsoft.EntityFrameworkCore.ChangeTracking.PropertyEntry property, object? value)
+    {
+        if(property.EntityEntry.Entity is ProducerCardEntry && property.Metadata.Name==nameof(ProducerCardEntry.DataJson) && value is string json)
+            return System.Text.Json.JsonSerializer.Serialize(ProducerEntrySchema.Public(ProducerEntrySchema.Read(json)));
+        return value;
     }
 
     private static object? RedactIfSensitive(string propertyName, object? value)

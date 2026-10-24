@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Snackbar, Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Tooltip, Typography } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
@@ -82,7 +82,7 @@ export function ProducerContactFields({ producerId, values, session, fields, loa
 interface Communication { id: string; occurredAt: string; kind: number; outcome: number; subject: string; body: string | null }
 const kinds: Record<number, string> = { 1: "Σημείωση", 2: "Τηλέφωνο", 3: "Email", 4: "Συνάντηση", 5: "SMS", 6: "Επίσκεψη" };
 const outcomes: Record<number, string> = { 0: "Χωρίς αποτέλεσμα", 1: "Ολοκληρώθηκε", 2: "Απαιτείται συνέχεια", 3: "Δεν απάντησε", 4: "Ακυρώθηκε" };
-function ProducerCommunicationHistory({ producerId, open, onClose }: { producerId: string; open: boolean; onClose: () => void }) {
+export function ProducerCommunicationHistory({ producerId, open, onClose }: { producerId: string; open: boolean; onClose: () => void }) {
   const [search, setSearch] = useState(""), [page, setPage] = useState(0);
   const q = useQuery({ queryKey: ["producer-communications", producerId], enabled: open,
     queryFn: async () => (await api.get<Communication[]>(`/crm/producers/${producerId}/communications`)).data });

@@ -1,4 +1,4 @@
-using Kalypsis.Application.Abstractions;
+﻿using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
 using Kalypsis.Domain.Entities;
 using Kalypsis.Domain.Enums;
@@ -289,8 +289,8 @@ public class GetMyRateComparisonHandler
         foreach (var key in keys)
         {
             var (companyId, packageType, vehicleUse) = key;
-            var myRate = mine.FirstOrDefault(m =>
-                m.InsuranceCompanyId == companyId && m.PolicyType == packageType && m.VehicleUseCategory == vehicleUse);
+            var scopedRates = mine.Where(m => m.InsuranceCompanyId == companyId && m.PolicyType == packageType && m.VehicleUseCategory == vehicleUse).OrderByDescending(m => m.EffectiveFrom ?? DateOnly.MinValue).ThenByDescending(m => m.CreatedAt).ToList();
+            var myRate = scopedRates.FirstOrDefault();
             var agencyRule = agency.FirstOrDefault(a =>
                 a.InsuranceCompanyId == companyId && a.PolicyType == packageType && a.VehicleUseCategory == vehicleUse);
 
@@ -303,7 +303,7 @@ public class GetMyRateComparisonHandler
                 (!vehicleUse.HasValue     || p.VehicleUseCategory == vehicleUse)
             ).ToList();
             var premiumTotal = scopedPolicies.Sum(p => p.Premium);
-            var myAmount = decimal.Round(premiumTotal * (myRate?.ExpectedPercent ?? 0m) / 100m, 2);
+            var myAmount = scopedPolicies.Sum(p => decimal.Round(p.Premium * (scopedRates.FirstOrDefault(m => (!m.EffectiveFrom.HasValue || m.EffectiveFrom <= p.StartDate) && (!m.EffectiveTo.HasValue || m.EffectiveTo >= p.StartDate))?.ExpectedPercent ?? 0m) / 100m, 2));
             var agencyAmount = decimal.Round(premiumTotal * (agencyPct ?? 0m) / 100m, 2);
             var diff = decimal.Round(myAmount - agencyAmount, 2);
 
@@ -319,7 +319,7 @@ public class GetMyRateComparisonHandler
 
             result.Add(new ProducerRateComparisonRow(
                 companyId, carrierLabel, packageType, vehicleUse,
-                myRate?.ExpectedPercent, agencyPct,
+                premiumTotal != 0 && scopedRates.Count > 1 ? decimal.Round(myAmount / premiumTotal * 100m, 2) : myRate?.ExpectedPercent, agencyPct,
                 scopedPolicies.Count, premiumTotal,
                 myAmount, agencyAmount, diff, status));
         }

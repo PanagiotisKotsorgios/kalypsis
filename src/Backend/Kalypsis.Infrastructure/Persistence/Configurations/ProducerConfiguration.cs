@@ -1,4 +1,4 @@
-using Kalypsis.Domain.Entities;
+﻿using Kalypsis.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -51,5 +51,14 @@ public class ProducerConfiguration : IEntityTypeConfiguration<Producer>
         b.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
         b.HasOne<ProducerCategory>().WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
         b.HasIndex(x => new { x.TenantId, x.ParentProducerId });
+    }
+}
+
+public sealed class ProducerCardEntryConfiguration : IEntityTypeConfiguration<ProducerCardEntry>
+{
+    public void Configure(EntityTypeBuilder<ProducerCardEntry> b)
+    {
+        b.ToTable("producer_card_entries");b.HasKey(x=>x.Id);b.Property(x=>x.Kind).HasMaxLength(40);b.Property(x=>x.DataJson).HasColumnType("longtext").HasConversion(new Kalypsis.Infrastructure.Persistence.EncryptedStringConverter());
+        b.HasIndex(x=>new{x.TenantId,x.ProducerId,x.Kind});b.HasOne<Producer>().WithMany().HasForeignKey(x=>x.ProducerId).OnDelete(DeleteBehavior.Restrict);
     }
 }

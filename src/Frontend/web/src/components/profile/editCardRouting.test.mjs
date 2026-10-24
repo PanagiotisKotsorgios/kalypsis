@@ -28,6 +28,7 @@ test("list edit actions use the same record cards and existing save pipelines", 
     const claim = { id: "CL1", claimNumber: "CL1", policyId: "POL1", policyNumber: "POL1", customerDisplay: "Πελάτης", incidentDate: "2026-01-01", reportedDate: "2026-01-02", status: "Reported", claimedAmount: 100, approvedAmount: 0, description: "Περιγραφή" };
     client.setQueryData(["policy-detail", "POL1"], policy);
     client.setQueryData(["producer-detail", "P1"], producer);
+    client.setQueryData(["producer-card","P1"],{id:"P1",values:{code:"P1",name:"Συνεργάτης",status:"Active",hierarchyLevel:"Producer",tier:"None"},createdAt:"2026-01-01"});
     await context.test("policy, producer and claim cards open directly with enabled fields and Save All, without replacing their layouts", () => {
       for (const [Component, props, editable] of [
         [PolicyDetailDrawer, { policyId: "POL1", open: true, presentation: "modal", onClose() {} }, { readOnly: false }],

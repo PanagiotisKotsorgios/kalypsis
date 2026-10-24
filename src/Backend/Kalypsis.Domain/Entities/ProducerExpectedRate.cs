@@ -1,4 +1,4 @@
-using Kalypsis.Domain.Common;
+﻿using Kalypsis.Domain.Common;
 using Kalypsis.Domain.Enums;
 
 namespace Kalypsis.Domain.Entities;
@@ -30,6 +30,8 @@ public class ProducerExpectedRate : TenantEntity
 
     /// <summary>Rate the producer expects, 0-100.</summary>
     public decimal ExpectedPercent { get; set; }
+    public DateOnly? EffectiveFrom {get;set;}
+    public DateOnly? EffectiveTo {get;set;}
 
     public string? Notes { get; set; }
 }

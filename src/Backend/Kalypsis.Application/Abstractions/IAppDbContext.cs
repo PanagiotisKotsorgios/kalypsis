@@ -1,4 +1,4 @@
-using Kalypsis.Domain.Entities;
+﻿using Kalypsis.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Kalypsis.Application.Abstractions;
@@ -11,6 +11,7 @@ public interface IAppDbContext
     DbSet<Customer> Customers { get; }
     DbSet<CustomerRelationship> CustomerRelationships { get; }
     DbSet<CustomerInsuranceNeed> CustomerInsuranceNeeds { get; }
+    DbSet<ProducerCardEntry> ProducerCardEntries {get;}
     DbSet<Producer> Producers { get; }
     DbSet<PartnerNetwork> PartnerNetworks { get; }
     DbSet<PartnerNetworkMember> PartnerNetworkMembers { get; }

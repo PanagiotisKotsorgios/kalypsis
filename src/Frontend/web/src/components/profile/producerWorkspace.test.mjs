@@ -115,12 +115,12 @@ test("producer workspace keeps contact editing, red debts and filtered live stat
       assert.ok(empty.includes("Δεν υπάρχουν δεδομένα"));
     });
     await context.test("statistics are a footer button before edit, not a nav tab; contacts use persisted endpoints", async () => {
-      const source = await readFile(new URL("../ProducerDetailDrawer.tsx", import.meta.url), "utf8");
+      const source = await readFile(new URL("./ProducerUnifiedCard.tsx", import.meta.url), "utf8");
       const nav = source.slice(source.indexOf("<DetailProfileTabs"), source.indexOf("<ProfileEditorFeedback"));
-      assert.ok(nav.includes('label: "Παραγωγή"')); assert.ok(!nav.includes('label: "Στατιστικά"')); assert.ok(!source.includes('Παραγωγή & συμβόλαια'));
+      const schema=JSON.parse(await readFile(new URL("./producer-card-layout.json",import.meta.url),"utf8")); assert.ok(schema.tabs.some(t=>t.label==="Παραγωγή")); assert.ok(!nav.includes('label: "Στατιστικά"')); assert.ok(!source.includes('Παραγωγή & συμβόλαια'));
       const footer = source.slice(source.indexOf("<DialogActions"));
       assert.ok(footer.indexOf(">Στατιστικά</Button>") < footer.indexOf("<ProfileEditorActions"));
-      assert.ok(source.includes('accept([key])')); assert.ok(source.includes('"contact:" + row.id')); assert.ok(source.includes('<ProducerContactFields'));
+      assert.ok(source.includes("accept(Object.keys(changes))")); assert.ok(source.includes("<ProducerCardTable")); assert.ok(schema.tables.some(t=>t.key==="contacts"&&t.section==="communication"));
       const stats = await readFile(new URL("../ProducerStatisticsDialog.tsx", import.meta.url), "utf8");
       assert.ok(stats.includes('["producer-statistics", producerId, params]')); assert.ok(stats.includes('refetchInterval: open && valid ? producerStatisticsRefreshMs : false'));
     });

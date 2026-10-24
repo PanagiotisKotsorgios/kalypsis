@@ -12210,6 +12210,48 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.ToTable("producers", (string)null);
                 });
 
+            modelBuilder.Entity("Kalypsis.Domain.Entities.ProducerCardEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("AgencyOfficeScopeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("DataJson")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<Guid>("ProducerId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProducerId");
+
+                    b.HasIndex("TenantId", "ProducerId", "Kind");
+
+                    b.ToTable("producer_card_entries", (string)null);
+                });
+
             modelBuilder.Entity("Kalypsis.Domain.Entities.ProducerCategory", b =>
                 {
                     b.Property<Guid>("Id")
@@ -12398,6 +12440,12 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<DateOnly?>("EffectiveFrom")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date");
 
                     b.Property<decimal>("ExpectedPercent")
                         .HasColumnType("decimal(7,2)");
@@ -17784,6 +17832,15 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("ParentProducer");
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.ProducerCardEntry", b =>
+                {
+                    b.HasOne("Kalypsis.Domain.Entities.Producer", null)
+                        .WithMany()
+                        .HasForeignKey("ProducerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.ProducerCommissionDeclaration", b =>

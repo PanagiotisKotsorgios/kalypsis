@@ -1,0 +1,2032 @@
+{
+  "version": 1,
+  "tabs": [
+    {
+      "key": "general",
+      "label": "Καρτέλα Συνεργάτη"
+    },
+    {
+      "key": "additional",
+      "label": "Πρόσθετα στοιχεία"
+    },
+    {
+      "key": "communication",
+      "label": "Επικοινωνία"
+    },
+    {
+      "key": "cooperation",
+      "label": "Συνεργασία"
+    },
+    {
+      "key": "network",
+      "label": "Δίκτυο"
+    },
+    {
+      "key": "production",
+      "label": "Παραγωγή"
+    },
+    {
+      "key": "financial",
+      "label": "Οικονομικά"
+    },
+    {
+      "key": "commissions",
+      "label": "Προμήθειες"
+    },
+    {
+      "key": "credit",
+      "label": "Πιστωτικά όρια"
+    },
+    {
+      "key": "companies",
+      "label": "Εταιρείες"
+    },
+    {
+      "key": "compliance",
+      "label": "Συμμόρφωση"
+    },
+    {
+      "key": "access",
+      "label": "Πρόσβαση"
+    },
+    {
+      "key": "goals",
+      "label": "Στόχοι"
+    },
+    {
+      "key": "documents",
+      "label": "Έγγραφα"
+    },
+    {
+      "key": "history",
+      "label": "Ιστορικό"
+    }
+  ],
+  "fields": [
+    {
+      "key": "code",
+      "label": "Κωδικός συνεργάτη",
+      "section": "general",
+      "column": 0,
+      "desktop": "Code",
+      "web": "Code",
+      "kind": "text"
+    },
+    {
+      "key": "name",
+      "label": "Ονοματεπώνυμο / επωνυμία",
+      "section": "general",
+      "column": 0,
+      "desktop": "Name",
+      "web": "Name",
+      "kind": "text"
+    },
+    {
+      "key": "taxId",
+      "label": "ΑΦΜ",
+      "section": "general",
+      "column": 0,
+      "desktop": "AfmVat",
+      "web": "TaxId",
+      "kind": "vat"
+    },
+    {
+      "key": "taxOffice",
+      "label": "Δ.Ο.Υ.",
+      "section": "general",
+      "column": 0,
+      "desktop": "TaxOffice",
+      "web": "TaxOffice",
+      "kind": "text"
+    },
+    {
+      "key": "personKind",
+      "label": "Τύπος προσώπου",
+      "section": "general",
+      "column": 0,
+      "desktop": "PersonKind",
+      "web": "$personKind",
+      "kind": "text",
+      "choices": [
+        {
+          "value": "Individual",
+          "label": "Φυσικό πρόσωπο"
+        },
+        {
+          "value": "Company",
+          "label": "Νομικό πρόσωπο"
+        }
+      ]
+    },
+    {
+      "key": "businessType",
+      "label": "Τύπος επιχείρησης",
+      "section": "general",
+      "column": 0,
+      "desktop": "$businessType",
+      "web": "BusinessType",
+      "kind": "text"
+    },
+    {
+      "key": "professionalCapacity",
+      "label": "Επαγγελματική ιδιότητα",
+      "section": "general",
+      "column": 0,
+      "desktop": "ProfessionalCapacity",
+      "web": "$professionalCapacity",
+      "kind": "text"
+    },
+    {
+      "key": "identityNumber",
+      "label": "Αριθμός ταυτότητας",
+      "section": "general",
+      "column": 0,
+      "desktop": "IdNumber",
+      "web": "IdentityNumber",
+      "kind": "text"
+    },
+    {
+      "key": "status",
+      "label": "Κατάσταση",
+      "section": "general",
+      "column": 1,
+      "desktop": "@Status",
+      "web": "Status",
+      "kind": "status"
+    },
+    {
+      "key": "categoryId",
+      "label": "Κατηγορία συνεργάτη",
+      "section": "general",
+      "column": 1,
+      "desktop": "$categoryId",
+      "web": "CategoryId",
+      "kind": "category"
+    },
+    {
+      "key": "professionalCategory",
+      "label": "Επαγγελματική κατηγορία",
+      "section": "general",
+      "column": 1,
+      "desktop": "PartnerCategory",
+      "web": "ProfessionalCategory",
+      "kind": "text"
+    },
+    {
+      "key": "email",
+      "label": "Email",
+      "section": "general",
+      "column": 1,
+      "desktop": "Email",
+      "web": "Email",
+      "kind": "email"
+    },
+    {
+      "key": "phone",
+      "label": "Τηλέφωνο",
+      "section": "general",
+      "column": 1,
+      "desktop": "Phone",
+      "web": "Phone",
+      "kind": "phone"
+    },
+    {
+      "key": "address",
+      "label": "Διεύθυνση",
+      "section": "general",
+      "column": 1,
+      "desktop": "HomeAddress",
+      "web": "Address",
+      "kind": "text"
+    },
+    {
+      "key": "city",
+      "label": "Πόλη",
+      "section": "general",
+      "column": 1,
+      "desktop": "HomeCity",
+      "web": "City",
+      "kind": "text"
+    },
+    {
+      "key": "postalCode",
+      "label": "Ταχ. κώδικας",
+      "section": "general",
+      "column": 1,
+      "desktop": "HomePostalCode",
+      "web": "PostalCode",
+      "kind": "postal"
+    },
+    {
+      "key": "title",
+      "label": "Τίτλος",
+      "section": "additional",
+      "column": 0,
+      "desktop": "Title",
+      "web": "$title",
+      "kind": "text"
+    },
+    {
+      "key": "fatherName",
+      "label": "Πατρώνυμο",
+      "section": "additional",
+      "column": 0,
+      "desktop": "FatherName",
+      "web": "$fatherName",
+      "kind": "text"
+    },
+    {
+      "key": "gender",
+      "label": "Φύλο",
+      "section": "additional",
+      "column": 0,
+      "desktop": "Gender",
+      "web": "$gender",
+      "kind": "text",
+      "choices": [
+        {
+          "value": "Male",
+          "label": "Άνδρας"
+        },
+        {
+          "value": "Female",
+          "label": "Γυναίκα"
+        },
+        {
+          "value": "Other",
+          "label": "Άλλο"
+        }
+      ]
+    },
+    {
+      "key": "birthDate",
+      "label": "Ημερομηνία γέννησης",
+      "section": "additional",
+      "column": 0,
+      "desktop": "BirthDate",
+      "web": "$birthDate",
+      "kind": "date"
+    },
+    {
+      "key": "passportNumber",
+      "label": "Διαβατήριο",
+      "section": "additional",
+      "column": 0,
+      "desktop": "PassportNumber",
+      "web": "$passportNumber",
+      "kind": "text"
+    },
+    {
+      "key": "idIssuingAuthority",
+      "label": "Αρχή έκδοσης ταυτότητας",
+      "section": "additional",
+      "column": 0,
+      "desktop": "IdIssuingAuthority",
+      "web": "$idIssuingAuthority",
+      "kind": "text"
+    },
+    {
+      "key": "educationLevel",
+      "label": "Εκπαίδευση",
+      "section": "additional",
+      "column": 0,
+      "desktop": "EducationLevel",
+      "web": "$educationLevel",
+      "kind": "text"
+    },
+    {
+      "key": "photoUrl",
+      "label": "Διεύθυνση φωτογραφίας",
+      "section": "additional",
+      "column": 0,
+      "desktop": "PhotoUrl",
+      "web": "$photoUrl",
+      "kind": "url"
+    },
+    {
+      "key": "activityCode",
+      "label": "Κωδικός δραστηριότητας",
+      "section": "additional",
+      "column": 1,
+      "desktop": "ActivityCode",
+      "web": "$activityCode",
+      "kind": "integer"
+    },
+    {
+      "key": "activityLabel",
+      "label": "Περιγραφή δραστηριότητας",
+      "section": "additional",
+      "column": 1,
+      "desktop": "ActivityLabel",
+      "web": "$activityLabel",
+      "kind": "text"
+    },
+    {
+      "key": "grade",
+      "label": "Αριθμός βαθμίδας",
+      "section": "additional",
+      "column": 1,
+      "desktop": "Grade",
+      "web": "$grade",
+      "kind": "integer"
+    },
+    {
+      "key": "gradeLabel",
+      "label": "Περιγραφή βαθμίδας",
+      "section": "additional",
+      "column": 1,
+      "desktop": "GradeLabel",
+      "web": "$gradeLabel",
+      "kind": "text"
+    },
+    {
+      "key": "cardNumber",
+      "label": "Αριθμός επαγγελματικής κάρτας",
+      "section": "additional",
+      "column": 1,
+      "desktop": "CardNumber",
+      "web": "$cardNumber",
+      "kind": "text"
+    },
+    {
+      "key": "cardExpiry",
+      "label": "Λήξη επαγγελματικής κάρτας",
+      "section": "additional",
+      "column": 1,
+      "desktop": "CardExpiry",
+      "web": "$cardExpiry",
+      "kind": "date"
+    },
+    {
+      "key": "notes",
+      "label": "Σημειώσεις",
+      "section": "additional",
+      "column": 1,
+      "desktop": "Notes",
+      "web": "Notes",
+      "kind": "multiline"
+    },
+    {
+      "key": "secondaryEmail",
+      "label": "Δεύτερο email",
+      "section": "communication",
+      "column": 0,
+      "desktop": "HomeEmail",
+      "web": "SecondaryEmail",
+      "kind": "email"
+    },
+    {
+      "key": "secondaryPhone",
+      "label": "Δεύτερο τηλέφωνο",
+      "section": "communication",
+      "column": 0,
+      "desktop": "HomePhone",
+      "web": "SecondaryPhone",
+      "kind": "phone"
+    },
+    {
+      "key": "homeMobile",
+      "label": "Κινητό",
+      "section": "communication",
+      "column": 0,
+      "desktop": "HomeMobile",
+      "web": "$homeMobile",
+      "kind": "phone"
+    },
+    {
+      "key": "homeArea",
+      "label": "Περιοχή",
+      "section": "communication",
+      "column": 0,
+      "desktop": "HomeArea",
+      "web": "$homeArea",
+      "kind": "text"
+    },
+    {
+      "key": "homeFax",
+      "label": "Fax",
+      "section": "communication",
+      "column": 0,
+      "desktop": "HomeFax",
+      "web": "$homeFax",
+      "kind": "phone"
+    },
+    {
+      "key": "website",
+      "label": "Ιστότοπος",
+      "section": "communication",
+      "column": 0,
+      "desktop": "WebsiteUrl",
+      "web": "Website",
+      "kind": "url"
+    },
+    {
+      "key": "facebookUrl",
+      "label": "Facebook",
+      "section": "communication",
+      "column": 0,
+      "desktop": "FacebookUrl",
+      "web": "$facebookUrl",
+      "kind": "url"
+    },
+    {
+      "key": "communicationNotes",
+      "label": "Σημειώσεις επικοινωνίας",
+      "section": "communication",
+      "column": 0,
+      "desktop": "CommunicationNotes",
+      "web": "$communicationNotes",
+      "kind": "multiline"
+    },
+    {
+      "key": "workAddress",
+      "label": "Διεύθυνση εργασίας",
+      "section": "communication",
+      "column": 1,
+      "desktop": "WorkAddress",
+      "web": "$workAddress",
+      "kind": "text"
+    },
+    {
+      "key": "workArea",
+      "label": "Περιοχή εργασίας",
+      "section": "communication",
+      "column": 1,
+      "desktop": "WorkArea",
+      "web": "$workArea",
+      "kind": "text"
+    },
+    {
+      "key": "workCity",
+      "label": "Πόλη εργασίας",
+      "section": "communication",
+      "column": 1,
+      "desktop": "WorkCity",
+      "web": "$workCity",
+      "kind": "text"
+    },
+    {
+      "key": "workPostalCode",
+      "label": "Τ.Κ. εργασίας",
+      "section": "communication",
+      "column": 1,
+      "desktop": "WorkPostalCode",
+      "web": "$workPostalCode",
+      "kind": "postal"
+    },
+    {
+      "key": "workPhone",
+      "label": "Τηλέφωνο εργασίας",
+      "section": "communication",
+      "column": 1,
+      "desktop": "WorkPhone",
+      "web": "$workPhone",
+      "kind": "phone"
+    },
+    {
+      "key": "workMobile",
+      "label": "Κινητό εργασίας",
+      "section": "communication",
+      "column": 1,
+      "desktop": "WorkMobile",
+      "web": "$workMobile",
+      "kind": "phone"
+    },
+    {
+      "key": "workFax",
+      "label": "Fax εργασίας",
+      "section": "communication",
+      "column": 1,
+      "desktop": "WorkFax",
+      "web": "$workFax",
+      "kind": "phone"
+    },
+    {
+      "key": "workEmail",
+      "label": "Email εργασίας",
+      "section": "communication",
+      "column": 1,
+      "desktop": "WorkEmail",
+      "web": "$workEmail",
+      "kind": "email"
+    },
+    {
+      "key": "contactAddress",
+      "label": "Διεύθυνση αλληλογραφίας",
+      "section": "contactExtra",
+      "column": 1,
+      "desktop": "ContactAddress",
+      "web": "$contactAddress",
+      "kind": "text"
+    },
+    {
+      "key": "contactArea",
+      "label": "Περιοχή αλληλογραφίας",
+      "section": "contactExtra",
+      "column": 0,
+      "desktop": "ContactArea",
+      "web": "$contactArea",
+      "kind": "text"
+    },
+    {
+      "key": "contactCity",
+      "label": "Πόλη αλληλογραφίας",
+      "section": "contactExtra",
+      "column": 1,
+      "desktop": "ContactCity",
+      "web": "$contactCity",
+      "kind": "text"
+    },
+    {
+      "key": "contactPostalCode",
+      "label": "Τ.Κ. αλληλογραφίας",
+      "section": "contactExtra",
+      "column": 0,
+      "desktop": "ContactPostalCode",
+      "web": "$contactPostalCode",
+      "kind": "postal"
+    },
+    {
+      "key": "contactPhone",
+      "label": "Τηλέφωνο αλληλογραφίας",
+      "section": "contactExtra",
+      "column": 1,
+      "desktop": "ContactPhone",
+      "web": "$contactPhone",
+      "kind": "phone"
+    },
+    {
+      "key": "contactMobile",
+      "label": "Κινητό αλληλογραφίας",
+      "section": "contactExtra",
+      "column": 0,
+      "desktop": "ContactMobile",
+      "web": "$contactMobile",
+      "kind": "phone"
+    },
+    {
+      "key": "contactFax",
+      "label": "Fax αλληλογραφίας",
+      "section": "contactExtra",
+      "column": 1,
+      "desktop": "ContactFax",
+      "web": "$contactFax",
+      "kind": "phone"
+    },
+    {
+      "key": "contactEmail",
+      "label": "Email αλληλογραφίας",
+      "section": "contactExtra",
+      "column": 0,
+      "desktop": "ContactEmail",
+      "web": "$contactEmail",
+      "kind": "email"
+    },
+    {
+      "key": "hasContract",
+      "label": "Υπογεγραμμένη σύμβαση",
+      "section": "cooperation",
+      "column": 0,
+      "desktop": "HasSignedContract",
+      "web": "HasContract",
+      "kind": "boolean",
+      "choices": [
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "key": "contractNumber",
+      "label": "Αριθμός σύμβασης",
+      "section": "cooperation",
+      "column": 0,
+      "desktop": "ContractNumber",
+      "web": "ContractNumber",
+      "kind": "text"
+    },
+    {
+      "key": "contractStartDate",
+      "label": "Έναρξη συνεργασίας",
+      "section": "cooperation",
+      "column": 0,
+      "desktop": "ContractFrom",
+      "web": "ContractStartDate",
+      "kind": "date"
+    },
+    {
+      "key": "contractEndDate",
+      "label": "Λήξη συνεργασίας",
+      "section": "cooperation",
+      "column": 0,
+      "desktop": "ContractTo",
+      "web": "ContractEndDate",
+      "kind": "date"
+    },
+    {
+      "key": "contractReceivedAt",
+      "label": "Παραλαβή σύμβασης",
+      "section": "cooperation",
+      "column": 0,
+      "desktop": "ContractReceivedAt",
+      "web": "$contractReceivedAt",
+      "kind": "date"
+    },
+    {
+      "key": "insurancePartner",
+      "label": "Συνεργαζόμενη ασφαλιστική",
+      "section": "cooperation",
+      "column": 0,
+      "desktop": "InsurancePartner",
+      "web": "$insurancePartner",
+      "kind": "text"
+    },
+    {
+      "key": "chamber",
+      "label": "Επιμελητήριο",
+      "section": "cooperation",
+      "column": 1,
+      "desktop": "Chamber",
+      "web": "$chamber",
+      "kind": "text"
+    },
+    {
+      "key": "professionalLicenseNumber",
+      "label": "Αριθμός μητρώου / άδειας",
+      "section": "cooperation",
+      "column": 1,
+      "desktop": "RegistryNumber",
+      "web": "ProfessionalLicenseNumber",
+      "kind": "text"
+    },
+    {
+      "key": "registryFrom",
+      "label": "Έναρξη μητρώου",
+      "section": "cooperation",
+      "column": 1,
+      "desktop": "RegistryFrom",
+      "web": "$registryFrom",
+      "kind": "date"
+    },
+    {
+      "key": "licenseExpiryDate",
+      "label": "Λήξη μητρώου / άδειας",
+      "section": "cooperation",
+      "column": 1,
+      "desktop": "RegistryTo",
+      "web": "LicenseExpiryDate",
+      "kind": "date"
+    },
+    {
+      "key": "intermediaryCategory",
+      "label": "Κατηγορία διαμεσολαβητή",
+      "section": "cooperation",
+      "column": 1,
+      "desktop": "IntermediaryCategory",
+      "web": "$intermediaryCategory",
+      "kind": "text"
+    },
+    {
+      "key": "professionalLiabilityCarrier",
+      "label": "Ασφαλιστική αστικής ευθύνης",
+      "section": "cooperation",
+      "column": 1,
+      "desktop": "ProfessionalLiabilityCarrier",
+      "web": "$professionalLiabilityCarrier",
+      "kind": "text"
+    },
+    {
+      "key": "professionalLiabilityPolicyNumber",
+      "label": "Συμβόλαιο αστικής ευθύνης",
+      "section": "cooperation",
+      "column": 1,
+      "desktop": "ProfessionalLiabilityPolicyNumber",
+      "web": "$professionalLiabilityPolicyNumber",
+      "kind": "text"
+    },
+    {
+      "key": "professionalLiabilityFrom",
+      "label": "Έναρξη αστικής ευθύνης",
+      "section": "cooperation",
+      "column": 1,
+      "desktop": "ProfessionalLiabilityFrom",
+      "web": "$professionalLiabilityFrom",
+      "kind": "date"
+    },
+    {
+      "key": "professionalLiabilityTo",
+      "label": "Λήξη αστικής ευθύνης",
+      "section": "cooperation",
+      "column": 1,
+      "desktop": "ProfessionalLiabilityTo",
+      "web": "$professionalLiabilityTo",
+      "kind": "date"
+    },
+    {
+      "key": "hierarchyLevel",
+      "label": "Επίπεδο ιεραρχίας",
+      "section": "network",
+      "column": 0,
+      "desktop": "HierarchyLevel",
+      "web": "HierarchyLevel",
+      "kind": "hierarchy"
+    },
+    {
+      "key": "parentProducerId",
+      "label": "Προϊστάμενος",
+      "section": "network",
+      "column": 0,
+      "desktop": "ParentProducerId",
+      "web": "ParentProducerId",
+      "kind": "producer"
+    },
+    {
+      "key": "managerProducerId",
+      "label": "Υπεύθυνος παραγωγής",
+      "section": "network",
+      "column": 0,
+      "desktop": "ManagerProducerId",
+      "web": "$managerProducerId",
+      "kind": "producer"
+    },
+    {
+      "key": "assistantProducerId",
+      "label": "Βοηθός παραγωγής",
+      "section": "network",
+      "column": 0,
+      "desktop": "AssistantProducerId",
+      "web": "$assistantProducerId",
+      "kind": "producer"
+    },
+    {
+      "key": "unitProducerId",
+      "label": "Μονάδα / Unit",
+      "section": "network",
+      "column": 1,
+      "desktop": "UnitProducerId",
+      "web": "$unitProducerId",
+      "kind": "producer"
+    },
+    {
+      "key": "agencyProducerId",
+      "label": "Υπεύθυνος πρακτορείου",
+      "section": "network",
+      "column": 1,
+      "desktop": "AgencyProducerId",
+      "web": "$agencyProducerId",
+      "kind": "producer"
+    },
+    {
+      "key": "teamLeaderProducerId",
+      "label": "Ομαδάρχης",
+      "section": "network",
+      "column": 1,
+      "desktop": "TeamLeaderProducerId",
+      "web": "$teamLeaderProducerId",
+      "kind": "producer"
+    },
+    {
+      "key": "teamLeader2ProducerId",
+      "label": "Δεύτερος ομαδάρχης",
+      "section": "network",
+      "column": 1,
+      "desktop": "TeamLeader2ProducerId",
+      "web": "$teamLeader2ProducerId",
+      "kind": "producer"
+    },
+    {
+      "key": "ledgerCode",
+      "label": "Λογιστικός κωδικός",
+      "section": "network",
+      "column": 0,
+      "desktop": "LedgerCode",
+      "web": "$ledgerCode",
+      "kind": "text"
+    },
+    {
+      "key": "ledgerSubcode",
+      "label": "Λογιστικός υποκωδικός",
+      "section": "network",
+      "column": 0,
+      "desktop": "$ledgerSubcode",
+      "web": "$ledgerSubcode",
+      "kind": "text"
+    },
+    {
+      "key": "groups",
+      "label": "Ομάδες συνεργάτη",
+      "section": "network",
+      "column": 1,
+      "desktop": "$groups",
+      "web": "$groups",
+      "kind": "text"
+    },
+    {
+      "key": "bankName",
+      "label": "Τράπεζα",
+      "section": "financial",
+      "column": 0,
+      "desktop": "BankName",
+      "web": "BankName",
+      "kind": "text"
+    },
+    {
+      "key": "iban",
+      "label": "IBAN / τραπεζικός λογαριασμός",
+      "section": "financial",
+      "column": 0,
+      "desktop": "BankAccount",
+      "web": "Iban",
+      "kind": "iban"
+    },
+    {
+      "key": "paymentMethod",
+      "label": "Τρόπος πληρωμής",
+      "section": "financial",
+      "column": 0,
+      "desktop": "PaymentMethod",
+      "web": "PaymentMethod",
+      "kind": "text",
+      "choices": [
+        {
+          "value": "Cash",
+          "label": "Μετρητά"
+        },
+        {
+          "value": "Card",
+          "label": "Κάρτα"
+        },
+        {
+          "value": "BankTransfer",
+          "label": "Τραπεζική μεταφορά"
+        },
+        {
+          "value": "Cheque",
+          "label": "Επιταγή"
+        },
+        {
+          "value": "PromissoryNote",
+          "label": "Γραμμάτιο"
+        },
+        {
+          "value": "Other",
+          "label": "Άλλο"
+        }
+      ]
+    },
+    {
+      "key": "cifCode",
+      "label": "Κωδικός CIF",
+      "section": "financial",
+      "column": 0,
+      "desktop": "CifCode",
+      "web": "$cifCode",
+      "kind": "text"
+    },
+    {
+      "key": "payableAfterReceiptDeliveryDays",
+      "label": "Ημέρες από παράδοση αποδείξεων",
+      "section": "financial",
+      "column": 1,
+      "desktop": "PayableAfterReceiptDeliveryDays",
+      "web": "$payableAfterReceiptDeliveryDays",
+      "kind": "integer"
+    },
+    {
+      "key": "payableAfterMovementStartDays",
+      "label": "Ημέρες από έναρξη κίνησης",
+      "section": "financial",
+      "column": 1,
+      "desktop": "PayableAfterMovementStartDays",
+      "web": "$payableAfterMovementStartDays",
+      "kind": "integer"
+    },
+    {
+      "key": "premiumPaidByProducer",
+      "label": "Καταβολή ασφαλίστρων από συνεργάτη",
+      "section": "financial",
+      "column": 1,
+      "desktop": "PremiumPaidByProducer",
+      "web": "$premiumPaidByProducer",
+      "kind": "boolean",
+      "choices": [
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "key": "withholdsTaxOnInsurances",
+      "label": "Όρος παρακράτησης ασφαλειών",
+      "section": "financial",
+      "column": 1,
+      "desktop": "WithholdsTaxOnInsurances",
+      "web": "$withholdsTaxOnInsurances",
+      "kind": "boolean",
+      "choices": [
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "key": "tier",
+      "label": "Βαθμίδα κανόνων προμηθειών",
+      "section": "commissions",
+      "column": 0,
+      "desktop": "OverCommissionCategory",
+      "web": "Tier",
+      "kind": "tier"
+    },
+    {
+      "key": "creditEnabled",
+      "label": "Ενεργοποίηση πιστωτικών ορίων",
+      "section": "credit",
+      "column": 0,
+      "desktop": "$creditEnabled",
+      "web": "$creditEnabled",
+      "kind": "boolean",
+      "choices": [
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "key": "creditLimitAmount",
+      "label": "Μέγιστο ανεξόφλητο ποσό",
+      "section": "credit",
+      "column": 0,
+      "desktop": "CreditLimitAmount",
+      "web": "$creditLimitAmount",
+      "kind": "number"
+    },
+    {
+      "key": "creditLimitDays",
+      "label": "Μέγιστες ημέρες ανεξόφλητου",
+      "section": "credit",
+      "column": 0,
+      "desktop": "CreditLimitDays",
+      "web": "$creditLimitDays",
+      "kind": "integer"
+    },
+    {
+      "key": "creditLimitCount",
+      "label": "Μέγιστο πλήθος κινήσεων",
+      "section": "credit",
+      "column": 0,
+      "desktop": "CreditLimitCount",
+      "web": "$creditLimitCount",
+      "kind": "integer"
+    },
+    {
+      "key": "cancellationRequestDays",
+      "label": "Μέγιστες ημέρες αιτήματος ακύρωσης",
+      "section": "credit",
+      "column": 1,
+      "desktop": "$cancellationRequestDays",
+      "web": "$cancellationRequestDays",
+      "kind": "integer"
+    },
+    {
+      "key": "creditMode",
+      "label": "Διαδικασία πίστωσης",
+      "section": "credit",
+      "column": 1,
+      "desktop": "$creditMode",
+      "web": "$creditMode",
+      "kind": "text",
+      "choices": [
+        {
+          "value": "PrintFirst",
+          "label": "Εκτύπωση πριν την πληρωμή"
+        },
+        {
+          "value": "PayFirst",
+          "label": "Πληρωμή πριν την εκτύπωση"
+        }
+      ]
+    },
+    {
+      "key": "creditCurrency",
+      "label": "Νόμισμα πιστωτικών ορίων",
+      "section": "credit",
+      "column": 1,
+      "desktop": "$creditCurrency",
+      "web": "$creditCurrency",
+      "kind": "text"
+    },
+    {
+      "key": "holdsInsurerShareOver10Pct",
+      "label": "Συμμετοχή σε ασφαλιστική ≥10%",
+      "section": "compliance",
+      "column": 0,
+      "desktop": "HoldsInsurerShareOver10Pct",
+      "web": "$holdsInsurerShareOver10Pct",
+      "kind": "boolean",
+      "choices": [
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "key": "holdsInsurerShareOver10PctDetail",
+      "label": "Στοιχεία συμμετοχής σε ασφαλιστική",
+      "section": "compliance",
+      "column": 0,
+      "desktop": "HoldsInsurerShareOver10PctDetail",
+      "web": "$holdsInsurerShareOver10PctDetail",
+      "kind": "multiline"
+    },
+    {
+      "key": "insurerHoldsProducerOver10Pct",
+      "label": "Συμμετοχή ασφαλιστικής ≥10%",
+      "section": "compliance",
+      "column": 1,
+      "desktop": "InsurerHoldsProducerOver10Pct",
+      "web": "$insurerHoldsProducerOver10Pct",
+      "kind": "boolean",
+      "choices": [
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "key": "insurerHoldsProducerOver10PctDetail",
+      "label": "Στοιχεία συμμετοχής ασφαλιστικής",
+      "section": "compliance",
+      "column": 1,
+      "desktop": "InsurerHoldsProducerOver10PctDetail",
+      "web": "$insurerHoldsProducerOver10PctDetail",
+      "kind": "multiline"
+    },
+    {
+      "key": "providesImpartialAnalysis",
+      "label": "Αμερόληπτη ανάλυση",
+      "section": "compliance",
+      "column": 0,
+      "desktop": "ProvidesImpartialAnalysis",
+      "web": "$providesImpartialAnalysis",
+      "kind": "boolean",
+      "choices": [
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "key": "hasExclusiveContract",
+      "label": "Αποκλειστική συνεργασία",
+      "section": "compliance",
+      "column": 0,
+      "desktop": "HasExclusiveContract",
+      "web": "$hasExclusiveContract",
+      "kind": "boolean",
+      "choices": [
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "key": "nonExclusiveNoImpartial",
+      "label": "Μη αποκλειστική συνεργασία",
+      "section": "compliance",
+      "column": 0,
+      "desktop": "NonExclusiveNoImpartial",
+      "web": "$nonExclusiveNoImpartial",
+      "kind": "boolean",
+      "choices": [
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "key": "canDistributeInvestmentProducts",
+      "label": "Διανομή επενδυτικών προϊόντων",
+      "section": "compliance",
+      "column": 1,
+      "desktop": "CanDistributeInvestmentProducts",
+      "web": "$canDistributeInvestmentProducts",
+      "kind": "boolean",
+      "choices": [
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "key": "investmentCertification",
+      "label": "Πιστοποίηση επενδυτικών",
+      "section": "compliance",
+      "column": 1,
+      "desktop": "InvestmentCertification",
+      "web": "$investmentCertification",
+      "kind": "text"
+    },
+    {
+      "key": "investmentCertificationDetail",
+      "label": "Στοιχεία πιστοποίησης",
+      "section": "compliance",
+      "column": 1,
+      "desktop": "InvestmentCertificationDetail",
+      "web": "$investmentCertificationDetail",
+      "kind": "multiline"
+    },
+    {
+      "key": "hasKalypsisWebAccess",
+      "label": "Καταχωρημένη πρόσβαση Kalypsis Web",
+      "section": "access",
+      "column": 0,
+      "desktop": "HasKalypsisWebAccess",
+      "web": "$hasKalypsisWebAccess",
+      "kind": "boolean",
+      "choices": [
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "key": "receivesCustomerGdprCopy",
+      "label": "Αντίγραφο εγγράφων πελατών",
+      "section": "access",
+      "column": 0,
+      "desktop": "ReceivesCustomerGdprCopy",
+      "web": "$receivesCustomerGdprCopy",
+      "kind": "boolean",
+      "choices": [
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "key": "gdprEmail",
+      "label": "Email αντιγράφων",
+      "section": "access",
+      "column": 0,
+      "desktop": "GdprEmail",
+      "web": "$gdprEmail",
+      "kind": "email"
+    },
+    {
+      "key": "kalypsisWebLine1",
+      "label": "Πληροφορία πύλης 1",
+      "section": "access",
+      "column": 0,
+      "desktop": "KalypsisWebLine1",
+      "web": "$kalypsisWebLine1",
+      "kind": "text"
+    },
+    {
+      "key": "kalypsisWebLine2",
+      "label": "Πληροφορία πύλης 2",
+      "section": "access",
+      "column": 0,
+      "desktop": "KalypsisWebLine2",
+      "web": "$kalypsisWebLine2",
+      "kind": "text"
+    },
+    {
+      "key": "kalypsisWebLine3",
+      "label": "Πληροφορία πύλης 3",
+      "section": "access",
+      "column": 0,
+      "desktop": "KalypsisWebLine3",
+      "web": "$kalypsisWebLine3",
+      "kind": "text"
+    },
+    {
+      "key": "kalypsisWebLine4",
+      "label": "Πληροφορία πύλης 4",
+      "section": "access",
+      "column": 1,
+      "desktop": "KalypsisWebLine4",
+      "web": "$kalypsisWebLine4",
+      "kind": "text"
+    },
+    {
+      "key": "kalypsisWebLine5",
+      "label": "Πληροφορία πύλης 5",
+      "section": "access",
+      "column": 1,
+      "desktop": "KalypsisWebLine5",
+      "web": "$kalypsisWebLine5",
+      "kind": "text"
+    },
+    {
+      "key": "kalypsisWebLine6",
+      "label": "Πληροφορία πύλης 6",
+      "section": "access",
+      "column": 1,
+      "desktop": "KalypsisWebLine6",
+      "web": "$kalypsisWebLine6",
+      "kind": "text"
+    },
+    {
+      "key": "goalPlanEnabled",
+      "label": "Ενεργοί στόχοι",
+      "section": "goals",
+      "column": 0,
+      "desktop": "$goalPlanEnabled",
+      "web": "GoalPlanEnabled",
+      "kind": "boolean",
+      "choices": [
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "key": "goalTargetMode",
+      "label": "Μέτρηση στόχων",
+      "section": "goals",
+      "column": 0,
+      "desktop": "$goalTargetMode",
+      "web": "GoalTargetMode",
+      "kind": "text",
+      "choices": [
+        {
+          "value": "Premium",
+          "label": "Ασφάλιστρα"
+        },
+        {
+          "value": "Policies",
+          "label": "Συμβόλαια"
+        },
+        {
+          "value": "Vehicles",
+          "label": "Οχήματα"
+        }
+      ]
+    },
+    {
+      "key": "goalBaseCommissionPercent",
+      "label": "Αρχική προμήθεια (%)",
+      "section": "goals",
+      "column": 0,
+      "desktop": "$goalBaseCommissionPercent",
+      "web": "GoalBaseCommissionPercent",
+      "kind": "percent"
+    },
+    {
+      "key": "goalFirstTargetPremium",
+      "label": "Πρώτος στόχος ασφαλίστρων",
+      "section": "goals",
+      "column": 0,
+      "desktop": "$goalFirstTargetPremium",
+      "web": "GoalFirstTargetPremium",
+      "kind": "number"
+    },
+    {
+      "key": "goalPremiumStep",
+      "label": "Βήμα ασφαλίστρων",
+      "section": "goals",
+      "column": 0,
+      "desktop": "$goalPremiumStep",
+      "web": "GoalPremiumStep",
+      "kind": "number"
+    },
+    {
+      "key": "goalFirstTargetCount",
+      "label": "Πρώτος στόχος πλήθους",
+      "section": "goals",
+      "column": 1,
+      "desktop": "$goalFirstTargetCount",
+      "web": "GoalFirstTargetCount",
+      "kind": "integer"
+    },
+    {
+      "key": "goalCountStep",
+      "label": "Βήμα πλήθους",
+      "section": "goals",
+      "column": 1,
+      "desktop": "$goalCountStep",
+      "web": "GoalCountStep",
+      "kind": "integer"
+    },
+    {
+      "key": "goalCommissionIncreasePercent",
+      "label": "Αύξηση προμήθειας ανά στόχο (%)",
+      "section": "goals",
+      "column": 1,
+      "desktop": "$goalCommissionIncreasePercent",
+      "web": "GoalCommissionIncreasePercent",
+      "kind": "percent"
+    },
+    {
+      "key": "goalMaximumCommissionPercent",
+      "label": "Μέγιστη προμήθεια (%)",
+      "section": "goals",
+      "column": 1,
+      "desktop": "$goalMaximumCommissionPercent",
+      "web": "GoalMaximumCommissionPercent",
+      "kind": "percent"
+    },
+    {
+      "key": "goalLevelCount",
+      "label": "Πλήθος επιπέδων στόχων",
+      "section": "goals",
+      "column": 1,
+      "desktop": "$goalLevelCount",
+      "web": "GoalLevelCount",
+      "kind": "integer"
+    },
+    {
+      "key": "responsiblePerson",
+      "label": "Υπεύθυνος συνεργασίας",
+      "section": "general",
+      "column": 0,
+      "desktop": "ResponsiblePerson",
+      "web": "$responsiblePerson",
+      "kind": "text"
+    },
+    {
+      "key": "partnerCategoriesCsv",
+      "label": "Πρόσθετες κατηγορίες συνεργάτη",
+      "section": "additional",
+      "column": 1,
+      "desktop": "PartnerCategoriesCsv",
+      "web": "$partnerCategoriesCsv",
+      "kind": "text"
+    },
+    {
+      "key": "legacyUserCode",
+      "label": "Κωδικός χρήστη παλαιού συστήματος",
+      "section": "additional",
+      "column": 1,
+      "desktop": "$legacyUserCode",
+      "web": "$legacyUserCode",
+      "kind": "text"
+    }
+  ],
+  "tables": [
+    {
+      "key": "contacts",
+      "label": "Πρόσθετες επαφές",
+      "section": "communication",
+      "fields": [
+        {
+          "key": "label",
+          "label": "Ονομασία",
+          "kind": "text",
+          "required": true
+        },
+        {
+          "key": "kind",
+          "label": "Τύπος",
+          "kind": "text",
+          "required": false,
+          "choices": [
+            {
+              "value": "Email",
+              "label": "Email"
+            },
+            {
+              "value": "Phone",
+              "label": "Τηλέφωνο"
+            },
+            {
+              "value": "Url",
+              "label": "Ιστότοπος"
+            },
+            {
+              "value": "Text",
+              "label": "Κείμενο"
+            }
+          ]
+        },
+        {
+          "key": "value",
+          "label": "Τιμή",
+          "kind": "text",
+          "required": true
+        },
+        {
+          "key": "notes",
+          "label": "Σημειώσεις",
+          "kind": "multiline",
+          "required": false
+        }
+      ]
+    },
+    {
+      "key": "agreements",
+      "label": "Συμφωνίες συνεργασίας",
+      "section": "cooperation",
+      "fields": [
+        {
+          "key": "code",
+          "label": "Κωδικός συμφωνίας",
+          "kind": "text",
+          "required": true
+        },
+        {
+          "key": "name",
+          "label": "Ονομασία συμφωνίας",
+          "kind": "text",
+          "required": true
+        },
+        {
+          "key": "insuranceCompanyId",
+          "label": "Ασφαλιστική εταιρεία",
+          "kind": "company",
+          "required": false
+        },
+        {
+          "key": "effectiveFrom",
+          "label": "Ισχύς από",
+          "kind": "date",
+          "required": false
+        },
+        {
+          "key": "effectiveTo",
+          "label": "Ισχύς έως",
+          "kind": "date",
+          "required": false
+        },
+        {
+          "key": "isActive",
+          "label": "Ενεργό",
+          "kind": "boolean",
+          "required": false,
+          "choices": [
+            {
+              "value": "true",
+              "label": "Ναι"
+            },
+            {
+              "value": "false",
+              "label": "Όχι"
+            }
+          ]
+        },
+        {
+          "key": "notes",
+          "label": "Σημειώσεις",
+          "kind": "multiline",
+          "required": false
+        }
+      ]
+    },
+    {
+      "key": "groups",
+      "label": "Ομάδες συνεργάτη",
+      "section": "network",
+      "fields": [
+        {
+          "key": "code",
+          "label": "Κωδικός ομάδας",
+          "kind": "text",
+          "required": true
+        },
+        {
+          "key": "name",
+          "label": "Ονομασία ομάδας",
+          "kind": "text",
+          "required": true
+        },
+        {
+          "key": "effectiveFrom",
+          "label": "Ισχύς από",
+          "kind": "date",
+          "required": false
+        },
+        {
+          "key": "effectiveTo",
+          "label": "Ισχύς έως",
+          "kind": "date",
+          "required": false
+        },
+        {
+          "key": "notes",
+          "label": "Σημειώσεις",
+          "kind": "multiline",
+          "required": false
+        }
+      ]
+    },
+    {
+      "key": "rates",
+      "label": "Συμφωνημένα ποσοστά",
+      "section": "commissions",
+      "fields": [
+        {
+          "key": "insuranceCompanyId",
+          "label": "Ασφαλιστική εταιρεία",
+          "kind": "company",
+          "required": false
+        },
+        {
+          "key": "lineOfBusiness",
+          "label": "Κλάδος",
+          "kind": "text",
+          "required": false,
+          "choices": [
+            {
+              "value": "Auto",
+              "label": "Αυτοκίνητο"
+            },
+            {
+              "value": "Home",
+              "label": "Περιουσία"
+            },
+            {
+              "value": "Health",
+              "label": "Υγεία"
+            },
+            {
+              "value": "Life",
+              "label": "Ζωή"
+            },
+            {
+              "value": "Business",
+              "label": "Επιχείρηση"
+            },
+            {
+              "value": "Travel",
+              "label": "Ταξίδι"
+            },
+            {
+              "value": "Other",
+              "label": "Άλλος κλάδος"
+            }
+          ]
+        },
+        {
+          "key": "vehicleUseCategory",
+          "label": "Χρήση οχήματος",
+          "kind": "text",
+          "required": false,
+          "choices": [
+            {
+              "value": "None",
+              "label": "Χωρίς προσδιορισμό"
+            },
+            {
+              "value": "EIX",
+              "label": "Επιβατικό ιδιωτικής χρήσης"
+            },
+            {
+              "value": "EDX",
+              "label": "Επιβατικό δημόσιας χρήσης"
+            },
+            {
+              "value": "FIX",
+              "label": "Φορτηγό ιδιωτικής χρήσης"
+            },
+            {
+              "value": "FDX",
+              "label": "Φορτηγό δημόσιας χρήσης"
+            },
+            {
+              "value": "LIX",
+              "label": "Λεωφορείο ιδιωτικής χρήσης"
+            },
+            {
+              "value": "LDX",
+              "label": "Λεωφορείο δημόσιας χρήσης"
+            },
+            {
+              "value": "Motorcycle",
+              "label": "Μοτοσικλέτα"
+            },
+            {
+              "value": "Agricultural",
+              "label": "Αγροτικό"
+            },
+            {
+              "value": "Construction",
+              "label": "Μηχάνημα έργου"
+            }
+          ]
+        },
+        {
+          "key": "expectedPercent",
+          "label": "Ποσοστό (%)",
+          "kind": "percent",
+          "required": true
+        },
+        {
+          "key": "effectiveFrom",
+          "label": "Ισχύς από",
+          "kind": "date",
+          "required": false
+        },
+        {
+          "key": "effectiveTo",
+          "label": "Ισχύς έως",
+          "kind": "date",
+          "required": false
+        },
+        {
+          "key": "notes",
+          "label": "Σημειώσεις",
+          "kind": "multiline",
+          "required": false
+        }
+      ]
+    },
+    {
+      "key": "withholdings",
+      "label": "Όροι παρακράτησης",
+      "section": "commissions",
+      "fields": [
+        {
+          "key": "effectiveFrom",
+          "label": "Ισχύς από",
+          "kind": "date",
+          "required": false
+        },
+        {
+          "key": "effectiveTo",
+          "label": "Ισχύς έως",
+          "kind": "date",
+          "required": false
+        },
+        {
+          "key": "percent",
+          "label": "Παρακράτηση (%)",
+          "kind": "percent",
+          "required": true
+        },
+        {
+          "key": "notes",
+          "label": "Σημειώσεις",
+          "kind": "multiline",
+          "required": false
+        }
+      ]
+    },
+    {
+      "key": "declarations",
+      "label": "Δηλώσεις προμηθειών",
+      "section": "commissions",
+      "fields": [
+        {
+          "key": "policyId",
+          "label": "Συμβόλαιο",
+          "kind": "policy",
+          "required": false
+        },
+        {
+          "key": "year",
+          "label": "Έτος",
+          "kind": "integer",
+          "required": true
+        },
+        {
+          "key": "month",
+          "label": "Μήνας",
+          "kind": "integer",
+          "required": true
+        },
+        {
+          "key": "declaredAmount",
+          "label": "Δηλωμένο ποσό",
+          "kind": "number",
+          "required": true
+        },
+        {
+          "key": "currency",
+          "label": "Νόμισμα",
+          "kind": "text",
+          "required": false
+        },
+        {
+          "key": "status",
+          "label": "Κατάσταση",
+          "kind": "text",
+          "required": false,
+          "choices": [
+            {
+              "value": "Pending",
+              "label": "Σε αναμονή"
+            },
+            {
+              "value": "Approved",
+              "label": "Εγκρίθηκε"
+            },
+            {
+              "value": "Disputed",
+              "label": "Υπό αμφισβήτηση"
+            },
+            {
+              "value": "Rejected",
+              "label": "Απορρίφθηκε"
+            }
+          ]
+        },
+        {
+          "key": "notes",
+          "label": "Σημειώσεις",
+          "kind": "multiline",
+          "required": false
+        }
+      ]
+    },
+    {
+      "key": "credit",
+      "label": "Ειδικά πιστωτικά όρια",
+      "section": "credit",
+      "fields": [
+        {
+          "key": "insuranceCompanyId",
+          "label": "Ασφαλιστική εταιρεία",
+          "kind": "company",
+          "required": false
+        },
+        {
+          "key": "branchCode",
+          "label": "Κλάδος",
+          "kind": "text",
+          "required": false
+        },
+        {
+          "key": "currency",
+          "label": "Νόμισμα",
+          "kind": "text",
+          "required": false
+        },
+        {
+          "key": "amountLimit",
+          "label": "Μέγιστο ποσό",
+          "kind": "number",
+          "required": false
+        },
+        {
+          "key": "daysLimit",
+          "label": "Μέγιστες ημέρες",
+          "kind": "integer",
+          "required": false
+        },
+        {
+          "key": "countLimit",
+          "label": "Μέγιστο πλήθος",
+          "kind": "integer",
+          "required": false
+        },
+        {
+          "key": "effectiveFrom",
+          "label": "Ισχύς από",
+          "kind": "date",
+          "required": false
+        },
+        {
+          "key": "effectiveTo",
+          "label": "Ισχύς έως",
+          "kind": "date",
+          "required": false
+        },
+        {
+          "key": "isActive",
+          "label": "Ενεργό",
+          "kind": "boolean",
+          "required": false,
+          "choices": [
+            {
+              "value": "true",
+              "label": "Ναι"
+            },
+            {
+              "value": "false",
+              "label": "Όχι"
+            }
+          ]
+        },
+        {
+          "key": "notes",
+          "label": "Σημειώσεις",
+          "kind": "multiline",
+          "required": false
+        }
+      ]
+    },
+    {
+      "key": "companies",
+      "label": "Κωδικοί ασφαλιστικών",
+      "section": "companies",
+      "fields": [
+        {
+          "key": "insuranceCompanyId",
+          "label": "Ασφαλιστική εταιρεία",
+          "kind": "company",
+          "required": false
+        },
+        {
+          "key": "agencyOfficeId",
+          "label": "Γραφείο",
+          "kind": "office",
+          "required": false
+        },
+        {
+          "key": "producerCode",
+          "label": "Κωδικοί συνεργάτη",
+          "kind": "text",
+          "required": true
+        },
+        {
+          "key": "ledgerCode",
+          "label": "Λογιστικός κωδικός",
+          "kind": "text",
+          "required": false
+        },
+        {
+          "key": "ledgerSubcode",
+          "label": "Υποκωδικός",
+          "kind": "text",
+          "required": false
+        },
+        {
+          "key": "quoteUserName",
+          "label": "Χρήστης τιμολόγησης",
+          "kind": "text",
+          "required": false
+        },
+        {
+          "key": "quotePassword",
+          "label": "Νέος κωδικός τιμολόγησης",
+          "kind": "secret",
+          "required": false
+        },
+        {
+          "key": "issueUserName",
+          "label": "Χρήστης έκδοσης",
+          "kind": "text",
+          "required": false
+        },
+        {
+          "key": "issuePassword",
+          "label": "Νέος κωδικός έκδοσης",
+          "kind": "secret",
+          "required": false
+        },
+        {
+          "key": "isActive",
+          "label": "Ενεργό",
+          "kind": "boolean",
+          "required": false,
+          "choices": [
+            {
+              "value": "true",
+              "label": "Ναι"
+            },
+            {
+              "value": "false",
+              "label": "Όχι"
+            }
+          ]
+        },
+        {
+          "key": "notes",
+          "label": "Σημειώσεις",
+          "kind": "multiline",
+          "required": false
+        }
+      ]
+    },
+    {
+      "key": "documents",
+      "label": "Έγγραφα συνεργάτη",
+      "section": "documents",
+      "fields": [
+        {
+          "key": "title",
+          "label": "Τίτλος",
+          "kind": "text",
+          "required": true
+        },
+        {
+          "key": "fileName",
+          "label": "Όνομα αρχείου",
+          "kind": "text",
+          "required": true
+        },
+        {
+          "key": "contentType",
+          "label": "Τύπος αρχείου",
+          "kind": "text",
+          "required": false
+        },
+        {
+          "key": "sizeBytes",
+          "label": "Μέγεθος (bytes)",
+          "kind": "integer",
+          "required": false
+        },
+        {
+          "key": "notes",
+          "label": "Σημειώσεις",
+          "kind": "multiline",
+          "required": false
+        }
+      ]
+    },
+    {
+      "key": "transfers",
+      "label": "Μεταφορές χαρτοφυλακίου",
+      "section": "history",
+      "fields": [
+        {
+          "key": "fromProducerId",
+          "label": "Από συνεργάτη",
+          "kind": "producer",
+          "required": false
+        },
+        {
+          "key": "toProducerId",
+          "label": "Προς συνεργάτη",
+          "kind": "producer",
+          "required": false
+        },
+        {
+          "key": "date",
+          "label": "Ημερομηνία",
+          "kind": "date",
+          "required": false
+        },
+        {
+          "key": "policyCount",
+          "label": "Πλήθος συμβολαίων",
+          "kind": "integer",
+          "required": false
+        },
+        {
+          "key": "notes",
+          "label": "Σημειώσεις",
+          "kind": "multiline",
+          "required": false
+        }
+      ]
+    }
+  ]
+}
