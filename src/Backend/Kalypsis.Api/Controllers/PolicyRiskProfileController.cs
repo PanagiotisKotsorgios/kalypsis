@@ -29,6 +29,18 @@ public sealed class PolicyRiskProfileController(IAppDbContext db, ICurrentUser c
     public async Task<ActionResult<Dictionary<string, string>>> Get(Guid policyId, CancellationToken ct)
         => Ok(PolicyRiskProfile.Read(await OwnPolicy(policyId, ct)));
 
+    public record CardOption(string Value,string Label);
+    [HttpGet("card-options")]
+    [RequirePermission("policies.read")]
+    public async Task<ActionResult<Dictionary<string,CardOption[]>>> CardOptions(Guid policyId,CancellationToken ct)
+    {
+        var policy=await OwnPolicy(policyId,ct);var tenant=policy.TenantId;
+        var branches=await db.Branches.AsNoTracking().Where(x=>x.TenantId==tenant&&x.DeletedAt==null&&x.IsActive).OrderBy(x=>x.Name).Select(x=>new CardOption(x.Id.ToString(),x.Name)).ToArrayAsync(ct);
+        var offices=await db.AgencyOffices.AsNoTracking().Where(x=>x.TenantId==tenant&&x.DeletedAt==null).OrderBy(x=>x.Name).Select(x=>new CardOption(x.Id.ToString(),x.Name)).ToArrayAsync(ct);
+        var groups=await db.GroupPolicies.AsNoTracking().Where(x=>x.TenantId==tenant&&x.DeletedAt==null).OrderBy(x=>x.Name).Select(x=>new CardOption(x.Id.ToString(),x.Name)).ToArrayAsync(ct);
+        return Ok(new Dictionary<string,CardOption[]>{{"branchId",branches},{"supplierOfficeId",offices},{"groupPolicyId",groups}});
+    }
+
     [HttpPatch]
     [RequirePermission("policies.write")]
     [RequestSizeLimit(300_000)]
@@ -36,6 +48,13 @@ public sealed class PolicyRiskProfileController(IAppDbContext db, ICurrentUser c
     {
         var policy = await OwnPolicy(policyId, ct);
         if (body.Changes is null) throw AppException.Validation("Δεν δόθηκαν πεδία επεξεργασίας.");
+        foreach(var key in new[]{"branchId","supplierOfficeId","groupPolicyId"})
+            if(body.Changes.TryGetValue("card:"+key,out var raw)&&!string.IsNullOrWhiteSpace(raw))
+            {
+                if(!Guid.TryParse(raw,out var id))throw AppException.Validation("Επιλέξτε έγκυρη συσχέτιση.");
+                var valid=key switch{"branchId"=>await db.Branches.AnyAsync(x=>x.Id==id&&x.TenantId==policy.TenantId&&x.DeletedAt==null,ct),"supplierOfficeId"=>await db.AgencyOffices.AnyAsync(x=>x.Id==id&&x.TenantId==policy.TenantId&&x.DeletedAt==null,ct),_=>await db.GroupPolicies.AnyAsync(x=>x.Id==id&&x.TenantId==policy.TenantId&&x.DeletedAt==null,ct)};
+                if(!valid)throw AppException.Validation("Η συσχέτιση δεν ανήκει στο γραφείο σας.");
+            }
         var coverIds = await db.PolicyCovers.Where(row => row.PolicyId == policyId && row.TenantId == policy.TenantId && row.DeletedAt == null)
             .Select(row => row.Id).ToListAsync(ct);
         PolicyRiskProfile.Apply(policy, body.Changes, coverIds.ToHashSet());

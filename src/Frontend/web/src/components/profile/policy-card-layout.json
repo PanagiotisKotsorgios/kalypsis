@@ -1,0 +1,607 @@
+{
+  "version": 1,
+  "tabs": [
+    "Καρτέλα Συμβολαίου",
+    "Καλύψεις",
+    "Οικονομικά",
+    "Ιστορικό συμβολαίου"
+  ],
+  "fields": [
+    {
+      "key": "policyNumber",
+      "path": "PolicyNumber",
+      "label": "Αριθμός συμβολαίου",
+      "section": "main",
+      "kind": "text",
+      "column": 0
+    },
+    {
+      "key": "applicationNumber",
+      "path": "ApplicationNumber",
+      "label": "Αριθμός αίτησης",
+      "section": "main",
+      "kind": "text",
+      "column": 0
+    },
+    {
+      "key": "insuranceCompanyId",
+      "path": "InsuranceCompanyId",
+      "label": "Ασφαλιστική",
+      "section": "main",
+      "kind": "link",
+      "column": 0
+    },
+    {
+      "key": "previousInsuranceCompanyId",
+      "path": "PreviousInsuranceCompanyId",
+      "label": "Προηγούμενη ασφαλιστική",
+      "section": "main",
+      "kind": "link",
+      "column": 0
+    },
+    {
+      "key": "policyType",
+      "path": "PolicyType",
+      "label": "Κλάδος",
+      "section": "main",
+      "kind": "choice",
+      "column": 0
+    },
+    {
+      "key": "status",
+      "path": "Status",
+      "label": "Κατάσταση",
+      "section": "main",
+      "kind": "choice",
+      "column": 0
+    },
+    {
+      "key": "issuedAt",
+      "path": "IssuedAt",
+      "label": "Ημερομηνία έκδοσης",
+      "section": "main",
+      "kind": "date",
+      "column": 0
+    },
+    {
+      "key": "startDate",
+      "path": "EffectiveFrom",
+      "label": "Έναρξη",
+      "section": "main",
+      "kind": "date",
+      "column": 0
+    },
+    {
+      "key": "endDate",
+      "path": "EffectiveTo",
+      "label": "Λήξη",
+      "section": "main",
+      "kind": "date",
+      "column": 0
+    },
+    {
+      "key": "duration",
+      "path": "@Duration",
+      "label": "Διάρκεια",
+      "section": "main",
+      "kind": "readonly",
+      "column": 0
+    },
+    {
+      "key": "vehicleRegistrationPlate",
+      "path": "Plate",
+      "label": "Αριθμός κυκλοφορίας",
+      "section": "main",
+      "kind": "text",
+      "column": 0
+    },
+    {
+      "key": "vehicleUseCategory",
+      "path": "VehicleUseCategory",
+      "label": "Χρήση οχήματος",
+      "section": "main",
+      "kind": "choice",
+      "column": 0
+    },
+    {
+      "key": "packageCode",
+      "path": "PackageCode",
+      "label": "Πακέτο",
+      "section": "main",
+      "kind": "text",
+      "column": 0
+    },
+    {
+      "key": "coverCode",
+      "path": "CoverCode",
+      "label": "Κωδικός κάλυψης",
+      "section": "main",
+      "kind": "text",
+      "column": 0
+    },
+    {
+      "key": "customerId",
+      "path": "CustomerId",
+      "label": "Πελάτης / ασφαλισμένος",
+      "section": "main",
+      "kind": "readonly",
+      "column": 1
+    },
+    {
+      "key": "customerVat",
+      "path": "@CustomerVat",
+      "label": "ΑΦΜ πελάτη",
+      "section": "main",
+      "kind": "readonly",
+      "column": 1
+    },
+    {
+      "key": "customerPhone",
+      "path": "@CustomerPhone",
+      "label": "Τηλέφωνο πελάτη",
+      "section": "main",
+      "kind": "readonly",
+      "column": 1
+    },
+    {
+      "key": "customerEmail",
+      "path": "@CustomerEmail",
+      "label": "Email πελάτη",
+      "section": "main",
+      "kind": "readonly",
+      "column": 1
+    },
+    {
+      "key": "contractPartyCustomerId",
+      "path": "ContractPartyCustomerId",
+      "label": "Συμβαλλόμενος",
+      "section": "main",
+      "kind": "link",
+      "column": 1
+    },
+    {
+      "key": "partyVat",
+      "path": "@PartyVat",
+      "label": "ΑΦΜ συμβαλλομένου",
+      "section": "main",
+      "kind": "readonly",
+      "column": 1
+    },
+    {
+      "key": "partyPhone",
+      "path": "@PartyPhone",
+      "label": "Τηλέφωνο συμβαλλομένου",
+      "section": "main",
+      "kind": "readonly",
+      "column": 1
+    },
+    {
+      "key": "partyEmail",
+      "path": "@PartyEmail",
+      "label": "Email συμβαλλομένου",
+      "section": "main",
+      "kind": "readonly",
+      "column": 1
+    },
+    {
+      "key": "producerId",
+      "path": "ProducerId",
+      "label": "Συνεργάτης",
+      "section": "main",
+      "kind": "link",
+      "column": 1
+    },
+    {
+      "key": "producerCode",
+      "path": "@ProducerCode",
+      "label": "Κωδικός συνεργάτη",
+      "section": "main",
+      "kind": "readonly",
+      "column": 1
+    },
+    {
+      "key": "premium",
+      "path": "GrossPremium",
+      "label": "Μικτά ασφάλιστρα",
+      "section": "main",
+      "kind": "number",
+      "column": 1
+    },
+    {
+      "key": "netPremium",
+      "path": "NetPremium",
+      "label": "Καθαρά ασφάλιστρα",
+      "section": "main",
+      "kind": "number",
+      "column": 1
+    },
+    {
+      "key": "currency",
+      "path": "Currency",
+      "label": "Νόμισμα",
+      "section": "main",
+      "kind": "text",
+      "column": 1
+    },
+    {
+      "key": "notes",
+      "path": "Notes",
+      "label": "Σημειώσεις συμβολαίου",
+      "section": "main",
+      "kind": "multiline",
+      "column": 1
+    },
+    {
+      "key": "brand",
+      "path": "Brand",
+      "label": "Μάρκα",
+      "section": "additional",
+      "kind": "text",
+      "column": 0
+    },
+    {
+      "key": "model",
+      "path": "Model",
+      "label": "Μοντέλο",
+      "section": "additional",
+      "kind": "text",
+      "column": 0
+    },
+    {
+      "key": "year",
+      "path": "YearOfConstruction",
+      "label": "Έτος κατασκευής",
+      "section": "additional",
+      "kind": "integer",
+      "column": 0
+    },
+    {
+      "key": "engineCapacity",
+      "path": "EngineCc",
+      "label": "Κυβισμός (cc)",
+      "section": "additional",
+      "kind": "integer",
+      "column": 0
+    },
+    {
+      "key": "driverVatNumber",
+      "path": "DriverVatNumber",
+      "label": "ΑΦΜ οδηγού",
+      "section": "additional",
+      "kind": "text",
+      "column": 0
+    },
+    {
+      "key": "reasonForCirculation",
+      "path": "ReasonForCirculation",
+      "label": "Λόγος κυκλοφορίας",
+      "section": "additional",
+      "kind": "text",
+      "column": 0
+    },
+    {
+      "key": "characteristic",
+      "path": "Characteristic",
+      "label": "Χαρακτηριστικό",
+      "section": "additional",
+      "kind": "text",
+      "column": 0
+    },
+    {
+      "key": "insuredAgeAtIssue",
+      "path": "InsuredAgeAtIssue",
+      "label": "Ηλικία ασφαλισμένου στην έκδοση",
+      "section": "additional",
+      "kind": "integer",
+      "column": 0
+    },
+    {
+      "key": "contractPartyAgeAtIssue",
+      "path": "ContractPartyAgeAtIssue",
+      "label": "Ηλικία συμβαλλομένου στην έκδοση",
+      "section": "additional",
+      "kind": "integer",
+      "column": 0
+    },
+    {
+      "key": "medicalExamsNotes",
+      "path": "MedicalExamsNotes",
+      "label": "Ιατρικές εξετάσεις / σημειώσεις",
+      "section": "additional",
+      "kind": "multiline",
+      "column": 0
+    },
+    {
+      "key": "reassessmentCode",
+      "path": "ReassessmentCode",
+      "label": "Κωδικός επανεκτίμησης",
+      "section": "additional",
+      "kind": "text",
+      "column": 0
+    },
+    {
+      "key": "position",
+      "path": "Position",
+      "label": "Θέση / σημείο",
+      "section": "additional",
+      "kind": "text",
+      "column": 0
+    },
+    {
+      "key": "lineOfBusiness",
+      "path": "LineOfBusiness",
+      "label": "Περιγραφή κλάδου",
+      "section": "additional",
+      "kind": "text",
+      "column": 0
+    },
+    {
+      "key": "useCode",
+      "path": "UseCode",
+      "label": "Κωδικός χρήσης",
+      "section": "additional",
+      "kind": "text",
+      "column": 0
+    },
+    {
+      "key": "branchId",
+      "path": "BranchId",
+      "label": "Κλάδος παραμετρικού",
+      "section": "additional",
+      "kind": "link",
+      "column": 0
+    },
+    {
+      "key": "supplierOfficeId",
+      "path": "SupplierOfficeId",
+      "label": "Γραφείο προμηθευτή",
+      "section": "additional",
+      "kind": "link",
+      "column": 0
+    },
+    {
+      "key": "groupPolicyId",
+      "path": "GroupPolicyId",
+      "label": "Ομαδικό συμβόλαιο",
+      "section": "additional",
+      "kind": "link",
+      "column": 1
+    },
+    {
+      "key": "collectionCentreCode",
+      "path": "CollectionCentreCode",
+      "label": "Εισπρακτικό κέντρο",
+      "section": "additional",
+      "kind": "text",
+      "column": 1
+    },
+    {
+      "key": "policyGroupCode",
+      "path": "PolicyGroupCode",
+      "label": "Ομάδα συμβολαίου",
+      "section": "additional",
+      "kind": "text",
+      "column": 1
+    },
+    {
+      "key": "hardCopyStatusCode",
+      "path": "HardCopyStatusCode",
+      "label": "Κατάσταση φυσικού αρχείου",
+      "section": "additional",
+      "kind": "text",
+      "column": 1
+    },
+    {
+      "key": "deliveredAt",
+      "path": "DeliveredAt",
+      "label": "Ημερομηνία παράδοσης",
+      "section": "additional",
+      "kind": "date",
+      "column": 1
+    },
+    {
+      "key": "deliveredTo",
+      "path": "DeliveredTo",
+      "label": "Παραδόθηκε σε",
+      "section": "additional",
+      "kind": "text",
+      "column": 1
+    },
+    {
+      "key": "deliveryMethod",
+      "path": "DeliveryMethod",
+      "label": "Τρόπος παράδοσης",
+      "section": "additional",
+      "kind": "text",
+      "column": 1
+    },
+    {
+      "key": "officeReceivedAt",
+      "path": "OfficeReceivedAt",
+      "label": "Παραλαβή από γραφείο",
+      "section": "additional",
+      "kind": "date",
+      "column": 1
+    },
+    {
+      "key": "handoverDate",
+      "path": "HandoverDate",
+      "label": "Παράδοση πρωτοτύπου / PDF",
+      "section": "additional",
+      "kind": "date",
+      "column": 1
+    },
+    {
+      "key": "nextRenewalDate",
+      "path": "NextRenewalDate",
+      "label": "Επόμενη ανανέωση",
+      "section": "additional",
+      "kind": "date",
+      "column": 1
+    },
+    {
+      "key": "nextRenewalUiDate",
+      "path": "NextRenewalUiDate",
+      "label": "Προγραμματισμένη ανανέωση συνεργάτη",
+      "section": "additional",
+      "kind": "date",
+      "column": 1
+    },
+    {
+      "key": "renewalTransferToProducerId",
+      "path": "RenewalTransferToProducerId",
+      "label": "Συνεργάτης στην ανανέωση",
+      "section": "additional",
+      "kind": "link",
+      "column": 1
+    },
+    {
+      "key": "renewalTransferToCarrierId",
+      "path": "RenewalTransferToCarrierId",
+      "label": "Ασφαλιστική στην ανανέωση",
+      "section": "additional",
+      "kind": "link",
+      "column": 1
+    },
+    {
+      "key": "renewalInstructions",
+      "path": "RenewalInstructions",
+      "label": "Οδηγίες ανανέωσης",
+      "section": "additional",
+      "kind": "multiline",
+      "column": 1
+    },
+    {
+      "key": "createdAt",
+      "path": "@CreatedAt",
+      "label": "Ημερομηνία καταχώρησης",
+      "section": "additional",
+      "kind": "readonly",
+      "column": 1
+    },
+    {
+      "key": "updatedAt",
+      "path": "@UpdatedAt",
+      "label": "Τελευταία ενημέρωση",
+      "section": "additional",
+      "kind": "readonly",
+      "column": 1
+    },
+    {
+      "key": "agencyCommission",
+      "path": "AgencyCommissionAmount",
+      "label": "Προμήθεια γραφείου",
+      "section": "financial",
+      "kind": "readonly",
+      "column": 0
+    },
+    {
+      "key": "producerCommission",
+      "path": "Commission",
+      "label": "Προμήθεια συνεργάτη",
+      "section": "financial",
+      "kind": "readonly",
+      "column": 0
+    },
+    {
+      "key": "overCommission",
+      "path": "OverCommissionAmount",
+      "label": "Υπερπρομήθεια",
+      "section": "financial",
+      "kind": "readonly",
+      "column": 0
+    },
+    {
+      "key": "specialCommissionPercent",
+      "path": "SpecialCommissionPercent",
+      "label": "Ειδική προμήθεια (%)",
+      "section": "financial",
+      "kind": "number",
+      "column": 0
+    },
+    {
+      "key": "commissionReferenceDate",
+      "path": "CommissionReferenceDate",
+      "label": "Ημερομηνία αναφοράς προμηθειών",
+      "section": "financial",
+      "kind": "date",
+      "column": 0
+    },
+    {
+      "key": "commissionPolicyYear",
+      "path": "CommissionPolicyYear",
+      "label": "Έτος ασφάλισης",
+      "section": "financial",
+      "kind": "integer",
+      "column": 0
+    },
+    {
+      "key": "paymentFrequency",
+      "path": "PaymentFrequency",
+      "label": "Συχνότητα πληρωμής",
+      "section": "financial",
+      "kind": "choice",
+      "column": 1
+    },
+    {
+      "key": "paymentCollectionMethod",
+      "path": "PaymentCollectionMethod",
+      "label": "Τρόπος είσπραξης",
+      "section": "financial",
+      "kind": "text",
+      "column": 1
+    },
+    {
+      "key": "paidDirectlyToCarrier",
+      "path": "PaidDirectlyToCarrier",
+      "label": "Πληρωμή απευθείας στην ασφαλιστική",
+      "section": "financial",
+      "kind": "boolean",
+      "column": 1,
+      "choices": [
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "key": "paidOnCredit",
+      "path": "PaidOnCredit",
+      "label": "Πληρωμή επί πιστώσει",
+      "section": "financial",
+      "kind": "boolean",
+      "column": 1,
+      "choices": [
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "key": "paymentPromisedOn",
+      "path": "PaymentPromisedOn",
+      "label": "Υπόσχεση πληρωμής",
+      "section": "financial",
+      "kind": "date",
+      "column": 1
+    },
+    {
+      "key": "creditReason",
+      "path": "CreditReason",
+      "label": "Αιτία πίστωσης",
+      "section": "financial",
+      "kind": "text",
+      "column": 1
+    }
+  ]
+}

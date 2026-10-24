@@ -253,7 +253,9 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
       assert.equal(childTheme.zIndex.modal,1800); assert.equal(childTheme.zIndex.drawer,1200);
       const source = await readFile(new URL("../PolicyDetailDrawer.tsx",import.meta.url),"utf8");
       assert.match(source, /<Dialog open=\{commissionDetailsOpen\}[^\n]+zIndex: 1800/);
-      assert.match(source, /label:"Έγγραφα",icon:<DescriptionOutlinedIcon \/>\}, \{label:"Ιστορικό"/);
+      const layout=JSON.parse(await readFile(new URL("./policy-card-layout.json",import.meta.url),"utf8"));
+      assert.deepEqual(layout.tabs,["Καρτέλα Συμβολαίου","Καλύψεις","Οικονομικά","Ιστορικό συμβολαίου"]);
+      assert.match(source, /POLICY_CARD_LAYOUT.tabs.map/);
       assert.equal(source.includes("Παραμετρικά στοιχεία (JSON)"),false);
       assert.equal(source.includes('<PolicyBooleanField profileKey="retain'),false);
       const movements = source.slice(source.indexOf("{showMovements &&"),source.indexOf("{showDocuments &&"));

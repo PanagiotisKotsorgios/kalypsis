@@ -52,6 +52,7 @@ public static class PolicyRiskProfile
         values["stampDutyAmount"] = policy.StampDutyAmount?.ToString(CultureInfo.InvariantCulture) ?? "";
         values["insuranceContributionAmount"] = policy.InsuranceContributionAmount?.ToString(CultureInfo.InvariantCulture) ?? "";
         values["otherChargesAmount"] = policy.OtherChargesAmount?.ToString(CultureInfo.InvariantCulture) ?? "";
+        PolicyCardExtras.Read(policy,profile,values,root);
         return values;
     }
     public static void Apply(Policy policy, IReadOnlyDictionary<string, string> changes, ISet<Guid> ownCoverIds)
@@ -61,11 +62,14 @@ public static class PolicyRiskProfile
         var profile = root[ProfileKey] as JsonObject ?? new();
         var medical = Medical(policy.MedicalExamsNotes);
         var taxes = new Dictionary<string, decimal?>();
+        var cardChanges=changes.Where(pair=>pair.Key.StartsWith("card:")).ToDictionary(pair=>pair.Key,pair=>pair.Value);
+        var applyCard=PolicyCardExtras.Prepare(policy,cardChanges,profile,root);
         var medicalChanged = false;
-        var specsChanged = false;
+        var specsChanged = cardChanges.Keys.Any(key=>PolicyCardExtras.Fields[key[5..]].Property==null);
         foreach (var (key, raw) in changes)
         {
             if (raw is null || raw.Length > 20_000) throw AppException.Validation("Το περιεχόμενο του πεδίου είναι πολύ μεγάλο.");
+            if(key.StartsWith("card:"))continue;
             var value = raw.Trim();
             var vehicleKey = key.StartsWith("vehicle:") ? key[8..] : "";
             var healthKey = key.StartsWith("health:") ? key[7..] : "";
@@ -117,6 +121,7 @@ public static class PolicyRiskProfile
         }
         // Commit only after every field has passed validation.
         if (specsChanged) { if (profile.Parent is null) root[ProfileKey] = profile; policy.SpecsJson = root.ToJsonString(); }
+        applyCard();
         if (medicalChanged) policy.MedicalExamsNotes = new JsonObject { ["schema"] = "kalypsis-health-1", ["fields"] = medical }.ToJsonString();
         foreach (var (key, amount) in taxes)
             switch (key)

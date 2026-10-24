@@ -1,3 +1,4 @@
+import { PolicyCardFields, POLICY_CARD_LAYOUT, type PolicyCardOption } from "./profile/PolicyCardFields";
 import { DetailProfileTabs } from "./profile/DetailProfileTabs";
 import { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback, useProfileFieldEditor, type ProfileFieldSession } from "./profile/ProfileFieldEditor";
 import { POLICY_CORE_KEYS, policyCorePayload, policyPreservedAmounts } from "./profile/policyProfile";
@@ -11,11 +12,10 @@ import { linkedVehicleSpecs } from "./profile/vehicleProfile";
 import { createContext, useContext, Children, isValidElement, useEffect, useMemo, useState } from "react";
 import {
   Alert, Autocomplete, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  Divider, Drawer, FormControlLabel, IconButton, MenuItem,
+  Drawer, FormControlLabel, IconButton, MenuItem,
   Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow, TextField as MuiTextField, Typography
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
@@ -172,7 +172,6 @@ const STATUS_COLOR: Record<string, "default" | "success" | "warning" | "info" | 
   Renewed: "info", PendingRenewal: "warning", Prospect: "warning"
 };
 
-const FREQUENCIES = ["Annual", "Semiannual", "Quarterly", "Monthly", "Single"];
 const DELIVERY_METHODS = ["Hand", "Post", "Email", "Courier"];
 const POLICY_STATUS_LABELS: Record<string, string> = {
   Prospect: "Πιθανό συμβόλαιο", Draft: "Πρόχειρο", Active: "Ενεργό",
@@ -188,24 +187,12 @@ const CUSTOMER_STATUS_LABELS: Record<string, string> = {
   Prospect: "Πιθανός πελάτης", Active: "Ενεργός", Inactive: "Ανενεργός",
   Archived: "Αρχειοθετημένος", Lost: "Απολεσθείς"
 };
-const FREQUENCY_LABELS: Record<string, string> = {
-  Annual: "Ετήσια", Semiannual: "Εξαμηνιαία", Quarterly: "Τριμηνιαία", Monthly: "Μηνιαία", Single: "Εφάπαξ"
-};
 const DELIVERY_METHOD_LABELS: Record<string, string> = {
   Hand: "Παράδοση με το χέρι", Post: "Ταχυδρομείο", Email: "Ηλεκτρονικό ταχυδρομείο", Courier: "Ταχυμεταφορά"
 };
 const policyStatusLabel = (value: string) => POLICY_STATUS_LABELS[value] ?? value;
 const policyTypeLabel = (value: string) => POLICY_TYPE_LABELS[value] ?? value;
 const customerStatusLabel = (value?: string) => value ? (CUSTOMER_STATUS_LABELS[value] ?? value) : "—";
-const COLLECTION_METHODS = ["Cash", "BankDeposit", "Card", "DebitOrder", "Cheque", "Other"];
-const COLLECTION_METHODS_LABEL: Record<string, string> = {
-  Cash: "Μετρητά",
-  BankDeposit: "Κατάθεση τραπέζης",
-  Card: "Κάρτα",
-  DebitOrder: "Πάγια εντολή",
-  Cheque: "Επιταγή",
-  Other: "Άλλο",
-};
 
 export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, presentation = "drawer", initialEditing = false }: Props) {
   const { t } = useTranslation();
@@ -213,7 +200,9 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   const [tab, setTab] = useState(0);
   const [err, setErr] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-  const [modalTab, setModalTab] = useState(0);
+  const [additionalOpen,setAdditionalOpen]=useState(false);
+  const [documentsOpen,setDocumentsOpen]=useState(false);
+  const [recordsOpen,setRecordsOpen]=useState<"receipts"|"installments"|"objects"|null>(null);
   const [changeProducerOpen, setChangeProducerOpen] = useState(false);
   const [customerPreviewOpen, setCustomerPreviewOpen] = useState(false);
   const [vehiclePreviewOpen, setVehiclePreviewOpen] = useState(false);
@@ -224,21 +213,13 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   const [settlementMode, setSettlementMode] = useState<PolicySettlementMode | null>(null);
   const [carrierCommissionOpen, setCarrierCommissionOpen] = useState(false);
   const modalPresentation = presentation === "modal";
-  const selectTab = (next: number | string) => {
-    const normalized = Number(next);
-    if (!Number.isInteger(normalized) || normalized < 0) return;
-    if (modalPresentation) {
-      setModalTab(normalized);
-      return;
-    }
-    setTab(normalized);
-  };
+  const selectTab = (next:number|string)=>{const value=Number(next);if(Number.isInteger(value)&&value>=0&&value<4)setTab(value);};
 
   useEffect(() => {
     if (open) {
+      setAdditionalOpen(false);setDocumentsOpen(false);setRecordsOpen(null);
       setCommissionDetailsOpen(false);
       setClaimsOpen(false);
-      setModalTab(0);
       setTab(0);
     }
   }, [open, policyId]);
@@ -261,6 +242,8 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   const riskQuery = useQuery({ queryKey: ["policy-risk-profile", policyId], enabled: open && !!policyId && !readOnly,
     queryFn: async () => (await api.get<Record<string, string>>(`/policies/${policyId}/risk-profile`)).data });
 
+  const cardOptionsQuery=useQuery({queryKey:["policy-card-options",policyId],enabled:open&&!!policyId&&!readOnly,queryFn:async()=>(await api.get<Record<string,PolicyCardOption[]>>(`/policies/${policyId}/risk-profile/card-options`)).data});
+  const producerOptionsQuery=useQuery({queryKey:["producers-lookup"],enabled:open&&!readOnly,queryFn:async()=>(await api.get<{id:string;name:string;code?:string}[]>("/producers")).data});
   // Editable extended form (Phase 12 fields). Initialized from query data.
   const [form, setForm] = useState({
     paymentFrequency: "Annual",
@@ -356,19 +339,9 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   }, [policyId, q.data?.customerId, storedVehiclesQuery.data, vehicleSearch]);
 
   // Tab-specific data sources (loaded only when the tab is opened).
-  const endorsements = useQuery({
-    queryKey: ["policy-endorsements", policyId],
-    enabled: open && (tab === 5 || (modalPresentation && modalTab === 3)) && !!policyId,
-    queryFn: async () => (await api.get<any[]>("/endorsements", { params: { policyId } })).data.filter((e: any) => e.policyId === policyId)
-  });
-  const claims = useQuery({
-    queryKey: ["policy-claims", policyId],
-    enabled: open && !modalPresentation && tab === 6 && !!policyId,
-    queryFn: async () => (await api.get<any[]>("/claims", { params: { policyId } })).data
-  });
   const receipts = useQuery({
     queryKey: ["policy-receipts", policyId],
-    enabled: open && (tab === 7 || (modalPresentation && modalTab === 3)) && !!policyId,
+    enabled: open && recordsOpen==="receipts" && !!policyId,
     queryFn: async () => (await api.get<any[]>("/receipts")).data.filter((r: any) => r.policyId === policyId)
   });
   const commissionMatrix = useQuery({
@@ -376,7 +349,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
     // Also enabled on the Οικονομικά tab (index 1) so its summary card can
     // show the parametrization-computed producer / agency totals alongside
     // the bridge-supplied premiums.
-    enabled: !readOnly && open && ((tab === 0 || tab === 1) || (modalPresentation && (modalTab === 0 || modalTab === 1))) && !!policyId,
+    enabled: !readOnly && open && !!policyId,
     queryFn: async () => (await api.get<PolicyCommissionMatrix>(`/policies/${policyId}/commission-splits`)).data
   });
 
@@ -494,25 +467,13 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
       return el.isContentEditable;
     };
-    const map: Record<string, number> = {
-      F2: 0,   // Summary («Γενικά»)
-      F6: 1,   // Financials («Οικονομικά»)
-      F5: 3,   // Renewal («Αίτηση ανανέωσης»)
-      F8: 4,   // Delivery («Παράδοση»)
-      F9: 14,  // Commissions matrix («Προμήθειες»)
-      F12: 12, // History («Ιστορικό»)
-    };
+    const map:Record<string,number>={F2:0,F6:2,F5:0,F8:0,F9:2,F12:3};
     const onKey = (e: KeyboardEvent) => {
       const target = map[e.key];
       if (target === undefined) return;
       if (isEditable(e.target)) return;
       e.preventDefault();
-      if (modalPresentation) {
-        const modalTarget = target === 0 ? 0 : target === 1 ? 1 : target === 12 ? 4 : (target === 6 || target === 7 || target === 14 ? 3 : 2);
-        selectTab(modalTarget);
-      } else {
-        selectTab(target);
-      }
+      selectTab(target);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -528,7 +489,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
       packageCode: q.data?.carrierPackageCode || "",
       coverCode: q.data?.carrierCoverageCode || "",
       ...Object.fromEntries(Object.entries(riskQuery.data ?? {}).map(([key, value]) => ["risk:" + key, value])),
-    }, onClose, refresh: () => { void qc.invalidateQueries({ queryKey: ["policy-detail", policyId] }); void qc.invalidateQueries({ queryKey: ["policy-risk-profile", policyId] }); void qc.invalidateQueries({ queryKey: ["policies"] }); },
+    }, onClose, refresh: () => { void qc.invalidateQueries({ queryKey: ["policy-detail", policyId] }); void qc.invalidateQueries({ queryKey: ["policy-risk-profile", policyId] }); void qc.invalidateQueries({ queryKey: ["policy-commission-matrix", policyId] }); void qc.invalidateQueries({ queryKey: ["policies"] }); },
     write: async (changes, accept) => {
       if (readOnly || !q.data) throw new Error("Δεν επιτρέπεται η επεξεργασία συμβολαίου.");
       if (!Object.keys(changes).length) return;
@@ -576,7 +537,6 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
       }
     }
   });
-  const editing = session.editAll;
 
   const p = q.data;
 
@@ -613,14 +573,21 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
     };
   }, [resizing]);
 
-  const showSummary = modalPresentation ? modalTab === 0 : tab === 0;
-  const showFinancials = modalPresentation ? modalTab === 1 : tab === 1;
-  const showContract = modalPresentation ? modalTab === 2 : tab === 2;
-  const showMovements = modalPresentation ? modalTab === 3 : false;
-  const showDocuments = modalPresentation && modalTab === 4;
-  const showHistory = modalPresentation && modalTab === 5;
-  const canEdit = !readOnly && (!modalPresentation || editing);
+  const showSummary=tab===0;
+  const showFinancials=tab===2;
+  const showContract=tab===1;
+  const showHistory=tab===3;
   const catalogue = useCarrierCatalogue(open ? q.data?.insuranceCompanyId : null);
+  const cardOptions:Record<string,PolicyCardOption[]>={...cardOptionsQuery.data,
+    insuranceCompanyId:(carriersLookup.data??[]).map(row=>({value:row.id,label:row.name})),
+    previousInsuranceCompanyId:(carriersLookup.data??[]).map(row=>({value:row.id,label:row.name})),
+    contractPartyCustomerId:(customersLookup.data??[]).map(row=>({value:row.id,label:row.companyName||[row.lastName,row.firstName].filter(Boolean).join(" "),hint:row.vatNumber||row.customerNumber||""})),
+    producerId:(producerOptionsQuery.data??[]).map(row=>({value:row.id,label:row.name,hint:row.code})),
+    packageCode:catalogue.packages,useCode:catalogue.uses,
+  };
+  cardOptions.renewalTransferToProducerId=cardOptions.producerId;cardOptions.renewalTransferToCarrierId=cardOptions.insuranceCompanyId;
+  const cardCommission=commissionMatrix.data?.rows.length?{agency:commissionMatrix.data.rows.filter(row=>row.hierarchyLevel==="Agency").reduce((sum,row)=>sum+row.grossAmount,0),producer:commissionMatrix.data.rows.filter(row=>row.hierarchyLevel!=="Agency").reduce((sum,row)=>sum+row.grossAmount,0)}:undefined;
+  const canEdit = !readOnly;
 
   return (
     <ThemeProvider theme={policyOverlayTheme}><PolicyFieldsContext.Provider value={{session, readOnly, riskReady: !!riskQuery.data && !riskQuery.isError}}><Drawer anchor="right" open={open} onClose={session.requestClose}
@@ -677,7 +644,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
               </Typography>
               {p.documentCount === 0 && (
                 <Alert severity="warning" sx={{ mt: 1.25, py: .25, fontWeight: 700, "& .MuiAlert-message": { py: .25 }, "& .MuiAlert-action": { alignItems: "center", py: 0 } }} action={
-                  <Button color="inherit" size="small" onClick={() => selectTab(modalPresentation ? 4 : 8)}>
+                  <Button color="inherit" size="small" onClick={() => setDocumentsOpen(true)}>
                     Ανέβασμα αρχείου
                   </Button>
                 }>
@@ -689,18 +656,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
         </Box>
 
         {/* Compact, distinct document/history tabs for nested policy cards. */}
-        <DetailProfileTabs value={modalPresentation ? modalTab : tab} onChange={value => modalPresentation ? selectTab(value) : setTab(value)} items={modalPresentation ? [
-          {label:"Γενικά",icon:<InfoOutlinedIcon />}, {label:"Οικονομικά",icon:<AccountBalanceWalletOutlinedIcon />},
-          {label:"Στοιχεία συμβολαίου",icon:<DescriptionOutlinedIcon />}, {label:"Κινήσεις",icon:<ReceiptLongOutlinedIcon />},
-          {label:"Έγγραφα",icon:<DescriptionOutlinedIcon />}, {label:"Ιστορικό",icon:<HistoryOutlinedIcon />},
-        ] : [
-          {label:"Γενικά",icon:<InfoOutlinedIcon />}, {label:t("policyDetail.tab.financials"),icon:<AccountBalanceWalletOutlinedIcon />},
-          {label:"Στοιχεία συμβολαίου",icon:<DescriptionOutlinedIcon />}, {label:t("policyDetail.tab.renewal"),icon:<DescriptionOutlinedIcon />},
-          {label:t("policyDetail.tab.delivery"),icon:<DescriptionOutlinedIcon />}, {label:t("policyDetail.tab.endorsements"),icon:<DescriptionOutlinedIcon />},
-          {label:t("policyDetail.tab.claims"),icon:<DescriptionOutlinedIcon />}, {label:t("policyDetail.tab.receipts"),icon:<ReceiptLongOutlinedIcon />},
-          {label:"PDF Συμβολαίου",icon:<DescriptionOutlinedIcon />}, {label:"Καλύψεις",icon:<DescriptionOutlinedIcon />},
-          {label:"Δόσεις",icon:<ReceiptLongOutlinedIcon />}, {label:"Ιστορικό",icon:<HistoryOutlinedIcon />},
-        ]} />
+        <DetailProfileTabs value={tab} onChange={selectTab} items={POLICY_CARD_LAYOUT.tabs.map((label,index)=>({label,icon:index===2?<AccountBalanceWalletOutlinedIcon/>:index===3?<HistoryOutlinedIcon/>:<DescriptionOutlinedIcon/>}))} />
 
         {/* Scrollable content */}
         <Box sx={{
@@ -719,9 +675,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
             <>
               {/* SUMMARY */}
               {showSummary && <Stack spacing={.75}>
-                <PolicyProfileFields session={readOnly ? undefined : session} values={session.values} policy={p}
-                  companies={carriersLookup.data ?? []} customers={customersLookup.data ?? []}
-                  producerCommissionPercent={commissionMatrix.data?.rows.find(row => !!p.producerId && row.producerId === p.producerId)?.percent} />
+                <PolicyCardFields section="main" policy={p} session={readOnly?undefined:session} options={cardOptions} commission={cardCommission} />
                 <Stack direction="row" spacing={.75} useFlexGap flexWrap="wrap" sx={{ "& .MuiButton-root": { bgcolor: "success.main", color: "#fff", borderColor: "success.main", "&:hover": { bgcolor: "success.dark", borderColor: "success.dark" } } }}>
                   <Button size="small" variant="outlined" onClick={() => setCustomerPreviewOpen(true)}>Καρτέλα πελάτη</Button>
                   <Button size="small" variant="outlined" onClick={() => setVehiclePreviewOpen(true)}>Καρτέλα οχήματος</Button>
@@ -729,18 +683,14 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                   {!readOnly && <Button size="small" variant="outlined" onClick={() => setChangeProducerOpen(true)}>Αλλαγή συνεργάτη</Button>}
                   {!readOnly && <Button size="small" variant="outlined" onClick={() => setClaimsOpen(true)}>Ζημιές & αποζημιώσεις ({p.claimCount})</Button>}
                 </Stack>
-                <PolicyFieldColumns section="metadata" groups={[
-                  [<ProfileEditableField key="createdAt" label="Ημερομηνία καταχώρησης" value={new Date(p.createdAt).toLocaleString("el-GR")} />,
-                    <ProfileEditableField key="updatedAt" label="Ενημερώθηκε" value={p.updatedAt ? new Date(p.updatedAt).toLocaleString("el-GR") : ""} />],
-                  [<ProfileEditableField key="createdBy" label="Δημιουργήθηκε από" value={p.createdByName} />,
-                    <ProfileEditableField key="previous" label="Προηγούμενο συμβόλαιο" value={p.renewedFromPolicyNumber} />],
-                ]} />
+                <Stack direction="row" gap={.75} flexWrap="wrap">
+                  <Button size="small" variant="contained" color="success" onClick={()=>setAdditionalOpen(true)}>Πρόσθετα στοιχεία</Button>
+                  <Button size="small" variant="contained" color="success" onClick={()=>setDocumentsOpen(true)}>Έγγραφα & αρχεία</Button>
+                  {!readOnly&&<Button size="small" variant="contained" color="success" onClick={()=>setRecordsOpen("objects")}>Ασφαλιζόμενα αντικείμενα</Button>}
+                </Stack>
               </Stack>}
 
-              {showContract && <Stack spacing={1}>
-                <PolicyContractFields policy={p} session={readOnly ? undefined : session} values={session.values} uses={catalogue.uses} packages={catalogue.packages} />
-                <PolicySummarySection title="Καλύψεις"><PolicyCoversTab policyId={p.id} readOnly={readOnly} /></PolicySummarySection>
-              </Stack>}
+              {showContract && <PolicyCoversTab policyId={p.id} readOnly={readOnly} />}
 
               {showFinancials && (readOnly ? (
                 <Alert severity="info">
@@ -756,15 +706,11 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                     </Stack>
                   </PolicySummarySection>
                   <PolicySummarySection title="Είσπραξη & ρυθμίσεις">
-                    <PolicyFieldColumns section="collection" groups={[
-                      [<PolicySummaryLine key="received" label={p.paidDirectlyToCarrier ? "Εισπράξεις γραφείου" : t("policyDetail.totalReceived")} value={settlementAmount(p.totalReceived, p.currency)} mono />,
-                        <PolicyOutstandingField key="outstanding" amount={p.paidDirectlyToCarrier ? 0 : p.outstanding} currency={p.currency} />,
-                        <ProfileEditableField key="status" label="Κατάσταση πληρωμής" value={policyPaymentStatus(p.premium, p.totalReceived, p.paidDirectlyToCarrier)} />],
-                      [<TextField key="frequency" profileKey="paymentFrequency" select label={t("policyDetail.paymentFrequency")} value={form.paymentFrequency}>{FREQUENCIES.map(f => <MenuItem key={f} value={f}>{FREQUENCY_LABELS[f] ?? f}</MenuItem>)}</TextField>,
-                        <TextField key="method" profileKey="paymentCollectionMethod" select label="Τρόπος είσπραξης" value={form.paymentCollectionMethod}><MenuItem value="">Δεν έχει οριστεί</MenuItem>{COLLECTION_METHODS.map(m => <MenuItem key={m} value={m}>{COLLECTION_METHODS_LABEL[m]}</MenuItem>)}</TextField>,
-                        <PolicyBooleanField key="direct" profileKey="paidDirectlyToCarrier" label="Πληρωμή απευθείας στην ασφαλιστική" />,
-                        <TextField key="special" profileKey="specialCommissionPercent" type="number" label={t("policyDetail.specialCommission")} value={form.specialCommissionPercent} />],
-                    ]} />
+                    <PolicyCardFields section="financial" policy={p} session={session} options={cardOptions} commission={cardCommission} omit={["agencyCommission","producerCommission","overCommission"]}/>
+                    <PolicySummaryLine label={p.paidDirectlyToCarrier?"Εισπράξεις γραφείου":t("policyDetail.totalReceived")} value={settlementAmount(p.totalReceived,p.currency)} mono/>
+                    <PolicyOutstandingField amount={p.paidDirectlyToCarrier?0:p.outstanding} currency={p.currency}/>
+                    <ProfileEditableField label="Κατάσταση πληρωμής" value={policyPaymentStatus(p.premium,p.totalReceived,p.paidDirectlyToCarrier)}/>
+                    <Stack direction="row" gap={.75} flexWrap="wrap" sx={{mt:1}}><Button color="success" variant="contained" size="small" onClick={()=>setRecordsOpen("receipts")}>Εισπράξεις</Button><Button color="success" variant="contained" size="small" onClick={()=>setRecordsOpen("installments")}>Δόσεις</Button></Stack>
                   </PolicySummarySection>
                   <PolicySettlementPanel policy={p} readOnly={readOnly} onSettle={setSettlementMode} onCarrierCommission={() => setCarrierCommissionOpen(true)} />
                   <Dialog open={commissionDetailsOpen} onClose={() => setCommissionDetailsOpen(false)} fullWidth maxWidth="lg" sx={{ zIndex: 1800 }}>
@@ -783,96 +729,10 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                 </Stack>
               ))}
 
-              {/* RENEWAL */}
-              {tab === 3 && (
-                <Stack spacing={2.5}>
-                  <TextField profileKey="nextRenewalDate" type="date" fullWidth label={t("policyDetail.nextRenewal")} InputLabelProps={{ shrink: true }}
-                    value={form.nextRenewalDate} onChange={e => setForm({ ...form, nextRenewalDate: e.target.value })} />
-                  <TextField profileKey="renewalInstructions" fullWidth multiline rows={3} label={t("policyDetail.renewalInstructions")}
-                    value={form.renewalInstructions} onChange={e => setForm({ ...form, renewalInstructions: e.target.value })}
-                    placeholder={t("policyDetail.renewalInstructionsPlaceholder")} />
-                </Stack>
-              )}
-
-              {/* DELIVERY */}
-              {tab === 4 && (
-                <Stack spacing={2.5}>
-                  <TextField profileKey="deliveredAt" type="date" fullWidth label={t("policyDetail.deliveredAt")} InputLabelProps={{ shrink: true }}
-                    value={form.deliveredAt} onChange={e => setForm({ ...form, deliveredAt: e.target.value })} />
-                  <TextField profileKey="deliveredTo" fullWidth label={t("policyDetail.deliveredTo")} value={form.deliveredTo}
-                    onChange={e => setForm({ ...form, deliveredTo: e.target.value })} />
-                  <TextField profileKey="deliveryMethod" select fullWidth label={t("policyDetail.deliveryMethod")} value={form.deliveryMethod}
-                    onChange={e => setForm({ ...form, deliveryMethod: e.target.value })}>
-                    <MenuItem value="">—</MenuItem>
-                    {DELIVERY_METHODS.map(m => <MenuItem key={m} value={m}>{DELIVERY_METHOD_LABELS[m] ?? m}</MenuItem>)}
-                  </TextField>
-                  <TextField profileKey="paymentCollectionMethod" select fullWidth label="Τρόπος πληρωμής" value={form.paymentCollectionMethod}
-                    onChange={e => setForm({ ...form, paymentCollectionMethod: e.target.value })}
-                    helperText="Πώς εισπράττεται το ασφάλιστρο από τον πελάτη.">
-                    <MenuItem value="">—</MenuItem>
-                    {COLLECTION_METHODS.map(m => <MenuItem key={m} value={m}>{COLLECTION_METHODS_LABEL[m]}</MenuItem>)}
-                  </TextField>
-                </Stack>
-              )}
-
-              {/* RELATED LISTS */}
-              {tab === 5 && !modalPresentation && (
-                endorsements.isLoading ? <CircularProgress /> :
-                <SimpleList rows={endorsements.data ?? []}
-                  cols={[
-                    { key: "endorsementNumber", label: t("policyDetail.endorsementNo") },
-                    { key: "issuedAt", label: t("policyDetail.issuedAt") },
-                    { key: "premiumDelta", label: "ΔΑσφάλιστρο", numeric: true },
-                    { key: "description", label: t("common.description") }
-                  ]}
-                  emptyKey="policyDetail.noEndorsements" />
-              )}
-              {tab === 6 && !modalPresentation && (
-                claims.isLoading ? <CircularProgress /> :
-                <SimpleList rows={claims.data ?? []}
-                  cols={[
-                    { key: "claimNumber", label: t("policyDetail.claimNo") },
-                    { key: "incidentDate", label: t("policyDetail.incidentDate") },
-                    { key: "status", label: t("common.status"),
-                      format: (v) => v ? String(t(`claimStatus.${v}`, v)) : "—" },
-                    { key: "approvedAmount", label: t("policyDetail.amount"), numeric: true }
-                  ]}
-                  emptyKey="policyDetail.noClaims" />
-              )}
-              {tab === 7 && !modalPresentation && (
-                receipts.isLoading ? <CircularProgress /> :
-                <SimpleList rows={receipts.data ?? []}
-                  cols={[
-                    { key: "number", label: t("policyDetail.receiptNo") },
-                    { key: "receivedOn", label: t("policyDetail.paidOn") },
-                    { key: "method", label: t("policyDetail.method"),
-                      format: (v) => v ? String(t(`paymentMethod.${v}`, v)) : "—" },
-                    { key: "amount", label: t("policyDetail.amount"), numeric: true }
-                  ]}
-                  emptyKey="policyDetail.noReceipts" />
-              )}
-              {showMovements && (
-                <Stack spacing={1.5}>
-                  <Typography variant="overline" color="text.secondary" fontWeight={800}>Πρόσθετες πράξεις</Typography>
-                  {endorsements.isLoading ? <CircularProgress size={22} /> : <SimpleList rows={endorsements.data ?? []}
-                    cols={[{ key: "endorsementNumber", label: t("policyDetail.endorsementNo") }, { key: "issuedAt", label: t("policyDetail.issuedAt") }, { key: "premiumDelta", label: "Διαφορά ασφαλίστρου", numeric: true }, { key: "description", label: t("common.description") }]}
-                    emptyKey="policyDetail.noEndorsements" />}
-                  <Divider />
-                  <Typography variant="overline" color="text.secondary" fontWeight={800}>Εισπράξεις</Typography>
-                  {receipts.isLoading ? <CircularProgress size={22} /> : <SimpleList rows={receipts.data ?? []}
-                    cols={[{ key: "number", label: t("policyDetail.receiptNo") }, { key: "receivedOn", label: t("policyDetail.paidOn") }, { key: "method", label: t("policyDetail.method"), format: (v) => v ? String(t(`paymentMethod.${v}`, v)) : "—" }, { key: "amount", label: t("policyDetail.amount"), numeric: true }]}
-                    emptyKey="policyDetail.noReceipts" />}
-                  <Divider />
-                  <Typography variant="overline" color="text.secondary" fontWeight={800}>Δόσεις</Typography>
-                  <PolicyInstallmentsTab policyId={p.id} readOnly={!canEdit} />
-                </Stack>
-              )}
-              {tab === 8 && !modalPresentation && <PolicyContractPdf policyId={p.id} readOnly={readOnly} />}
-              {showDocuments && <PolicyContractPdf policyId={p.id} readOnly={readOnly} />}
-              {showHistory && <PolicyLifecyclePanel key={p.id} policyId={p.id} />}
-              {tab === 9 && !modalPresentation && <PolicyCoversTab policyId={p.id} readOnly={readOnly} />}
-              {tab === 10 && !modalPresentation && <PolicyInstallmentsTab policyId={p.id} />}
-              {tab === 11 && !modalPresentation && <PolicyLifecyclePanel key={p.id} policyId={p.id} />}
+              {showHistory&&<Stack gap={1}><Stack direction="row" gap={1}><Button variant="contained" color="success" size="small" onClick={()=>setDocumentsOpen(true)}>Έγγραφα & αρχεία</Button></Stack><PolicyLifecyclePanel key={p.id} policyId={p.id}/></Stack>}
+              <Dialog open={additionalOpen} onClose={()=>{setAdditionalOpen(false);}} fullWidth maxWidth="lg" sx={{zIndex:1800}}><DialogTitle>Πρόσθετα στοιχεία συμβολαίου</DialogTitle><DialogContent dividers sx={{pt:2}}>{session.error&&<Alert severity="error">{session.error}</Alert>}<PolicyCardFields section="additional" policy={p} session={readOnly?undefined:session} options={cardOptions}/></DialogContent><DialogActions>{!readOnly&&session.dirty&&<Button color="success" variant="contained" disabled={session.busy} onClick={session.saveAll}>Αποθήκευση αλλαγών</Button>}<Button color="error" variant="contained" startIcon={<CloseIcon/>} onClick={()=>setAdditionalOpen(false)}>Κλείσιμο</Button></DialogActions></Dialog>
+              <Dialog open={documentsOpen} onClose={()=>setDocumentsOpen(false)} fullWidth maxWidth="lg" sx={{zIndex:1800}}><DialogTitle>Έγγραφα & αρχεία συμβολαίου</DialogTitle><DialogContent dividers><PolicyContractPdf policyId={p.id} readOnly={readOnly}/></DialogContent><DialogActions><Button color="error" variant="contained" startIcon={<CloseIcon/>} onClick={()=>setDocumentsOpen(false)}>Κλείσιμο</Button></DialogActions></Dialog>
+              <Dialog open={!!recordsOpen} onClose={()=>setRecordsOpen(null)} fullWidth maxWidth="lg" sx={{zIndex:1800}}><DialogTitle>{recordsOpen==="receipts"?"Εισπράξεις συμβολαίου":recordsOpen==="objects"?"Ασφαλιζόμενα αντικείμενα":"Δόσεις συμβολαίου"}</DialogTitle><DialogContent dividers>{recordsOpen==="installments"?<PolicyInstallmentsTab policyId={p.id} readOnly={!canEdit}/>:recordsOpen==="objects"?<PolicyObjectsTab policyId={p.id} readOnly={!canEdit}/>:receipts.isLoading?<CircularProgress size={22}/>:receipts.isError?<Alert severity="error">{extractErrorMessage(receipts.error)}</Alert>:<SimpleList rows={receipts.data??[]} cols={[{key:"number",label:"Αριθμός"},{key:"receivedOn",label:"Ημερομηνία"},{key:"method",label:"Τρόπος"},{key:"amount",label:"Ποσό",numeric:true}]} emptyKey="policyDetail.noReceipts"/>}</DialogContent><DialogActions><Button color="error" variant="contained" startIcon={<CloseIcon/>} onClick={()=>setRecordsOpen(null)}>Κλείσιμο</Button></DialogActions></Dialog>
             </>
           )}
         </Box>
@@ -2616,11 +2476,6 @@ function SearchableSelect(props: React.ComponentProps<typeof OriginalSearchableS
   if (!context || !profileKey) return <OriginalSearchableSelect {...original} />;
   return <ProfileEditableField label={props.label} field={context.readOnly ? undefined : profileKey} session={context.readOnly ? undefined : context.session} value={context.session.values[profileKey]}
     options={[{value:"", label: props.emptyLabel ?? "Δεν έχει οριστεί"}, ...props.options]} />;
-}
-function PolicyBooleanField({profileKey, label}: {profileKey: string; label: string}) {
-  const context = useContext(PolicyFieldsContext);
-  return <ProfileEditableField label={label} field={context && !context.readOnly ? profileKey : undefined} session={context && !context.readOnly ? context.session : undefined}
-    value={context?.session.values[profileKey]} options={[{value:"true",label:"Ναι"}, {value:"false",label:"Όχι"}]} />;
 }
 
 export function PolicyProfileFields({session, values, policy, companies, customers, producerCommissionPercent}: {

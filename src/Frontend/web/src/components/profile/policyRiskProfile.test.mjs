@@ -17,7 +17,7 @@ test("policy payment states distinguish zero, partial and recorded payments", ()
 test("policy card removes obsolete sections without discarding stored data or lifecycle history", async () => {
   const source = await readFile(new URL("../PolicyDetailDrawer.tsx", import.meta.url), "utf8");
   for (const removed of ["PolicyRiskFields", "PolicyTaxFields", "PolicyBeneficiaries", "Στοιχεία ασφαλιζόμενου κινδύνου", "Δικαιούχοι αποζημίωσης", "Επικοινωνίες συμβολαίου", "policy-communications", "Αναλυτικές καλύψεις", "CoversBreakdown"]) assert.ok(!source.includes(removed), removed);
-  assert.ok(source.includes('<PolicySummarySection title="Καλύψεις"><PolicyCoversTab'), "coverages remain in their dedicated section");
+  assert.ok(source.includes('{showContract && <PolicyCoversTab'), "coverages remain in their dedicated section");
   for (const retained of ["risk-profile", "<PolicyClaimsDialog", "<PolicyLifecyclePanel", "policyPaymentStatus(p.premium", "accept(Object.keys(risk).map", "...policyPreservedAmounts(", "<PolicyCoverageTable", "renderDeductible="]) assert.ok(source.includes(retained), retained);
   for (const page of ["CreditNotesPage", "FriendlySettlementsPage"]) {
     const contents = await readFile(new URL(`../../pages/${page}.tsx`, import.meta.url), "utf8");
