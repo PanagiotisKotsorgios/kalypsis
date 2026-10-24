@@ -1,0 +1,751 @@
+{
+  "version": 1,
+  "tabs": [
+    "ΚΑΡΤΕΛΑ ΟΧΗΜΑΤΟΣ",
+    "Ιδιοκτήτες",
+    "Συμβόλαια",
+    "Ζημιές"
+  ],
+  "fields": [
+    {
+      "key": "vehicleRegistrationPlate",
+      "label": "Αρ. κυκλοφορίας",
+      "path": "Plate",
+      "kind": "text",
+      "section": "main",
+      "choices": null
+    },
+    {
+      "key": "spec:make",
+      "label": "Μάρκα / εργοστάσιο",
+      "path": "Brand",
+      "kind": "text",
+      "section": "main",
+      "choices": null
+    },
+    {
+      "key": "spec:model",
+      "label": "Μοντέλο",
+      "path": "Model",
+      "kind": "text",
+      "section": "main",
+      "choices": null
+    },
+    {
+      "key": "spec:vin",
+      "label": "Αριθμός πλαισίου (VIN)",
+      "path": "Vin",
+      "kind": "text",
+      "section": "main",
+      "choices": null
+    },
+    {
+      "key": "spec:year",
+      "label": "Έτος κατασκευής",
+      "path": "YearOfConstruction",
+      "kind": "integer",
+      "section": "main",
+      "choices": null
+    },
+    {
+      "key": "spec:firstRegistrationDate",
+      "label": "Ημ. 1ης αδείας",
+      "path": "FirstLicenseDate",
+      "kind": "date",
+      "section": "main",
+      "choices": null
+    },
+    {
+      "key": "vehicleUseCategory",
+      "label": "Χρήση",
+      "path": "VehicleUse",
+      "kind": "text",
+      "section": "main",
+      "choices": null
+    },
+    {
+      "key": "reasonForCirculation",
+      "label": "Επέκταση / λόγος κυκλοφορίας",
+      "path": "spec:reasonForCirculation",
+      "kind": "text",
+      "section": "main",
+      "choices": null
+    },
+    {
+      "key": "spec:fuelType",
+      "label": "Καύσιμο",
+      "path": "FuelType",
+      "kind": "text",
+      "section": "main",
+      "choices": [
+        {
+          "value": "",
+          "label": ""
+        },
+        {
+          "value": "Βενζίνη",
+          "label": "Βενζίνη"
+        },
+        {
+          "value": "Πετρέλαιο",
+          "label": "Πετρέλαιο"
+        },
+        {
+          "value": "Υβριδικό",
+          "label": "Υβριδικό"
+        },
+        {
+          "value": "Ηλεκτρικό",
+          "label": "Ηλεκτρικό"
+        },
+        {
+          "value": "Υγραέριο",
+          "label": "Υγραέριο"
+        },
+        {
+          "value": "Φυσικό αέριο",
+          "label": "Φυσικό αέριο"
+        },
+        {
+          "value": "Άλλο",
+          "label": "Άλλο"
+        }
+      ]
+    },
+    {
+      "key": "spec:enginePowerKw",
+      "label": "Ισχύς (kW)",
+      "path": "spec:enginePowerKw",
+      "kind": "number",
+      "section": "main",
+      "choices": null
+    },
+    {
+      "key": "spec:engineCapacity",
+      "label": "Κυβισμός (cc)",
+      "path": "EngineCc",
+      "kind": "integer",
+      "section": "main",
+      "choices": null
+    },
+    {
+      "key": "spec:taxableHorsepower",
+      "label": "Φ. ίπποι",
+      "path": "TaxableHorsepower",
+      "kind": "integer",
+      "section": "main",
+      "choices": null
+    },
+    {
+      "key": "spec:estimatedValue",
+      "label": "Αξία οχήματος",
+      "path": "EstimatedValue",
+      "kind": "number",
+      "section": "main",
+      "choices": null
+    },
+    {
+      "key": "spec:purchaseDate",
+      "label": "Ημ. απόκτησης",
+      "path": "PurchaseDate",
+      "kind": "date",
+      "section": "main",
+      "choices": null
+    },
+    {
+      "key": "spec:requestedStartDate",
+      "label": "Επιθυμητή ημ. έναρξης",
+      "path": "spec:requestedStartDate",
+      "kind": "date",
+      "section": "main",
+      "choices": null
+    },
+    {
+      "key": "spec:requestedDurationMonths",
+      "label": "Διάρκεια (μήνες)",
+      "path": "spec:requestedDurationMonths",
+      "kind": "integer",
+      "section": "main",
+      "choices": [
+        {
+          "value": "",
+          "label": "Δεν έχει οριστεί"
+        },
+        {
+          "value": "1",
+          "label": "1 μήνας"
+        },
+        {
+          "value": "3",
+          "label": "3 μήνες"
+        },
+        {
+          "value": "6",
+          "label": "6 μήνες"
+        },
+        {
+          "value": "12",
+          "label": "12 μήνες"
+        },
+        {
+          "value": "24",
+          "label": "24 μήνες"
+        }
+      ]
+    },
+    {
+      "key": "owner",
+      "label": "Ιδιοκτήτης / πελάτης",
+      "path": "@CustomerName",
+      "kind": "text",
+      "section": "main",
+      "choices": null
+    },
+    {
+      "key": "ownerVat",
+      "label": "ΑΦΜ ιδιοκτήτη (αυτόματο)",
+      "path": "@CustomerAfm",
+      "kind": "text",
+      "section": "main",
+      "choices": null
+    },
+    {
+      "key": "ownerLocation",
+      "label": "ΤΚ - περιοχή (πελάτη)",
+      "path": "@OwnerLocation",
+      "kind": "text",
+      "section": "main",
+      "choices": null
+    },
+    {
+      "key": "ownerBirthDate",
+      "label": "Ημ. γέννησης (πελάτη)",
+      "path": "@OwnerBirthDate",
+      "kind": "date",
+      "section": "main",
+      "choices": null
+    },
+    {
+      "key": "ownerLicenseDate",
+      "label": "Ημ. διπλώματος (πελάτη)",
+      "path": "@OwnerLicenseDate",
+      "kind": "date",
+      "section": "main",
+      "choices": null
+    },
+    {
+      "key": "ownerHasLicense",
+      "label": "Άδεια οδήγησης (πελάτη)",
+      "path": "@OwnerHasLicense",
+      "kind": "boolean",
+      "section": "main",
+      "choices": [
+        {
+          "value": "",
+          "label": "Δεν έχει οριστεί"
+        },
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "key": "ownerLicenseNumber",
+      "label": "Αριθμός διπλώματος (πελάτη)",
+      "path": "@OwnerLicenseNumber",
+      "kind": "text",
+      "section": "main",
+      "choices": null
+    },
+    {
+      "key": "ownerLicenseClass",
+      "label": "Κατηγορία διπλώματος (πελάτη)",
+      "path": "@OwnerLicenseClass",
+      "kind": "text",
+      "section": "main",
+      "choices": null
+    },
+    {
+      "key": "spec:driverRole",
+      "label": "Ιδιότητα",
+      "path": "spec:driverRole",
+      "kind": "text",
+      "section": "main",
+      "choices": [
+        {
+          "value": "",
+          "label": "Δεν έχει οριστεί"
+        },
+        {
+          "value": "Owner",
+          "label": "Ιδιοκτήτης"
+        },
+        {
+          "value": "Driver",
+          "label": "Οδηγός"
+        },
+        {
+          "value": "Holder",
+          "label": "Κάτοχος"
+        },
+        {
+          "value": "Lessee",
+          "label": "Μισθωτής"
+        }
+      ]
+    },
+    {
+      "key": "spec:otherDriver",
+      "label": "Άλλος οδηγός",
+      "path": "spec:otherDriver",
+      "kind": "boolean",
+      "section": "main",
+      "choices": [
+        {
+          "value": "",
+          "label": "Δεν έχει οριστεί"
+        },
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "key": "spec:otherDriverName",
+      "label": "Ονοματεπώνυμο άλλου οδηγού",
+      "path": "spec:otherDriverName",
+      "kind": "text",
+      "section": "main",
+      "choices": null
+    },
+    {
+      "key": "spec:ownerCount",
+      "label": "Αριθμός ιδιοκτητών",
+      "path": "OwnerCount",
+      "kind": "integer",
+      "section": "main",
+      "choices": null
+    },
+    {
+      "key": "spec:registrationCertificateNumber",
+      "label": "Αρ. άδειας κυκλοφορίας",
+      "path": "spec:registrationCertificateNumber",
+      "kind": "text",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:vehicleKind",
+      "label": "Τύπος οχήματος",
+      "path": "AssetKind",
+      "kind": "text",
+      "section": "additional",
+      "choices": [
+        {
+          "value": "Vehicle",
+          "label": "Αυτοκίνητο"
+        },
+        {
+          "value": "Motorcycle",
+          "label": "Μοτοσυκλέτα"
+        },
+        {
+          "value": "Truck",
+          "label": "Φορτηγό"
+        }
+      ]
+    },
+    {
+      "key": "spec:bodyType",
+      "label": "Αμάξωμα",
+      "path": "spec:bodyType",
+      "kind": "text",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:color",
+      "label": "Χρώμα",
+      "path": "Color",
+      "kind": "text",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:seats",
+      "label": "Θέσεις",
+      "path": "SeatCount",
+      "kind": "integer",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:doors",
+      "label": "Πόρτες",
+      "path": "DoorCount",
+      "kind": "integer",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:transmission",
+      "label": "Κιβώτιο",
+      "path": "Transmission",
+      "kind": "text",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:insuranceClass",
+      "label": "Κατηγορία οχήματος",
+      "path": "InsuranceClass",
+      "kind": "text",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:licenseCountry",
+      "label": "Χώρα κυκλοφορίας",
+      "path": "LicenseCountry",
+      "kind": "text",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:chassisNumber",
+      "label": "Πρόσθετος αρ. πλαισίου",
+      "path": "ChassisNumber",
+      "kind": "text",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:wasPurchasedNew",
+      "label": "Αγοράστηκε καινούργιο",
+      "path": "WasPurchasedNew",
+      "kind": "boolean",
+      "section": "additional",
+      "choices": [
+        {
+          "value": "",
+          "label": "Δεν έχει οριστεί"
+        },
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "key": "spec:emissionsCo2",
+      "label": "Εκπομπές CO₂ (g/km)",
+      "path": "spec:emissionsCo2",
+      "kind": "number",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:wheelbaseMm",
+      "label": "Μεταξόνιο (mm)",
+      "path": "spec:wheelbaseMm",
+      "kind": "integer",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:wheelCount",
+      "label": "Αριθμός τροχών",
+      "path": "spec:wheelCount",
+      "kind": "integer",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:rearDualWheels",
+      "label": "Διπλοί πίσω τροχοί",
+      "path": "spec:rearDualWheels",
+      "kind": "boolean",
+      "section": "additional",
+      "choices": [
+        {
+          "value": "",
+          "label": "Δεν έχει οριστεί"
+        },
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "key": "spec:grossWeightKg",
+      "label": "Μικτό βάρος (kg)",
+      "path": "spec:grossWeightKg",
+      "kind": "number",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:tonnage",
+      "label": "Τονάζ",
+      "path": "spec:tonnage",
+      "kind": "number",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:sunroof",
+      "label": "Ηλιοροφή",
+      "path": "HasSunroof",
+      "kind": "boolean",
+      "section": "additional",
+      "choices": [
+        {
+          "value": "",
+          "label": "Δεν έχει οριστεί"
+        },
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "key": "spec:alarm",
+      "label": "Συναγερμός",
+      "path": "HasAlarm",
+      "kind": "boolean",
+      "section": "additional",
+      "choices": [
+        {
+          "value": "",
+          "label": "Δεν έχει οριστεί"
+        },
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "key": "spec:immobilizer",
+      "label": "Σύστημα ακινητοποίησης",
+      "path": "HasImmobilizer",
+      "kind": "boolean",
+      "section": "additional",
+      "choices": [
+        {
+          "value": "",
+          "label": "Δεν έχει οριστεί"
+        },
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "key": "spec:storageLocation",
+      "label": "Χώρος φύλαξης",
+      "path": "spec:storageLocation",
+      "kind": "text",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:storageAddress",
+      "label": "Διεύθυνση φύλαξης",
+      "path": "Address",
+      "kind": "text",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:storageCity",
+      "label": "Πόλη φύλαξης",
+      "path": "City",
+      "kind": "text",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:storagePostalCode",
+      "label": "Τ.Κ. φύλαξης",
+      "path": "PostalCode",
+      "kind": "text",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:condition",
+      "label": "Κατάσταση οχήματος",
+      "path": "spec:condition",
+      "kind": "text",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:mileage",
+      "label": "Χιλιόμετρα",
+      "path": "spec:mileage",
+      "kind": "integer",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:transferDate",
+      "label": "Ημ. μεταβίβασης",
+      "path": "spec:transferDate",
+      "kind": "date",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:youngDriver",
+      "label": "Νέος οδηγός",
+      "path": "IsYoungDriver",
+      "kind": "boolean",
+      "section": "additional",
+      "choices": [
+        {
+          "value": "",
+          "label": "Δεν έχει οριστεί"
+        },
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "key": "spec:specialLicense",
+      "label": "Ειδική άδεια / δίπλωμα",
+      "path": "spec:specialLicense",
+      "kind": "text",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:inspectionCertificateNumber",
+      "label": "Αρ. δελτίου ΚΤΕΟ",
+      "path": "spec:inspectionCertificateNumber",
+      "kind": "text",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:inspectionDate",
+      "label": "Ημ. ΚΤΕΟ",
+      "path": "spec:inspectionDate",
+      "kind": "date",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:nextInspectionDate",
+      "label": "Επόμενο ΚΤΕΟ",
+      "path": "spec:nextInspectionDate",
+      "kind": "date",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:emissionsCardNumber",
+      "label": "Κάρτα καυσαερίων",
+      "path": "spec:emissionsCardNumber",
+      "kind": "text",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:emissionsCardExpiry",
+      "label": "Λήξη κάρτας καυσαερίων",
+      "path": "spec:emissionsCardExpiry",
+      "kind": "date",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:otherDriverBirthDate",
+      "label": "Γέννηση άλλου οδηγού",
+      "path": "spec:otherDriverBirthDate",
+      "kind": "date",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:otherDriverLicenseDate",
+      "label": "Ημ. διπλώματος άλλου οδηγού",
+      "path": "spec:otherDriverLicenseDate",
+      "kind": "date",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:otherDriverLicenseNumber",
+      "label": "Αρ. διπλώματος άλλου οδηγού",
+      "path": "spec:otherDriverLicenseNumber",
+      "kind": "text",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:otherDriverLicenseClass",
+      "label": "Κατηγορία άλλου οδηγού",
+      "path": "spec:otherDriverLicenseClass",
+      "kind": "text",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:vehicleNotes",
+      "label": "Σημειώσεις οχήματος",
+      "path": "Notes",
+      "kind": "multiline",
+      "section": "additional",
+      "choices": null
+    },
+    {
+      "key": "spec:description",
+      "label": "Περιγραφή οχήματος",
+      "path": "Description",
+      "kind": "text",
+      "section": "additional",
+      "choices": null
+    }
+  ]
+}

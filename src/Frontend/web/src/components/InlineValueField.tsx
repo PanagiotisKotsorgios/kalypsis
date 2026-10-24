@@ -39,6 +39,8 @@ interface InlineValueFieldProps {
   plain?: boolean;
   /** Render the desktop-style copy and edit controls on the right. */
   showActions?: boolean;
+  /** Keep copy available for fields sourced from another record. */
+  readOnly?: boolean;
   /** Enable this existing field in place as part of a card-wide edit session. */
   editMode?: boolean;
   /** Parent-owned drafts survive switching between tabs. */
@@ -76,6 +78,7 @@ export function InlineValueField({
   hideLabel = false,
   plain = false,
   showActions = false,
+  readOnly = false,
   editMode = false,
   draftValue,
   onDraftChange,
@@ -84,7 +87,7 @@ export function InlineValueField({
   const clipboardText = copyValue === null || copyValue === undefined ? raw : String(copyValue);
   const [localEditing, setEditing] = useState(draftValue !== undefined && !!onCommit);
   const [localDraft, setLocalDraft] = useState(raw);
-  const editing = localEditing || (editMode && !!onCommit);
+  const editing = !readOnly && (localEditing || (editMode && !!onCommit));
   const draft = draftValue ?? localDraft;
   const validationError = editing ? validate?.(draft) : undefined;
   const setDraft = (next: string) => { setLocalDraft(next); onDraftChange?.(next); };
@@ -156,7 +159,7 @@ export function InlineValueField({
   };
 
   const beginEdit = () => {
-    if (disabled) return;
+    if (disabled || readOnly) return;
     if (onCommit) setEditing(true);
     else onRequestEdit?.();
   };
@@ -332,7 +335,7 @@ export function InlineValueField({
                   {copied ? <CheckCircleIcon sx={{ fontSize: 17 }} /> : <ContentCopyOutlinedIcon sx={{ fontSize: 17 }} />}
                 </IconButton>
               </Tooltip>
-              <Tooltip title={onCommit || onRequestEdit ? "Επεξεργασία" : "Μη επεξεργάσιμο"}>
+              {!readOnly && <Tooltip title={onCommit || onRequestEdit ? "Επεξεργασία" : "Μη επεξεργάσιμο"}>
                 <IconButton
                   size="small"
                   aria-label={`Επεξεργασία ${label}`}
@@ -342,7 +345,7 @@ export function InlineValueField({
                 >
                   <EditOutlinedIcon sx={{ fontSize: 17 }} />
                 </IconButton>
-              </Tooltip>
+              </Tooltip>}
             </>
           )}
         </Box>

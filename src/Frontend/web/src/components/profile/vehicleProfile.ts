@@ -1,62 +1,24 @@
-export const VEHICLE_SPEC_FIELDS = [
-  ["make", "Μάρκα"],
-  ["model", "Μοντέλο"],
-  ["year", "Έτος κατασκευής"],
-  ["vin", "VIN / αριθμός πλαισίου"],
-  ["registrationCertificateNumber", "Αριθμός άδειας κυκλοφορίας"],
-  ["firstRegistrationDate", "Ημ. πρώτης κυκλοφορίας"],
-  ["bodyType", "Τύπος αμαξώματος"],
-  ["color", "Χρώμα"],
-  ["seats", "Θέσεις"],
-  ["doors", "Πόρτες"],
-  ["fuelType", "Καύσιμο"],
-  ["engineCapacity", "Κυβισμός (cc)"],
-  ["enginePowerKw", "Ισχύς (kW)"],
-  ["taxableHorsepower", "Φορολογήσιμοι ίπποι"],
-  ["emissionsCo2", "Εκπομπές CO₂ (g/km)"],
-  ["wheelbaseMm", "Μεταξόνιο (mm)"],
-  ["wheelCount", "Αριθμός τροχών"],
-  ["rearDualWheels", "Διπλοί πίσω τροχοί"],
-  ["grossWeightKg", "Μικτό βάρος (kg)"],
-  ["tonnage", "Τονάζ"],
-  ["sunroof", "Ηλιοροφή"],
-  ["alarm", "Συναγερμός"],
-  ["immobilizer", "Immobilizer"],
-  ["storageLocation", "Χώρος φύλαξης"],
-  ["condition", "Κατάσταση οχήματος"],
-  ["mileage", "Χιλιόμετρα"],
-  ["estimatedValue", "Εκτιμώμενη αξία"],
-  ["purchaseDate", "Ημερομηνία αγοράς"],
-  ["transferDate", "Ημερομηνία μεταβίβασης"],
-  ["ownerCount", "Αριθμός ιδιοκτητών"],
-  ["youngDriver", "Νέος οδηγός"],
-  ["specialLicense", "Ειδική άδεια / δίπλωμα"],
-  ["inspectionCertificateNumber", "Αριθμός δελτίου ΚΤΕΟ"],
-  ["inspectionDate", "Ημερομηνία ΚΤΕΟ"],
-  ["nextInspectionDate", "Επόμενο ΚΤΕΟ"],
-  ["emissionsCardNumber", "Κάρτα καυσαερίων"],
-  ["emissionsCardExpiry", "Λήξη κάρτας καυσαερίων"],
-  ["vehicleNotes", "Σημειώσεις οχήματος"],
-] as const;
-
-/** Vertical reading order for General only; JSON keys and creation inputs stay unchanged. */
-export const VEHICLE_GENERAL_COLUMNS = [
-  ["vehicleRegistrationPlate", "spec:make", "spec:model", "spec:year", "spec:vin",
-    "spec:registrationCertificateNumber", "spec:firstRegistrationDate", "vehicleUseCategory", "reasonForCirculation",
-    "owner", "ownerVat", "spec:ownerCount", "spec:purchaseDate", "spec:transferDate"],
-  ["spec:bodyType", "spec:color", "spec:seats", "spec:doors", "spec:fuelType", "spec:engineCapacity",
-    "spec:enginePowerKw", "spec:taxableHorsepower", "spec:emissionsCo2", "spec:wheelbaseMm", "spec:wheelCount",
-    "spec:rearDualWheels", "spec:grossWeightKg", "spec:tonnage"],
-  ["spec:condition", "spec:mileage", "spec:estimatedValue", "spec:sunroof", "spec:alarm", "spec:immobilizer",
-    "spec:storageLocation", "spec:youngDriver", "spec:specialLicense", "spec:inspectionCertificateNumber",
-    "spec:inspectionDate", "spec:nextInspectionDate", "spec:emissionsCardNumber", "spec:emissionsCardExpiry", "spec:vehicleNotes"],
-] as const;
-
-export function vehicleGeneralColumns(count: 1 | 2 | 3): readonly (readonly string[])[] {
-  if (count === 3) return VEHICLE_GENERAL_COLUMNS;
-  const fields = VEHICLE_GENERAL_COLUMNS.flat();
+﻿import vehicleLayout from "./vehicle-card-layout.json";
+export interface VehicleCardField { key: string; label: string; path: string; kind: string; section: string; choices: { value: string; label: string }[] | null }
+export const VEHICLE_CARD_FIELDS = vehicleLayout.fields as VehicleCardField[];
+export const VEHICLE_CARD_TABS = vehicleLayout.tabs;
+export const VEHICLE_SPEC_FIELDS: readonly (readonly [string, string])[] = VEHICLE_CARD_FIELDS.filter(f => f.key.startsWith("spec:")).map(f => [f.key.slice(5), f.label] as const);
+export function vehicleFieldColumns(section: string, count: 1 | 2 | 3): readonly (readonly string[])[] {
+  const fields = VEHICLE_CARD_FIELDS.filter(field => field.section === section).map(field => field.key);
   const size = Math.ceil(fields.length / count);
   return Array.from({ length: count }, (_, index) => fields.slice(index * size, (index + 1) * size));
+}
+export const VEHICLE_GENERAL_COLUMNS = vehicleFieldColumns("main", 3);
+export function vehicleGeneralColumns(count: 1 | 2 | 3) { return vehicleFieldColumns("main", count); }
+export interface VehicleOwnerDetails {
+  postalCode?: string | null; region?: string | null; city?: string | null; birthDate?: string | null;
+  driverLicenseIssueDate?: string | null; hasDrivingLicense?: boolean | null; driverLicenseNumber?: string | null; driverLicenseClass?: string | null;
+}
+export function vehicleOwnerValues(owner?: VehicleOwnerDetails | null): Record<string, string> {
+  return { ownerLocation: [owner?.postalCode, owner?.region || owner?.city].filter(Boolean).join(" · "),
+    ownerBirthDate: owner?.birthDate?.slice(0, 10) ?? "", ownerLicenseDate: owner?.driverLicenseIssueDate?.slice(0, 10) ?? "",
+    ownerHasLicense: owner?.hasDrivingLicense == null ? "" : String(owner.hasDrivingLicense),
+    ownerLicenseNumber: owner?.driverLicenseNumber ?? "", ownerLicenseClass: owner?.driverLicenseClass ?? "" };
 }
 
 /** Update only requested vehicle properties; never flatten or erase insurer JSON. */
@@ -71,7 +33,19 @@ export function mergeVehicleSpecs(raw: string | null | undefined, changes: Recor
   }
   for (const [key, value] of Object.entries(changes)) {
     if (!VEHICLE_SPEC_FIELDS.some(([name]) => name === key)) throw new Error("Μη υποστηριζόμενο στοιχείο οχήματος.");
-    specs[key] = value.trim() || null;
+    const field = VEHICLE_CARD_FIELDS.find(field => field.key === "spec:" + key)!;
+    const text = value.trim();
+    if (text && ["number", "integer"].includes(field.kind)) {
+      const normalized = text.replace(",", ".");
+      if (!/^\d+(?:\.\d+)?$/.test(normalized) || !Number.isFinite(Number(normalized)) || (field.kind === "integer" && !Number.isInteger(Number(normalized)))) throw new Error(field.label + ": απαιτείται μη αρνητικός αριθμός.");
+      if (key === "ownerCount" && (Number(normalized) < 1 || Number(normalized) > 100)) throw new Error("Ο αριθμός ιδιοκτητών πρέπει να είναι από 1 έως 100.");
+    }
+    if (text && field.kind === "date") {
+      const date = new Date(text + "T00:00:00Z");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(text) || !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== text) throw new Error(field.label + ": μη έγκυρη ημερομηνία.");
+      if (key.includes("BirthDate") && text > new Date().toISOString().slice(0, 10)) throw new Error("Η ημερομηνία γέννησης δεν μπορεί να είναι μελλοντική.");
+    }
+    specs[key] = text && ["number", "integer"].includes(field.kind) ? text.replace(",", ".") : text || null;
   }
   return Object.keys(specs).length ? JSON.stringify(specs) : null;
 }

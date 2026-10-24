@@ -1,11 +1,11 @@
-import { SearchableTextField } from "../components/SearchableTextField";
+﻿import { SearchableTextField } from "../components/SearchableTextField";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import ReportProblemOutlinedIcon from "@mui/icons-material/ReportProblemOutlined";
 import { usePermission } from "../auth/permissions";
 import { DetailProfileTabs } from "../components/profile/DetailProfileTabs";
-import { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback, profileDialogPaperSx, profileFieldGridSx, useProfileFieldEditor, type ProfileFieldSession } from "../components/profile/ProfileFieldEditor";
-import { VEHICLE_SPEC_FIELDS, mergeVehicleSpecs, vehicleGeneralColumns } from "../components/profile/vehicleProfile";
+import { ProfileEditableField, ProfileEditorActions, ProfileEditorFeedback, profileDialogPaperSx, useProfileFieldEditor, type ProfileFieldSession } from "../components/profile/ProfileFieldEditor";
+import { VEHICLE_SPEC_FIELDS, VEHICLE_CARD_FIELDS, VEHICLE_CARD_TABS, mergeVehicleSpecs, vehicleFieldColumns, vehicleOwnerValues, type VehicleOwnerDetails } from "../components/profile/vehicleProfile";
 import { vehicleOwnerHistory } from "../components/profile/vehicleHistory";
 import { vehicleCoOwners, ownershipFieldValues, mergeVehicleOwnership, ownershipCreationChanges } from "../components/profile/vehicleOwnership";
 import { VehicleOwnershipFields, VehicleOwnershipInputs } from "../components/profile/VehicleOwnershipFields";
@@ -101,6 +101,7 @@ function parseSpecs(value?: string | null): Record<string, unknown> {
       for (const [key, child] of Object.entries(item as Record<string, unknown>)) walk(child, prefix ? `${prefix}.${key}` : key);
     };
     walk(parsed);
+    for (const [key] of VEHICLE_SPEC_FIELDS) if (result[key] === undefined && result["vehicle." + key] !== undefined) result[key] = result["vehicle." + key];
     return result;
   } catch { return {}; }
 }
@@ -156,6 +157,8 @@ export function VehicleDetailDialog({ open, plate, policyIds: suppliedPolicyIds,
   const [policyStatus, setPolicyStatus] = useState("");
   const [policyPage, setPolicyPage] = useState(0);
   useEffect(() => { setTab(0); setPolicySearch(""); setPolicyStatus(""); setPolicyPage(0); }, [open, plate]);
+  const [additionalOpen, setAdditionalOpen] = useState(false);
+  useEffect(() => { setAdditionalOpen(false); }, [open, plate]);
   const queryKey = ["vehicle-detail", plate, policyIds.join(",")];
   const q = useQuery({
     queryKey, enabled: open && policyIds.length > 0,
@@ -172,12 +175,16 @@ export function VehicleDetailDialog({ open, plate, policyIds: suppliedPolicyIds,
   const invalidateVehicle = () => {
     for (const key of [queryKey, ["customer-vehicles-all"], ["customer-vehicles"], ["vehicle-policy-options"], ["policies"], ["policy-detail"]]) void qc.invalidateQueries({ queryKey: key });
   };
+  const canReadCustomer = usePermission("customers.read");
+  const ownerQ = useQuery({ queryKey: ["vehicle-owner-profile", first?.customerId], enabled: open && !!first?.customerId && canReadCustomer,
+    queryFn: async () => (await api.get<VehicleOwnerDetails>(`/customers/${first!.customerId}`)).data });
   const specs = parseSpecs(first?.specsJson);
   const values = Object.fromEntries([
     ["vehicleRegistrationPlate", first?.vehicleRegistrationPlate ?? plate],
     ["vehicleUseCategory", first?.vehicleUseCategory ?? first?.carrierUseCode ?? ""],
     ["reasonForCirculation", first?.reasonForCirculation ?? ""],
     ...VEHICLE_SPEC_FIELDS.map(([key]) => ["spec:" + key, String(specs[key] ?? "")]),
+    ...Object.entries(vehicleOwnerValues(ownerQ.data)),
     ...Object.entries(ownershipFieldValues(vehicleCoOwners(first?.specsJson, first?.customerDisplay, first?.customerVat ?? ""))),
   ]);
   const session = useProfileFieldEditor({
@@ -218,7 +225,7 @@ export function VehicleDetailDialog({ open, plate, policyIds: suppliedPolicyIds,
     <DialogTitle sx={{ px: 1.25, py: .9, bgcolor: "#0b305c", color: "#fff" }}><Stack direction="row" gap={1} alignItems="center"><DirectionsCarIcon /><Typography variant="h6" fontWeight={800}>{first?.vehicleRegistrationPlate || plate || "Χωρίς πινακίδα"}</Typography></Stack></DialogTitle>
     <DialogContent dividers sx={{ p: { xs: .65, md: 1.25 }, minHeight: 0 }}>
       <DetailProfileTabs value={tab} onChange={setTab} items={[
-        { label: "Γενικά", icon: <DirectionsCarIcon /> }, { label: "Ιδιοκτήτες", icon: <PersonOutlineIcon /> },
+        { label: VEHICLE_CARD_TABS[0], icon: <DirectionsCarIcon /> }, { label: "Ιδιοκτήτες", icon: <PersonOutlineIcon /> },
         { label: "Συμβόλαια", icon: <DescriptionOutlinedIcon /> }, { label: "Ζημιές", icon: <ReportProblemOutlinedIcon /> },
       ]} />
       <ProfileEditorFeedback session={session} />
@@ -227,7 +234,18 @@ export function VehicleDetailDialog({ open, plate, policyIds: suppliedPolicyIds,
       {tab === 3 && claimsQ.isLoading && <CircularProgress size={22} />}
       {tab === 3 && claimsQ.isError && <Alert severity="error">Δεν φορτώθηκαν οι συνδεδεμένες ζημιές. {extractErrorMessage(claimsQ.error)}</Alert>}
       {[removeAllVehicle].map((mutation, index) => mutation.isError ? <Alert key={index} severity="error">{extractErrorMessage(mutation.error)}</Alert> : null)}
-      {first && tab === 0 && <VehicleProfileFields session={canWrite ? session : undefined} values={values} owner={first.customerDisplay} ownerVat={first.customerVat} />}
+      {first && tab === 0 && <Stack spacing={.75}>
+        <Stack direction="row" gap={.75} flexWrap="wrap" sx={{ pt: .6 }}>
+          <Button size="small" variant="contained" color="success" startIcon={<GridOnIcon />} onClick={() => setAdditionalOpen(true)} sx={{ color: "#fff" }}>Πρόσθετα στοιχεία</Button>
+          {first.customerId && <Button size="small" variant="contained" color="success" component={RouterLink} to={"/app/customers/" + first.customerId} sx={{ color: "#fff" }}>Καρτέλα πελάτη</Button>}
+        </Stack>
+        <VehicleProfileFields session={canWrite ? session : undefined} values={values} owner={first.customerDisplay} ownerVat={first.customerVat} />
+      </Stack>}
+      <Dialog open={open && additionalOpen} onClose={() => setAdditionalOpen(false)} fullWidth maxWidth="lg" sx={{ zIndex: (zIndex ?? 1300) + 20 }} PaperProps={{ sx: { ...profileDialogPaperSx, height: "min(780px, calc(100dvh - 20px))" } }}>
+        <DialogTitle sx={{ bgcolor: "#0b305c", color: "white", py: 1 }}>Πρόσθετα στοιχεία οχήματος</DialogTitle>
+        <DialogContent dividers sx={{ p: 1 }}><VehicleProfileFields section="additional" session={canWrite ? session : undefined} values={values} /></DialogContent>
+        <DialogActions>{canWrite && <Button color="success" variant="contained" disabled={session.busy} onClick={session.editAll ? session.saveAll : session.begin} sx={{ color: "white" }}>{session.editAll ? "Αποθήκευση αλλαγών" : "Επεξεργασία στοιχείων"}</Button>}<Button color="error" variant="contained" onClick={() => setAdditionalOpen(false)}>Κλείσιμο</Button></DialogActions>
+      </Dialog>
       {tab === 1 && <Stack spacing={1}>
         <VehicleOwnershipFields values={values} session={canWrite ? session : undefined} />
         <Typography variant="body2" color="text.secondary">Ιστορικό ιδιοκτητών βάσει καταχωρημένων ασφαλιστηρίων. Οι περίοδοι αφορούν ασφαλιστική κάλυψη και όχι πιστοποίηση μεταβίβασης.</Typography>
@@ -268,33 +286,20 @@ export function VehicleDetailDialog({ open, plate, policyIds: suppliedPolicyIds,
   </Dialog>;
 }
 
-export function VehicleProfileFields({ session, values, owner, ownerVat }: { session?: ProfileFieldSession; values: Record<string, string>; owner?: string; ownerVat?: string | null }) {
+export function VehicleProfileFields({ session, values, owner, ownerVat, section = "main" }: { session?: ProfileFieldSession; values: Record<string, string>; owner?: string; ownerVat?: string | null; section?: "main" | "additional" }) {
   const theme = useTheme();
-  const wide = useMediaQuery(theme.breakpoints.up("lg"));
   const medium = useMediaQuery(theme.breakpoints.up("md"));
-  const columnCount = wide ? 3 : medium ? 2 : 1;
-  const field = (key: string, label: string, extra: Partial<React.ComponentProps<typeof ProfileEditableField>> = {}) =>
-    <ProfileEditableField key={key} field={session ? key : undefined} session={session} value={values[key]} label={label} {...extra} />;
-  const booleanVehicleFields = new Set(["sunroof", "youngDriver", "rearDualWheels", "alarm", "immobilizer"]);
-  const dateVehicleFields = new Set(["purchaseDate", "firstRegistrationDate", "transferDate", "emissionsCardExpiry", "inspectionDate", "nextInspectionDate"]);
-  const fields = new Map<string, React.ReactNode>([
-    ["vehicleRegistrationPlate", field("vehicleRegistrationPlate", "Πινακίδα", { mono: true })],
-    ["owner", <ProfileEditableField key="owner" label="Ιδιοκτήτης / πελάτης" value={owner} />],
-    ["ownerVat", <ProfileEditableField key="ownerVat" label="ΑΦΜ ιδιοκτήτη (αυτόματο)" value={ownerVat} mono />],
-    ["vehicleUseCategory", field("vehicleUseCategory", "Χρήση / κατηγορία")],
-    ["reasonForCirculation", field("reasonForCirculation", "Λόγος κυκλοφορίας")],
-    ...VEHICLE_SPEC_FIELDS.map(([key, label]): [string, React.ReactNode] => ["spec:" + key, field("spec:" + key, label, {
-      multiline: key === "vehicleNotes", type: key === "ownerCount" ? "number" : dateVehicleFields.has(key) ? "date" : "text",
-      options: booleanVehicleFields.has(key) ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Ναι", label: "Ναι" }, { value: "Όχι", label: "Όχι" }, { value: "true", label: "Ναι" }, { value: "false", label: "Όχι" }] : key === "condition" ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Καινούργιο", label: "Καινούργιο" }, { value: "Μεταχειρισμένο", label: "Μεταχειρισμένο" }] : key === "fuelType" ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Βενζίνη", label: "Βενζίνη" }, { value: "Πετρέλαιο", label: "Πετρέλαιο" }, { value: "Υβριδικό", label: "Υβριδικό" }, { value: "Ηλεκτρικό", label: "Ηλεκτρικό" }, { value: "Υγραέριο", label: "Υγραέριο (LPG)" }, { value: "Φυσικό αέριο", label: "Φυσικό αέριο (CNG)" }] : key === "bodyType" ? [{ value: "", label: "Δεν έχει οριστεί" }, { value: "Hatchback", label: "Hatchback" }, { value: "Sedan", label: "Sedan" }, { value: "SUV", label: "SUV" }, { value: "Station Wagon", label: "Station Wagon" }, { value: "Coupe", label: "Coupe" }, { value: "Cabrio", label: "Cabrio" }, { value: "Van", label: "Van" }, { value: "Pickup", label: "Pickup" }] : undefined,
-    })]),
-  ]);
-  return <Box sx={{ ...profileFieldGridSx, display: "block" }}>
-    <Box data-vehicle-general-columns={columnCount} sx={{ display: "grid", gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`, columnGap: 1, alignItems: "start" }}>
-      {vehicleGeneralColumns(columnCount).map((keys, index) => <Stack key={index} data-vehicle-column={index + 1} spacing={.25} sx={{ minWidth: 0 }}>
-        {keys.map(key => fields.get(key))}
-      </Stack>)}
-    </Box>
-    <VehicleOwnershipFields values={values} session={session} vertical />
+  const columnCount = medium ? 2 : 1;
+  const allValues: Record<string, string> = { ...values, owner: owner ?? "", ownerVat: ownerVat ?? "" };
+  return <Box sx={{ display: "grid", gridTemplateColumns: `repeat(${columnCount}, minmax(0,1fr))`, columnGap: 1, alignItems: "start", bgcolor: "#eaf1f7", p: .5, minWidth: 0 }} data-vehicle-general-columns={columnCount}>
+    {vehicleFieldColumns(section, columnCount).map((keys, index) => <Stack key={index} data-vehicle-column={index + 1} spacing={.25} sx={{ minWidth: 0 }}>
+      {keys.map(key => {
+        const field = VEHICLE_CARD_FIELDS.find(field => field.key === key)!;
+        const readonly = field.path.startsWith("@");
+        return <ProfileEditableField key={key} label={field.label} readOnly={readonly} field={readonly || !session ? undefined : key} session={readonly ? undefined : session} value={allValues[key] ?? ""}
+          type={field.kind === "date" ? "date" : ["number", "integer"].includes(field.kind) ? "number" : "text"} options={field.choices ?? undefined} multiline={field.kind === "multiline"} mono={key === "vehicleRegistrationPlate" || key === "ownerVat"} />;
+      })}
+    </Stack>)}
   </Box>;
 }
 

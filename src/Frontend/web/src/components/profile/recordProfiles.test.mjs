@@ -1,4 +1,4 @@
-import { test } from "node:test";
+﻿import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -25,7 +25,7 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
     const { ProducerProfileFields } = await server.ssrLoadModule("/src/components/ProducerDetailDrawer.tsx");
     const { ClaimProfileFields, ClaimInfoFields } = await server.ssrLoadModule("/src/components/ClaimDetailDrawer.tsx");
     const { ProfileEditableField } = await server.ssrLoadModule("/src/components/profile/ProfileFieldEditor.tsx");
-    const { mergeVehicleSpecs, VEHICLE_SPEC_FIELDS, VEHICLE_GENERAL_COLUMNS, vehicleGeneralColumns } = await server.ssrLoadModule("/src/components/profile/vehicleProfile.ts");
+    const { mergeVehicleSpecs, VEHICLE_SPEC_FIELDS, VEHICLE_CARD_FIELDS, VEHICLE_CARD_TABS, VEHICLE_GENERAL_COLUMNS, vehicleGeneralColumns, vehicleOwnerValues } = await server.ssrLoadModule("/src/components/profile/vehicleProfile.ts");
     const { producerUpdatePayload, PRODUCER_FIELDS, PRODUCER_GENERAL_COLUMNS, producerGeneralColumns } = await server.ssrLoadModule("/src/components/profile/producerProfile.ts");
     const { ThemeProvider, createTheme } = await server.ssrLoadModule("@mui/material/styles");
     const { CLAIM_FIELDS, CLAIM_PROFILE_GROUPS, claimInformationGroups, claimUpdatePayload } = await server.ssrLoadModule("/src/components/profile/claimProfile.ts");
@@ -35,33 +35,35 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
       assert.deepEqual(ids(view), ids(edit)); assert.equal(view.includes("<input"), false); assert.equal(/<(input|textarea)\b/.test(edit), true);
       return { view, edit };
     };
-    await t.test("vehicle has every technical field in both modes; no contract-only fields; owner VAT readonly", () => {
+    await t.test("vehicle uses a compact customer-style main card and a separate technical popup with identical view/edit fields", () => {
       const values = { vehicleRegistrationPlate: "ABC1234", "spec:make": "Toyota", "spec:sunroof": "true" };
-      const {view,edit} = layout(VehicleProfileFields, { values, owner: "Ιδιοκτήτης", ownerVat: "012345678", session: session(values) });
-      for (const [key] of VEHICLE_SPEC_FIELDS) assert.equal(ids(view).filter(id => id === "spec:" + key).length, 1, key);
-      for (const key of ["wheelbaseMm", "doors", "grossWeightKg", "tonnage", "wheelCount", "rearDualWheels", "alarm", "immobilizer", "storageLocation", "emissionsCo2", "inspectionDate", "nextInspectionDate"]) {
-        assert.equal(ids(view).includes("spec:" + key), true, key);
-      }
-      assert.equal(view.includes("Αντιγραφή Μάρκα"), true); assert.equal(view.includes("Επεξεργασία Ηλιοροφή"), true);
-      assert.equal(edit.includes("Αποθήκευση Ηλιοροφή"), true); assert.equal(edit.includes("Αποθήκευση ΑΦΜ ιδιοκτήτη"), false); assert.equal(view.includes("012345678"), true);
-      for (const text of ["Χαρακτηριστικό", "Απαλλαγή", "Θέση / spot", "Τρόπος είσπραξης", "Πληρωμή απευθείας"]) assert.equal(view.includes(text), false);
-      const fieldOrder = VEHICLE_GENERAL_COLUMNS.flat();
-      const expectedIds = fieldOrder.map(key => key === "owner" ? "Ιδιοκτήτης / πελάτης" : key === "ownerVat" ? "ΑΦΜ ιδιοκτήτη (αυτόματο)" : key);
-      assert.deepEqual(ids(view), expectedIds);
-      assert.deepEqual(ids(edit), expectedIds);
-      assert.equal(new Set(fieldOrder).size, VEHICLE_SPEC_FIELDS.length + 5);
-      for (const count of [1, 2, 3]) {
-        const columns = vehicleGeneralColumns(count);
-        assert.equal(columns.length, count);
-        assert.deepEqual(columns.flat(), fieldOrder);
-        assert.ok(columns.every(column => column.length > 0));
-      }
-      assert.deepEqual(fieldOrder.slice(0, 5), ["vehicleRegistrationPlate", "spec:make", "spec:model", "spec:year", "spec:vin"]);
-      assert.equal(fieldOrder.indexOf("spec:enginePowerKw"), fieldOrder.indexOf("spec:engineCapacity") + 1);
-      assert.equal(fieldOrder.indexOf("spec:nextInspectionDate"), fieldOrder.indexOf("spec:inspectionDate") + 1);
-      assert.equal(fieldOrder.at(-1), "spec:vehicleNotes");
-      assert.ok(view.includes('data-vehicle-general-columns="1"'));
-      assert.ok(view.includes('data-vehicle-column="1"'));
+      const main = layout(VehicleProfileFields, { values, owner: "Ιδιοκτήτης", ownerVat: "012345678", session: session(values) });
+      const extra = layout(VehicleProfileFields, { section: "additional", values, session: session(values) });
+      const all = ids(main.view).concat(ids(extra.view));
+      for (const [key] of VEHICLE_SPEC_FIELDS) assert.equal(all.filter(id => id === "spec:" + key).length, 1, key);
+      assert.equal(ids(main.view).length, 28); assert.equal(ids(extra.view).length, 40);
+      assert.equal(main.view.includes("Αντιγραφή Μάρκα / εργοστάσιο"), true);
+      assert.equal(extra.view.includes("Επεξεργασία Ηλιοροφή"), true); assert.equal(extra.edit.includes("Αποθήκευση Ηλιοροφή"), true);
+      assert.equal(main.edit.includes("Αποθήκευση ΑΦΜ ιδιοκτήτη"), false); assert.equal(main.view.includes("012345678"), true);
+      for (const text of ["Χαρακτηριστικό", "Απαλλαγή", "Θέση / spot", "Τρόπος είσπραξης", "Πληρωμή απευθείας"]) assert.equal(main.view.includes(text) || extra.view.includes(text), false);
+      const fields = VEHICLE_CARD_FIELDS.filter(field => field.section === "main");
+      assert.deepEqual(ids(main.view), fields.map(field => field.path.startsWith("@") ? field.label : field.key));
+      for (const count of [1, 2, 3]) { assert.deepEqual(vehicleGeneralColumns(count).flat(), fields.map(field => field.key)); }
+      assert.deepEqual(VEHICLE_CARD_TABS, ["ΚΑΡΤΕΛΑ ΟΧΗΜΑΤΟΣ", "Ιδιοκτήτες", "Συμβόλαια", "Ζημιές"]);
+      assert.deepEqual(VEHICLE_GENERAL_COLUMNS.flat().slice(0, 5), ["vehicleRegistrationPlate", "spec:make", "spec:model", "spec:vin", "spec:year"]);
+    });
+    await t.test("vehicle customer dates and license are read from the linked customer without inventing missing data", () => {
+      const values = vehicleOwnerValues({ postalCode: "30200", region: "Μεσολόγγι", birthDate: "1985-07-15", driverLicenseIssueDate: "2010-01-28", hasDrivingLicense: true, driverLicenseNumber: "00012", driverLicenseClass: "B" });
+      assert.equal(values.ownerLocation, "30200 · Μεσολόγγι"); assert.equal(values.ownerLicenseNumber, "00012");
+      assert.equal(values.ownerBirthDate, "1985-07-15"); assert.equal(values.ownerHasLicense, "true");
+      assert.equal(vehicleOwnerValues().ownerBirthDate, "");
+      const view=render(VehicleProfileFields,{values,owner:"Πελάτης",ownerVat:"012345678",session:session(values)});
+      assert.equal(view.includes("Επεξεργασία Ημ. γέννησης (πελάτη)"),false);
+    });
+    await t.test("new quotation and driver fields persist independently of policy dates and validate number/date inputs", () => {
+      const result=JSON.parse(mergeVehicleSpecs('{"insurer":{"id":1}}',{requestedStartDate:"2027-01-01",requestedDurationMonths:"12",enginePowerKw:"85,5",otherDriverName:"Οδηγός"}));
+      assert.equal(result.enginePowerKw,"85.5");assert.equal(result.requestedStartDate,"2027-01-01");assert.equal(result.insurer.id,1);assert.equal(result.otherDriverName,"Οδηγός");
+      assert.throws(()=>mergeVehicleSpecs("{}",{enginePowerKw:"-10"}));assert.throws(()=>mergeVehicleSpecs("{}",{wheelCount:"2.5"}));assert.throws(()=>mergeVehicleSpecs("{}",{requestedStartDate:"2026-02-30"}));
     });
     await t.test("multiple owners get individual percentage fields in view/edit and creation; single owners do not", () => {
       const values = { "spec:ownerCount": "2", "owner:0:name": "Άννα", "owner:0:percentage": "60", "owner:1:name": "Γιάννης", "owner:1:percentage": "40" };

@@ -62,12 +62,13 @@ export function useProfileFieldEditor({ sessionKey, values, initialEditing = fal
 }
 export type ProfileFieldSession = ReturnType<typeof useProfileFieldEditor>;
 
-export function ProfileEditableField({ label, field, session, value, options, type = "text", mono = false, multiline = false, validate, onRequestEdit, link }: {
+export function ProfileEditableField({ label, field, session, value, options, type = "text", mono = false, multiline = false, validate, onRequestEdit, link, readOnly = false }: {
   label: string; field?: string; session?: ProfileFieldSession; value?: string | null;
   options?: InlineValueOption[]; type?: "text" | "date" | "email" | "number"; mono?: boolean; multiline?: boolean;
   validate?: (value: string) => string | undefined;
   onRequestEdit?: () => void;
   link?: string;
+  readOnly?: boolean;
 }) {
   const raw = value ?? (field ? session?.values[field] : "") ?? "";
   const display = options?.find(option => option.value === raw)?.label ?? raw;
@@ -77,7 +78,7 @@ export function ProfileEditableField({ label, field, session, value, options, ty
       {link && /^(https?:\/\/|mailto:|tel:)/i.test(link) && <Tooltip title="Άνοιγμα συνδέσμου"><IconButton component="a" href={link} target={/^https?:/i.test(link) ? "_blank" : undefined} rel="noreferrer" size="small" aria-label={"Άνοιγμα " + label} sx={{ flexShrink: 0, width: 24, height: 24 }}><OpenInNewIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>}
     </Box>
     <InlineValueField label={label} value={raw} displayValue={display || "—"} copyValue={display} options={options} type={type} mono={mono} multiline={multiline}
-      compact hideLabel showActions valueColor="#193653" disabled={session?.busy} validate={validate}
+      compact hideLabel showActions readOnly={readOnly} valueColor="#193653" disabled={session?.busy} validate={validate}
       editMode={session?.editAll} draftValue={field ? session?.drafts[field] : undefined}
       onDraftChange={field && session ? next => session.change(field, next) : undefined}
       onRequestEdit={onRequestEdit}
