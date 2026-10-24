@@ -1,4 +1,4 @@
-using FluentValidation;
+﻿using FluentValidation;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
 using Kalypsis.Domain.Entities;
@@ -13,12 +13,12 @@ public record ReceiptDto(
     Guid CustomerId, string CustomerName,
     Guid? PolicyId, string? PolicyNumber,
     PaymentMethod Method, decimal Amount, string Currency, string? Notes,
-    string? TransactionReference);
+    string? TransactionReference, Dictionary<string,string?>? Details = null, string? PolicyPaymentStatus = null);
 
 public record ReceiptBody(
     string Number, DateOnly ReceivedOn, Guid CustomerId, Guid? PolicyId,
     PaymentMethod Method, decimal Amount, string Currency, string? Notes,
-    string? TransactionReference);
+    string? TransactionReference, Dictionary<string,string?>? Details = null);
 
 public record ListReceiptsQuery(DateOnly? From, DateOnly? To, Guid? CustomerId) : IRequest<IReadOnlyList<ReceiptDto>>;
 
@@ -33,7 +33,9 @@ public class ListReceiptsQueryHandler : IRequestHandler<ListReceiptsQuery, IRead
         if (r.To.HasValue) q = q.Where(x => x.ReceivedOn <= r.To);
         if (r.CustomerId.HasValue) q = q.Where(x => x.CustomerId == r.CustomerId);
         var rows = await q.OrderByDescending(x => x.ReceivedOn).Take(1000).ToListAsync(ct);
-        return rows.Select(Map).ToList();
+        var policyIds=rows.Where(x=>x.PolicyId.HasValue).Select(x=>x.PolicyId!.Value).Distinct().ToArray();
+        var payments=await _db.Receipts.Where(x=>x.PolicyId.HasValue&&policyIds.Contains(x.PolicyId.Value)).GroupBy(x=>new{x.PolicyId,x.Currency}).Select(g=>new{g.Key.PolicyId,g.Key.Currency,Amount=g.Sum(x=>x.Amount)}).ToListAsync(ct);
+        return rows.Select(x=>Map(x) with {PolicyPaymentStatus=x.Policy is not {} p?null:p.PaidDirectlyToCarrier?"Πληρωμή στην ασφαλιστική":payments.Where(a=>a.PolicyId==p.Id&&a.Currency==p.Currency).Sum(a=>a.Amount)>=p.Premium?"Εξοφλημένο":payments.Where(a=>a.PolicyId==p.Id&&a.Currency==p.Currency).Sum(a=>a.Amount)>0?"Μερικώς εξοφλημένο":"Ανεξόφλητο"}).ToList();
     }
     internal static ReceiptDto Map(Receipt r)
     {
@@ -42,7 +44,7 @@ public class ListReceiptsQueryHandler : IRequestHandler<ListReceiptsQuery, IRead
             : r.Customer.CompanyName ?? "—";
         return new ReceiptDto(r.Id, r.Number, r.ReceivedOn, r.CustomerId, name,
             r.PolicyId, r.Policy?.PolicyNumber, r.Method, r.Amount, r.Currency, r.Notes,
-            r.TransactionReference);
+            r.TransactionReference, ReceiptDossierRules.Read(r.DossierJson));
     }
 }
 
@@ -52,8 +54,13 @@ public class ReceiptBodyValidator : AbstractValidator<ReceiptBody>
     {
         RuleFor(x => x.Number).NotEmpty().MaximumLength(40);
         RuleFor(x => x.CustomerId).NotEmpty();
-        RuleFor(x => x.Amount).GreaterThan(0);
-        RuleFor(x => x.Currency).NotEmpty().Length(3);
+        RuleFor(x => x.Amount).GreaterThan(0).LessThanOrEqualTo(9999999999.99m).Must(x=>decimal.Round(x,2)==x);
+        RuleFor(x=>x.Method).IsInEnum();
+        RuleFor(x=>x.ReceivedOn).NotEqual(default(DateOnly));
+        RuleFor(x=>x.Notes).MaximumLength(1000);
+        RuleFor(x=>x.TransactionReference).MaximumLength(80);
+        RuleFor(x => x.Currency).NotEmpty().Matches("^[A-Za-z]{3}$");
+        RuleFor(x=>x.Details).Custom((v,c)=>{if(v==null)return;try{ReceiptDossierRules.Merge(null,v);}catch(FormatException ex){c.AddFailure(ex.Message);}});
     }
 }
 
@@ -70,6 +77,7 @@ public class CreateReceiptCommandHandler : IRequestHandler<CreateReceiptCommand,
     {
         var b = r.Body;
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        if(await _db.Receipts.IgnoreQueryFilters().AnyAsync(x=>x.TenantId==tenantId&&x.Number==b.Number.Trim(),ct))throw AppException.Validation("Ο αριθμός απόδειξης χρησιμοποιείται ήδη.");
         var customerExists = await _db.Customers
             .AnyAsync(x => x.Id == b.CustomerId && x.TenantId == tenantId && x.DeletedAt == null, ct);
         if (!customerExists) throw AppException.NotFound("Ξ ΞµΞ»Ξ¬Ο„Ξ·Ο‚");
@@ -85,6 +93,7 @@ public class CreateReceiptCommandHandler : IRequestHandler<CreateReceiptCommand,
         }
         var rc = new Receipt
         {
+            DossierJson = b.Details == null ? null : ReceiptDossierRules.Merge(null,b.Details),
             Id = Guid.NewGuid(), Number = b.Number.Trim(), ReceivedOn = b.ReceivedOn,
             CustomerId = b.CustomerId, PolicyId = b.PolicyId, Method = b.Method,
             Amount = b.Amount, Currency = b.Currency.ToUpperInvariant(), Notes = b.Notes,
@@ -137,6 +146,7 @@ public class UpdateReceiptCommandHandler : IRequestHandler<UpdateReceiptCommand,
             .FirstOrDefaultAsync(x => x.Id == r.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Receipt");
 
+        if(await _db.Receipts.IgnoreQueryFilters().AnyAsync(x=>x.TenantId==tenantId&&x.Number==b.Number.Trim()&&x.Id!=r.Id,ct))throw AppException.Validation("Ο αριθμός απόδειξης χρησιμοποιείται ήδη.");
         var customerExists = await _db.Customers
             .AnyAsync(x => x.Id == b.CustomerId && x.TenantId == tenantId && x.DeletedAt == null, ct);
         if (!customerExists) throw AppException.NotFound("Customer");
@@ -151,6 +161,7 @@ public class UpdateReceiptCommandHandler : IRequestHandler<UpdateReceiptCommand,
                 throw AppException.Validation("Η είσπραξη πρέπει να συνδέεται με τον πελάτη του συμβολαίου.");
         }
 
+        if(b.Details!=null) receipt.DossierJson = ReceiptDossierRules.Merge(receipt.DossierJson,b.Details);
         receipt.Number = b.Number.Trim();
         receipt.ReceivedOn = b.ReceivedOn;
         receipt.CustomerId = b.CustomerId;

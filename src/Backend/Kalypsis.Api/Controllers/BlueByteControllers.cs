@@ -1,4 +1,4 @@
-using Kalypsis.Api.Authorization;
+﻿using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
 using Kalypsis.Application.Features.Appointments;
@@ -158,6 +158,8 @@ public class ReceiptsController : ControllerBase
     private readonly IMediator _m; public ReceiptsController(IMediator m) => _m = m;
     [HttpGet] public async Task<ActionResult<IReadOnlyList<ReceiptDto>>> List([FromQuery] DateOnly? from, [FromQuery] DateOnly? to, [FromQuery] Guid? customerId, CancellationToken ct)
         => Ok(await _m.Send(new ListReceiptsQuery(from, to, customerId), ct));
+    [HttpGet("{id:guid}")] public async Task<ActionResult<ReceiptCardDto>> Card(Guid id,CancellationToken ct)=>Ok(await _m.Send(new GetReceiptCardQuery(id),ct));
+    [HttpPatch("{id:guid}/fields")] [RequirePermission("receipts.write")] public async Task<ActionResult<ReceiptDto>> Fields(Guid id,[FromBody] Dictionary<string,string?> changes,CancellationToken ct)=>Ok(await _m.Send(new UpdateReceiptFieldsCommand(id,changes),ct));
     [HttpPost] [RequirePermission("receipts.write")] public async Task<ActionResult<ReceiptDto>> Create([FromBody] ReceiptBody body, CancellationToken ct) => Ok(await _m.Send(new CreateReceiptCommand(body), ct));
     [HttpPut("{id:guid}")] [RequirePermission("receipts.write")] public async Task<ActionResult<ReceiptDto>> Update(Guid id, [FromBody] ReceiptBody body, CancellationToken ct) => Ok(await _m.Send(new UpdateReceiptCommand(id, body), ct));
     [HttpDelete("{id:guid}")] [RequirePermission("receipts.write")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeleteReceiptCommand(id), ct); return NoContent(); }

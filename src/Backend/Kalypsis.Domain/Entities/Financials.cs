@@ -1,4 +1,4 @@
-using Kalypsis.Domain.Common;
+﻿using Kalypsis.Domain.Common;
 using Kalypsis.Domain.Enums;
 
 namespace Kalypsis.Domain.Entities;
@@ -19,6 +19,7 @@ public class Receipt : TenantEntity
     public string Currency { get; set; } = "EUR";
 
     public string? Notes { get; set; }
+    public string? DossierJson { get; set; }
     public Guid? RecordedByUserId { get; set; }
     public User? RecordedByUser { get; set; }
 

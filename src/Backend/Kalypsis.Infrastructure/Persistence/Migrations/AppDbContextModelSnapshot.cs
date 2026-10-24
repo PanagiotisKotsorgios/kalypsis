@@ -12757,6 +12757,9 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<string>("DossierJson")
+                        .HasColumnType("longtext");
+
                     b.Property<int>("Method")
                         .HasColumnType("int");
 

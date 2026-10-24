@@ -1,0 +1,454 @@
+{
+  "tabs": [
+    "Καρτέλα Είσπραξης",
+    "Πελάτης & συμβόλαιο",
+    "Οικονομικά",
+    "Έγγραφα & ιστορικό"
+  ],
+  "fields": [
+    {
+      "key": "number",
+      "label": "Αριθμός απόδειξης",
+      "section": "main",
+      "column": 0,
+      "path": "ReceiptNumber",
+      "kind": "text"
+    },
+    {
+      "key": "receivedOn",
+      "label": "Ημερομηνία είσπραξης",
+      "section": "main",
+      "column": 0,
+      "path": "ReceiptDate",
+      "kind": "date"
+    },
+    {
+      "key": "series",
+      "label": "Σειρά",
+      "section": "main",
+      "column": 0,
+      "path": "$series",
+      "kind": "text"
+    },
+    {
+      "key": "documentType",
+      "label": "Είδος παραστατικού",
+      "section": "main",
+      "column": 0,
+      "path": "$documentType",
+      "kind": "text",
+      "choices": [
+        {
+          "value": "Contract",
+          "label": "Συμβόλαιο"
+        },
+        {
+          "value": "Renewal",
+          "label": "Ανανέωση"
+        },
+        {
+          "value": "Endorsement",
+          "label": "Πρόσθετη πράξη"
+        },
+        {
+          "value": "Cancellation",
+          "label": "Ακύρωση"
+        },
+        {
+          "value": "GreenCard",
+          "label": "Πράσινη κάρτα"
+        },
+        {
+          "value": "Application",
+          "label": "Αίτηση"
+        },
+        {
+          "value": "Offer",
+          "label": "Προσφορά"
+        },
+        {
+          "value": "Instalment",
+          "label": "Δόση"
+        },
+        {
+          "value": "Other",
+          "label": "Άλλο"
+        }
+      ]
+    },
+    {
+      "key": "sourceDocumentNumber",
+      "label": "Αριθμός παραστατικού",
+      "section": "main",
+      "column": 0,
+      "path": "$sourceDocumentNumber",
+      "kind": "text"
+    },
+    {
+      "key": "documentIssuedOn",
+      "label": "Ημερομηνία έκδοσης",
+      "section": "main",
+      "column": 0,
+      "path": "$documentIssuedOn",
+      "kind": "date"
+    },
+    {
+      "key": "withoutDocument",
+      "label": "Χωρίς παραστατικό",
+      "section": "main",
+      "column": 0,
+      "path": "$withoutDocument",
+      "kind": "text",
+      "choices": [
+        {
+          "value": "true",
+          "label": "Ναι"
+        },
+        {
+          "value": "false",
+          "label": "Όχι"
+        }
+      ]
+    },
+    {
+      "key": "kind",
+      "label": "Είδος είσπραξης",
+      "section": "main",
+      "column": 1,
+      "path": "Kind",
+      "kind": "text",
+      "choices": [
+        {
+          "value": "CustomerPayment",
+          "label": "Είσπραξη πελάτη"
+        },
+        {
+          "value": "PremiumRefund",
+          "label": "Επιστροφή ασφαλίστρου"
+        },
+        {
+          "value": "CompanyDebit",
+          "label": "Χρέωση εταιρείας"
+        },
+        {
+          "value": "AgencyCommission",
+          "label": "Είσπραξη προμήθειας γραφείου"
+        },
+        {
+          "value": "CommissionSettlement",
+          "label": "Εκκαθάριση προμήθειας"
+        },
+        {
+          "value": "Other",
+          "label": "Λοιπή είσπραξη"
+        }
+      ]
+    },
+    {
+      "key": "method",
+      "label": "Τρόπος είσπραξης",
+      "section": "main",
+      "column": 1,
+      "path": "PaymentMethod",
+      "kind": "text",
+      "choices": [
+        {
+          "value": "Cash",
+          "label": "Μετρητά"
+        },
+        {
+          "value": "Card",
+          "label": "Κάρτα"
+        },
+        {
+          "value": "BankTransfer",
+          "label": "Τραπεζική μεταφορά"
+        },
+        {
+          "value": "Cheque",
+          "label": "Επιταγή"
+        },
+        {
+          "value": "PromissoryNote",
+          "label": "Γραμμάτιο"
+        },
+        {
+          "value": "Other",
+          "label": "Άλλο"
+        }
+      ]
+    },
+    {
+      "key": "amount",
+      "label": "Ποσό είσπραξης",
+      "section": "main",
+      "column": 1,
+      "path": "Amount",
+      "kind": "number"
+    },
+    {
+      "key": "currency",
+      "label": "Νόμισμα",
+      "section": "main",
+      "column": 1,
+      "path": "Currency",
+      "kind": "text"
+    },
+    {
+      "key": "transactionReference",
+      "label": "Αναφορά συναλλαγής",
+      "section": "main",
+      "column": 1,
+      "path": "Reference",
+      "kind": "text"
+    },
+    {
+      "key": "notes",
+      "label": "Σχόλια / παρατηρήσεις",
+      "section": "main",
+      "column": 1,
+      "path": "Notes",
+      "kind": "multiline"
+    },
+    {
+      "key": "customerId",
+      "label": "Πελάτης",
+      "section": "parties",
+      "column": 0,
+      "path": "CustomerId",
+      "kind": "text"
+    },
+    {
+      "key": "customerCode",
+      "label": "Κωδικός πελάτη",
+      "section": "parties",
+      "column": 0,
+      "path": "@CustomerCode",
+      "kind": "readonly"
+    },
+    {
+      "key": "customerVat",
+      "label": "ΑΦΜ πελάτη",
+      "section": "parties",
+      "column": 0,
+      "path": "@CustomerVat",
+      "kind": "readonly"
+    },
+    {
+      "key": "customerPhone",
+      "label": "Τηλέφωνο",
+      "section": "parties",
+      "column": 0,
+      "path": "@CustomerPhone",
+      "kind": "readonly"
+    },
+    {
+      "key": "customerEmail",
+      "label": "Email",
+      "section": "parties",
+      "column": 0,
+      "path": "@CustomerEmail",
+      "kind": "readonly"
+    },
+    {
+      "key": "customerAddress",
+      "label": "Διεύθυνση",
+      "section": "parties",
+      "column": 0,
+      "path": "@CustomerAddress",
+      "kind": "readonly"
+    },
+    {
+      "key": "policyId",
+      "label": "Συμβόλαιο",
+      "section": "parties",
+      "column": 1,
+      "path": "PolicyId",
+      "kind": "text"
+    },
+    {
+      "key": "carrier",
+      "label": "Ασφαλιστική εταιρεία",
+      "section": "parties",
+      "column": 1,
+      "path": "@Carrier",
+      "kind": "readonly"
+    },
+    {
+      "key": "producer",
+      "label": "Συνεργάτης",
+      "section": "parties",
+      "column": 1,
+      "path": "@Producer",
+      "kind": "readonly"
+    },
+    {
+      "key": "branch",
+      "label": "Κλάδος",
+      "section": "parties",
+      "column": 1,
+      "path": "@Branch",
+      "kind": "readonly"
+    },
+    {
+      "key": "policyStart",
+      "label": "Έναρξη συμβολαίου",
+      "section": "parties",
+      "column": 1,
+      "path": "@PolicyStart",
+      "kind": "readonly"
+    },
+    {
+      "key": "policyEnd",
+      "label": "Λήξη συμβολαίου",
+      "section": "parties",
+      "column": 1,
+      "path": "@PolicyEnd",
+      "kind": "readonly"
+    },
+    {
+      "key": "bankName",
+      "label": "Τράπεζα",
+      "section": "financial",
+      "column": 0,
+      "path": "$bankName",
+      "kind": "text"
+    },
+    {
+      "key": "instrumentNumber",
+      "label": "Αριθμός αξιογράφου",
+      "section": "financial",
+      "column": 0,
+      "path": "$instrumentNumber",
+      "kind": "text"
+    },
+    {
+      "key": "instrumentDueOn",
+      "label": "Λήξη αξιογράφου",
+      "section": "financial",
+      "column": 0,
+      "path": "$instrumentDueOn",
+      "kind": "date"
+    },
+    {
+      "key": "instrumentAmount",
+      "label": "Ποσό αξιογράφου",
+      "section": "financial",
+      "column": 0,
+      "path": "$instrumentAmount",
+      "kind": "number"
+    },
+    {
+      "key": "settledOn",
+      "label": "Ημερομηνία εξόφλησης",
+      "section": "financial",
+      "column": 0,
+      "path": "$settledOn",
+      "kind": "date"
+    },
+    {
+      "key": "receivedBy",
+      "label": "Εισπράκτορας / παραλήπτης",
+      "section": "financial",
+      "column": 0,
+      "path": "$receivedBy",
+      "kind": "text"
+    },
+    {
+      "key": "collectionCentreCode",
+      "label": "Κέντρο είσπραξης",
+      "section": "financial",
+      "column": 0,
+      "path": "$collectionCentreCode",
+      "kind": "text"
+    },
+    {
+      "key": "premium",
+      "label": "Μικτά ασφάλιστρα",
+      "section": "financial",
+      "column": 1,
+      "path": "@premium",
+      "kind": "readonly"
+    },
+    {
+      "key": "netPremium",
+      "label": "Καθαρά ασφάλιστρα",
+      "section": "financial",
+      "column": 1,
+      "path": "@netPremium",
+      "kind": "readonly"
+    },
+    {
+      "key": "policyCurrency",
+      "label": "Νόμισμα συμβολαίου",
+      "section": "financial",
+      "column": 1,
+      "path": "@policyCurrency",
+      "kind": "readonly"
+    },
+    {
+      "key": "totalReceived",
+      "label": "Εισπράξεις πελάτη",
+      "section": "financial",
+      "column": 1,
+      "path": "@totalReceived",
+      "kind": "readonly"
+    },
+    {
+      "key": "remaining",
+      "label": "Υπόλοιπο προς γραφείο",
+      "section": "financial",
+      "column": 1,
+      "path": "@remaining",
+      "kind": "readonly"
+    },
+    {
+      "key": "carrierCommissionReceived",
+      "label": "Εισπραχθείσα προμήθεια γραφείου",
+      "section": "financial",
+      "column": 1,
+      "path": "@carrierCommissionReceived",
+      "kind": "readonly"
+    },
+    {
+      "key": "paymentStatus",
+      "label": "Κατάσταση πληρωμής",
+      "section": "financial",
+      "column": 1,
+      "path": "@paymentStatus",
+      "kind": "readonly"
+    },
+    {
+      "key": "createdAt",
+      "label": "Ημερομηνία δημιουργίας",
+      "section": "history",
+      "column": 0,
+      "path": "@CreatedAt",
+      "kind": "readonly"
+    },
+    {
+      "key": "updatedAt",
+      "label": "Ημερομηνία ενημέρωσης",
+      "section": "history",
+      "column": 0,
+      "path": "@UpdatedAt",
+      "kind": "readonly"
+    },
+    {
+      "key": "deliveryAcknowledgedOn",
+      "label": "Ημερομηνία παραλαβής",
+      "section": "history",
+      "column": 0,
+      "path": "$deliveryAcknowledgedOn",
+      "kind": "date"
+    },
+    {
+      "key": "deliveryAcknowledgedBy",
+      "label": "Παραλήφθηκε από",
+      "section": "history",
+      "column": 0,
+      "path": "$deliveryAcknowledgedBy",
+      "kind": "text"
+    }
+  ]
+}

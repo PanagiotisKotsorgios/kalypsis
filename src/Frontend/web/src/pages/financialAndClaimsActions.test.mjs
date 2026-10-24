@@ -27,7 +27,11 @@ test("receipts and payments expose exports and columns through one menu", async 
   const pages = await Promise.all(["ReceiptsPage.tsx", "PaymentsPage.tsx"].map(readPage));
   for (const source of pages) {
     assert.match(source, /UnifiedActionsMenu/);
-    assert.match(source, /DataExportButton[\s\S]{0,180}actionRequest=\{exportAction\}[\s\S]{0,80}hideButton/);
+    if(source.includes("snapshotExport")) {
+      assert.match(source,/TableToolbar[\s\S]*hideActionButtons[\s\S]*snapshotExport/);
+      assert.match(source,/exportRows=\{table.filtered\}/);
+      assert.match(source,/actionRequest=\{exportAction\}/);
+    } else assert.match(source, /DataExportButton[\s\S]{0,180}actionRequest=\{exportAction\}[\s\S]{0,80}hideButton/);
     assert.match(source, /SavedReportsButton/);
     assert.match(source, /saveRequestToken=\{saveFilterRequest\}/);
     assert.match(source, /openRequestToken=\{columnsRequest\}/);
