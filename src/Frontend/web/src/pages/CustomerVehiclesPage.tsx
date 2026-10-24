@@ -1,4 +1,4 @@
-﻿import { SearchableTextField } from "../components/SearchableTextField";
+import { SearchableTextField } from "../components/SearchableTextField";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import ReportProblemOutlinedIcon from "@mui/icons-material/ReportProblemOutlined";
@@ -157,8 +157,6 @@ export function VehicleDetailDialog({ open, plate, policyIds: suppliedPolicyIds,
   const [policyStatus, setPolicyStatus] = useState("");
   const [policyPage, setPolicyPage] = useState(0);
   useEffect(() => { setTab(0); setPolicySearch(""); setPolicyStatus(""); setPolicyPage(0); }, [open, plate]);
-  const [additionalOpen, setAdditionalOpen] = useState(false);
-  useEffect(() => { setAdditionalOpen(false); }, [open, plate]);
   const queryKey = ["vehicle-detail", plate, policyIds.join(",")];
   const q = useQuery({
     queryKey, enabled: open && policyIds.length > 0,
@@ -168,7 +166,7 @@ export function VehicleDetailDialog({ open, plate, policyIds: suppliedPolicyIds,
     }
   });
   const claimsQ = useQuery({
-    queryKey: ["vehicle-claims", policyIds.join(",")], enabled: open && tab === 3 && policyIds.length > 0,
+    queryKey: ["vehicle-claims", policyIds.join(",")], enabled: open && tab === 4 && policyIds.length > 0,
     queryFn: async () => (await api.get<any[]>("/claims")).data.filter(claim => policyIds.includes(String(claim.policyId))),
   });
   const details = [...(q.data?.details ?? [])].sort((a, b) => b.startDate.localeCompare(a.startDate) || b.id.localeCompare(a.id)), first = details[0];
@@ -225,28 +223,18 @@ export function VehicleDetailDialog({ open, plate, policyIds: suppliedPolicyIds,
     <DialogTitle sx={{ px: 1.25, py: .9, bgcolor: "#0b305c", color: "#fff" }}><Stack direction="row" gap={1} alignItems="center"><DirectionsCarIcon /><Typography variant="h6" fontWeight={800}>{first?.vehicleRegistrationPlate || plate || "Χωρίς πινακίδα"}</Typography></Stack></DialogTitle>
     <DialogContent dividers sx={{ p: { xs: .65, md: 1.25 }, minHeight: 0 }}>
       <DetailProfileTabs value={tab} onChange={setTab} items={[
-        { label: VEHICLE_CARD_TABS[0], icon: <DirectionsCarIcon /> }, { label: "Ιδιοκτήτες", icon: <PersonOutlineIcon /> },
-        { label: "Συμβόλαια", icon: <DescriptionOutlinedIcon /> }, { label: "Ζημιές", icon: <ReportProblemOutlinedIcon /> },
+        { label: VEHICLE_CARD_TABS[0], icon: <DirectionsCarIcon /> }, { label: VEHICLE_CARD_TABS[1], icon: <GridOnIcon /> }, { label: VEHICLE_CARD_TABS[2], icon: <PersonOutlineIcon /> },
+        { label: VEHICLE_CARD_TABS[3], icon: <DescriptionOutlinedIcon /> }, { label: VEHICLE_CARD_TABS[4], icon: <ReportProblemOutlinedIcon /> },
       ]} />
       <ProfileEditorFeedback session={session} />
       {q.isLoading && <Box sx={{ p: 4, textAlign: "center" }}><CircularProgress /></Box>}
       {q.isError && <Alert severity="error">{extractErrorMessage(q.error)}</Alert>}
-      {tab === 3 && claimsQ.isLoading && <CircularProgress size={22} />}
-      {tab === 3 && claimsQ.isError && <Alert severity="error">Δεν φορτώθηκαν οι συνδεδεμένες ζημιές. {extractErrorMessage(claimsQ.error)}</Alert>}
+      {tab === 4 && claimsQ.isLoading && <CircularProgress size={22} />}
+      {tab === 4 && claimsQ.isError && <Alert severity="error">Δεν φορτώθηκαν οι συνδεδεμένες ζημιές. {extractErrorMessage(claimsQ.error)}</Alert>}
       {[removeAllVehicle].map((mutation, index) => mutation.isError ? <Alert key={index} severity="error">{extractErrorMessage(mutation.error)}</Alert> : null)}
-      {first && tab === 0 && <Stack spacing={.75}>
-        <Stack direction="row" gap={.75} flexWrap="wrap" sx={{ pt: .6 }}>
-          <Button size="small" variant="contained" color="success" startIcon={<GridOnIcon />} onClick={() => setAdditionalOpen(true)} sx={{ color: "#fff" }}>Πρόσθετα στοιχεία</Button>
-          {first.customerId && <Button size="small" variant="contained" color="success" component={RouterLink} to={"/app/customers/" + first.customerId} sx={{ color: "#fff" }}>Καρτέλα πελάτη</Button>}
-        </Stack>
-        <VehicleProfileFields session={canWrite ? session : undefined} values={values} owner={first.customerDisplay} ownerVat={first.customerVat} />
-      </Stack>}
-      <Dialog open={open && additionalOpen} onClose={() => setAdditionalOpen(false)} fullWidth maxWidth="lg" sx={{ zIndex: (zIndex ?? 1300) + 20 }} PaperProps={{ sx: { ...profileDialogPaperSx, height: "min(780px, calc(100dvh - 20px))" } }}>
-        <DialogTitle sx={{ bgcolor: "#0b305c", color: "white", py: 1 }}>Πρόσθετα στοιχεία οχήματος</DialogTitle>
-        <DialogContent dividers sx={{ p: 1 }}><VehicleProfileFields section="additional" session={canWrite ? session : undefined} values={values} /></DialogContent>
-        <DialogActions>{canWrite && <Button color="success" variant="contained" disabled={session.busy} onClick={session.editAll ? session.saveAll : session.begin} sx={{ color: "white" }}>{session.editAll ? "Αποθήκευση αλλαγών" : "Επεξεργασία στοιχείων"}</Button>}<Button color="error" variant="contained" onClick={() => setAdditionalOpen(false)}>Κλείσιμο</Button></DialogActions>
-      </Dialog>
-      {tab === 1 && <Stack spacing={1}>
+      {first && tab === 0 && <VehicleProfileFields session={canWrite ? session : undefined} values={values} owner={first.customerDisplay} ownerVat={first.customerVat} />}
+      {first && tab === 1 && <VehicleProfileFields section="additional" session={canWrite ? session : undefined} values={values} />}
+      {tab === 2 && <Stack spacing={1}>
         <VehicleOwnershipFields values={values} session={canWrite ? session : undefined} />
         <Typography variant="body2" color="text.secondary">Ιστορικό ιδιοκτητών βάσει καταχωρημένων ασφαλιστηρίων. Οι περίοδοι αφορούν ασφαλιστική κάλυψη και όχι πιστοποίηση μεταβίβασης.</Typography>
         <Box sx={{ overflowX: "auto" }}><Table size="small">
@@ -259,7 +247,7 @@ export function VehicleDetailDialog({ open, plate, policyIds: suppliedPolicyIds,
         </Table></Box>
         {!owners.length && <Typography color="text.secondary">Δεν υπάρχει καταχωρημένο ιστορικό ιδιοκτητών.</Typography>}
       </Stack>}
-      {first && tab === 2 && <Stack spacing={1}>
+      {first && tab === 3 && <Stack spacing={1}>
         <Stack direction="row" gap={1} flexWrap="wrap" sx={{ pt: .75 }}>
           <TextField size="small" label="Αναζήτηση συμβολαίου, εταιρείας ή πελάτη" value={policySearch} onChange={event => { setPolicySearch(event.target.value); setPolicyPage(0); }} sx={{ flex: "1 1 250px" }} />
           <TextField size="small" select label="Κατάσταση" value={policyStatus} onChange={event => { setPolicyStatus(event.target.value); setPolicyPage(0); }} sx={{ flex: "0 1 180px", minWidth: 130 }}>
@@ -277,7 +265,7 @@ export function VehicleDetailDialog({ open, plate, policyIds: suppliedPolicyIds,
         {!filteredPolicies.length && <Typography color="text.secondary">Δεν βρέθηκαν ασφαλιστήρια με αυτά τα φίλτρα.</Typography>}
         <TablePagination component="div" count={filteredPolicies.length} page={visiblePolicyPage} onPageChange={(_, page) => setPolicyPage(page)} rowsPerPage={10} rowsPerPageOptions={[10]} labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`} />
       </Stack>}
-      {first && tab === 3 && <Box sx={{ overflowX: "auto" }}>        <Card variant="outlined" sx={{ p: 1.25 }}><Typography variant="subtitle1" fontWeight={800} sx={{ mb: 0.75 }}>Ζημιές</Typography>{(claimsQ.data ?? []).length === 0 ? <Typography color="text.secondary">Δεν υπάρχουν καταχωρημένες ζημιές για το όχημα.</Typography> : <Table size="small"><TableHead><TableRow><TableCell>Αρ. ζημιάς</TableCell><TableCell>Ημερομηνία</TableCell><TableCell>Κατάσταση</TableCell><TableCell align="right">Διεκδίκηση</TableCell><TableCell align="right">Έγκριση</TableCell></TableRow></TableHead><TableBody>{(claimsQ.data ?? []).map(claim => <TableRow key={claim.id}><TableCell>{claim.claimNumber ?? "—"}</TableCell><TableCell>{claim.incidentDate ?? "—"}</TableCell><TableCell><Chip size="small" label={claimStatusLabel(claim.status)} /></TableCell><TableCell align="right">{money(claim.claimedAmount, first.currency)}</TableCell><TableCell align="right">{money(claim.approvedAmount, first.currency)}</TableCell></TableRow>)}</TableBody></Table>}</Card></Box>}
+      {first && tab === 4 && <Box sx={{ overflowX: "auto" }}>        <Card variant="outlined" sx={{ p: 1.25 }}><Typography variant="subtitle1" fontWeight={800} sx={{ mb: 0.75 }}>Ζημιές</Typography>{(claimsQ.data ?? []).length === 0 ? <Typography color="text.secondary">Δεν υπάρχουν καταχωρημένες ζημιές για το όχημα.</Typography> : <Table size="small"><TableHead><TableRow><TableCell>Αρ. ζημιάς</TableCell><TableCell>Ημερομηνία</TableCell><TableCell>Κατάσταση</TableCell><TableCell align="right">Διεκδίκηση</TableCell><TableCell align="right">Έγκριση</TableCell></TableRow></TableHead><TableBody>{(claimsQ.data ?? []).map(claim => <TableRow key={claim.id}><TableCell>{claim.claimNumber ?? "—"}</TableCell><TableCell>{claim.incidentDate ?? "—"}</TableCell><TableCell><Chip size="small" label={claimStatusLabel(claim.status)} /></TableCell><TableCell align="right">{money(claim.claimedAmount, first.currency)}</TableCell><TableCell align="right">{money(claim.approvedAmount, first.currency)}</TableCell></TableRow>)}</TableBody></Table>}</Card></Box>}
     </DialogContent>
     <DialogActions sx={{ px: 1.25, py: .6, justifyContent: "space-between", flexWrap: "wrap", gap: .75 }}>
       {canWrite && <Button color="error" startIcon={<DeleteOutlineIcon />} disabled={!first || session.dirty || session.busy || removeAllVehicle.isPending} onClick={() => { if (window.confirm("Να γίνει έλεγχος και διαγραφή του οχήματος; Η διαγραφή δεν επιτρέπεται αν υπάρχει συνδεδεμένο συμβόλαιο ή ιστορικό.")) removeAllVehicle.mutate(); }}>Διαγραφή οχήματος</Button>}

@@ -1,4 +1,4 @@
-﻿import { test } from "node:test";
+import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -49,7 +49,7 @@ test("vehicle, policy, producer and claim profiles reuse client controls and pre
       const fields = VEHICLE_CARD_FIELDS.filter(field => field.section === "main");
       assert.deepEqual(ids(main.view), fields.map(field => field.path.startsWith("@") ? field.label : field.key));
       for (const count of [1, 2, 3]) { assert.deepEqual(vehicleGeneralColumns(count).flat(), fields.map(field => field.key)); }
-      assert.deepEqual(VEHICLE_CARD_TABS, ["ΚΑΡΤΕΛΑ ΟΧΗΜΑΤΟΣ", "Ιδιοκτήτες", "Συμβόλαια", "Ζημιές"]);
+      assert.deepEqual(VEHICLE_CARD_TABS, ["Καρτέλα Οχήματος", "Πρόσθετα στοιχεία", "Ιδιοκτήτες", "Συμβόλαια", "Ζημιές"]);
       assert.deepEqual(VEHICLE_GENERAL_COLUMNS.flat().slice(0, 5), ["vehicleRegistrationPlate", "spec:make", "spec:model", "spec:vin", "spec:year"]);
     });
     await t.test("vehicle customer dates and license are read from the linked customer without inventing missing data", () => {
