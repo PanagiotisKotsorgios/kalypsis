@@ -28,6 +28,11 @@ import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../com
 type ProducerTier = "None" | "A" | "B" | "C" | "D" | "E";
 type PolicyType   = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
 type VehicleUse   = "None" | "EIX" | "EDX" | "FIX" | "FDX" | "LIX" | "LDX" | "Motorcycle" | "Agricultural" | "Construction";
+type CommissionCalculationBase = "GrossPremium" | "NetPremium" | "IncomingCommission" | "FixedAmount";
+const CALCULATION_BASE_LABEL: Record<CommissionCalculationBase, string> = {
+  GrossPremium: "Μικτά ασφάλιστρα", NetPremium: "Καθαρά ασφάλιστρα",
+  IncomingCommission: "Εισερχόμενη προμήθεια", FixedAmount: "Σταθερό ποσό"
+};
 
 interface CommissionRuleDto {
   id: string;
@@ -53,6 +58,12 @@ interface CommissionRuleDto {
   maximumGrossPremium: number | null;
   minimumDeductible: number | null;
   maximumDeductible: number | null;
+  agencyCalculationBase: CommissionCalculationBase | null;
+  producerCalculationBase: CommissionCalculationBase | null;
+  overCommissionCalculationBase: CommissionCalculationBase | null;
+  incomingCalculationBase: CommissionCalculationBase | null;
+  incomingPercent: number | null;
+  overCommissionPercent: number | null;
 }
 
 const USE_LABEL: Record<VehicleUse, string> = {
@@ -136,12 +147,16 @@ function describeScope(r: CommissionRuleDto): string {
   if (r.minimumDeductible != null || r.maximumDeductible != null)
     parts.push(`απαλλαγή ${r.minimumDeductible ?? "0"}–${r.maximumDeductible ?? "∞"} €`);
   if (r.priority) parts.push(`προτεραιότητα ${r.priority}`);
+  if (r.agencyCalculationBase) parts.push(`έδρα: ${CALCULATION_BASE_LABEL[r.agencyCalculationBase]}`);
+  if (r.producerCalculationBase) parts.push(`συνεργάτης: ${CALCULATION_BASE_LABEL[r.producerCalculationBase]}`);
+  if (r.overCommissionPercent != null) parts.push(`υπερπρομήθεια ${r.overCommissionPercent} ${r.overCommissionCalculationBase ? CALCULATION_BASE_LABEL[r.overCommissionCalculationBase] : "%"}`);
   return parts.join(" · ");
 }
 
 function isZeroCommissionRule(r: CommissionRuleDto): boolean {
   return (r.agencyPercent ?? 0) === 0
-    && (r.producerPercent ?? r.legacyValue ?? 0) === 0;
+    && (r.producerPercent ?? r.legacyValue ?? 0) === 0
+    && (r.overCommissionPercent ?? 0) === 0;
 }
 
 export function CommissionRulesPage() {
@@ -609,6 +624,12 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
     maximumGrossPremium: "" as number | "",
     minimumDeductible: "" as number | "",
     maximumDeductible: "" as number | "",
+    agencyCalculationBase: "NetPremium" as CommissionCalculationBase | "",
+    producerCalculationBase: "NetPremium" as CommissionCalculationBase | "",
+    overCommissionCalculationBase: "NetPremium" as CommissionCalculationBase | "",
+    incomingCalculationBase: "GrossPremium" as CommissionCalculationBase | "",
+    incomingPercent: "" as number | "",
+    overCommissionPercent: "" as number | "",
     effectiveFrom: today,
     effectiveTo: "",
     // "future" (default, safe) = only new policies + renewals from now on
@@ -761,6 +782,12 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
         maximumGrossPremium: rule.maximumGrossPremium ?? "",
         minimumDeductible: rule.minimumDeductible ?? "",
         maximumDeductible: rule.maximumDeductible ?? "",
+        agencyCalculationBase: rule.agencyCalculationBase ?? "",
+        producerCalculationBase: rule.producerCalculationBase ?? "",
+        overCommissionCalculationBase: rule.overCommissionCalculationBase ?? "",
+        incomingCalculationBase: rule.incomingCalculationBase ?? "GrossPremium",
+        incomingPercent: rule.incomingPercent ?? "",
+        overCommissionPercent: rule.overCommissionPercent ?? "",
         effectiveFrom: rule.effectiveFrom,
         effectiveTo: rule.effectiveTo ?? "",
         // Editing an existing rule defaults to "future" — the operator has
@@ -790,6 +817,12 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
         maximumGrossPremium: "",
         minimumDeductible: "",
         maximumDeductible: "",
+        agencyCalculationBase: "NetPremium",
+        producerCalculationBase: "NetPremium",
+        overCommissionCalculationBase: "NetPremium",
+        incomingCalculationBase: "GrossPremium",
+        incomingPercent: "",
+        overCommissionPercent: "",
         effectiveFrom: today,
         effectiveTo: "",
         applyScope: "future"
@@ -846,6 +879,12 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
         maximumGrossPremium: nn(form.maximumGrossPremium),
         minimumDeductible: nn(form.minimumDeductible),
         maximumDeductible: nn(form.maximumDeductible),
+        agencyCalculationBase: form.agencyCalculationBase || null,
+        producerCalculationBase: form.producerCalculationBase || null,
+        overCommissionCalculationBase: form.overCommissionCalculationBase || null,
+        incomingCalculationBase: form.incomingCalculationBase || null,
+        incomingPercent: nn(form.incomingPercent),
+        overCommissionPercent: nn(form.overCommissionPercent),
         effectiveFrom: form.effectiveFrom,
         effectiveTo: form.effectiveTo || null
       };
@@ -875,6 +914,12 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
             maximumGrossPremium: singleBody.maximumGrossPremium,
             minimumDeductible: singleBody.minimumDeductible,
             maximumDeductible: singleBody.maximumDeductible,
+            agencyCalculationBase: singleBody.agencyCalculationBase,
+            producerCalculationBase: singleBody.producerCalculationBase,
+            overCommissionCalculationBase: singleBody.overCommissionCalculationBase,
+            incomingCalculationBase: singleBody.incomingCalculationBase,
+            incomingPercent: singleBody.incomingPercent,
+            overCommissionPercent: singleBody.overCommissionPercent,
             effectiveFrom: form.effectiveFrom,
             effectiveTo: form.effectiveTo || null,
             replaceExisting: true
@@ -1088,15 +1133,53 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
           )}
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField type="number" label="Συνολική προμήθεια έδρας από ασφαλιστική %" value={form.agencyPercent}
+            <TextField type="number" label="Προμήθεια έδρας" value={form.agencyPercent}
               onChange={e => setForm({ ...form, agencyPercent: Number(e.target.value) })}
-              inputProps={{ step: 0.1, min: 0, max: 100 }} fullWidth
-              helperText="Παράδειγμα: 16% συνολικά. Με συνεργάτη 10%, η έδρα κρατά 6% επί των καθαρών. Χωρίς συνεργάτη, η έδρα κρατά όλο το 16%." />
-            <TextField type="number" label="Προμήθεια συνεργάτη %" value={form.producerPercent}
+              inputProps={{ step: 0.01, min: 0, ...(form.agencyCalculationBase === "FixedAmount" ? {} : { max: 100 }) }} fullWidth
+              helperText="Τιμή σε % ή ποσό, ανάλογα με τη βάση υπολογισμού." />
+            <TextField type="number" label="Προμήθεια συνεργάτη" value={form.producerPercent}
               onChange={e => setForm({ ...form, producerPercent: Number(e.target.value) })}
-              inputProps={{ step: 0.1, min: 0, max: 100 }} fullWidth required
+              inputProps={{ step: 0.01, min: 0, ...(form.producerCalculationBase === "FixedAmount" ? {} : { max: 100 }) }} fullWidth required
               helperText="Χρησιμοποιείται αυτόματα σε παραγωγή και εκκαθαρίσεις." />
           </Stack>
+
+          <Card variant="outlined" sx={{ p: 2, bgcolor: "rgba(31,123,179,0.035)" }}>
+            <Typography fontWeight={700} sx={{ mb: 1 }}>Βάση και τρόπος υπολογισμού</Typography>
+            <Stack spacing={1.5}>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                <SearchableTextField label="Βάση προμήθειας έδρας" value={form.agencyCalculationBase}
+                  onChange={e => setForm({ ...form, agencyCalculationBase: e.target.value as CommissionCalculationBase | "" })} fullWidth>
+                  <MenuItem value="">Παλιά ρύθμιση</MenuItem>
+                  {(Object.keys(CALCULATION_BASE_LABEL) as CommissionCalculationBase[]).map(x => <MenuItem key={x} value={x}>{CALCULATION_BASE_LABEL[x]}</MenuItem>)}
+                </SearchableTextField>
+                <SearchableTextField label="Βάση προμήθειας συνεργάτη" value={form.producerCalculationBase}
+                  onChange={e => setForm({ ...form, producerCalculationBase: e.target.value as CommissionCalculationBase | "" })} fullWidth>
+                  <MenuItem value="">Παλιά ρύθμιση</MenuItem>
+                  {(Object.keys(CALCULATION_BASE_LABEL) as CommissionCalculationBase[]).map(x => <MenuItem key={x} value={x}>{CALCULATION_BASE_LABEL[x]}</MenuItem>)}
+                </SearchableTextField>
+              </Stack>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                <SearchableTextField label="Βάση εισερχόμενης προμήθειας" value={form.incomingCalculationBase}
+                  onChange={e => setForm({ ...form, incomingCalculationBase: e.target.value as CommissionCalculationBase | "" })} fullWidth>
+                  <MenuItem value="GrossPremium">Μικτά ασφάλιστρα</MenuItem><MenuItem value="NetPremium">Καθαρά ασφάλιστρα</MenuItem>
+                </SearchableTextField>
+                <TextField type="number" label="Εισερχόμενη προμήθεια εταιρείας %" value={form.incomingPercent}
+                  onChange={e => setForm({ ...form, incomingPercent: e.target.value === "" ? "" : Number(e.target.value) })}
+                  inputProps={{ min: 0, max: 100, step: 0.01 }} fullWidth />
+                <SearchableTextField label="Βάση υπερπρομήθειας" value={form.overCommissionCalculationBase}
+                  onChange={e => setForm({ ...form, overCommissionCalculationBase: e.target.value as CommissionCalculationBase | "" })} fullWidth>
+                  <MenuItem value="">— Χωρίς υπερπρομήθεια —</MenuItem>
+                  {(Object.keys(CALCULATION_BASE_LABEL) as CommissionCalculationBase[]).map(x => <MenuItem key={x} value={x}>{CALCULATION_BASE_LABEL[x]}</MenuItem>)}
+                </SearchableTextField>
+                <TextField type="number" label="Ποσό / ποσοστό υπερπρομήθειας" value={form.overCommissionPercent}
+                  onChange={e => setForm({ ...form, overCommissionPercent: e.target.value === "" ? "" : Number(e.target.value) })}
+                  inputProps={{ min: 0, step: 0.01, ...(form.overCommissionCalculationBase === "FixedAmount" ? {} : { max: 100 }) }} fullWidth />
+              </Stack>
+              <Typography variant="caption" color="text.secondary">
+                Επιλέξτε μικτά, καθαρά ή την υπολογισμένη εισερχόμενη προμήθεια ως βάση. Με «Σταθερό ποσό», η τιμή είναι ποσό ανά συμβόλαιο (ή ανά κάλυψη για κανόνα κάλυψης).
+              </Typography>
+            </Stack>
+          </Card>
 
           <Card variant="outlined" sx={{ p: 2, bgcolor: "rgba(31,123,179,0.035)" }}>
             <Typography fontWeight={700} sx={{ mb: 1 }}>Στοιχεία συμφωνίας και τιμολογιακά όρια</Typography>
@@ -1198,7 +1281,7 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
         <Button onClick={onClose} color="error" variant="contained">Άκυρο</Button>
         <Button variant="contained" onClick={() => save.mutate()}
           disabled={save.isPending
-            || (!form.agencyPercent && !form.producerPercent)
+            || (!form.agencyPercent && !form.producerPercent && !form.overCommissionPercent)
             || (form.scope === "producer" && !form.producerId)
             || (form.scope === "tier" && form.producerTier === "None")}>
           {save.isPending ? <CircularProgress size={18} /> : saveLabel}
@@ -1213,6 +1296,7 @@ interface PreviewResult {
   totalMatchingPremium: number;
   estimatedAgencyCommission: number;
   estimatedProducerCommission: number;
+  estimatedOverCommission: number;
   warningMessage: string | null;
 }
 
@@ -1249,9 +1333,17 @@ function RuleImpactPreview({ form }: { form: any }) {
     maximumGrossPremium: form.maximumGrossPremium === "" ? null : form.maximumGrossPremium,
     minimumDeductible: form.minimumDeductible === "" ? null : form.minimumDeductible,
     maximumDeductible: form.maximumDeductible === "" ? null : form.maximumDeductible,
+    agencyCalculationBase: form.agencyCalculationBase || null,
+    producerCalculationBase: form.producerCalculationBase || null,
+    overCommissionCalculationBase: form.overCommissionCalculationBase || null,
+    incomingCalculationBase: form.incomingCalculationBase || null,
+    incomingPercent: form.incomingPercent === "" ? null : form.incomingPercent,
+    overCommissionPercent: form.overCommissionPercent === "" ? null : form.overCommissionPercent,
   }), [form.scope, form.producerId, form.producerTier, form.insuranceCompanyId,
        firstBranch?.policyType, firstCover, firstUse?.vehicleUseCategory,
-       form.agencyPercent, form.producerPercent, form.effectiveFrom, form.effectiveTo]);
+       form.agencyPercent, form.producerPercent, form.effectiveFrom, form.effectiveTo,
+       form.agencyCalculationBase, form.producerCalculationBase, form.overCommissionCalculationBase,
+       form.incomingCalculationBase, form.incomingPercent, form.overCommissionPercent]);
 
   const q = useQuery<PreviewResult>({
     queryKey: ["commission-rule-preview", JSON.stringify(body)],
@@ -1282,6 +1374,8 @@ function RuleImpactPreview({ form }: { form: any }) {
           label={`Προμήθεια γρ.: €${p.estimatedAgencyCommission.toFixed(0)}`} />
         <Chip size="small" variant="outlined" color="info"
           label={`Προμήθεια συν.: €${p.estimatedProducerCommission.toFixed(0)}`} />
+        {p.estimatedOverCommission > 0 && <Chip size="small" variant="outlined" color="warning"
+          label={`Υπερπρομήθεια: €${p.estimatedOverCommission.toFixed(0)}`} />}
       </Stack>
       {p.warningMessage && (
         <Typography variant="caption" color="warning.main">{p.warningMessage}</Typography>

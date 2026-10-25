@@ -106,6 +106,66 @@ public sealed class CommissionRuleCriteriaTests
     }
 
     [Fact]
+    public async Task Commission_calculation_bases_support_gross_incoming_and_fixed_amounts()
+    {
+        var current = TestScaffold.AgencyStaff(Guid.NewGuid());
+        await using var db = TestScaffold.NewDb(current, TestScaffold.Clock);
+        var tenant = current.TenantId!.Value;
+        var policy = new Policy
+        {
+            Id = Guid.NewGuid(), TenantId = tenant, PolicyNumber = "BASES-1",
+            PolicyType = PolicyType.Auto, Status = PolicyStatus.Active, Premium = 120m,
+            NetPremium = 100m, StartDate = new(2026, 4, 1), EndDate = new(2027, 4, 1), Currency = "EUR"
+        };
+        db.Policies.Add(policy);
+        db.CommissionRules.Add(new CommissionRule
+        {
+            Id = Guid.NewGuid(), TenantId = tenant, CommissionType = CommissionType.Percentage,
+            AgencyPercent = 15m, AgencyCalculationBase = CommissionCalculationBase.GrossPremium,
+            IncomingPercent = 20m, IncomingCalculationBase = CommissionCalculationBase.GrossPremium,
+            OverCommissionPercent = 50m, OverCommissionCalculationBase = CommissionCalculationBase.IncomingCommission,
+            EffectiveFrom = new(2020, 1, 1)
+        });
+        await db.SaveChangesAsync();
+
+        await new PolicyCommissionCalculator(db).RecomputeAsync(policy, default);
+        await db.SaveChangesAsync();
+
+        var splits = await db.PolicyCommissionSplits.Where(x => x.PolicyId == policy.Id).ToListAsync();
+        Assert.Equal(2, splits.Count);
+        Assert.Equal(18m, splits.Single(x => x.HierarchyLevel == HierarchyLevel.Agency).GrossAmount); // gross 120 × 15%
+        Assert.Equal(12m, splits.Single(x => x.HierarchyLevel == HierarchyLevel.OverCommission).GrossAmount); // incoming 24 × 50%
+    }
+
+    [Fact]
+    public async Task Fixed_commission_amount_is_not_treated_as_a_percentage()
+    {
+        var current = TestScaffold.AgencyStaff(Guid.NewGuid());
+        await using var db = TestScaffold.NewDb(current, TestScaffold.Clock);
+        var tenant = current.TenantId!.Value;
+        var policy = new Policy
+        {
+            Id = Guid.NewGuid(), TenantId = tenant, PolicyNumber = "FIXED-1",
+            PolicyType = PolicyType.Auto, Status = PolicyStatus.Active, Premium = 120m,
+            NetPremium = 100m, StartDate = new(2026, 4, 1), EndDate = new(2027, 4, 1), Currency = "EUR"
+        };
+        db.Policies.Add(policy);
+        db.CommissionRules.Add(new CommissionRule
+        {
+            Id = Guid.NewGuid(), TenantId = tenant, CommissionType = CommissionType.Percentage,
+            AgencyPercent = 125m, AgencyCalculationBase = CommissionCalculationBase.FixedAmount,
+            EffectiveFrom = new(2020, 1, 1)
+        });
+        await db.SaveChangesAsync();
+
+        await new PolicyCommissionCalculator(db).RecomputeAsync(policy, default);
+        await db.SaveChangesAsync();
+
+        var split = await db.PolicyCommissionSplits.SingleAsync(x => x.PolicyId == policy.Id);
+        Assert.Equal(125m, split.GrossAmount);
+    }
+
+    [Fact]
     public void Rule_validation_rejects_reversed_premium_and_deductible_ranges()
     {
         var body = new Kalypsis.Application.Features.CommissionRules.CommissionRuleBody(

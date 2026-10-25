@@ -40,7 +40,13 @@ public record CommissionRuleDto(
     decimal? MinimumGrossPremium = null,
     decimal? MaximumGrossPremium = null,
     decimal? MinimumDeductible = null,
-    decimal? MaximumDeductible = null);
+    decimal? MaximumDeductible = null,
+    CommissionCalculationBase? AgencyCalculationBase = null,
+    CommissionCalculationBase? ProducerCalculationBase = null,
+    CommissionCalculationBase? OverCommissionCalculationBase = null,
+    CommissionCalculationBase? IncomingCalculationBase = null,
+    decimal? IncomingPercent = null,
+    decimal? OverCommissionPercent = null);
 
 public record CommissionRuleBody(
     Guid? ProducerId,
@@ -64,7 +70,13 @@ public record CommissionRuleBody(
     decimal? MinimumGrossPremium = null,
     decimal? MaximumGrossPremium = null,
     decimal? MinimumDeductible = null,
-    decimal? MaximumDeductible = null);
+    decimal? MaximumDeductible = null,
+    CommissionCalculationBase? AgencyCalculationBase = null,
+    CommissionCalculationBase? ProducerCalculationBase = null,
+    CommissionCalculationBase? OverCommissionCalculationBase = null,
+    CommissionCalculationBase? IncomingCalculationBase = null,
+    decimal? IncomingPercent = null,
+    decimal? OverCommissionPercent = null);
 
 public record CommissionRuleBatchBody(
     Guid? ProducerId,
@@ -91,7 +103,13 @@ public record CommissionRuleBatchBody(
     decimal? MinimumGrossPremium = null,
     decimal? MaximumGrossPremium = null,
     decimal? MinimumDeductible = null,
-    decimal? MaximumDeductible = null);
+    decimal? MaximumDeductible = null,
+    CommissionCalculationBase? AgencyCalculationBase = null,
+    CommissionCalculationBase? ProducerCalculationBase = null,
+    CommissionCalculationBase? OverCommissionCalculationBase = null,
+    CommissionCalculationBase? IncomingCalculationBase = null,
+    decimal? IncomingPercent = null,
+    decimal? OverCommissionPercent = null);
 
 public record CommissionRuleBatchResult(int Created, int Updated, IReadOnlyList<CommissionRuleDto> Rules);
 
@@ -150,7 +168,9 @@ internal static class CommissionRuleMultiLevel
             r.TaxWithholdingPercent,
             r.AgreementNumber, r.Priority, r.InsuranceYear,
             r.MinimumGrossPremium, r.MaximumGrossPremium,
-            r.MinimumDeductible, r.MaximumDeductible);
+            r.MinimumDeductible, r.MaximumDeductible,
+            r.AgencyCalculationBase, r.ProducerCalculationBase, r.OverCommissionCalculationBase,
+            r.IncomingCalculationBase, r.IncomingPercent, r.OverCommissionPercent);
     }
 
     /// <summary>
@@ -195,6 +215,12 @@ internal static class CommissionRuleMultiLevel
         r.MaximumGrossPremium = b.MaximumGrossPremium;
         r.MinimumDeductible = b.MinimumDeductible;
         r.MaximumDeductible = b.MaximumDeductible;
+        r.AgencyCalculationBase = b.AgencyCalculationBase;
+        r.ProducerCalculationBase = b.ProducerCalculationBase;
+        r.OverCommissionCalculationBase = b.OverCommissionCalculationBase;
+        r.IncomingCalculationBase = b.IncomingCalculationBase;
+        r.IncomingPercent = b.IncomingPercent;
+        r.OverCommissionPercent = b.OverCommissionPercent;
     }
 
     private static Dictionary<string, decimal> ReadLevels(string? json)
@@ -248,10 +274,16 @@ public class CommissionRuleBodyValidator : AbstractValidator<CommissionRuleBody>
 {
     public CommissionRuleBodyValidator()
     {
-        RuleFor(x => x).Must(b => b.AgencyPercent.HasValue || b.ProducerPercent.HasValue)
-            .WithMessage("Πρέπει να ορίσετε τουλάχιστον μία από τις δύο προμήθειες (έδρα ή συνεργάτη).");
-        RuleFor(x => x.AgencyPercent).InclusiveBetween(0m, 100m).When(x => x.AgencyPercent.HasValue);
-        RuleFor(x => x.ProducerPercent).InclusiveBetween(0m, 100m).When(x => x.ProducerPercent.HasValue);
+        RuleFor(x => x).Must(b => b.AgencyPercent.HasValue || b.ProducerPercent.HasValue || b.OverCommissionPercent.HasValue)
+            .WithMessage("Ορίστε τουλάχιστον μία προμήθεια: έδρα, συνεργάτη ή υπερπρομήθεια.");
+        RuleFor(x => x.AgencyPercent).GreaterThanOrEqualTo(0m)
+            .When(x => x.AgencyCalculationBase == CommissionCalculationBase.FixedAmount && x.AgencyPercent.HasValue);
+        RuleFor(x => x.AgencyPercent).InclusiveBetween(0m, 100m)
+            .When(x => x.AgencyCalculationBase != CommissionCalculationBase.FixedAmount && x.AgencyPercent.HasValue);
+        RuleFor(x => x.ProducerPercent).GreaterThanOrEqualTo(0m)
+            .When(x => x.ProducerCalculationBase == CommissionCalculationBase.FixedAmount && x.ProducerPercent.HasValue);
+        RuleFor(x => x.ProducerPercent).InclusiveBetween(0m, 100m)
+            .When(x => x.ProducerCalculationBase != CommissionCalculationBase.FixedAmount && x.ProducerPercent.HasValue);
         RuleFor(x => x.CoverCode).MaximumLength(80);
         RuleFor(x => x).Must(b => !(b.ProducerId.HasValue && b.ProducerTier.HasValue))
             .WithMessage("Επιλέξτε είτε συγκεκριμένο συνεργάτη είτε κατηγορία, όχι και τα δύο.");
@@ -262,6 +294,20 @@ public class CommissionRuleBodyValidator : AbstractValidator<CommissionRuleBody>
         RuleFor(x => x.MaximumGrossPremium).GreaterThanOrEqualTo(0m).When(x => x.MaximumGrossPremium.HasValue);
         RuleFor(x => x.MinimumDeductible).GreaterThanOrEqualTo(0m).When(x => x.MinimumDeductible.HasValue);
         RuleFor(x => x.MaximumDeductible).GreaterThanOrEqualTo(0m).When(x => x.MaximumDeductible.HasValue);
+        RuleFor(x => x.IncomingPercent).InclusiveBetween(0m, 100m).When(x => x.IncomingPercent.HasValue);
+        RuleFor(x => x.OverCommissionPercent).GreaterThanOrEqualTo(0m)
+            .When(x => x.OverCommissionCalculationBase == CommissionCalculationBase.FixedAmount && x.OverCommissionPercent.HasValue);
+        RuleFor(x => x.OverCommissionPercent).InclusiveBetween(0m, 100m)
+            .When(x => x.OverCommissionCalculationBase != CommissionCalculationBase.FixedAmount && x.OverCommissionPercent.HasValue);
+        RuleFor(x => x.IncomingCalculationBase).Must(x => x is CommissionCalculationBase.GrossPremium or CommissionCalculationBase.NetPremium)
+            .When(x => x.IncomingCalculationBase.HasValue)
+            .WithMessage("Η εισερχόμενη προμήθεια υπολογίζεται σε μικτά ή καθαρά ασφάλιστρα.");
+        RuleFor(x => x).Must(x => !new[] { x.AgencyCalculationBase, x.ProducerCalculationBase, x.OverCommissionCalculationBase }
+                .Contains(CommissionCalculationBase.IncomingCommission)
+                || (x.IncomingCalculationBase.HasValue && x.IncomingPercent.HasValue))
+            .WithMessage("Για βάση «Εισερχόμενη προμήθεια», ορίστε πρώτα ποσοστό και βάση εισερχόμενης προμήθειας.");
+        RuleFor(x => x).Must(x => !x.IncomingPercent.HasValue || x.IncomingCalculationBase.HasValue)
+            .WithMessage("Επιλέξτε βάση μικτών ή καθαρών για την εισερχόμενη προμήθεια.");
         RuleFor(x => x).Must(x => !x.MinimumGrossPremium.HasValue || !x.MaximumGrossPremium.HasValue || x.MinimumGrossPremium <= x.MaximumGrossPremium)
             .WithMessage("Το ελάχιστο μικτό ασφάλιστρο δεν μπορεί να υπερβαίνει το μέγιστο.");
         RuleFor(x => x).Must(x => !x.MinimumDeductible.HasValue || !x.MaximumDeductible.HasValue || x.MinimumDeductible <= x.MaximumDeductible)
@@ -335,10 +381,12 @@ public class UpsertCommissionRuleBatchHandler : IRequestHandler<UpsertCommission
             b.AgencyPercent, b.ProducerPercent, b.EffectiveFrom, b.EffectiveTo,
             b.ManagerPercent, b.UnitPercent, b.AssistantPercent, b.TaxWithholdingPercent,
             b.AgreementNumber, b.Priority, b.InsuranceYear, b.MinimumGrossPremium,
-            b.MaximumGrossPremium, b.MinimumDeductible, b.MaximumDeductible));
-        if (!b.AgencyPercent.HasValue && !b.ProducerPercent.HasValue)
+            b.MaximumGrossPremium, b.MinimumDeductible, b.MaximumDeductible,
+            b.AgencyCalculationBase, b.ProducerCalculationBase, b.OverCommissionCalculationBase,
+            b.IncomingCalculationBase, b.IncomingPercent, b.OverCommissionPercent));
+        if (!b.AgencyPercent.HasValue && !b.ProducerPercent.HasValue && !b.OverCommissionPercent.HasValue)
             throw new AppException("commission_percent_required",
-                "Ορίστε τουλάχιστον μία προμήθεια: έδρα ή συνεργάτη.", 400);
+                "Ορίστε τουλάχιστον μία προμήθεια: έδρα, συνεργάτη ή υπερπρομήθεια.", 400);
         if (b.ProducerId.HasValue && b.ProducerTier.HasValue)
             throw new AppException("commission_target_conflict",
                 "Επιλέξτε είτε συγκεκριμένο συνεργάτη είτε κατηγορία, όχι και τα δύο.", 400);
@@ -452,7 +500,9 @@ public class UpsertCommissionRuleBatchHandler : IRequestHandler<UpsertCommission
                     b.EffectiveFrom, b.EffectiveTo,
                     b.ManagerPercent, b.UnitPercent, b.AssistantPercent, b.TaxWithholdingPercent,
                     b.AgreementNumber, b.Priority, b.InsuranceYear, b.MinimumGrossPremium,
-                    b.MaximumGrossPremium, b.MinimumDeductible, b.MaximumDeductible));
+                    b.MaximumGrossPremium, b.MinimumDeductible, b.MaximumDeductible,
+                    b.AgencyCalculationBase, b.ProducerCalculationBase, b.OverCommissionCalculationBase,
+                    b.IncomingCalculationBase, b.IncomingPercent, b.OverCommissionPercent));
                 changedIds.Add(rule.Id);
             }
         }

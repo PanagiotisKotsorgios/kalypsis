@@ -118,7 +118,8 @@ public record RenewPolicyBody(
     decimal? SpecialCommissionPercent = null,
     // Omitted by older clients: preserve the source's recorded net premium.
     decimal? NetPremium = null,
-    IReadOnlyList<RenewPolicyCoverageInput>? Coverages = null);
+    IReadOnlyList<RenewPolicyCoverageInput>? Coverages = null,
+    Guid? InsuranceCompanyId = null);
 
 public record CancelPolicyBody(string? Reason);
 

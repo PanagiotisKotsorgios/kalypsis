@@ -3272,11 +3272,15 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
+                    b.Property<int?>("AgencyCalculationBase")
+                        .HasColumnType("int");
+
                     b.Property<Guid?>("AgencyOfficeScopeId")
                         .HasColumnType("char(36)");
 
                     b.Property<decimal?>("AgencyPercent")
-                        .HasColumnType("decimal(65,30)");
+                        .HasPrecision(14, 4)
+                        .HasColumnType("decimal(14,4)");
 
                     b.Property<string>("AgreementNumber")
                         .HasMaxLength(80)
@@ -3300,6 +3304,13 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
 
                     b.Property<DateOnly?>("EffectiveTo")
                         .HasColumnType("date");
+
+                    b.Property<int?>("IncomingCalculationBase")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("IncomingPercent")
+                        .HasPrecision(8, 4)
+                        .HasColumnType("decimal(8,4)");
 
                     b.Property<Guid?>("InsuranceCompanyId")
                         .HasColumnType("char(36)");
@@ -3326,17 +3337,28 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .HasPrecision(14, 2)
                         .HasColumnType("decimal(14,2)");
 
+                    b.Property<int?>("OverCommissionCalculationBase")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("OverCommissionPercent")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("decimal(14,4)");
+
                     b.Property<int?>("PolicyType")
                         .HasColumnType("int");
 
                     b.Property<int>("Priority")
                         .HasColumnType("int");
 
+                    b.Property<int?>("ProducerCalculationBase")
+                        .HasColumnType("int");
+
                     b.Property<Guid?>("ProducerId")
                         .HasColumnType("char(36)");
 
                     b.Property<decimal?>("ProducerPercent")
-                        .HasColumnType("decimal(65,30)");
+                        .HasPrecision(14, 4)
+                        .HasColumnType("decimal(14,4)");
 
                     b.Property<int?>("ProducerTier")
                         .HasColumnType("int");
@@ -3354,8 +3376,8 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.Property<decimal>("Value")
-                        .HasPrecision(10, 4)
-                        .HasColumnType("decimal(10,4)");
+                        .HasPrecision(14, 4)
+                        .HasColumnType("decimal(14,4)");
 
                     b.Property<int?>("VehicleUseCategory")
                         .HasColumnType("int");

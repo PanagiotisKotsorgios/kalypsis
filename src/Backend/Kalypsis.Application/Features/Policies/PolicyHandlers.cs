@@ -722,12 +722,11 @@ public class RenewPolicyCommandHandler : IRequestHandler<RenewPolicyCommand, Pol
         var number = $"P-{(count + 1):D6}";
 
         var b = request.Body;
-        var renewalCarrierId = src.RenewalTransferToCarrierId ?? src.InsuranceCompanyId;
+        var renewalCarrierId = b.InsuranceCompanyId ?? src.RenewalTransferToCarrierId ?? src.InsuranceCompanyId;
         var renewalProducerId = b.ProducerId ?? src.RenewalTransferToProducerId ?? src.ProducerId;
         if (renewalProducerId.HasValue)
             await TenantFkGuard.RequireTenantOwnedAsync(_db.Producers, renewalProducerId, tenantId, "Συνεργάτης ανανέωσης", ct);
-        if (renewalCarrierId != src.InsuranceCompanyId)
-            await TenantFkGuard.RequireCarrierAsync(_db.InsuranceCompanies, renewalCarrierId, tenantId, ct);
+        await TenantFkGuard.RequireCarrierAsync(_db.InsuranceCompanies, renewalCarrierId, tenantId, ct);
         if (!src.PaidDirectlyToCarrier && b.Premium > 0m)
             await CreditControlGuard.EnsureExposureAllowedAsync(_db, tenantId, src.CustomerId, renewalCarrierId,
                 src.PolicyType, src.Currency, b.Premium, null, b.StartDate, ct);
@@ -759,8 +758,12 @@ public class RenewPolicyCommandHandler : IRequestHandler<RenewPolicyCommand, Pol
             ContractPartyCustomerId = src.ContractPartyCustomerId,
             PreviousInsuranceCompanyId = renewalCarrierId != src.InsuranceCompanyId ? src.InsuranceCompanyId : src.PreviousInsuranceCompanyId,
             CarrierBranchCode = src.CarrierBranchCode,
-            CarrierPackageCode = b.PackageCode ?? src.CarrierPackageCode,
-            CarrierCoverageCode = b.CoverCode ?? src.CarrierCoverageCode,
+            CarrierPackageCode = string.IsNullOrWhiteSpace(b.PackageCode)
+                ? (renewalCarrierId == src.InsuranceCompanyId ? src.CarrierPackageCode : null)
+                : b.PackageCode.Trim(),
+            CarrierCoverageCode = string.IsNullOrWhiteSpace(b.CoverCode)
+                ? (renewalCarrierId == src.InsuranceCompanyId ? src.CarrierCoverageCode : null)
+                : b.CoverCode.Trim(),
             ReasonForCirculation = src.ReasonForCirculation,
             DriverVatNumber = src.DriverVatNumber,
             Deductible = src.Deductible,
@@ -806,14 +809,42 @@ public class RenewPolicyCommandHandler : IRequestHandler<RenewPolicyCommand, Pol
             if (requested.Select(x => x.CoverCode.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Count() != requested.Count)
                 throw AppException.Validation("Η ίδια κάλυψη δεν μπορεί να καταχωρηθεί δύο φορές στην ανανέωση.");
 
-            var configuredCodes = await _db.CompanyParameterItems
+            var parameters = await _db.CompanyParameterItems
                 .Where(x => x.InsuranceCompanyId == renewalCarrierId
-                    && x.Kind == CompanyParameterItemKind.Coverage && x.IsActive)
-                .Select(x => x.Code).ToListAsync(ct);
-            var allowedCodes = oldCovers.Select(x => x.CoverCode)
-                .Concat(configuredCodes).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    && x.IsActive
+                    && (x.Kind == CompanyParameterItemKind.Coverage || x.Kind == CompanyParameterItemKind.Package))
+                .ToListAsync(ct);
+            var configuredCodes = parameters.Where(x => x.Kind == CompanyParameterItemKind.Coverage).Select(x => x.Code).ToList();
+            var allowedCodes = configuredCodes
+                .Concat(renewalCarrierId == src.InsuranceCompanyId ? oldCovers.Select(x => x.CoverCode) : [])
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
             if (requested.Any(x => !allowedCodes.Contains(x.CoverCode.Trim())))
                 throw AppException.Validation("Μία ή περισσότερες καλύψεις δεν ανήκουν στις παραμετρικές καλύψεις της ασφαλιστικής.");
+
+            var selectedPackageCode = string.IsNullOrWhiteSpace(b.PackageCode)
+                ? (renewalCarrierId == src.InsuranceCompanyId ? src.CarrierPackageCode : null)
+                : b.PackageCode.Trim();
+            if (!string.IsNullOrWhiteSpace(selectedPackageCode))
+            {
+                var package = parameters.SingleOrDefault(x => x.Kind == CompanyParameterItemKind.Package
+                    && string.Equals(x.Code, selectedPackageCode, StringComparison.OrdinalIgnoreCase));
+                if (package is null)
+                    throw AppException.Validation("Το επιλεγμένο πακέτο δεν υπάρχει ή είναι ανενεργό στην ασφαλιστική της ανανέωσης.");
+
+                var selectedCoverageParameters = parameters.Where(x => x.Kind == CompanyParameterItemKind.Coverage
+                    && requested.Any(c => string.Equals(c.CoverCode.Trim(), x.Code, StringComparison.OrdinalIgnoreCase))).ToList();
+                var mappedElsewhere = selectedCoverageParameters.Any(x => !string.IsNullOrWhiteSpace(x.ParentCode)
+                    && !string.Equals(x.ParentCode.Trim(), selectedPackageCode, StringComparison.OrdinalIgnoreCase));
+                if (mappedElsewhere)
+                    throw AppException.Validation("Μία ή περισσότερες επιλεγμένες καλύψεις ανήκουν σε διαφορετικό πακέτο. Επιλέξτε καλύψεις που αντιστοιχούν στο πακέτο της ανανέωσης.");
+            }
+
+            if (requested.Count > 0)
+            {
+                var renewedCoverageCodes = string.Join(",", requested.Select(x => x.CoverCode.Trim().ToUpperInvariant()));
+                newPolicy.CarrierCoverageCode = renewedCoverageCodes;
+                newPolicy.SpecsJson = PolicySpecsJsonHelper.MergeCodes(newPolicy.SpecsJson, renewedCoverageCodes, selectedPackageCode);
+            }
 
             var grossSum = requested.Sum(x => x.GrossPremium);
             var netSum = requested.Sum(x => x.NetPremium);

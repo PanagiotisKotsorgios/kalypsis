@@ -1396,6 +1396,7 @@ function RenewDialog({
   const [applicationNumber, setApplicationNumber] = useState<string>("");
   const [plate, setPlate] = useState<string>("");
   const [specialCommissionPercent, setSpecialCommissionPercent] = useState<string>("");
+  const [renewalCarrierId, setRenewalCarrierId] = useState<string>("");
   const [showExtras, setShowExtras] = useState(false);
   const [reviewing, setReviewing] = useState(false);
   const [coverageDrafts, setCoverageDrafts] = useState<{ code: string; name: string; gross: string; net: string; amount: string }[]>([]);
@@ -1403,7 +1404,14 @@ function RenewDialog({
 
   // Carrier catalogue — drives Κάλυψη / Πακέτο / Χρήση οχήματος dropdowns
   // for the source policy's carrier so overrides stay in-parametric.
-  const catalogue = useCarrierCatalogue(policy?.insuranceCompanyId ?? "");
+  const effectiveCarrierId = renewalCarrierId || policy?.insuranceCompanyId || "";
+  const catalogue = useCarrierCatalogue(effectiveCarrierId);
+
+  const carriersQ = useQuery({
+    queryKey: ["insurance-companies-for-renewal"],
+    queryFn: async () => (await api.get<{ id: string; name: string; code: string; isBroker?: boolean; parentCompanyId?: string | null }[]>("/insurance-companies")).data,
+    enabled: !!policy,
+  });
 
   const sourceCoversQ = useQuery({
     queryKey: ["policy-covers-for-renewal", policy?.id],
@@ -1433,6 +1441,7 @@ function RenewDialog({
       setApplicationNumber("");
       setPlate("");
       setSpecialCommissionPercent("");
+      setRenewalCarrierId("");
       setShowExtras(false);
       setReviewing(false);
       setCoverageDrafts([]);
@@ -1456,12 +1465,14 @@ function RenewDialog({
       || c.parentCode.toLocaleUpperCase() === packageCodeNormalized);
     const options = new Map<string, { code: string; name: string }>();
     for (const c of fromCatalogue) options.set(c.code.toLocaleUpperCase(), { code: c.code, name: c.name ?? c.label });
-    for (const c of sourceCoversQ.data ?? []) if (!options.has(c.coverCode.toLocaleUpperCase()))
-      options.set(c.coverCode.toLocaleUpperCase(), { code: c.coverCode, name: c.coverName ?? c.coverCode });
+    if (!renewalCarrierId || renewalCarrierId === policy?.insuranceCompanyId) {
+      for (const c of sourceCoversQ.data ?? []) if (!options.has(c.coverCode.toLocaleUpperCase()))
+        options.set(c.coverCode.toLocaleUpperCase(), { code: c.coverCode, name: c.coverName ?? c.coverCode });
+    }
     for (const c of coverageDrafts) if (!options.has(c.code.toLocaleUpperCase()))
       options.set(c.code.toLocaleUpperCase(), { code: c.code, name: c.name || c.code });
     return [...options.values()];
-  }, [catalogue.coverages, packageCode, sourceCoversQ.data, coverageDrafts]);
+  }, [catalogue.coverages, packageCode, sourceCoversQ.data, coverageDrafts, renewalCarrierId, policy?.insuranceCompanyId]);
 
   const coverageTotals = coverageDrafts.reduce((totals, c) => ({
     gross: totals.gross + (Number(c.gross) || 0), net: totals.net + (Number(c.net) || 0),
@@ -1470,6 +1481,7 @@ function RenewDialog({
   const mutation = useMutation({
     mutationFn: async () => (await api.post<PolicyDto>(`/policies/${policy!.id}/renew`, {
       startDate, endDate, ...renewalPremiumPayload(renewalPremiums),
+      insuranceCompanyId: renewalCarrierId || null,
       producerId: producerIdOverride || null,
       vehicleUseCategory: vehicleUse || null,
       coverCode: coverCode.trim() || null,
@@ -1510,6 +1522,17 @@ function RenewDialog({
             value={endDate} onChange={(e) => setEndDate(e.target.value)} fullWidth required
             InputProps={{ endAdornment: <FilterHelp title="Νέα ημερομηνία λήξης — συνήθως ένα έτος μετά τη νέα έναρξη." /> }} />
           <PolicyRenewalPremiumFields value={renewalPremiums} onChange={setRenewalPremiums} currency={policy?.currency ?? "EUR"} />
+
+          <SearchableSelect
+            label="Ασφαλιστική εταιρεία νέας περιόδου"
+            value={renewalCarrierId}
+            onChange={(value) => {
+              setRenewalCarrierId(value === policy?.insuranceCompanyId ? "" : value);
+              setPackageCode(""); setCoverCode(""); setCoverageDrafts([]);
+            }}
+            emptyLabel={`— διατήρηση ${policy?.insuranceCompanyName ?? "αρχικής ασφαλιστικής"} —`}
+            options={(carriersQ.data ?? []).filter(c => !c.parentCompanyId).map(c => ({ value: c.id, label: c.name, hint: c.code }))}
+          />
 
           <Box>
             <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>Καλύψεις νέας περιόδου</Typography>

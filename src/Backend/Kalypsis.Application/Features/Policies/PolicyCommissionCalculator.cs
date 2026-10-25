@@ -74,6 +74,7 @@ public class PolicyCommissionCalculator
             : [(null, commissionBase, null)];
         var amountByLevel = new Dictionary<HierarchyLevel, decimal>();
         decimal calculationBaseTotal = 0m;
+        var fixedAmountsApplied = new HashSet<(Guid RuleId, HierarchyLevel Level)>();
 
         foreach (var cover in coverInputs)
         {
@@ -82,6 +83,8 @@ public class PolicyCommissionCalculator
             var rule = await PickBestRuleAsync(tenantId, policy, chain, cover.Code, ct);
             var totalRule = await PickBestTotalRuleAsync(tenantId, policy, chain, cover.Code, ct);
             calculationBaseTotal += coverBase;
+        var incomingRule = rule?.IncomingPercent.HasValue == true ? rule : totalRule ?? rule;
+            var incoming = CalculateIncomingCommission(policy, cover.Cover, incomingRule, coverBase);
 
             var percents = ResolveOverrideLevels(policy.SpecialLevelPercentsJson);
             if (percents.Count == 0 && policy.SpecialCommissionPercent.HasValue && policy.ProducerId.HasValue)
@@ -123,7 +126,8 @@ public class PolicyCommissionCalculator
                 percents = percents.Where(x => x.Level != HierarchyLevel.Agency).ToList();
                 if (coverAgencyPercent > 0m) percents.Add((HierarchyLevel.Agency, coverAgencyPercent));
             }
-            else
+            else if (cover.Cover?.AgencyCommissionPercent is null
+                     && (rule?.AgencyCalculationBase ?? totalRule?.AgencyCalculationBase) is null)
             {
                 var configuredTotalPercent = ConfiguredTotalPercent(totalRule) ?? ConfiguredTotalPercent(rule);
                 if (configuredTotalPercent.HasValue && !policy.ProducerId.HasValue)
@@ -145,14 +149,33 @@ public class PolicyCommissionCalculator
             foreach (var (level, percent) in percents)
             {
                 if (percent <= 0m || (level != HierarchyLevel.Agency && !policy.ProducerId.HasValue)) continue;
-                var amount = Math.Round(coverBase * percent / 100m, 2, MidpointRounding.AwayFromZero);
+                var matchedRule = level == HierarchyLevel.Agency ? totalRule ?? rule : rule ?? totalRule;
+                var basis = level == HierarchyLevel.Agency
+                    ? matchedRule?.AgencyCalculationBase
+                    : matchedRule?.ProducerCalculationBase;
+                var amount = CalculateCommissionAmount(policy, cover.Cover, basis, percent, incoming, coverBase);
+                if (basis == CommissionCalculationBase.FixedAmount && matchedRule is not null
+                    && string.IsNullOrWhiteSpace(matchedRule.CoverCode)
+                    && !fixedAmountsApplied.Add((matchedRule.Id, level))) continue;
                 amountByLevel[level] = amountByLevel.GetValueOrDefault(level) + amount;
+            }
+
+            if (rule is not null && rule.OverCommissionPercent is decimal overPercent && overPercent > 0m)
+            {
+                var basis = rule.OverCommissionCalculationBase ?? CommissionCalculationBase.NetPremium;
+                var amount = CalculateCommissionAmount(policy, cover.Cover, basis, overPercent, incoming, coverBase);
+                if (basis != CommissionCalculationBase.FixedAmount
+                    || !string.IsNullOrWhiteSpace(rule.CoverCode)
+                    || fixedAmountsApplied.Add((rule.Id, HierarchyLevel.OverCommission)))
+                    amountByLevel[HierarchyLevel.OverCommission] = amountByLevel.GetValueOrDefault(HierarchyLevel.OverCommission) + amount;
             }
         }
 
         foreach (var (level, amount) in amountByLevel.Where(x => x.Value != 0m))
         {
-            var levelProducer = chain.FirstOrDefault(p => p.HierarchyLevel == level);
+            var levelProducer = level == HierarchyLevel.OverCommission
+                ? chain.FirstOrDefault()
+                : chain.FirstOrDefault(p => p.HierarchyLevel == level);
             var percentBase = calculationBaseTotal > 0m ? calculationBaseTotal : commissionBase;
             var effectivePercent = Math.Round(amount / percentBase * 100m, 4, MidpointRounding.AwayFromZero);
             _db.PolicyCommissionSplits.Add(new PolicyCommissionSplit
@@ -284,6 +307,33 @@ public class PolicyCommissionCalculator
             .Contains(ruleCode, StringComparer.OrdinalIgnoreCase);
     }
 
+    private static decimal CalculateIncomingCommission(Policy policy, PolicyCover? cover, CommissionRule? rule, decimal premiumFallback)
+    {
+        if (rule?.IncomingPercent is not decimal rate || rate <= 0m) return 0m;
+        var basis = rule.IncomingCalculationBase ?? CommissionCalculationBase.GrossPremium;
+        var amountBase = basis == CommissionCalculationBase.NetPremium
+            ? cover?.NetPremium is > 0m ? cover.NetPremium : (policy.NetPremium ?? premiumFallback)
+            : cover?.GrossPremium ?? policy.Premium;
+        return Math.Round(amountBase * rate / 100m, 2, MidpointRounding.AwayFromZero);
+    }
+
+    private static decimal CalculateCommissionAmount(Policy policy, PolicyCover? cover,
+        CommissionCalculationBase? calculationBase, decimal rate, decimal incoming, decimal premiumFallback)
+    {
+        var basis = calculationBase ?? CommissionCalculationBase.NetPremium;
+        var signSource = policy.Premium != 0m ? policy.Premium : premiumFallback;
+        var amountBase = basis switch
+        {
+            CommissionCalculationBase.GrossPremium => cover?.GrossPremium ?? policy.Premium,
+            CommissionCalculationBase.NetPremium => cover?.NetPremium is > 0m ? cover.NetPremium : (policy.NetPremium ?? premiumFallback),
+            CommissionCalculationBase.IncomingCommission => incoming,
+            CommissionCalculationBase.FixedAmount => Math.Sign(signSource),
+            _ => throw new ArgumentOutOfRangeException(nameof(calculationBase))
+        };
+        var divisor = basis == CommissionCalculationBase.FixedAmount ? 1m : 100m;
+        return Math.Round(amountBase * rate / divisor, 2, MidpointRounding.AwayFromZero);
+    }
+
     /// <summary>
     /// Returns [level → percent] in top-down order (Producer first, Agency
     /// last). Parses <c>LevelPercentsJson</c> when set, otherwise falls back
@@ -305,6 +355,7 @@ public class PolicyCommissionCalculator
             if (raw is null) return result;
             foreach (var level in Enum.GetValues<HierarchyLevel>())
             {
+                if (level == HierarchyLevel.OverCommission) continue;
                 if (raw.TryGetValue(level.ToString(), out var pct) && pct > 0m)
                     result.Add((level, pct));
             }
@@ -327,6 +378,7 @@ public class PolicyCommissionCalculator
                 {
                     foreach (var level in Enum.GetValues<HierarchyLevel>())
                     {
+                        if (level == HierarchyLevel.OverCommission) continue;
                         if (raw.TryGetValue(level.ToString(), out var pct) && pct > 0m)
                             result.Add((level, pct));
                     }

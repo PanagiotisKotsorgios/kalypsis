@@ -94,6 +94,44 @@ public sealed class PolicyRenewalPremiumTests
                 Coverages: [new("NOT-FOUND", "Άγνωστη", 100m, 90m)])), default));
     }
 
+    [Fact]
+    public async Task Renewal_rejects_coverages_that_do_not_belong_to_the_selected_package_or_carrier()
+    {
+        var current = TestScaffold.AgencyStaff(Guid.NewGuid());
+        await using var db = TestScaffold.NewDb(current, TestScaffold.Clock);
+        var source = Source(current.TenantId!.Value);
+        source.CustomerId = source.Customer.Id;
+        source.InsuranceCompanyId = source.InsuranceCompany.Id;
+        db.Policies.Add(source);
+        var replacementCarrier = new InsuranceCompany
+        {
+            Id = Guid.NewGuid(), TenantId = current.TenantId.Value, Code = "NEW-INS", Name = "Νέα ασφαλιστική", IsActive = true
+        };
+        db.InsuranceCompanies.Add(replacementCarrier);
+        db.CompanyParameterItems.AddRange(
+            new CompanyParameterItem { Id = Guid.NewGuid(), InsuranceCompanyId = replacementCarrier.Id, Kind = CompanyParameterItemKind.Package, Code = "PKG-A", Name = "Πακέτο Α", IsActive = true },
+            new CompanyParameterItem { Id = Guid.NewGuid(), InsuranceCompanyId = replacementCarrier.Id, Kind = CompanyParameterItemKind.Coverage, Code = "COV-A", Name = "Κάλυψη Α", ParentCode = "PKG-A", IsActive = true },
+            new CompanyParameterItem { Id = Guid.NewGuid(), InsuranceCompanyId = replacementCarrier.Id, Kind = CompanyParameterItemKind.Package, Code = "PKG-B", Name = "Πακέτο Β", IsActive = true },
+            new CompanyParameterItem { Id = Guid.NewGuid(), InsuranceCompanyId = replacementCarrier.Id, Kind = CompanyParameterItemKind.Coverage, Code = "COV-B", Name = "Κάλυψη Β", ParentCode = "PKG-B", IsActive = true });
+        await db.SaveChangesAsync();
+
+        var handler = new RenewPolicyCommandHandler(db, current);
+        await Assert.ThrowsAsync<AppException>(() => handler.Handle(new(source.Id,
+            new RenewPolicyBody(new(2027, 1, 1), new(2028, 1, 1), 100m, NetPremium: 75m,
+                PackageCode: "PKG-A", InsuranceCompanyId: replacementCarrier.Id,
+                Coverages: [new("COV-B", "Κάλυψη Β", 100m, 75m)])), default));
+        db.ChangeTracker.Clear();
+
+        var renewed = await handler.Handle(new(source.Id,
+            new RenewPolicyBody(new(2027, 1, 1), new(2028, 1, 1), 100m, NetPremium: 75m,
+                PackageCode: "PKG-A", InsuranceCompanyId: replacementCarrier.Id,
+                Coverages: [new("COV-A", "Κάλυψη Α", 100m, 75m)])), default);
+        Assert.Equal(replacementCarrier.Id, renewed.InsuranceCompanyId);
+        var renewedRecord = await db.Policies.SingleAsync(p => p.Id == renewed.Id);
+        Assert.Equal("PKG-A", renewedRecord.CarrierPackageCode);
+        Assert.Contains("COV-A", renewedRecord.CarrierCoverageCode ?? "");
+    }
+
     [Theory]
     [InlineData(-1, 50d, false)]
     [InlineData(100, -1d, false)]

@@ -17,5 +17,6 @@ public enum HierarchyLevel
     Manager   = 2,
     Unit      = 3,
     Assistant = 4,
-    Agency    = 5
+    Agency    = 5,
+    OverCommission = 6
 }

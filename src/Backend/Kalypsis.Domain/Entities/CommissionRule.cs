@@ -44,6 +44,15 @@ public class CommissionRule : TenantEntity
     public decimal? MinimumDeductible { get; set; }
     public decimal? MaximumDeductible { get; set; }
 
+    /// <summary>Null preserves legacy net-premium/total-agency semantics.</summary>
+    public CommissionCalculationBase? AgencyCalculationBase { get; set; }
+    public CommissionCalculationBase? ProducerCalculationBase { get; set; }
+    public CommissionCalculationBase? OverCommissionCalculationBase { get; set; }
+    /// <summary>Incoming carrier commission is a percentage of gross or net premiums.</summary>
+    public CommissionCalculationBase? IncomingCalculationBase { get; set; }
+    public decimal? IncomingPercent { get; set; }
+    public decimal? OverCommissionPercent { get; set; }
+
     public CommissionType CommissionType { get; set; }
     /// <summary>Legacy single-value column. Kept for backwards compatibility;
     /// new rules should populate <see cref="AgencyPercent"/> and

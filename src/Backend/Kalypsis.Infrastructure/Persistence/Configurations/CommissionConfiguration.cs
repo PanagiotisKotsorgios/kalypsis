@@ -11,6 +11,10 @@ public class CommissionRuleConfiguration : IEntityTypeConfiguration<CommissionRu
         b.ToTable("commission_rules");
         b.HasKey(x => x.Id);
         b.Property(x => x.CommissionType).HasConversion<int>();
+        b.Property(x => x.AgencyCalculationBase).HasConversion<int?>();
+        b.Property(x => x.ProducerCalculationBase).HasConversion<int?>();
+        b.Property(x => x.OverCommissionCalculationBase).HasConversion<int?>();
+        b.Property(x => x.IncomingCalculationBase).HasConversion<int?>();
         b.Property(x => x.PolicyType).HasConversion<int?>();
         b.Property(x => x.CoverCode).HasMaxLength(80);
         b.Property(x => x.AgreementNumber).HasMaxLength(80);
@@ -18,7 +22,11 @@ public class CommissionRuleConfiguration : IEntityTypeConfiguration<CommissionRu
         b.Property(x => x.MaximumGrossPremium).HasPrecision(14, 2);
         b.Property(x => x.MinimumDeductible).HasPrecision(14, 2);
         b.Property(x => x.MaximumDeductible).HasPrecision(14, 2);
-        b.Property(x => x.Value).HasPrecision(10, 4);
+        b.Property(x => x.AgencyPercent).HasPrecision(14, 4);
+        b.Property(x => x.ProducerPercent).HasPrecision(14, 4);
+        b.Property(x => x.OverCommissionPercent).HasPrecision(14, 4);
+        b.Property(x => x.IncomingPercent).HasPrecision(8, 4);
+        b.Property(x => x.Value).HasPrecision(14, 4);
 
         b.HasOne(x => x.Producer).WithMany(p => p.CommissionRules).HasForeignKey(x => x.ProducerId).OnDelete(DeleteBehavior.Cascade);
         b.HasOne(x => x.InsuranceCompany).WithMany().HasForeignKey(x => x.InsuranceCompanyId).OnDelete(DeleteBehavior.SetNull);

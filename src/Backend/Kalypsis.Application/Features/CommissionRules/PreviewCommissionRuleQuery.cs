@@ -18,7 +18,8 @@ public record CommissionRulePreviewDto(
     decimal TotalMatchingPremium,
     decimal EstimatedAgencyCommission,
     decimal EstimatedProducerCommission,
-    string? WarningMessage);
+    string? WarningMessage,
+    decimal EstimatedOverCommission = 0m);
 
 public record PreviewCommissionRuleQuery(CommissionRuleBody Body)
     : IRequest<CommissionRulePreviewDto>;
@@ -79,26 +80,51 @@ public class PreviewCommissionRuleQueryHandler
             q = q.Where(p => p.SpecsJson != null && EF.Functions.Like(p.SpecsJson, $"%{needle}%"));
         }
 
-        var rows = await q.Select(p => new { p.Premium, Net = p.NetPremium ?? p.Premium }).ToListAsync(ct);
+        var rows = await q.Select(p => new { Gross = p.Premium, Net = p.NetPremium ?? p.Premium }).ToListAsync(ct);
         var count = rows.Count;
-        var totalPremium = rows.Sum(x => x.Premium);
+        var totalPremium = rows.Sum(x => x.Gross);
         var totalNet = rows.Sum(x => x.Net);
 
         var agencyPct = b.AgencyPercent ?? 0m;
         var producerPct = b.ProducerPercent ?? 0m;
-        // AgencyPercent is the carrier's total rate.  The office receives the
-        // remainder after the producer share, not an additional percentage.
-        var estAgency = decimal.Round(totalNet * Math.Max(agencyPct - producerPct, 0m) / 100m, 2);
-        var estProducer = decimal.Round(totalNet * producerPct / 100m, 2);
+        decimal Amount(decimal gross, decimal net, CommissionCalculationBase? basis, decimal rate, decimal incoming)
+        {
+            var selected = basis ?? CommissionCalculationBase.NetPremium;
+            var amountBase = selected switch
+            {
+                CommissionCalculationBase.GrossPremium => gross,
+                CommissionCalculationBase.NetPremium => net,
+                CommissionCalculationBase.IncomingCommission => incoming,
+                CommissionCalculationBase.FixedAmount => Math.Sign(gross != 0m ? gross : net),
+                _ => 0m
+            };
+            return decimal.Round(amountBase * rate / (selected == CommissionCalculationBase.FixedAmount ? 1m : 100m), 2, MidpointRounding.AwayFromZero);
+        }
+        var agencyBasis = b.AgencyCalculationBase;
+        var producerBasis = b.ProducerCalculationBase;
+        decimal estAgency = 0m, estProducer = 0m, estOver = 0m;
+        foreach (var row in rows)
+        {
+            var incomingBasis = b.IncomingCalculationBase == CommissionCalculationBase.NetPremium ? row.Net : row.Gross;
+            var incoming = decimal.Round(incomingBasis * (b.IncomingPercent ?? 0m) / 100m, 2, MidpointRounding.AwayFromZero);
+            var producer = Amount(row.Gross, row.Net, producerBasis, producerPct, incoming);
+            var agency = agencyBasis.HasValue
+                ? Amount(row.Gross, row.Net, agencyBasis, agencyPct, incoming)
+                : Amount(row.Gross, row.Net, null, Math.Max(agencyPct - producerPct, 0m), incoming);
+            estAgency += agency;
+            estProducer += producer;
+            if (b.OverCommissionPercent.HasValue)
+                estOver += Amount(row.Gross, row.Net, b.OverCommissionCalculationBase, b.OverCommissionPercent.Value, incoming);
+        }
 
         string? warning = null;
         if (count == 0)
             warning = "Δεν βρέθηκαν συμβόλαια που να ταιριάζουν. Ο κανόνας θα ισχύει για μελλοντικές νέες εγγραφές.";
         else if (count > 500)
             warning = $"Ο κανόνας θα επηρεάσει {count} συμβόλαια. Βεβαιωθείτε ότι το εύρος είναι σκόπιμο.";
-        else if (producerPct > agencyPct && b.AgencyPercent.HasValue)
+        else if (producerPct > agencyPct && b.AgencyPercent.HasValue && !b.AgencyCalculationBase.HasValue)
             warning = "Το ποσοστό συνεργάτη υπερβαίνει το ποσοστό γραφείου. Ελέγξτε εάν είναι σκόπιμο.";
 
-        return new CommissionRulePreviewDto(count, totalPremium, estAgency, estProducer, warning);
+        return new CommissionRulePreviewDto(count, totalPremium, estAgency, estProducer, warning, estOver);
     }
 }
