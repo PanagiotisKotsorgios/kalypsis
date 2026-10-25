@@ -55,7 +55,6 @@ import { PageLoader } from "./components/PageLoader";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { SeoController } from "./components/SeoController";
 import { PreloginResponsiveStyles } from "./components/PreloginResponsiveStyles";
-import { InfrastructureNoticeBanner } from "./components/InfrastructureNoticeBanner";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
@@ -745,7 +744,6 @@ function ErmesOnlyGate({ children }: { children: React.ReactNode }) {
 export default function App() {
   const { user, loading } = useAuth();
   const { tenantId: impersonatedTenantId } = useImpersonation();
-  const location = useLocation();
 
   if (loading) return <PageLoader minHeight="100vh" />;
 
@@ -777,16 +775,11 @@ export default function App() {
   }
   const staffOverride =
     typeof window !== "undefined" && window.localStorage.getItem(overrideKey) === "1";
-  const showPreloginNotice = !user
-    && !location.pathname.startsWith("/app")
-    && !location.pathname.startsWith("/insurance")
-    && !location.pathname.startsWith("/ermes-app");
   // Site-wide maintenance hides everything except platform staff
   const isPlatformStaff = user?.role === "PlatformAdmin" || user?.role === "PlatformEmployee";
   if (maintenance.maintenanceModeEnabled && !isPlatformStaff && !staffOverride) {
     return (
       <>
-        {showPreloginNotice && <InfrastructureNoticeBanner />}
         <SiteMaintenancePage
           title={maintenance.maintenanceTitle}
           message={maintenance.maintenanceMessage}
@@ -805,7 +798,6 @@ export default function App() {
 
   return (
     <>
-      {showPreloginNotice && <InfrastructureNoticeBanner />}
       <ScrollToTop />
       <SeoController />
       <PreloginResponsiveStyles />
