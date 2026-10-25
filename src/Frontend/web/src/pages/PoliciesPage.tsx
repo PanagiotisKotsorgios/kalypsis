@@ -1397,11 +1397,19 @@ function RenewDialog({
   const [plate, setPlate] = useState<string>("");
   const [specialCommissionPercent, setSpecialCommissionPercent] = useState<string>("");
   const [showExtras, setShowExtras] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
+  const [coverageDrafts, setCoverageDrafts] = useState<{ code: string; name: string; gross: string; net: string; amount: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   // Carrier catalogue — drives Κάλυψη / Πακέτο / Χρήση οχήματος dropdowns
   // for the source policy's carrier so overrides stay in-parametric.
   const catalogue = useCarrierCatalogue(policy?.insuranceCompanyId ?? "");
+
+  const sourceCoversQ = useQuery({
+    queryKey: ["policy-covers-for-renewal", policy?.id],
+    queryFn: async () => (await api.get<{ coverCode: string; coverName: string | null; grossPremium: number; netPremium: number; coverageAmount: number | null }[]>(`/policies/${policy!.id}/covers`)).data,
+    enabled: !!policy,
+  });
 
   const producersQ = useQuery({
     queryKey: ["producers-for-renew"],
@@ -1426,8 +1434,38 @@ function RenewDialog({
       setPlate("");
       setSpecialCommissionPercent("");
       setShowExtras(false);
+      setReviewing(false);
+      setCoverageDrafts([]);
     }
   }, [policy?.id, policy?.endDate, policy?.premium, policy?.netPremium]);
+
+  useEffect(() => {
+    if (!policy || !sourceCoversQ.data) return;
+    setCoverageDrafts(sourceCoversQ.data.map(c => ({
+      code: c.coverCode,
+      name: c.coverName ?? c.coverCode,
+      gross: String(c.grossPremium),
+      net: String(c.netPremium),
+      amount: c.coverageAmount == null ? "" : String(c.coverageAmount),
+    })));
+  }, [policy?.id, sourceCoversQ.data]);
+
+  const coverageOptions = useMemo(() => {
+    const packageCodeNormalized = packageCode.trim().toLocaleUpperCase();
+    const fromCatalogue = catalogue.coverages.filter(c => !packageCodeNormalized || !c.parentCode
+      || c.parentCode.toLocaleUpperCase() === packageCodeNormalized);
+    const options = new Map<string, { code: string; name: string }>();
+    for (const c of fromCatalogue) options.set(c.code.toLocaleUpperCase(), { code: c.code, name: c.name ?? c.label });
+    for (const c of sourceCoversQ.data ?? []) if (!options.has(c.coverCode.toLocaleUpperCase()))
+      options.set(c.coverCode.toLocaleUpperCase(), { code: c.coverCode, name: c.coverName ?? c.coverCode });
+    for (const c of coverageDrafts) if (!options.has(c.code.toLocaleUpperCase()))
+      options.set(c.code.toLocaleUpperCase(), { code: c.code, name: c.name || c.code });
+    return [...options.values()];
+  }, [catalogue.coverages, packageCode, sourceCoversQ.data, coverageDrafts]);
+
+  const coverageTotals = coverageDrafts.reduce((totals, c) => ({
+    gross: totals.gross + (Number(c.gross) || 0), net: totals.net + (Number(c.net) || 0),
+  }), { gross: 0, net: 0 });
 
   const mutation = useMutation({
     mutationFn: async () => (await api.post<PolicyDto>(`/policies/${policy!.id}/renew`, {
@@ -1441,6 +1479,11 @@ function RenewDialog({
       specialCommissionPercent: specialCommissionPercent.trim()
         ? Number(specialCommissionPercent)
         : null,
+      coverages: coverageDrafts.length ? coverageDrafts.map(c => ({
+        coverCode: c.code, coverName: c.name,
+        grossPremium: Number(c.gross) || 0, netPremium: Number(c.net) || 0,
+        coverageAmount: c.amount.trim() ? Number(c.amount) : null,
+      })) : null,
     })).data,
     onSuccess: onSaved,
     onError: (err) => setError(extractErrorMessage(err))
@@ -1451,6 +1494,10 @@ function RenewDialog({
       <DialogTitle>{t("policies.renew.title")}</DialogTitle>
       <DialogContent>
         {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
+        {reviewing && <Alert severity="info" sx={{ mb: 2 }}>
+          Προεπισκόπηση ανανέωσης: {startDate || "—"} έως {endDate || "—"} · μικτά {renewalPremiums.gross || "0"} {policy?.currency ?? "EUR"} · καθαρά {renewalPremiums.net || "—"} · πακέτο {packageCode || "διατήρηση αρχικού"}.
+          Οι πληρωμές της προηγούμενης περιόδου δεν αντιγράφονται.
+        </Alert>}
         <Typography color="text.secondary" sx={{ mb: 2 }}>
           {t("policies.renew.body", { num: policy?.policyNumber ?? "" })}
         </Typography>
@@ -1463,6 +1510,38 @@ function RenewDialog({
             value={endDate} onChange={(e) => setEndDate(e.target.value)} fullWidth required
             InputProps={{ endAdornment: <FilterHelp title="Νέα ημερομηνία λήξης — συνήθως ένα έτος μετά τη νέα έναρξη." /> }} />
           <PolicyRenewalPremiumFields value={renewalPremiums} onChange={setRenewalPremiums} currency={policy?.currency ?? "EUR"} />
+
+          <Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>Καλύψεις νέας περιόδου</Typography>
+            <Autocomplete
+              multiple
+              options={coverageOptions}
+              value={coverageDrafts.map(c => ({ code: c.code, name: c.name }))}
+              isOptionEqualToValue={(a, b) => a.code.toLocaleUpperCase() === b.code.toLocaleUpperCase()}
+              getOptionLabel={o => `${o.name} (${o.code})`}
+              onChange={(_, selected) => setCoverageDrafts(selected.map(option => {
+                const current = coverageDrafts.find(c => c.code.toLocaleUpperCase() === option.code.toLocaleUpperCase());
+                return current ?? { code: option.code, name: option.name, gross: "0", net: "0", amount: "" };
+              }))}
+              renderInput={params => <TextField {...params} label="Επιλογή καλύψεων" placeholder="Προσθήκη ή αφαίρεση κάλυψης" />}
+              disabled={sourceCoversQ.isLoading}
+            />
+            {coverageDrafts.length > 0 && <Stack spacing={1} sx={{ mt: 1.25 }}>
+              {coverageDrafts.map((cover, index) => <Stack key={cover.code} direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }}>
+                <Typography sx={{ minWidth: 170, fontWeight: 700 }}>{cover.name} · {cover.code}</Typography>
+                <TextField size="small" type="number" label="Μικτά" value={cover.gross} inputProps={{ min: 0, step: "0.01" }}
+                  onChange={e => setCoverageDrafts(rows => rows.map((r, i) => i === index ? { ...r, gross: e.target.value } : r))} />
+                <TextField size="small" type="number" label="Καθαρά" value={cover.net} inputProps={{ min: 0, step: "0.01" }}
+                  onChange={e => setCoverageDrafts(rows => rows.map((r, i) => i === index ? { ...r, net: e.target.value } : r))} />
+                <TextField size="small" type="number" label="Κεφάλαιο" value={cover.amount} inputProps={{ min: 0, step: "0.01" }}
+                  onChange={e => setCoverageDrafts(rows => rows.map((r, i) => i === index ? { ...r, amount: e.target.value } : r))} />
+              </Stack>)}
+              <Typography variant="caption" color={Math.abs(coverageTotals.gross - Number(renewalPremiums.gross || 0)) < 0.01 ? "success.main" : "error.main"}>
+                Σύνολο καλύψεων: μικτά {coverageTotals.gross.toFixed(2)} / {Number(renewalPremiums.gross || 0).toFixed(2)} · καθαρά {coverageTotals.net.toFixed(2)} / {Number(renewalPremiums.net || policy?.netPremium || 0).toFixed(2)}
+              </Typography>
+            </Stack>}
+            {coverageDrafts.length === 0 && !sourceCoversQ.isLoading && <Typography variant="caption" color="text.secondary">Δεν υπάρχουν αποθηκευμένες καλύψεις στην προηγούμενη περίοδο. Μπορείτε να τις επιλέξετε από τον κατάλογο.</Typography>}
+          </Box>
 
           <Button size="small" variant="text" onClick={() => setShowExtras(x => !x)}
             sx={{ alignSelf: "flex-start" }}>
@@ -1525,9 +1604,15 @@ function RenewDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>{t("common.cancel")}</Button>
-        <Button variant="contained" startIcon={<AutorenewIcon />} onClick={() => mutation.mutate()} disabled={mutation.isPending}>
-          {mutation.isPending ? <CircularProgress size={18} /> : t("policies.actions.renew")}
+        <Button onClick={reviewing ? () => setReviewing(false) : onClose}>{reviewing ? "Πίσω στην επεξεργασία" : t("common.cancel")}</Button>
+        <Button variant="contained" startIcon={<AutorenewIcon />} onClick={() => {
+          if (!reviewing) { setReviewing(true); return; }
+          mutation.mutate();
+        }} disabled={mutation.isPending || (reviewing && coverageDrafts.length > 0 && (
+          Math.abs(coverageTotals.gross - Number(renewalPremiums.gross || 0)) > 0.01
+          || (!!renewalPremiums.net && Math.abs(coverageTotals.net - Number(renewalPremiums.net)) > 0.01)
+        ))}>
+          {mutation.isPending ? <CircularProgress size={18} /> : reviewing ? "Επιβεβαίωση ανανέωσης" : "Προεπισκόπηση ανανέωσης"}
         </Button>
       </DialogActions>
     </Dialog>

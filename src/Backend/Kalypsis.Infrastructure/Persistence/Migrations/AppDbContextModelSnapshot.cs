@@ -3278,6 +3278,10 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Property<decimal?>("AgencyPercent")
                         .HasColumnType("decimal(65,30)");
 
+                    b.Property<string>("AgreementNumber")
+                        .HasMaxLength(80)
+                        .HasColumnType("varchar(80)");
+
                     b.Property<int>("CommissionType")
                         .HasColumnType("int");
 
@@ -3300,10 +3304,32 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("InsuranceCompanyId")
                         .HasColumnType("char(36)");
 
+                    b.Property<int?>("InsuranceYear")
+                        .HasColumnType("int");
+
                     b.Property<string>("LevelPercentsJson")
                         .HasColumnType("longtext");
 
+                    b.Property<decimal?>("MaximumDeductible")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("decimal(14,2)");
+
+                    b.Property<decimal?>("MaximumGrossPremium")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("decimal(14,2)");
+
+                    b.Property<decimal?>("MinimumDeductible")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("decimal(14,2)");
+
+                    b.Property<decimal?>("MinimumGrossPremium")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("decimal(14,2)");
+
                     b.Property<int?>("PolicyType")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Priority")
                         .HasColumnType("int");
 
                     b.Property<Guid?>("ProducerId")
@@ -3341,6 +3367,8 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.HasIndex("ProducerId");
 
                     b.HasIndex("TenantId", "ProducerId");
+
+                    b.HasIndex("TenantId", "InsuranceCompanyId", "PolicyType", "InsuranceYear", "Priority");
 
                     b.ToTable("commission_rules", (string)null);
                 });

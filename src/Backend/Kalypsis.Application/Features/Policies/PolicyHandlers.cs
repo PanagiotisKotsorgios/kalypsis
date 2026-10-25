@@ -797,7 +797,53 @@ public class RenewPolicyCommandHandler : IRequestHandler<RenewPolicyCommand, Pol
                 Description = oldObject.Description, Characteristic = oldObject.Characteristic, CreatedAt = DateTime.UtcNow });
         }
         var oldCovers = src.Covers.Where(x => x.DeletedAt == null).ToList();
-        if (oldCovers.Count > 0)
+        if (b.Coverages is not null)
+        {
+            var requested = b.Coverages;
+            if (requested.Any(x => string.IsNullOrWhiteSpace(x.CoverCode) || x.CoverCode.Trim().Length > 80
+                                   || x.GrossPremium < 0m || x.NetPremium < 0m))
+                throw AppException.Validation("Ελέγξτε τους κωδικούς και τα ασφάλιστρα των καλύψεων ανανέωσης.");
+            if (requested.Select(x => x.CoverCode.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Count() != requested.Count)
+                throw AppException.Validation("Η ίδια κάλυψη δεν μπορεί να καταχωρηθεί δύο φορές στην ανανέωση.");
+
+            var configuredCodes = await _db.CompanyParameterItems
+                .Where(x => x.InsuranceCompanyId == renewalCarrierId
+                    && x.Kind == CompanyParameterItemKind.Coverage && x.IsActive)
+                .Select(x => x.Code).ToListAsync(ct);
+            var allowedCodes = oldCovers.Select(x => x.CoverCode)
+                .Concat(configuredCodes).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (requested.Any(x => !allowedCodes.Contains(x.CoverCode.Trim())))
+                throw AppException.Validation("Μία ή περισσότερες καλύψεις δεν ανήκουν στις παραμετρικές καλύψεις της ασφαλιστικής.");
+
+            var grossSum = requested.Sum(x => x.GrossPremium);
+            var netSum = requested.Sum(x => x.NetPremium);
+            var targetNetPremium = newPolicy.NetPremium ?? oldCovers.Sum(x => x.NetPremium);
+            if (Math.Abs(grossSum - newPolicy.Premium) > 0.01m)
+                throw AppException.Validation("Το άθροισμα των μικτών καλύψεων πρέπει να συμφωνεί με τα μικτά ασφάλιστρα της ανανέωσης.");
+            if (Math.Abs(netSum - targetNetPremium) > 0.01m)
+                throw AppException.Validation("Το άθροισμα των καθαρών καλύψεων πρέπει να συμφωνεί με τα καθαρά ασφάλιστρα της ανανέωσης.");
+
+            foreach (var input in requested)
+            {
+                var code = input.CoverCode.Trim().ToUpperInvariant();
+                var previous = oldCovers.FirstOrDefault(x => string.Equals(x.CoverCode, code, StringComparison.OrdinalIgnoreCase));
+                _db.PolicyCovers.Add(new PolicyCover
+                {
+                    Id = Guid.NewGuid(), TenantId = tenantId, PolicyId = newPolicy.Id,
+                    PolicyObjectId = previous?.PolicyObjectId.HasValue == true
+                        && objectIds.TryGetValue(previous.PolicyObjectId.Value, out var mapped) ? mapped : null,
+                    CoverCode = code,
+                    CoverName = string.IsNullOrWhiteSpace(input.CoverName) ? previous?.CoverName : input.CoverName.Trim(),
+                    GrossPremium = input.GrossPremium,
+                    NetPremium = input.NetPremium,
+                    CoverageAmount = input.CoverageAmount ?? previous?.CoverageAmount,
+                    CommissionPercent = previous?.CommissionPercent,
+                    AgencyCommissionPercent = previous?.AgencyCommissionPercent,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+        }
+        else if (oldCovers.Count > 0)
         {
             var targetNet = newPolicy.NetPremium ?? oldCovers.Sum(x => x.NetPremium);
             decimal grossAssigned = 0m, netAssigned = 0m;

@@ -46,6 +46,13 @@ interface CommissionRuleDto {
   unitPercent: number | null;
   assistantPercent: number | null;
   taxWithholdingPercent: number | null;
+  agreementNumber: string | null;
+  priority: number;
+  insuranceYear: number | null;
+  minimumGrossPremium: number | null;
+  maximumGrossPremium: number | null;
+  minimumDeductible: number | null;
+  maximumDeductible: number | null;
 }
 
 const USE_LABEL: Record<VehicleUse, string> = {
@@ -122,6 +129,13 @@ function describeScope(r: CommissionRuleDto): string {
   if (r.producerName)        parts.push(`συνεργάτη «${r.producerName}»`);
   else if (r.producerTier && r.producerTier !== "None") parts.push(`κατηγορία ${r.producerTier}`);
   else                       parts.push("όλους τους συνεργάτες");
+  if (r.agreementNumber) parts.push(`συμφωνία ${r.agreementNumber}`);
+  if (r.insuranceYear) parts.push(`έτος ${r.insuranceYear}`);
+  if (r.minimumGrossPremium != null || r.maximumGrossPremium != null)
+    parts.push(`μικτά ${r.minimumGrossPremium ?? "0"}–${r.maximumGrossPremium ?? "∞"} €`);
+  if (r.minimumDeductible != null || r.maximumDeductible != null)
+    parts.push(`απαλλαγή ${r.minimumDeductible ?? "0"}–${r.maximumDeductible ?? "∞"} €`);
+  if (r.priority) parts.push(`προτεραιότητα ${r.priority}`);
   return parts.join(" · ");
 }
 
@@ -588,6 +602,13 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
     unitPercent: "" as number | "",
     assistantPercent: "" as number | "",
     taxWithholdingPercent: "" as number | "",
+    agreementNumber: "",
+    priority: 0,
+    insuranceYear: "" as number | "",
+    minimumGrossPremium: "" as number | "",
+    maximumGrossPremium: "" as number | "",
+    minimumDeductible: "" as number | "",
+    maximumDeductible: "" as number | "",
     effectiveFrom: today,
     effectiveTo: "",
     // "future" (default, safe) = only new policies + renewals from now on
@@ -733,6 +754,13 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
         unitPercent:      rule.unitPercent      ?? "",
         assistantPercent: rule.assistantPercent ?? "",
         taxWithholdingPercent: rule.taxWithholdingPercent ?? "",
+        agreementNumber: rule.agreementNumber ?? "",
+        priority: rule.priority ?? 0,
+        insuranceYear: rule.insuranceYear ?? "",
+        minimumGrossPremium: rule.minimumGrossPremium ?? "",
+        maximumGrossPremium: rule.maximumGrossPremium ?? "",
+        minimumDeductible: rule.minimumDeductible ?? "",
+        maximumDeductible: rule.maximumDeductible ?? "",
         effectiveFrom: rule.effectiveFrom,
         effectiveTo: rule.effectiveTo ?? "",
         // Editing an existing rule defaults to "future" — the operator has
@@ -755,6 +783,13 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
         unitPercent: "",
         assistantPercent: "",
         taxWithholdingPercent: "",
+        agreementNumber: "",
+        priority: 0,
+        insuranceYear: "",
+        minimumGrossPremium: "",
+        maximumGrossPremium: "",
+        minimumDeductible: "",
+        maximumDeductible: "",
         effectiveFrom: today,
         effectiveTo: "",
         applyScope: "future"
@@ -804,6 +839,13 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
         unitPercent:      nn(form.unitPercent),
         assistantPercent: nn(form.assistantPercent),
         taxWithholdingPercent: nn(form.taxWithholdingPercent),
+        agreementNumber: form.agreementNumber.trim() || null,
+        priority: Number(form.priority) || 0,
+        insuranceYear: nn(form.insuranceYear),
+        minimumGrossPremium: nn(form.minimumGrossPremium),
+        maximumGrossPremium: nn(form.maximumGrossPremium),
+        minimumDeductible: nn(form.minimumDeductible),
+        maximumDeductible: nn(form.maximumDeductible),
         effectiveFrom: form.effectiveFrom,
         effectiveTo: form.effectiveTo || null
       };
@@ -826,6 +868,13 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
             unitPercent:      singleBody.unitPercent,
             assistantPercent: singleBody.assistantPercent,
             taxWithholdingPercent: singleBody.taxWithholdingPercent,
+            agreementNumber: singleBody.agreementNumber,
+            priority: singleBody.priority,
+            insuranceYear: singleBody.insuranceYear,
+            minimumGrossPremium: singleBody.minimumGrossPremium,
+            maximumGrossPremium: singleBody.maximumGrossPremium,
+            minimumDeductible: singleBody.minimumDeductible,
+            maximumDeductible: singleBody.maximumDeductible,
             effectiveFrom: form.effectiveFrom,
             effectiveTo: form.effectiveTo || null,
             replaceExisting: true
@@ -1049,6 +1098,33 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
               helperText="Χρησιμοποιείται αυτόματα σε παραγωγή και εκκαθαρίσεις." />
           </Stack>
 
+          <Card variant="outlined" sx={{ p: 2, bgcolor: "rgba(31,123,179,0.035)" }}>
+            <Typography fontWeight={700} sx={{ mb: 1 }}>Στοιχεία συμφωνίας και τιμολογιακά όρια</Typography>
+            <Stack spacing={1.5}>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                <TextField label="Αριθμός συμφωνίας" value={form.agreementNumber}
+                  onChange={e => setForm({ ...form, agreementNumber: e.target.value })} fullWidth />
+                <TextField type="number" label="Προτεραιότητα κανόνα" value={form.priority}
+                  onChange={e => setForm({ ...form, priority: Number(e.target.value) || 0 })}
+                  inputProps={{ step: 1, min: -10000, max: 10000 }} fullWidth
+                  helperText="Σε κανόνες ίδιας ειδικότητας υπερισχύει ο μεγαλύτερος αριθμός." />
+                <TextField type="number" label="Έτος ασφάλισης" value={form.insuranceYear}
+                  onChange={e => setForm({ ...form, insuranceYear: e.target.value === "" ? "" : Number(e.target.value) })}
+                  inputProps={{ step: 1, min: 1900, max: 2200 }} fullWidth />
+              </Stack>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                <TextField type="number" label="Μικτά από (€)" value={form.minimumGrossPremium}
+                  onChange={e => setForm({ ...form, minimumGrossPremium: e.target.value === "" ? "" : Number(e.target.value) })} inputProps={{ min: 0, step: "0.01" }} fullWidth />
+                <TextField type="number" label="Μικτά έως (€)" value={form.maximumGrossPremium}
+                  onChange={e => setForm({ ...form, maximumGrossPremium: e.target.value === "" ? "" : Number(e.target.value) })} inputProps={{ min: 0, step: "0.01" }} fullWidth />
+                <TextField type="number" label="Απαλλαγή από (€)" value={form.minimumDeductible}
+                  onChange={e => setForm({ ...form, minimumDeductible: e.target.value === "" ? "" : Number(e.target.value) })} inputProps={{ min: 0, step: "0.01" }} fullWidth />
+                <TextField type="number" label="Απαλλαγή έως (€)" value={form.maximumDeductible}
+                  onChange={e => setForm({ ...form, maximumDeductible: e.target.value === "" ? "" : Number(e.target.value) })} inputProps={{ min: 0, step: "0.01" }} fullWidth />
+              </Stack>
+            </Stack>
+          </Card>
+
           {/* ALIS-parity multi-level percents. Optional — leave blank to keep
               the two-level model (Παραγωγός + Έδρα). When any of these is
               filled the drawer's «Προμήθειες» matrix shows the full chain. */}
@@ -1166,6 +1242,13 @@ function RuleImpactPreview({ form }: { form: any }) {
     producerPercent: form.producerPercent ?? 0,
     effectiveFrom: form.effectiveFrom,
     effectiveTo: form.effectiveTo || null,
+    agreementNumber: form.agreementNumber || null,
+    priority: form.priority ?? 0,
+    insuranceYear: form.insuranceYear === "" ? null : form.insuranceYear,
+    minimumGrossPremium: form.minimumGrossPremium === "" ? null : form.minimumGrossPremium,
+    maximumGrossPremium: form.maximumGrossPremium === "" ? null : form.maximumGrossPremium,
+    minimumDeductible: form.minimumDeductible === "" ? null : form.minimumDeductible,
+    maximumDeductible: form.maximumDeductible === "" ? null : form.maximumDeductible,
   }), [form.scope, form.producerId, form.producerTier, form.insuranceCompanyId,
        firstBranch?.policyType, firstCover, firstUse?.vehicleUseCategory,
        form.agencyPercent, form.producerPercent, form.effectiveFrom, form.effectiveTo]);

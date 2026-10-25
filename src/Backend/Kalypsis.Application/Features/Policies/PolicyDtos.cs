@@ -91,6 +91,13 @@ public record UpdatePolicyBody(
     bool? Delivered = null,
     string? PolicyNumber = null);
 
+public record RenewPolicyCoverageInput(
+    string CoverCode,
+    string? CoverName,
+    decimal GrossPremium,
+    decimal NetPremium,
+    decimal? CoverageAmount = null);
+
 public record RenewPolicyBody(
     DateOnly StartDate,
     DateOnly EndDate,
@@ -110,7 +117,8 @@ public record RenewPolicyBody(
     string? VehicleRegistrationPlate = null,
     decimal? SpecialCommissionPercent = null,
     // Omitted by older clients: preserve the source's recorded net premium.
-    decimal? NetPremium = null);
+    decimal? NetPremium = null,
+    IReadOnlyList<RenewPolicyCoverageInput>? Coverages = null);
 
 public record CancelPolicyBody(string? Reason);
 

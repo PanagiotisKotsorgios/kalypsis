@@ -13,11 +13,17 @@ public class CommissionRuleConfiguration : IEntityTypeConfiguration<CommissionRu
         b.Property(x => x.CommissionType).HasConversion<int>();
         b.Property(x => x.PolicyType).HasConversion<int?>();
         b.Property(x => x.CoverCode).HasMaxLength(80);
+        b.Property(x => x.AgreementNumber).HasMaxLength(80);
+        b.Property(x => x.MinimumGrossPremium).HasPrecision(14, 2);
+        b.Property(x => x.MaximumGrossPremium).HasPrecision(14, 2);
+        b.Property(x => x.MinimumDeductible).HasPrecision(14, 2);
+        b.Property(x => x.MaximumDeductible).HasPrecision(14, 2);
         b.Property(x => x.Value).HasPrecision(10, 4);
 
         b.HasOne(x => x.Producer).WithMany(p => p.CommissionRules).HasForeignKey(x => x.ProducerId).OnDelete(DeleteBehavior.Cascade);
         b.HasOne(x => x.InsuranceCompany).WithMany().HasForeignKey(x => x.InsuranceCompanyId).OnDelete(DeleteBehavior.SetNull);
         b.HasIndex(x => new { x.TenantId, x.ProducerId });
+        b.HasIndex(x => new { x.TenantId, x.InsuranceCompanyId, x.PolicyType, x.InsuranceYear, x.Priority });
     }
 }
 

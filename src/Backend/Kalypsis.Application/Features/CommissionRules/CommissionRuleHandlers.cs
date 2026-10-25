@@ -33,7 +33,14 @@ public record CommissionRuleDto(
     decimal? ManagerPercent = null,
     decimal? UnitPercent = null,
     decimal? AssistantPercent = null,
-    decimal? TaxWithholdingPercent = null);
+    decimal? TaxWithholdingPercent = null,
+    string? AgreementNumber = null,
+    int Priority = 0,
+    int? InsuranceYear = null,
+    decimal? MinimumGrossPremium = null,
+    decimal? MaximumGrossPremium = null,
+    decimal? MinimumDeductible = null,
+    decimal? MaximumDeductible = null);
 
 public record CommissionRuleBody(
     Guid? ProducerId,
@@ -50,7 +57,14 @@ public record CommissionRuleBody(
     decimal? ManagerPercent = null,
     decimal? UnitPercent = null,
     decimal? AssistantPercent = null,
-    decimal? TaxWithholdingPercent = null);
+    decimal? TaxWithholdingPercent = null,
+    string? AgreementNumber = null,
+    int Priority = 0,
+    int? InsuranceYear = null,
+    decimal? MinimumGrossPremium = null,
+    decimal? MaximumGrossPremium = null,
+    decimal? MinimumDeductible = null,
+    decimal? MaximumDeductible = null);
 
 public record CommissionRuleBatchBody(
     Guid? ProducerId,
@@ -70,9 +84,50 @@ public record CommissionRuleBatchBody(
     decimal? ManagerPercent = null,
     decimal? UnitPercent = null,
     decimal? AssistantPercent = null,
-    decimal? TaxWithholdingPercent = null);
+    decimal? TaxWithholdingPercent = null,
+    string? AgreementNumber = null,
+    int Priority = 0,
+    int? InsuranceYear = null,
+    decimal? MinimumGrossPremium = null,
+    decimal? MaximumGrossPremium = null,
+    decimal? MinimumDeductible = null,
+    decimal? MaximumDeductible = null);
 
 public record CommissionRuleBatchResult(int Created, int Updated, IReadOnlyList<CommissionRuleDto> Rules);
+
+internal static class CommissionRuleConflictGuard
+{
+    public static bool Conflicts(CommissionRule candidate, CommissionRule existing)
+    {
+        if (candidate.Id == existing.Id || candidate.DeletedAt is not null) return false;
+        var sameScope = candidate.ProducerId == existing.ProducerId
+            && candidate.ProducerTier == existing.ProducerTier
+            && candidate.InsuranceCompanyId == existing.InsuranceCompanyId
+            && candidate.PolicyType == existing.PolicyType
+            && candidate.VehicleUseCategory == existing.VehicleUseCategory
+            && string.Equals(candidate.CoverCode, existing.CoverCode, StringComparison.OrdinalIgnoreCase)
+            && candidate.InsuranceYear == existing.InsuranceYear
+            && candidate.Priority == existing.Priority;
+        if (!sameScope) return false;
+
+        var dateOverlap = (!candidate.EffectiveTo.HasValue || candidate.EffectiveTo >= existing.EffectiveFrom)
+            && (!existing.EffectiveTo.HasValue || existing.EffectiveTo >= candidate.EffectiveFrom);
+        static bool RangeOverlaps(decimal? amin, decimal? amax, decimal? bmin, decimal? bmax) =>
+            (!amax.HasValue || !bmin.HasValue || amax.Value >= bmin.Value)
+            && (!bmax.HasValue || !amin.HasValue || bmax.Value >= amin.Value);
+        return dateOverlap
+            && RangeOverlaps(candidate.MinimumGrossPremium, candidate.MaximumGrossPremium,
+                existing.MinimumGrossPremium, existing.MaximumGrossPremium)
+            && RangeOverlaps(candidate.MinimumDeductible, candidate.MaximumDeductible,
+                existing.MinimumDeductible, existing.MaximumDeductible);
+    }
+
+    public static void EnsureNoConflict(CommissionRule candidate, IEnumerable<CommissionRule> rules)
+    {
+        if (rules.Any(r => Conflicts(candidate, r)))
+            throw AppException.Validation("Υπάρχει ήδη κανόνας με ίδια προτεραιότητα και επικαλυπτόμενα κριτήρια/περιόδους. Αλλάξτε προτεραιότητα, έτος ή εύρος τιμών.");
+    }
+}
 
 // --- Shared serialisation helpers for the ALIS-parity multi-level percents.
 // Keeps every read/write path aligned without adding a whole abstraction.
@@ -92,7 +147,10 @@ internal static class CommissionRuleMultiLevel
             levels.TryGetValue("Manager",   out var m) ? m : null,
             levels.TryGetValue("Unit",      out var u) ? u : null,
             levels.TryGetValue("Assistant", out var a) ? a : null,
-            r.TaxWithholdingPercent);
+            r.TaxWithholdingPercent,
+            r.AgreementNumber, r.Priority, r.InsuranceYear,
+            r.MinimumGrossPremium, r.MaximumGrossPremium,
+            r.MinimumDeductible, r.MaximumDeductible);
     }
 
     /// <summary>
@@ -130,6 +188,13 @@ internal static class CommissionRuleMultiLevel
         }
 
         r.TaxWithholdingPercent = b.TaxWithholdingPercent;
+        r.AgreementNumber = string.IsNullOrWhiteSpace(b.AgreementNumber) ? null : b.AgreementNumber.Trim();
+        r.Priority = b.Priority;
+        r.InsuranceYear = b.InsuranceYear;
+        r.MinimumGrossPremium = b.MinimumGrossPremium;
+        r.MaximumGrossPremium = b.MaximumGrossPremium;
+        r.MinimumDeductible = b.MinimumDeductible;
+        r.MaximumDeductible = b.MaximumDeductible;
     }
 
     private static Dictionary<string, decimal> ReadLevels(string? json)
@@ -190,6 +255,17 @@ public class CommissionRuleBodyValidator : AbstractValidator<CommissionRuleBody>
         RuleFor(x => x.CoverCode).MaximumLength(80);
         RuleFor(x => x).Must(b => !(b.ProducerId.HasValue && b.ProducerTier.HasValue))
             .WithMessage("Επιλέξτε είτε συγκεκριμένο συνεργάτη είτε κατηγορία, όχι και τα δύο.");
+        RuleFor(x => x.AgreementNumber).MaximumLength(80);
+        RuleFor(x => x.InsuranceYear).InclusiveBetween(1900, 2200).When(x => x.InsuranceYear.HasValue);
+        RuleFor(x => x.Priority).InclusiveBetween(-10000, 10000);
+        RuleFor(x => x.MinimumGrossPremium).GreaterThanOrEqualTo(0m).When(x => x.MinimumGrossPremium.HasValue);
+        RuleFor(x => x.MaximumGrossPremium).GreaterThanOrEqualTo(0m).When(x => x.MaximumGrossPremium.HasValue);
+        RuleFor(x => x.MinimumDeductible).GreaterThanOrEqualTo(0m).When(x => x.MinimumDeductible.HasValue);
+        RuleFor(x => x.MaximumDeductible).GreaterThanOrEqualTo(0m).When(x => x.MaximumDeductible.HasValue);
+        RuleFor(x => x).Must(x => !x.MinimumGrossPremium.HasValue || !x.MaximumGrossPremium.HasValue || x.MinimumGrossPremium <= x.MaximumGrossPremium)
+            .WithMessage("Το ελάχιστο μικτό ασφάλιστρο δεν μπορεί να υπερβαίνει το μέγιστο.");
+        RuleFor(x => x).Must(x => !x.MinimumDeductible.HasValue || !x.MaximumDeductible.HasValue || x.MinimumDeductible <= x.MaximumDeductible)
+            .WithMessage("Η ελάχιστη απαλλαγή δεν μπορεί να υπερβαίνει τη μέγιστη.");
         RuleFor(x => x.EffectiveTo).GreaterThanOrEqualTo(x => x.EffectiveFrom)
             .When(x => x.EffectiveTo.HasValue);
     }
@@ -225,6 +301,9 @@ public class CreateCommissionRuleHandler : IRequestHandler<CreateCommissionRuleC
             EffectiveTo = c.Body.EffectiveTo
         };
         CommissionRuleMultiLevel.ApplyLevels(r, c.Body);
+        var existingRules = await _db.CommissionRules
+            .Where(x => x.TenantId == tenantId && x.DeletedAt == null).ToListAsync(ct);
+        CommissionRuleConflictGuard.EnsureNoConflict(r, existingRules);
         _db.CommissionRules.Add(r);
         await _db.SaveChangesAsync(ct);
         return await ReloadAsync(r.Id, ct);
@@ -251,6 +330,12 @@ public class UpsertCommissionRuleBatchHandler : IRequestHandler<UpsertCommission
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var b = c.Body;
+        new CommissionRuleBodyValidator().ValidateAndThrow(new CommissionRuleBody(
+            b.ProducerId, b.ProducerTier, b.InsuranceCompanyId, null, null, null,
+            b.AgencyPercent, b.ProducerPercent, b.EffectiveFrom, b.EffectiveTo,
+            b.ManagerPercent, b.UnitPercent, b.AssistantPercent, b.TaxWithholdingPercent,
+            b.AgreementNumber, b.Priority, b.InsuranceYear, b.MinimumGrossPremium,
+            b.MaximumGrossPremium, b.MinimumDeductible, b.MaximumDeductible));
         if (!b.AgencyPercent.HasValue && !b.ProducerPercent.HasValue)
             throw new AppException("commission_percent_required",
                 "Ορίστε τουλάχιστον μία προμήθεια: έδρα ή συνεργάτη.", 400);
@@ -303,7 +388,10 @@ public class UpsertCommissionRuleBatchHandler : IRequestHandler<UpsertCommission
                         && x.InsuranceCompanyId == b.InsuranceCompanyId
                         && x.PolicyType == policyType
                         && x.VehicleUseCategory == use
-                        && string.Equals(x.CoverCode, cover, StringComparison.OrdinalIgnoreCase))
+                        && string.Equals(x.CoverCode, cover, StringComparison.OrdinalIgnoreCase)
+                        && x.Priority == b.Priority && x.InsuranceYear == b.InsuranceYear
+                        && x.MinimumGrossPremium == b.MinimumGrossPremium && x.MaximumGrossPremium == b.MaximumGrossPremium
+                        && x.MinimumDeductible == b.MinimumDeductible && x.MaximumDeductible == b.MaximumDeductible)
                     : null;
 
                 if (rule is null)
@@ -322,6 +410,20 @@ public class UpsertCommissionRuleBatchHandler : IRequestHandler<UpsertCommission
                     updated++;
                 }
 
+                // A rule with the same precedence and overlapping criteria is
+                // ambiguous. Catch it before persisting the batch, while still
+                // allowing intentionally tiered premium/deductible ranges.
+                var conflictCandidate = new CommissionRule
+                {
+                    Id = rule.Id, TenantId = tenantId, ProducerId = b.ProducerId, ProducerTier = b.ProducerTier,
+                    InsuranceCompanyId = b.InsuranceCompanyId, PolicyType = policyType,
+                    VehicleUseCategory = use, CoverCode = cover, Priority = b.Priority,
+                    InsuranceYear = b.InsuranceYear, EffectiveFrom = b.EffectiveFrom, EffectiveTo = b.EffectiveTo,
+                    MinimumGrossPremium = b.MinimumGrossPremium, MaximumGrossPremium = b.MaximumGrossPremium,
+                    MinimumDeductible = b.MinimumDeductible, MaximumDeductible = b.MaximumDeductible
+                };
+                CommissionRuleConflictGuard.EnsureNoConflict(conflictCandidate, existing.Where(x => x.Id != rule.Id));
+
                 rule.ProducerId = b.ProducerId;
                 rule.ProducerTier = b.ProducerTier;
                 rule.InsuranceCompanyId = b.InsuranceCompanyId;
@@ -334,6 +436,13 @@ public class UpsertCommissionRuleBatchHandler : IRequestHandler<UpsertCommission
                 rule.CommissionType = CommissionType.Percentage;
                 rule.EffectiveFrom = b.EffectiveFrom;
                 rule.EffectiveTo = b.EffectiveTo;
+                rule.AgreementNumber = string.IsNullOrWhiteSpace(b.AgreementNumber) ? null : b.AgreementNumber.Trim();
+                rule.Priority = b.Priority;
+                rule.InsuranceYear = b.InsuranceYear;
+                rule.MinimumGrossPremium = b.MinimumGrossPremium;
+                rule.MaximumGrossPremium = b.MaximumGrossPremium;
+                rule.MinimumDeductible = b.MinimumDeductible;
+                rule.MaximumDeductible = b.MaximumDeductible;
                 // Reuse the single-write helper via a lightweight body shim so
                 // the batch path never diverges from Create/Update mapping.
                 CommissionRuleMultiLevel.ApplyLevels(rule, new CommissionRuleBody(
@@ -341,7 +450,9 @@ public class UpsertCommissionRuleBatchHandler : IRequestHandler<UpsertCommission
                     policyType, cover, use,
                     b.AgencyPercent, b.ProducerPercent,
                     b.EffectiveFrom, b.EffectiveTo,
-                    b.ManagerPercent, b.UnitPercent, b.AssistantPercent, b.TaxWithholdingPercent));
+                    b.ManagerPercent, b.UnitPercent, b.AssistantPercent, b.TaxWithholdingPercent,
+                    b.AgreementNumber, b.Priority, b.InsuranceYear, b.MinimumGrossPremium,
+                    b.MaximumGrossPremium, b.MinimumDeductible, b.MaximumDeductible));
                 changedIds.Add(rule.Id);
             }
         }
@@ -386,6 +497,9 @@ public class UpdateCommissionRuleHandler : IRequestHandler<UpdateCommissionRuleC
         r.EffectiveFrom = c.Body.EffectiveFrom;
         r.EffectiveTo = c.Body.EffectiveTo;
         CommissionRuleMultiLevel.ApplyLevels(r, c.Body);
+        var existingRules = await _db.CommissionRules
+            .Where(x => x.TenantId == tenantId && x.DeletedAt == null && x.Id != r.Id).ToListAsync(ct);
+        CommissionRuleConflictGuard.EnsureNoConflict(r, existingRules);
         await _db.SaveChangesAsync(ct);
 
         var reloaded = await _db.CommissionRules

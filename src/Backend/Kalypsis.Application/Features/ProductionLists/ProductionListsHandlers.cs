@@ -324,14 +324,23 @@ public static class ProductionListBuilder
                          && (!r.InsuranceCompanyId.HasValue   || r.InsuranceCompanyId == p.InsuranceCompanyId)
                          && (!r.PolicyType.HasValue           || r.PolicyType == p.PolicyType)
                          && (r.CoverCode == null              || string.Equals(r.CoverCode, coverCode, StringComparison.OrdinalIgnoreCase))
-                         && (!r.VehicleUseCategory.HasValue   || r.VehicleUseCategory == p.VehicleUseCategory))
+                         && (!r.VehicleUseCategory.HasValue   || r.VehicleUseCategory == p.VehicleUseCategory)
+                         && (!r.InsuranceYear.HasValue        || r.InsuranceYear == p.StartDate.Year)
+                         && (!r.MinimumGrossPremium.HasValue  || p.Premium >= r.MinimumGrossPremium.Value)
+                         && (!r.MaximumGrossPremium.HasValue  || p.Premium <= r.MaximumGrossPremium.Value)
+                         && (!r.MinimumDeductible.HasValue    || (p.Deductible ?? 0m) >= r.MinimumDeductible.Value)
+                         && (!r.MaximumDeductible.HasValue    || (p.Deductible ?? 0m) <= r.MaximumDeductible.Value))
                 .OrderByDescending(r =>
                     (r.ProducerId.HasValue ? 32 : 0) +
                     (r.ProducerTier.HasValue ? 16 : 0) +
-                    (r.CoverCode != null ? 8 : 0) +
-                    (r.VehicleUseCategory.HasValue ? 4 : 0) +
-                    (r.InsuranceCompanyId.HasValue ? 2 : 0) +
-                    (r.PolicyType.HasValue ? 1 : 0))
+                    (r.InsuranceYear.HasValue ? 8 : 0) +
+                    (r.PolicyType.HasValue ? 4 : 0) +
+                    (r.CoverCode != null ? 2 : 0) +
+                    (r.VehicleUseCategory.HasValue ? 1 : 0) +
+                    (r.InsuranceCompanyId.HasValue ? 1 : 0) +
+                    (r.MinimumGrossPremium.HasValue || r.MaximumGrossPremium.HasValue ? 1 : 0) +
+                    (r.MinimumDeductible.HasValue || r.MaximumDeductible.HasValue ? 1 : 0))
+                .ThenByDescending(r => r.Priority)
                 .ThenByDescending(r => r.EffectiveFrom)
                 .FirstOrDefault();
         }
@@ -353,14 +362,23 @@ public static class ProductionListBuilder
                          && (!r.InsuranceCompanyId.HasValue   || r.InsuranceCompanyId == p.InsuranceCompanyId)
                          && (!r.PolicyType.HasValue           || r.PolicyType == p.PolicyType)
                          && (r.CoverCode == null              || string.Equals(r.CoverCode, coverCode, StringComparison.OrdinalIgnoreCase))
-                         && (!r.VehicleUseCategory.HasValue   || r.VehicleUseCategory == p.VehicleUseCategory))
+                         && (!r.VehicleUseCategory.HasValue   || r.VehicleUseCategory == p.VehicleUseCategory)
+                         && (!r.InsuranceYear.HasValue        || r.InsuranceYear == p.StartDate.Year)
+                         && (!r.MinimumGrossPremium.HasValue  || p.Premium >= r.MinimumGrossPremium.Value)
+                         && (!r.MaximumGrossPremium.HasValue  || p.Premium <= r.MaximumGrossPremium.Value)
+                         && (!r.MinimumDeductible.HasValue    || (p.Deductible ?? 0m) >= r.MinimumDeductible.Value)
+                         && (!r.MaximumDeductible.HasValue    || (p.Deductible ?? 0m) <= r.MaximumDeductible.Value))
                 .OrderByDescending(r =>
                     (r.ProducerId.HasValue ? 32 : 0) +
                     (r.ProducerTier.HasValue ? 16 : 0) +
-                    (r.CoverCode != null ? 8 : 0) +
-                    (r.VehicleUseCategory.HasValue ? 4 : 0) +
-                    (r.InsuranceCompanyId.HasValue ? 2 : 0) +
-                    (r.PolicyType.HasValue ? 1 : 0))
+                    (r.InsuranceYear.HasValue ? 8 : 0) +
+                    (r.PolicyType.HasValue ? 4 : 0) +
+                    (r.CoverCode != null ? 2 : 0) +
+                    (r.VehicleUseCategory.HasValue ? 1 : 0) +
+                    (r.InsuranceCompanyId.HasValue ? 1 : 0) +
+                    (r.MinimumGrossPremium.HasValue || r.MaximumGrossPremium.HasValue ? 1 : 0) +
+                    (r.MinimumDeductible.HasValue || r.MaximumDeductible.HasValue ? 1 : 0))
+                .ThenByDescending(r => r.Priority)
                 .ThenByDescending(r => r.EffectiveFrom)
                 .FirstOrDefault();
         }

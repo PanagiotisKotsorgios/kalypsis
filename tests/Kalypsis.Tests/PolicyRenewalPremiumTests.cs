@@ -58,6 +58,42 @@ public sealed class PolicyRenewalPremiumTests
         Assert.Null((await db.Policies.SingleAsync(p => p.Id == result.Id)).NetPremium);
     }
 
+    [Fact]
+    public async Task Renewal_can_replace_cover_set_and_requires_cover_totals_to_match_renewal_premiums()
+    {
+        var current = TestScaffold.AgencyStaff(Guid.NewGuid());
+        await using var db = TestScaffold.NewDb(current, TestScaffold.Clock);
+        var source = Source(current.TenantId!.Value);
+        source.CustomerId = source.Customer.Id;
+        source.InsuranceCompanyId = source.InsuranceCompany.Id;
+        db.Policies.Add(source);
+        db.PolicyCovers.AddRange(
+            new PolicyCover { Id = Guid.NewGuid(), TenantId = current.TenantId.Value, PolicyId = source.Id,
+                CoverCode = "MTPL", CoverName = "Αστική ευθύνη", GrossPremium = 80m, NetPremium = 60m },
+            new PolicyCover { Id = Guid.NewGuid(), TenantId = current.TenantId.Value, PolicyId = source.Id,
+                CoverCode = "OLD", CoverName = "Παλαιά κάλυψη", GrossPremium = 20m, NetPremium = 15m });
+        await db.SaveChangesAsync();
+
+        var renewed = await new RenewPolicyCommandHandler(db, current).Handle(new(source.Id,
+            new RenewPolicyBody(new(2027, 1, 1), new(2028, 1, 1), 120m, NetPremium: 90m,
+                Coverages: [new("MTPL", "Αστική ευθύνη", 120m, 90m, 1_000_000m)])), default);
+        var covers = await db.PolicyCovers.Where(x => x.PolicyId == renewed.Id).ToListAsync();
+        var onlyCover = Assert.Single(covers);
+        Assert.Equal("MTPL", onlyCover.CoverCode);
+        Assert.Equal(120m, onlyCover.GrossPremium);
+        Assert.Equal(90m, onlyCover.NetPremium);
+        Assert.Equal(1_000_000m, onlyCover.CoverageAmount);
+
+        var secondSource = Source(current.TenantId.Value);
+        secondSource.CustomerId = secondSource.Customer.Id;
+        secondSource.InsuranceCompanyId = secondSource.InsuranceCompany.Id;
+        db.Policies.Add(secondSource);
+        await db.SaveChangesAsync();
+        await Assert.ThrowsAsync<AppException>(() => new RenewPolicyCommandHandler(db, current).Handle(new(secondSource.Id,
+            new RenewPolicyBody(new(2027, 1, 1), new(2028, 1, 1), 120m, NetPremium: 90m,
+                Coverages: [new("NOT-FOUND", "Άγνωστη", 100m, 90m)])), default));
+    }
+
     [Theory]
     [InlineData(-1, 50d, false)]
     [InlineData(100, -1d, false)]

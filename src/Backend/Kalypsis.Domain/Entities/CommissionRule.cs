@@ -33,6 +33,17 @@ public class CommissionRule : TenantEntity
     /// </summary>
     public VehicleUseCategory? VehicleUseCategory { get; set; }
 
+    /// <summary>Human agreement/reference number agreed with the carrier.</summary>
+    public string? AgreementNumber { get; set; }
+    /// <summary>Rule-level tie breaker after scope specificity.</summary>
+    public int Priority { get; set; }
+    /// <summary>Optional policy start year this agreement targets.</summary>
+    public int? InsuranceYear { get; set; }
+    public decimal? MinimumGrossPremium { get; set; }
+    public decimal? MaximumGrossPremium { get; set; }
+    public decimal? MinimumDeductible { get; set; }
+    public decimal? MaximumDeductible { get; set; }
+
     public CommissionType CommissionType { get; set; }
     /// <summary>Legacy single-value column. Kept for backwards compatibility;
     /// new rules should populate <see cref="AgencyPercent"/> and

@@ -1,7 +1,9 @@
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
+using Kalypsis.Application.Features.Policies;
 using Kalypsis.Domain.Entities;
 using Kalypsis.Domain.Enums;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -462,7 +464,9 @@ public class RenewalsController : ControllerBase
 {
     private readonly IAppDbContext _db;
     private readonly ICurrentUser _current;
-    public RenewalsController(IAppDbContext db, ICurrentUser current) { _db = db; _current = current; }
+    private readonly IMediator _mediator;
+    public RenewalsController(IAppDbContext db, ICurrentUser current, IMediator mediator)
+    { _db = db; _current = current; _mediator = mediator; }
 
     public record UpcomingDto(Guid PolicyId, string PolicyNumber, string CustomerDisplay,
         string InsuranceCompanyName, string PolicyType, DateOnly EndDate, decimal Premium, string Currency,
@@ -506,40 +510,35 @@ public class RenewalsController : ControllerBase
     {
         if (_current.Role == Role.Producer) throw AppException.Forbidden();
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        if (body.PolicyIds is null || body.PolicyIds.Count == 0) return Ok(0);
+        var requestedIds = body.PolicyIds.Distinct().ToArray();
         var sourcePolicies = await _db.Policies
-            .Where(p => body.PolicyIds.Contains(p.Id) && p.TenantId == tenantId && p.DeletedAt == null)
+            .Where(p => requestedIds.Contains(p.Id) && p.TenantId == tenantId && p.DeletedAt == null)
+            .Include(p => p.Covers)
             .ToListAsync(ct);
-        var nowUtc = DateTime.UtcNow;
         var count = 0;
-        var term = body.RenewalTermDays > 0 ? body.RenewalTermDays : 365;
+        var term = body.RenewalTermDays > 0 ? Math.Clamp(body.RenewalTermDays, 1, 3650) : 365;
         foreach (var src in sourcePolicies)
         {
-            var renewal = new Policy
-            {
-                Id = Guid.NewGuid(), TenantId = tenantId,
-                PolicyNumber = $"{src.PolicyNumber}-R",
-                CustomerId = src.CustomerId,
-                InsuranceCompanyId = src.InsuranceCompanyId,
-                ProducerId = src.ProducerId,
-                PolicyType = src.PolicyType,
-                VehicleUseCategory = src.VehicleUseCategory,
-                Status = Kalypsis.Domain.Enums.PolicyStatus.Active,
-                StartDate = src.EndDate.AddDays(1),
-                EndDate = src.EndDate.AddDays(1).AddDays(term),
-                Premium = src.Premium,
-                Currency = src.Currency,
-                PaymentFrequency = src.PaymentFrequency,
-                PaymentCollectionMethod = src.PaymentCollectionMethod,
-                SpecsJson = src.SpecsJson,
-                RenewedFromPolicyId = src.Id,
-                CreatedAt = nowUtc
-            };
-            _db.Policies.Add(renewal);
-            src.Status = Kalypsis.Domain.Enums.PolicyStatus.Renewed;
-            src.UpdatedAt = nowUtc;
+            // Treat already-renewed rows as skipped in batch mode. One stale
+            // checkbox should not abort the renewal of every other selected
+            // policy, and the individual endpoint still rejects duplicates.
+            if (await _db.Policies.AnyAsync(p => p.TenantId == tenantId && p.DeletedAt == null
+                && p.RenewedFromPolicyId == src.Id, ct))
+                continue;
+            // Batch renewals must use the same full workflow as an individual
+            // renewal: duplicate protection, cover/object cloning, clean
+            // installment schedule, credit guard, and commission recalculation.
+            // The former shortcut created a skeletal policy with no lineage or
+            // coverage details and bypassed all those rules.
+            var bodyForRenewal = new RenewPolicyBody(
+                StartDate: src.EndDate.AddDays(1),
+                EndDate: src.EndDate.AddDays(1).AddDays(term),
+                Premium: src.Premium,
+                NetPremium: src.NetPremium);
+            await _mediator.Send(new RenewPolicyCommand(src.Id, bodyForRenewal), ct);
             count++;
         }
-        await _db.SaveChangesAsync(ct);
         return Ok(count);
     }
 }

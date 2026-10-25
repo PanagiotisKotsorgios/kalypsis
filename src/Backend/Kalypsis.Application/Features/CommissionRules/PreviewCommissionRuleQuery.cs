@@ -56,6 +56,19 @@ public class PreviewCommissionRuleQueryHandler
         if (b.InsuranceCompanyId.HasValue)  q = q.Where(p => p.InsuranceCompanyId == b.InsuranceCompanyId);
         if (b.PolicyType.HasValue)          q = q.Where(p => p.PolicyType == b.PolicyType);
         if (b.VehicleUseCategory.HasValue)  q = q.Where(p => p.VehicleUseCategory == b.VehicleUseCategory);
+        if (b.InsuranceYear.HasValue)       q = q.Where(p => p.StartDate.Year == b.InsuranceYear.Value);
+        if (b.MinimumGrossPremium.HasValue) q = q.Where(p => p.Premium >= b.MinimumGrossPremium.Value);
+        if (b.MaximumGrossPremium.HasValue) q = q.Where(p => p.Premium <= b.MaximumGrossPremium.Value);
+        if (b.MinimumDeductible.HasValue)   q = q.Where(p => (p.Deductible ?? 0m) >= b.MinimumDeductible.Value);
+        if (b.MaximumDeductible.HasValue)   q = q.Where(p => (p.Deductible ?? 0m) <= b.MaximumDeductible.Value);
+
+        if (b.ProducerTier.HasValue)
+        {
+            var producerIds = await _db.Producers
+                .Where(p => p.TenantId == tenantId && p.DeletedAt == null && p.Tier == b.ProducerTier)
+                .Select(p => p.Id).ToListAsync(ct);
+            q = q.Where(p => p.ProducerId.HasValue && producerIds.Contains(p.ProducerId.Value));
+        }
 
         // CoverCode filter — approximated via the JSON blob in SpecsJson.
         // Not perfect (the real per-cover match happens at run-time), but a

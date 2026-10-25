@@ -49,11 +49,14 @@ public class PolicyCommissionCalculator
             .ToListAsync(ct);
         _db.PolicyCommissionSplits.RemoveRange(existing);
 
-        // Insurance commissions are calculated on the net premium (the
-        // amount after insurance tax). Legacy policies without a net value
-        // retain the old premium fallback until they are edited once.
+        // Insurance commissions are calculated on net premium when available.
+        // If the contract has cover rows, evaluate the matching rule for each
+        // cover and aggregate the resulting amounts into one policy split per
+        // hierarchy level. This allows a negotiated cover-specific rate to
+        // coexist with a carrier-wide fallback without applying one rate to
+        // the whole policy by accident.
         var commissionBase = policy.NetPremium ?? policy.Premium;
-        if (commissionBase <= 0m) return;
+        if (commissionBase == 0m) return;
 
         // Resolve the producer chain (leaf → parent → ... → root). Missing
         // parent stops the walk.
@@ -63,117 +66,101 @@ public class PolicyCommissionCalculator
         // rest of the system uses (per-producer > per-tier > global, then
         // per-carrier > wildcard, per-branch > wildcard, per-cover > wildcard,
         // per-vehicle-use > wildcard).
-        var rule = await PickBestRuleAsync(tenantId, policy, chain, ct);
-        var totalRule = await PickBestTotalRuleAsync(tenantId, policy, chain, ct);
+        var coverRows = await _db.PolicyCovers
+            .Where(c => c.TenantId == tenantId && c.PolicyId == policy.Id && c.DeletedAt == null)
+            .OrderBy(c => c.CreatedAt).ToListAsync(ct);
+        List<(string? Code, decimal Base, PolicyCover? Cover)> coverInputs = coverRows.Count > 0
+            ? coverRows.Select(c => ((string?)c.CoverCode, c.NetPremium > 0m ? c.NetPremium : c.GrossPremium, (PolicyCover?)c)).ToList()
+            : [(null, commissionBase, null)];
+        var amountByLevel = new Dictionary<HierarchyLevel, decimal>();
+        decimal calculationBaseTotal = 0m;
 
-        // A per-policy override wins over every rule. Applied identically to
-        // the rule-level JSON — same shape, same level keys.
-        var percents = ResolveOverrideLevels(policy.SpecialLevelPercentsJson);
-        if (percents.Count == 0 && policy.SpecialCommissionPercent.HasValue && policy.ProducerId.HasValue)
+        foreach (var cover in coverInputs)
         {
-            // A manually entered producer percentage on the contract wins over
-            // the producer percentage from every office rule. Keep any other
-            // hierarchy levels from the matched rule; if no rule exists, the
-            // manual value still creates a producer split for the portal.
-            var manualProducerPercent = Math.Max(0m, policy.SpecialCommissionPercent.Value);
-            var rulePercents = ResolvePercents(rule);
-            var replacedProducer = false;
-            percents = rulePercents
-                .Select(item =>
+            var coverBase = coverRows.Count > 0 ? cover.Base : commissionBase;
+            if (coverBase == 0m) continue;
+            var rule = await PickBestRuleAsync(tenantId, policy, chain, cover.Code, ct);
+            var totalRule = await PickBestTotalRuleAsync(tenantId, policy, chain, cover.Code, ct);
+            calculationBaseTotal += coverBase;
+
+            var percents = ResolveOverrideLevels(policy.SpecialLevelPercentsJson);
+            if (percents.Count == 0 && policy.SpecialCommissionPercent.HasValue && policy.ProducerId.HasValue)
+            {
+                var manualProducerPercent = Math.Max(0m, policy.SpecialCommissionPercent.Value);
+                var rulePercents = ResolvePercents(rule);
+                var replacedProducer = false;
+                percents = rulePercents.Select(item =>
                 {
                     if (item.Level != HierarchyLevel.Producer) return item;
                     replacedProducer = true;
                     return (item.Level, manualProducerPercent);
-                })
-                .ToList();
+                }).ToList();
+                if (!replacedProducer && manualProducerPercent > 0m)
+                    percents.Insert(0, (HierarchyLevel.Producer, manualProducerPercent));
+            }
+            if (percents.Count == 0) percents = ResolvePercents(rule);
+            if (percents.Count == 0 && totalRule is not null && !ReferenceEquals(totalRule, rule))
+                percents = ResolvePercents(totalRule);
+            if (percents.Count == 0) continue;
 
-            if (!replacedProducer && manualProducerPercent > 0m)
-                percents.Insert(0, (HierarchyLevel.Producer, manualProducerPercent));
-        }
-        if (percents.Count == 0) percents = ResolvePercents(rule);
-        if (percents.Count == 0 && totalRule is not null && !ReferenceEquals(totalRule, rule))
-            percents = ResolvePercents(totalRule);
-        if (percents.Count == 0) return;
-
-        // CommissionRule.AgencyPercent is the total percentage paid by the
-        // carrier on the net premium.  The producer/manager/unit/... levels
-        // are paid out of that total; the Agency row is the remainder kept by
-        // the office.  This keeps the materialised matrix consistent with the
-        // production list (for example 16% carrier total - 10% producer = 6%
-        // office).  A policy without ProducerId is office production, so it
-        // receives the full configured carrier percentage and never creates a
-        // producer row.
-        // A producer-specific rule may itself carry both the carrier total and
-        // producer share. Use it as a fallback when no separate total rule was
-        // selected, so the Agency row is never lost for legacy/manual policies.
-        var configuredTotalPercent = ConfiguredTotalPercent(totalRule)
-            ?? ConfiguredTotalPercent(rule);
-        if (configuredTotalPercent.HasValue && !policy.ProducerId.HasValue)
-        {
-            // Office-owned production receives the full carrier total.
-            percents = new List<(HierarchyLevel Level, decimal Percent)>
+            // Explicit bridge values on a cover take precedence over the
+            // parametrized percentage for that same cover.
+            if (cover.Cover?.CommissionPercent is decimal coverProducerPercent)
             {
-                (HierarchyLevel.Agency, configuredTotalPercent.Value)
-            };
+                var found = false;
+                percents = percents.Select(x =>
+                {
+                    if (x.Level != HierarchyLevel.Producer) return x;
+                    found = true;
+                    return (x.Level, coverProducerPercent);
+                }).ToList();
+                if (!found && coverProducerPercent > 0m)
+                    percents.Insert(0, (HierarchyLevel.Producer, coverProducerPercent));
+            }
+
+            if (cover.Cover?.AgencyCommissionPercent is decimal coverAgencyPercent)
+            {
+                percents = percents.Where(x => x.Level != HierarchyLevel.Agency).ToList();
+                if (coverAgencyPercent > 0m) percents.Add((HierarchyLevel.Agency, coverAgencyPercent));
+            }
+            else
+            {
+                var configuredTotalPercent = ConfiguredTotalPercent(totalRule) ?? ConfiguredTotalPercent(rule);
+                if (configuredTotalPercent.HasValue && !policy.ProducerId.HasValue)
+                    percents = [(HierarchyLevel.Agency, configuredTotalPercent.Value)];
+                else if (configuredTotalPercent.HasValue)
+                {
+                    var remainder = Math.Max(configuredTotalPercent.Value - percents
+                        .Where(x => x.Level != HierarchyLevel.Agency).Sum(x => Math.Max(0m, x.Percent)), 0m);
+                    percents = percents.Where(x => x.Level != HierarchyLevel.Agency).ToList();
+                    if (remainder > 0m) percents.Add((HierarchyLevel.Agency, remainder));
+                }
+            }
+
+            if (!policy.ProducerId.HasValue)
+            {
+                var officePercent = percents.Where(x => x.Level == HierarchyLevel.Agency).Sum(x => Math.Max(0m, x.Percent));
+                percents = officePercent > 0m ? [(HierarchyLevel.Agency, officePercent)] : [];
+            }
+            foreach (var (level, percent) in percents)
+            {
+                if (percent <= 0m || (level != HierarchyLevel.Agency && !policy.ProducerId.HasValue)) continue;
+                var amount = Math.Round(coverBase * percent / 100m, 2, MidpointRounding.AwayFromZero);
+                amountByLevel[level] = amountByLevel.GetValueOrDefault(level) + amount;
+            }
         }
-        else if (configuredTotalPercent.HasValue)
+
+        foreach (var (level, amount) in amountByLevel.Where(x => x.Value != 0m))
         {
-            var carrierTotal = configuredTotalPercent.Value;
-            var nonAgency = percents
-                .Where(x => x.Level != HierarchyLevel.Agency)
-                .Sum(x => Math.Max(0m, x.Percent));
-            var agencyRemainder = Math.Max(carrierTotal - nonAgency, 0m);
-            percents = percents.Where(x => x.Level != HierarchyLevel.Agency).ToList();
-            if (agencyRemainder > 0m)
-                percents.Add((HierarchyLevel.Agency, agencyRemainder));
-        }
-
-        if (!policy.ProducerId.HasValue)
-        {
-            var officePercent = percents
-                .Where(x => x.Level == HierarchyLevel.Agency)
-                .Sum(x => Math.Max(0m, x.Percent));
-            percents = officePercent > 0m
-                ? new List<(HierarchyLevel Level, decimal Percent)> { (HierarchyLevel.Agency, officePercent) }
-                : new List<(HierarchyLevel Level, decimal Percent)>();
-        }
-        if (percents.Count == 0) return;
-
-        foreach (var (level, percent) in percents)
-        {
-            if (percent <= 0m) continue;
-
-            // Producer at this level = the node in the chain whose
-            // HierarchyLevel matches. Might be null (rule pays a level but
-            // the chain doesn't reach that high) — we still record the row
-            // so the matrix explains the miss.
-            // There is no producer-side recipient for office production.  Do
-            // not materialise a producer row with a null recipient.
-            if (level != HierarchyLevel.Agency && !policy.ProducerId.HasValue)
-                continue;
-
             var levelProducer = chain.FirstOrDefault(p => p.HierarchyLevel == level);
-
-            var gross = Math.Round(commissionBase * percent / 100m, 2);
-            // Agency doesn't withhold from itself. Every other level does.
-            // Collaborator commissions are paid in full; no withholding is
-            // deducted from the configured producer percentage.
-            const decimal withheld = 0m;
-            var net = gross;
-
+            var percentBase = calculationBaseTotal > 0m ? calculationBaseTotal : commissionBase;
+            var effectivePercent = Math.Round(amount / percentBase * 100m, 4, MidpointRounding.AwayFromZero);
             _db.PolicyCommissionSplits.Add(new PolicyCommissionSplit
             {
-                Id = Guid.NewGuid(),
-                TenantId = tenantId,
-                PolicyId = policy.Id,
-                HierarchyLevel = level,
-                ProducerId = levelProducer?.Id,
-                Percent = percent,
-                GrossAmount = gross,
-                TaxWithholdingAmount = withheld,
-                NetAmount = net,
-                Currency = policy.Currency,
-                CreatedAt = DateTime.UtcNow
+                Id = Guid.NewGuid(), TenantId = tenantId, PolicyId = policy.Id,
+                HierarchyLevel = level, ProducerId = levelProducer?.Id,
+                Percent = effectivePercent, GrossAmount = amount, TaxWithholdingAmount = 0m,
+                NetAmount = amount, Currency = policy.Currency, CreatedAt = DateTime.UtcNow
             });
         }
     }
@@ -208,7 +195,7 @@ public class PolicyCommissionCalculator
     /// / branch / use scope beats wildcards.
     /// </summary>
     private async Task<CommissionRule?> PickBestRuleAsync(
-        Guid tenantId, Policy policy, IReadOnlyList<Producer> chain, CancellationToken ct)
+        Guid tenantId, Policy policy, IReadOnlyList<Producer> chain, string? coverCode, CancellationToken ct)
     {
         var rules = await _db.CommissionRules
             .Where(r => r.TenantId == tenantId && r.DeletedAt == null)
@@ -222,21 +209,34 @@ public class PolicyCommissionCalculator
             .Where(r =>
                 r.EffectiveFrom <= policy.StartDate && (!r.EffectiveTo.HasValue || r.EffectiveTo.Value >= policy.StartDate) &&
                 (!r.ProducerId.HasValue         || producerIds.Contains(r.ProducerId)) &&
+                (!r.ProducerTier.HasValue       || chain.Any(p => p.Tier == r.ProducerTier)) &&
                 (!r.PolicyType.HasValue         || r.PolicyType == policy.PolicyType) &&
                 (!r.VehicleUseCategory.HasValue || r.VehicleUseCategory == policy.VehicleUseCategory) &&
-                (!r.InsuranceCompanyId.HasValue || r.InsuranceCompanyId == policy.InsuranceCompanyId))
+                (!r.InsuranceCompanyId.HasValue || r.InsuranceCompanyId == policy.InsuranceCompanyId) &&
+                (!r.InsuranceYear.HasValue      || r.InsuranceYear == policy.StartDate.Year) &&
+                (!r.MinimumGrossPremium.HasValue || policy.Premium >= r.MinimumGrossPremium.Value) &&
+                (!r.MaximumGrossPremium.HasValue || policy.Premium <= r.MaximumGrossPremium.Value) &&
+                (!r.MinimumDeductible.HasValue || (policy.Deductible ?? 0m) >= r.MinimumDeductible.Value) &&
+                (!r.MaximumDeductible.HasValue || (policy.Deductible ?? 0m) <= r.MaximumDeductible.Value) &&
+                CoverMatches(r.CoverCode, coverCode, policy.CarrierCoverageCode))
             .OrderByDescending(r =>
-                (r.ProducerId.HasValue         ? 8 : 0) +
+                (r.ProducerId.HasValue         ? 32 : 0) +
+                (r.ProducerTier.HasValue       ? 16 : 0) +
+                (r.InsuranceYear.HasValue      ? 8 : 0) +
                 (r.PolicyType.HasValue         ? 4 : 0) +
-                (r.VehicleUseCategory.HasValue ? 2 : 0) +
-                (r.InsuranceCompanyId.HasValue ? 1 : 0))
+                (r.CoverCode is not null       ? 2 : 0) +
+                (r.VehicleUseCategory.HasValue ? 1 : 0) +
+                (r.InsuranceCompanyId.HasValue ? 1 : 0) +
+                (r.MinimumGrossPremium.HasValue || r.MaximumGrossPremium.HasValue ? 1 : 0) +
+                (r.MinimumDeductible.HasValue || r.MaximumDeductible.HasValue ? 1 : 0))
+            .ThenByDescending(r => r.Priority)
             .ThenByDescending(r => r.EffectiveFrom)
             .FirstOrDefault();
         return match;
     }
 
     private async Task<CommissionRule?> PickBestTotalRuleAsync(
-        Guid tenantId, Policy policy, IReadOnlyList<Producer> chain, CancellationToken ct)
+        Guid tenantId, Policy policy, IReadOnlyList<Producer> chain, string? coverCode, CancellationToken ct)
     {
         var rules = await _db.CommissionRules
             .Where(r => r.TenantId == tenantId && r.DeletedAt == null)
@@ -253,15 +253,35 @@ public class PolicyCommissionCalculator
                 (!r.ProducerTier.HasValue       || chain.Any(p => p.Tier == r.ProducerTier)) &&
                 (!r.PolicyType.HasValue         || r.PolicyType == policy.PolicyType) &&
                 (!r.VehicleUseCategory.HasValue || r.VehicleUseCategory == policy.VehicleUseCategory) &&
-                (!r.InsuranceCompanyId.HasValue  || r.InsuranceCompanyId == policy.InsuranceCompanyId))
+                (!r.InsuranceCompanyId.HasValue  || r.InsuranceCompanyId == policy.InsuranceCompanyId) &&
+                (!r.InsuranceYear.HasValue      || r.InsuranceYear == policy.StartDate.Year) &&
+                (!r.MinimumGrossPremium.HasValue || policy.Premium >= r.MinimumGrossPremium.Value) &&
+                (!r.MaximumGrossPremium.HasValue || policy.Premium <= r.MaximumGrossPremium.Value) &&
+                (!r.MinimumDeductible.HasValue || (policy.Deductible ?? 0m) >= r.MinimumDeductible.Value) &&
+                (!r.MaximumDeductible.HasValue || (policy.Deductible ?? 0m) <= r.MaximumDeductible.Value) &&
+                CoverMatches(r.CoverCode, coverCode, policy.CarrierCoverageCode))
             .OrderByDescending(r =>
-                (r.ProducerId.HasValue         ? 8 : 0) +
-                (r.ProducerTier.HasValue       ? 4 : 0) +
-                (r.VehicleUseCategory.HasValue ? 2 : 0) +
+                (r.ProducerId.HasValue         ? 32 : 0) +
+                (r.ProducerTier.HasValue       ? 16 : 0) +
+                (r.InsuranceYear.HasValue      ? 8 : 0) +
+                (r.PolicyType.HasValue         ? 4 : 0) +
+                (r.CoverCode is not null       ? 2 : 0) +
+                (r.VehicleUseCategory.HasValue ? 1 : 0) +
                 (r.InsuranceCompanyId.HasValue  ? 1 : 0) +
-                (r.PolicyType.HasValue          ? 1 : 0))
+                (r.MinimumGrossPremium.HasValue || r.MaximumGrossPremium.HasValue ? 1 : 0) +
+                (r.MinimumDeductible.HasValue || r.MaximumDeductible.HasValue ? 1 : 0))
+            .ThenByDescending(r => r.Priority)
             .ThenByDescending(r => r.EffectiveFrom)
             .FirstOrDefault();
+    }
+
+    private static bool CoverMatches(string? ruleCode, string? coverCode, string? policyCodes)
+    {
+        if (ruleCode is null) return true;
+        if (!string.IsNullOrWhiteSpace(coverCode))
+            return string.Equals(ruleCode.Trim(), coverCode.Trim(), StringComparison.OrdinalIgnoreCase);
+        return (policyCodes ?? "").Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Contains(ruleCode, StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>
