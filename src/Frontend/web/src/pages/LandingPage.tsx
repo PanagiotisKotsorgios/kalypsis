@@ -45,6 +45,8 @@ import { PublicPricingCooperationSection } from "../components/PublicPricingCoop
 import { CliProjectLink } from "../components/CliProjectLink";
 import { PublicProductShowcase } from "../components/PublicProductShowcase";
 import { PublicRemoteAccessSection } from "../components/PublicRemoteAccessSection";
+import { PublicTimologionSection } from "../components/PublicTimologionSection";
+import { HostingPromoButton } from "../components/HostingPromoButton";
 import { PublicOfferingsSection } from "../components/PublicOfferingsSection";
 import { api } from "../api/client";
 
@@ -346,7 +348,7 @@ export function LandingPage() {
                 to="/contact"
                 variant="outlined"
                 startIcon={
-                  <ChatBubbleOutlineIcon sx={{ fontSize: 20, color: ACCENT }} />
+                  <ChatBubbleOutlineIcon sx={{ fontSize: 21, color: "#0B3D78" }} />
                 }
                 sx={{
                   borderRadius: 999,
@@ -359,10 +361,12 @@ export function LandingPage() {
                   whiteSpace: "nowrap",
                   color: NAVY,
                   bgcolor: "rgba(30,167,225,0.06)",
-                  borderColor: "rgba(30,167,225,0.35)",
+                  borderColor: "#174C8C",
+                  borderWidth: 2,
                   "& .MuiButton-startIcon": { mr: 1 },
                   "&:hover": {
-                    borderColor: ACCENT,
+                    borderColor: "#0B305C",
+                    borderWidth: 2,
                     bgcolor: "rgba(30,167,225,0.12)",
                   },
                 }}
@@ -403,8 +407,9 @@ export function LandingPage() {
               <MenuIcon sx={{ fontSize: 26 }} />
             </IconButton>
           </Stack>
-          <Box sx={{ px: { xs: 1.5, md: 4.5 }, mt: 1.5 }}>
+          <Box sx={{ px: { xs: 1.5, md: 4.5 }, mt: 1.5, display: "flex", flexDirection: { xs: "column", md: "row" }, justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" }, gap: 1.5 }}>
             <PreloginDesktopDownload />
+            <HostingPromoButton />
           </Box>
         </Container>
 
@@ -613,7 +618,9 @@ export function LandingPage() {
               fullWidth
               onClick={() => setMenuOpen(false)}
               variant="text"
-              startIcon={<ChatBubbleOutlineIcon />}
+              startIcon={
+                <ChatBubbleOutlineIcon sx={{ color: "#0B3D78", fontSize: 21 }} />
+              }
               sx={{
                 justifyContent: "flex-start",
                 borderRadius: 2,
@@ -624,10 +631,10 @@ export function LandingPage() {
                 textTransform: "none",
                 color: NAVY,
                 bgcolor: "rgba(30,167,225,0.06)",
-                border: "1px solid rgba(30,167,225,0.28)",
+                border: "2px solid #174C8C",
                 "&:hover": {
                   bgcolor: "rgba(30,167,225,0.14)",
-                  borderColor: "rgba(30,167,225,0.55)",
+                  borderColor: "#0B305C",
                 },
               }}
             >
@@ -744,6 +751,7 @@ export function LandingPage() {
       <PublicTechnologiesSection />
       <PublicProductShowcase />
       <PublicRemoteAccessSection />
+      <PublicTimologionSection />
       <Container
         maxWidth={false}
         sx={{

@@ -61,6 +61,7 @@ import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { PricingPage } from "./pages/PricingPage";
+import { HostingPage } from "./pages/HostingPage";
 import { DownloadPage } from "./pages/DownloadPage";
 import { DesktopReleasesPage } from "./pages/DesktopReleasesPage";
 import { DesktopReleaseGuidePage } from "./pages/DesktopReleaseGuidePage";
@@ -822,6 +823,7 @@ export default function App() {
         <Route path="/insurance-request" element={<ProtectedRoute><InsuranceRequestPage /></ProtectedRoute>} />
         <Route path="/insurance/*" element={<ProtectedRoute><Suspense fallback={<PageLoader minHeight="100vh" />}><InsuranceWebsitePage /></Suspense></ProtectedRoute>} />
         <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/hosting" element={<HostingPage />} />
         <Route path="/download" element={<DownloadPage />} />
         <Route path="/download/releases" element={<DesktopReleasesPage />} />
         <Route path="/download/releases/guide/:assetId" element={<DesktopReleaseGuidePage />} />

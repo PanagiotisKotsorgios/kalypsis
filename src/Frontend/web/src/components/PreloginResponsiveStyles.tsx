@@ -4,7 +4,7 @@ import { useLocation } from "react-router-dom";
 
 const PRELOGIN_PATH_PREFIXES = [
   "/", "/login", "/forgot-password", "/reset-password",
-  "/register", "/pricing", "/faq", "/contact", "/terms", "/privacy", "/cookies"
+  "/register", "/pricing", "/hosting", "/faq", "/contact", "/terms", "/privacy", "/cookies"
 ];
 
 function isPreloginPath(pathname: string): boolean {

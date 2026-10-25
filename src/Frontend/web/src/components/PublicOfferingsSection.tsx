@@ -146,7 +146,7 @@ export function PublicOfferingsSection() {
       <Stack direction="row" alignItems="center" gap={2} sx={{ mb: 1.5 }}><Typography sx={{ color: "#145DA7", fontSize: 12, letterSpacing: ".17em", textTransform: "uppercase", fontWeight: 800 }}>{t("landing.v2.featuresEyebrow")}</Typography><Box aria-hidden sx={{ width: 65, height: 2, bgcolor: "#145DA7" }} /></Stack>
       <Typography component="h2" id="public-offerings-title" sx={{ fontSize: { xs: 25, sm: 29, md: 33 }, lineHeight: 1.3, color: "#0B2545", fontWeight: 800, letterSpacing: "-.025em", maxWidth: 1180, textWrap: "balance", mb: 1.5 }}>{t("landing.v2.featuresHeadline")}</Typography>
       <Typography sx={{ color: "#435A77", fontSize: { xs: 15, md: 16 }, lineHeight: 1.8, maxWidth: 1140, mb: { xs: 3, md: 3.5 } }}>{t("landing.v2.featuresSub")}</Typography>
-      <Box sx={{ display: "grid", gap: { xs: 2, lg: 2.5 }, gridTemplateColumns: { xs: "minmax(0,1fr)", sm: "repeat(2,minmax(0,1fr))", lg: "repeat(6,minmax(0,1fr))" }, gridTemplateAreas: { xs: '"a" "b" "c" "d" "e" "f"', sm: '"a a" "b c" "d e" "f f"', lg: '"a a a a b b" "a a a a c c" "d d e e f f"' } }}>
+      <Box sx={{ display: "grid", gap: { xs: 2, lg: 2.5 }, gridTemplateColumns: { xs: "minmax(0,1fr)", sm: "repeat(2,minmax(0,1fr))", lg: "repeat(12,minmax(0,1fr))" }, gridTemplateAreas: { xs: '"a" "b" "c" "d" "e" "f"', sm: '"a a" "b c" "d e" "f f"', lg: '"a a a a a a a a b b b b" "c c c d d d e e e f f f"' } }}>
         {offerings.map(({ key, icon: Icon, area, image }, index) => {
           const title = t(`landing.v2.feat.${key}T`);
           const label = english ? `Ask us about ${title}` : `Ρωτήστε μας για: ${title}`;
