@@ -220,6 +220,7 @@ public class PolicyCommissionCalculator
 
         var match = rules
             .Where(r =>
+                r.EffectiveFrom <= policy.StartDate && (!r.EffectiveTo.HasValue || r.EffectiveTo.Value >= policy.StartDate) &&
                 (!r.ProducerId.HasValue         || producerIds.Contains(r.ProducerId)) &&
                 (!r.PolicyType.HasValue         || r.PolicyType == policy.PolicyType) &&
                 (!r.VehicleUseCategory.HasValue || r.VehicleUseCategory == policy.VehicleUseCategory) &&
@@ -229,6 +230,7 @@ public class PolicyCommissionCalculator
                 (r.PolicyType.HasValue         ? 4 : 0) +
                 (r.VehicleUseCategory.HasValue ? 2 : 0) +
                 (r.InsuranceCompanyId.HasValue ? 1 : 0))
+            .ThenByDescending(r => r.EffectiveFrom)
             .FirstOrDefault();
         return match;
     }
@@ -246,6 +248,7 @@ public class PolicyCommissionCalculator
         producerIds.Add(policy.ProducerId);
         return rules
             .Where(r =>
+                r.EffectiveFrom <= policy.StartDate && (!r.EffectiveTo.HasValue || r.EffectiveTo.Value >= policy.StartDate) &&
                 (!r.ProducerId.HasValue         || producerIds.Contains(r.ProducerId)) &&
                 (!r.ProducerTier.HasValue       || chain.Any(p => p.Tier == r.ProducerTier)) &&
                 (!r.PolicyType.HasValue         || r.PolicyType == policy.PolicyType) &&
@@ -257,6 +260,7 @@ public class PolicyCommissionCalculator
                 (r.VehicleUseCategory.HasValue ? 2 : 0) +
                 (r.InsuranceCompanyId.HasValue  ? 1 : 0) +
                 (r.PolicyType.HasValue          ? 1 : 0))
+            .ThenByDescending(r => r.EffectiveFrom)
             .FirstOrDefault();
     }
 

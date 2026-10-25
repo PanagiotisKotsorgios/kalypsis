@@ -2718,7 +2718,7 @@
     "paid": "Εξόφληση",
     "amount": "Ποσό",
     "kindLabel": { "Cheque": "Επιταγή", "PromissoryNote": "Συναλλαγματική" },
-    "statusLabel": { "Open": "Ανοικτό", "Paid": "Εξοφλήθηκε", "Bounced": "Σφράγισμα", "Cancelled": "Ακυρώθηκε" }
+    "statusLabel": { "Open": "Στο χαρτοφυλάκιο", "PartiallyPaid": "Μερικώς εξοφλημένο", "Paid": "Εξοφλήθηκε", "Bounced": "Ακάλυπτο / αντιλογισμένο", "Cancelled": "Ακυρώθηκε", "Transferred": "Μεταβιβάστηκε" }
   },
   "financials": {
     "title": "Οικονομικές Κινήσεις",

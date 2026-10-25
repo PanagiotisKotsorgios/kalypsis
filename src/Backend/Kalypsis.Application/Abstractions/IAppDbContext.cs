@@ -62,6 +62,10 @@ public interface IAppDbContext
     DbSet<Receipt> Receipts { get; }
     DbSet<Payment> Payments { get; }
     DbSet<Security> Securities { get; }
+    DbSet<SecurityEvent> SecurityEvents { get; }
+    DbSet<PartyLedgerEntry> PartyLedgerEntries { get; }
+    DbSet<LedgerAllocation> LedgerAllocations { get; }
+    DbSet<CreditControlRule> CreditControlRules { get; }
     DbSet<FinancialMovement> FinancialMovements { get; }
     DbSet<BankConnection> BankConnections { get; }
     DbSet<MarketingCampaign> MarketingCampaigns { get; }

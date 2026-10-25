@@ -33,6 +33,7 @@ interface PaymentDto {
   beneficiaryProducerId: string | null; beneficiaryProducerName: string | null;
   beneficiaryName: string | null;
   method: Method; amount: number; commissionsNetted: number; currency: string; notes: string | null;
+  grossCommissionAmount: number | null; producerWithholdingPercent: number | null; producerWithholdingAmount: number;
   transactionReference: string | null;
   policyId: string | null; policyNumber: string | null;
 }
@@ -122,9 +123,11 @@ export function PaymentsPage() {
     { key: "policy",      label: "Συμβόλαιο", defaultVisible: false },
     { key: "txRef",       label: "Αναφορά συναλλαγής", defaultVisible: false },
     { key: "amount",      label: "Ποσό" },
+    { key: "gross",       label: "Μικτή προμήθεια", defaultVisible: false },
+    { key: "withholding", label: "Παρακράτηση", defaultVisible: false },
     { key: "netted",      label: "Συμψηφισμός" },
   ]);
-  const cashOutTotal = filteredRows.reduce((s, p) => s + (p.amount - p.commissionsNetted), 0);
+  const cashOutTotal = filteredRows.reduce((s, p) => s + (p.amount - p.commissionsNetted - p.producerWithholdingAmount), 0);
   const clearPaymentFilters = () => {
     setClearSavedFilterRequest(value => value + 1);
     setSearch(""); setMethodFilter(""); setBenFilter(""); setFromDate(""); setToDate("");
@@ -155,7 +158,7 @@ export function PaymentsPage() {
       const map: Record<string, keyof PaymentDto> = {
         number: "number", date: "paidOn", beneficiary: "beneficiaryName",
         method: "method", policy: "policyNumber", txRef: "transactionReference",
-        amount: "amount", netted: "commissionsNetted",
+        amount: "amount", gross: "grossCommissionAmount", withholding: "producerWithholdingAmount", netted: "commissionsNetted",
       };
       const dtoKey = map[key];
       if (!dtoKey) return;
@@ -278,7 +281,7 @@ export function PaymentsPage() {
               {paymentCols.visibleColumns.map(c => (
                 <TableCell
                   key={c.key}
-                  align={c.key === "amount" || c.key === "netted" ? "right" : "left"}
+                  align={c.key === "amount" || c.key === "gross" || c.key === "withholding" || c.key === "netted" ? "right" : "left"}
                   onContextMenu={(e) => headerMenu.open(e, { key: c.key, label: c.label, type: inferType(c.key), canHide: !c.alwaysVisible })}
                   sx={{ userSelect: "none" }}
                 >
@@ -338,6 +341,12 @@ export function PaymentsPage() {
                         return <TableCell key={c.key} sx={{ fontFamily: "monospace", fontSize: 12 }}>{p.transactionReference ?? "—"}</TableCell>;
                       case "amount":
                         return <TableCell key={c.key} align="right" sx={{ fontWeight: 700 }}>{money(p.amount, p.currency)}</TableCell>;
+                      case "gross":
+                        return <TableCell key={c.key} align="right">{p.grossCommissionAmount == null ? "—" : money(p.grossCommissionAmount, p.currency)}</TableCell>;
+                      case "withholding":
+                        return <TableCell key={c.key} align="right" sx={{ color: p.producerWithholdingAmount > 0 ? "error.main" : "text.secondary" }}>
+                          {p.producerWithholdingAmount > 0 ? `${money(p.producerWithholdingAmount, p.currency)}${p.producerWithholdingPercent != null ? ` · ${p.producerWithholdingPercent}%` : ""}` : "—"}
+                        </TableCell>;
                       case "netted":
                         return <TableCell key={c.key} align="right" sx={{ color: "text.secondary" }}>{money(p.commissionsNetted)}</TableCell>;
                       default: return <TableCell key={c.key}>—</TableCell>;
@@ -408,6 +417,20 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
     method: "BankTransfer" as Method, amount: 0, commissionsNetted: 0, currency: "EUR", notes: "",
     transactionReference: "", policyId: ""
   });
+  const withholdingTerms = useQuery({
+    queryKey: ["producer-withholding-terms", form.beneficiaryProducerId],
+    enabled: open && form.beneficiaryType === "Producer" && !!form.beneficiaryProducerId,
+    queryFn: async () => (await api.get<{ values: Record<string, string> }[]>(
+      `/producers/${form.beneficiaryProducerId}/card/entries/withholdings`)).data,
+  });
+  const effectiveWithholding = (withholdingTerms.data ?? [])
+    .filter(x => (!x.values.effectiveFrom || x.values.effectiveFrom <= form.paidOn)
+      && (!x.values.effectiveTo || x.values.effectiveTo >= form.paidOn))
+    .sort((a, b) => (b.values.effectiveFrom ?? "").localeCompare(a.values.effectiveFrom ?? ""))[0];
+  const withholdingPercent = Number(effectiveWithholding?.values.percent ?? 0);
+  const withholdingAmount = form.beneficiaryType === "Producer"
+    ? Math.round((Number(form.amount) * withholdingPercent / 100 + Number.EPSILON) * 100) / 100 : 0;
+  const netCashAmount = Math.max(0, Number(form.amount) - withholdingAmount - Number(form.commissionsNetted));
   const [err, setErr] = useState<string | null>(null);
   const [inlineCarrierCreate, setInlineCarrierCreate] = useState<string | null>(null);
   const [inlineProducerCreate, setInlineProducerCreate] = useState<string | null>(null);
@@ -452,6 +475,9 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
             <TextField type="date" label={t("payments.date")} InputLabelProps={{ shrink: true }} value={form.paidOn} onChange={e => setForm({ ...form, paidOn: e.target.value })} fullWidth
               InputProps={{ endAdornment: <FilterHelp title="Ημερομηνία εκτέλεσης πληρωμής." /> }} />
           </Stack>
+          {form.beneficiaryType === "Producer" && <Alert severity="info" sx={{ py: .25 }}>
+            Μικτή προμήθεια {money(Number(form.amount), form.currency)} · Παρακράτηση {withholdingPercent}% ({money(withholdingAmount, form.currency)}) · Καθαρή εκροή {money(netCashAmount, form.currency)}
+          </Alert>}
           <FilterFieldWrap tip="Τύπος δικαιούχου: Ασφαλιστική εταιρεία, Συνεργάτης, Προμηθευτής. Καθορίζει τα επόμενα πεδία.">
             <SearchableTextField label={t("payments.benType")} value={form.beneficiaryType} onChange={e => setForm({ ...form, beneficiaryType: e.target.value as BType })} fullWidth>
               {BENEFICIARIES.map(b => <MenuItem key={b} value={b}>{t(`payments.benType.${b}`)}</MenuItem>)}
@@ -511,8 +537,8 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
                 {METHODS.map(m => <MenuItem key={m} value={m}>{t(`paymentMethod.${m}`)}</MenuItem>)}
               </SearchableTextField>
             </FilterFieldWrap>
-            <TextField type="number" required label={t("payments.amount")} value={form.amount} onChange={e => setForm({ ...form, amount: Number(e.target.value) })} fullWidth
-              InputProps={{ endAdornment: <FilterHelp title="Μικτό ποσό πληρωμής προς τον δικαιούχο (πριν από συμψηφισμό προμηθειών)." /> }} />
+            <TextField type="number" required label={form.beneficiaryType === "Producer" ? "Μικτή προμήθεια" : t("payments.amount")} value={form.amount} onChange={e => setForm({ ...form, amount: Number(e.target.value) })} fullWidth
+              InputProps={{ endAdornment: <FilterHelp title={form.beneficiaryType === "Producer" ? "Μικτό δικαίωμα συνεργάτη πριν από παρακράτηση και συμψηφισμό. Η καθαρή εκροή υπολογίζεται αυτόματα από τον ισχύοντα όρο παρακράτησης." : "Μικτό ποσό πληρωμής προς τον δικαιούχο."} /> }} />
             <TextField type="number" label={t("payments.netted")} value={form.commissionsNetted} onChange={e => setForm({ ...form, commissionsNetted: Number(e.target.value) })} fullWidth
               InputProps={{ endAdornment: <FilterHelp title="Ποσό προμηθειών που συμψηφίστηκαν από την πληρωμή (νετάρισμα). Καθαρή πληρωμή = Ποσό - Συμψηφισμός." /> }} />
           </Stack>

@@ -5,7 +5,7 @@ public enum AppointmentStatus { Scheduled = 1, Done = 2, Cancelled = 3 }
 public enum PaymentMethod { Cash = 1, Card = 2, BankTransfer = 3, Cheque = 4, PromissoryNote = 5, Other = 99 }
 
 public enum SecurityKind { Cheque = 1, PromissoryNote = 2 }
-public enum SecurityStatus { Open = 1, Paid = 2, Bounced = 3, Cancelled = 4 }
+public enum SecurityStatus { Open = 1, Paid = 2, Bounced = 3, Cancelled = 4, PartiallyPaid = 5, Transferred = 6 }
 
 public enum FinancialMovementKind
 {

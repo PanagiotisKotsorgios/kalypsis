@@ -556,7 +556,7 @@ public class MergeCustomersHandler : IRequestHandler<MergeCustomersCommand, Merg
             .Where(x => r.RemoveIds.Contains(x.CustomerId))
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.CustomerId, r.KeepId), ct);
         await _db.Securities
-            .Where(x => r.RemoveIds.Contains(x.CustomerId))
+            .Where(x => x.CustomerId != null && r.RemoveIds.Contains(x.CustomerId.Value))
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.CustomerId, r.KeepId), ct);
 
         // Nullable FKs — filter with .Value against the removed set and

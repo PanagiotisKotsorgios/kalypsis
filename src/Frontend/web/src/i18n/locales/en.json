@@ -2495,7 +2495,7 @@
     "number": "Number", "kind": "Kind", "customer": "Customer", "bank": "Bank",
     "issued": "Issued", "maturity": "Maturity", "paid": "Paid", "amount": "Amount",
     "kindLabel": { "Cheque": "Cheque", "PromissoryNote": "Promissory note" },
-    "statusLabel": { "Open": "Open", "Paid": "Paid", "Bounced": "Bounced", "Cancelled": "Cancelled" }
+    "statusLabel": { "Open": "In portfolio", "PartiallyPaid": "Partially settled", "Paid": "Paid", "Bounced": "Bounced / reversed", "Cancelled": "Cancelled", "Transferred": "Transferred" }
   },
   "financials": {
     "title": "Financial Movements",

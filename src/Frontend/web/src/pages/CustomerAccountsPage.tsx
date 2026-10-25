@@ -1,9 +1,11 @@
 import { FinancialFilters } from "../components/FinancialFilters";
 import { useState } from "react";
-import { Alert, Box, Card, Chip, CircularProgress, FormControlLabel, Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
+import { Alert, Box, Card, Chip, CircularProgress, FormControlLabel, IconButton, Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow, TextField, Tooltip, Typography } from "@mui/material";
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import { useQuery } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { QuickFilterBar } from "../components/QuickFilterBar";
+import { PartyLedgerDialog } from "../components/PartyLedgerDialog";
 
 interface AccountRow {
   customerId: string; customerName: string; charges: number; credits: number;
@@ -18,6 +20,7 @@ export function CustomerAccountsPage() {
   const [onlyDebtors, setOnlyDebtors] = useState(true);
   const [onlyOverdue, setOnlyOverdue] = useState(false);
   const [onlyCreditors, setOnlyCreditors] = useState(false);
+  const [ledgerCustomer, setLedgerCustomer] = useState<{ id: string; name: string } | null>(null);
   const q = useQuery({
     queryKey: ["customer-accounts", from, to, onlyDebtors, onlyOverdue, onlyCreditors],
     queryFn: async () => (await api.get<AccountRow[]>("/customers/accounts", { params: {
@@ -27,6 +30,7 @@ export function CustomerAccountsPage() {
   });
   const fmt = (n: number) => n.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return (
+    <>
     <Stack spacing={2}>
       <FinancialFilters
         activeCount={[from, to, onlyDebtors ? "debtors" : "", onlyOverdue ? "overdue" : "", onlyCreditors ? "creditors" : ""].filter(Boolean).length}
@@ -54,16 +58,20 @@ export function CustomerAccountsPage() {
       {!q.isLoading && !q.isError && (q.data ?? []).length === 0 && <Alert severity="info">Δεν υπάρχουν οφειλές με τα επιλεγμένα φίλτρα.</Alert>}
       {(q.data ?? []).length > 0 && <Card variant="outlined" sx={{ overflowX: "auto" }}>
         <Table size="small">
-          <TableHead><TableRow><TableCell>Πελάτης</TableCell><TableCell align="right">Χρεώσεις</TableCell><TableCell align="right">Εισπράξεις</TableCell><TableCell align="right">Υπόλοιπο</TableCell><TableCell align="right">Ληξιπρόθεσμα</TableCell><TableCell>Συνέπεια</TableCell></TableRow></TableHead>
+          <TableHead><TableRow><TableCell>Πελάτης</TableCell><TableCell align="right">Χρεώσεις</TableCell><TableCell align="right">Εισπράξεις</TableCell><TableCell align="right">Υπόλοιπο</TableCell><TableCell align="right">Ληξιπρόθεσμα</TableCell><TableCell>Συνέπεια</TableCell><TableCell align="right">Καρτέλα λογαριασμού</TableCell></TableRow></TableHead>
           <TableBody>{(q.data ?? []).map(r => <TableRow key={r.customerId} hover sx={{ cursor: "pointer" }} onClick={() => { window.location.href = `/app/customers/${r.customerId}`; }}>
             <TableCell><Typography fontWeight={700}>{r.customerName}</Typography></TableCell>
             <TableCell align="right">{fmt(r.charges)} €</TableCell><TableCell align="right">{fmt(r.credits)} €</TableCell>
             <TableCell align="right" sx={{ color: r.balance > 0 ? "error.main" : "success.main", fontWeight: 800 }}>{fmt(r.balance)} €</TableCell>
             <TableCell align="right">{r.overdueAmount > 0 ? <Chip size="small" color="error" label={`${fmt(r.overdueAmount)} € · ${r.overdueCount}`} /> : "—"}</TableCell>
             <TableCell>{r.paidInstallments ? `${fmt(r.onTimeRatePercent)}%` : "—"}</TableCell>
+            <TableCell align="right" onClick={e => e.stopPropagation()}><Tooltip title="Αναλυτικό καθολικό, παλαιότητα και συμψηφισμοί"><IconButton size="small" color="primary" onClick={() => setLedgerCustomer({ id: r.customerId, name: r.customerName })}><AccountBalanceWalletIcon /></IconButton></Tooltip></TableCell>
           </TableRow>)}</TableBody>
         </Table>
       </Card>}
     </Stack>
+    <PartyLedgerDialog open={!!ledgerCustomer} onClose={() => setLedgerCustomer(null)} partyKind="Customer"
+      partyId={ledgerCustomer?.id ?? ""} partyName={ledgerCustomer?.name ?? ""} />
+    </>
   );
 }

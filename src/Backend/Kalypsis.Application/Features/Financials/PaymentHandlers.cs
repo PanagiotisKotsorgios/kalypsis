@@ -15,7 +15,8 @@ public record PaymentDto(
     Guid? BeneficiaryProducerId, string? BeneficiaryProducerName,
     string? BeneficiaryName, PaymentMethod Method,
     decimal Amount, decimal CommissionsNetted, string Currency, string? Notes,
-    string? TransactionReference, Guid? PolicyId, string? PolicyNumber);
+    string? TransactionReference, Guid? PolicyId, string? PolicyNumber,
+    decimal? GrossCommissionAmount, decimal? ProducerWithholdingPercent, decimal ProducerWithholdingAmount);
 
 public record PaymentBody(
     string Number, DateOnly PaidOn, BeneficiaryType BeneficiaryType,
@@ -161,7 +162,8 @@ public class ListPaymentsQueryHandler : IRequestHandler<ListPaymentsQuery, IRead
         p.BeneficiaryProducerId,
         p.BeneficiaryProducer?.Name,
         p.BeneficiaryName, p.Method, p.Amount, p.CommissionsNetted, p.Currency, p.Notes,
-        p.TransactionReference, p.PolicyId, p.Policy?.PolicyNumber);
+        p.TransactionReference, p.PolicyId, p.Policy?.PolicyNumber,
+        p.GrossCommissionAmount, p.ProducerWithholdingPercent, p.ProducerWithholdingAmount);
 }
 
 public class PaymentBodyValidator : AbstractValidator<PaymentBody>
@@ -171,6 +173,7 @@ public class PaymentBodyValidator : AbstractValidator<PaymentBody>
         RuleFor(x => x.Number).NotEmpty().MaximumLength(40);
         RuleFor(x => x.Amount).GreaterThan(0);
         RuleFor(x => x.CommissionsNetted).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.CommissionsNetted).LessThanOrEqualTo(x => x.Amount);
         RuleFor(x => x.Currency).NotEmpty().Length(3);
     }
 }
@@ -198,6 +201,36 @@ public class CreatePaymentCommandHandler : IRequestHandler<CreatePaymentCommand,
             if (b.BeneficiaryType == BeneficiaryType.Producer && b.BeneficiaryProducerId != policy.ProducerId)
                 throw AppException.Validation("Η πληρωμή πρέπει να αφορά τον συνεργάτη του συμβολαίου.");
         }
+        var grossAmount = b.Amount;
+        var withholdingPercent = 0m;
+        if (b.BeneficiaryType == BeneficiaryType.Producer && b.BeneficiaryProducerId.HasValue)
+        {
+            var rows = await _db.ProducerCardEntries.AsNoTracking()
+                .Where(x => x.TenantId == tenantId && x.ProducerId == b.BeneficiaryProducerId.Value
+                    && x.Kind == "withholdings" && x.DeletedAt == null)
+                .ToListAsync(ct);
+            var effectiveDate = b.PaidOn;
+            withholdingPercent = rows.Select(x =>
+                {
+                    try
+                    {
+                        using var doc = System.Text.Json.JsonDocument.Parse(x.DataJson);
+                        var root = doc.RootElement;
+                        var from = root.TryGetProperty("effectiveFrom", out var f) && DateOnly.TryParse(f.GetString(), out var fd) ? fd : DateOnly.MinValue;
+                        var to = root.TryGetProperty("effectiveTo", out var t) && DateOnly.TryParse(t.GetString(), out var td) ? td : DateOnly.MaxValue;
+                        var percent = root.TryGetProperty("percent", out var p) && decimal.TryParse(p.GetString(), System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var pct) ? pct : 0m;
+                        return new { From = from, To = to, Percent = percent };
+                    }
+                    catch (System.Text.Json.JsonException) { return new { From = DateOnly.MaxValue, To = DateOnly.MinValue, Percent = 0m }; }
+                })
+                .Where(x => x.From <= effectiveDate && x.To >= effectiveDate)
+                .OrderByDescending(x => x.From).Select(x => x.Percent).FirstOrDefault();
+        }
+        var withholdingAmount = b.BeneficiaryType == BeneficiaryType.Producer
+            ? Math.Round(grossAmount * withholdingPercent / 100m, 2, MidpointRounding.AwayFromZero) : 0m;
+        var cashAmount = b.BeneficiaryType == BeneficiaryType.Producer
+            ? grossAmount - withholdingAmount - b.CommissionsNetted : grossAmount;
+        if (cashAmount < 0m) throw AppException.Validation("Η παρακράτηση και ο συμψηφισμός υπερβαίνουν τη μικτή προμήθεια.");
         var p = new Payment
         {
             Id = Guid.NewGuid(), Number = b.Number.Trim(), PaidOn = b.PaidOn,
@@ -206,8 +239,11 @@ public class CreatePaymentCommandHandler : IRequestHandler<CreatePaymentCommand,
             BeneficiaryProducerId = b.BeneficiaryProducerId,
             BeneficiaryName = b.BeneficiaryName,
             Method = b.Method,
-            Amount = b.Amount,
+            Amount = grossAmount,
             CommissionsNetted = b.CommissionsNetted,
+            GrossCommissionAmount = b.BeneficiaryType == BeneficiaryType.Producer ? grossAmount : null,
+            ProducerWithholdingPercent = b.BeneficiaryType == BeneficiaryType.Producer ? withholdingPercent : null,
+            ProducerWithholdingAmount = withholdingAmount,
             Currency = b.Currency.ToUpperInvariant(),
             Notes = b.Notes,
             TransactionReference = string.IsNullOrWhiteSpace(b.TransactionReference) ? null : b.TransactionReference.Trim(),
@@ -224,7 +260,7 @@ public class CreatePaymentCommandHandler : IRequestHandler<CreatePaymentCommand,
         _db.FinancialMovements.Add(new FinancialMovement
         {
             Id = Guid.NewGuid(), MovementDate = b.PaidOn, Kind = kind,
-            Amount = b.Amount, Currency = b.Currency.ToUpperInvariant(),
+            Amount = cashAmount, Currency = b.Currency.ToUpperInvariant(),
             InsuranceCompanyId = b.BeneficiaryInsuranceCompanyId,
             ProducerId = b.BeneficiaryProducerId,
             PolicyId = b.PolicyId,

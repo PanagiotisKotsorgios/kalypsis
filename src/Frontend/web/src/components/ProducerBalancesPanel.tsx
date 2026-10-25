@@ -3,6 +3,7 @@ import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogCont
 import CloseIcon from "@mui/icons-material/Close";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import { useQuery } from "@tanstack/react-query";
+import { PartyLedgerDialog } from "./PartyLedgerDialog";
 import { api, extractErrorMessage } from "../api/client";
 import { ProfileEditableField, profileFieldGridSx } from "./profile/ProfileFieldEditor";
 
@@ -74,6 +75,7 @@ export function ProducerBalancesPanel({ producerId }: { producerId: string }) {
   const [currency, setCurrency] = useState("");
   const [page, setPage] = useState(0);
   const [selectedMonth, setSelectedMonth] = useState<BalanceMonth | null>(null);
+  const [ledgerOpen, setLedgerOpen] = useState(false);
   const q = useQuery({ queryKey: ["producer-balances", producerId], queryFn: async () => (await api.get<ProducerBalances>(`/producers/${producerId}/balances`)).data,
     staleTime: 0, refetchOnMount: "always", refetchOnWindowFocus: true, refetchInterval: 30_000 });
   const rows = (q.data?.monthly ?? []).filter(row => !currency || row.currency === currency);
@@ -84,6 +86,7 @@ export function ProducerBalancesPanel({ producerId }: { producerId: string }) {
   return <Stack gap={1} sx={{ minWidth: 0 }}>
     <Stack direction="row" gap={1} flexWrap="wrap" alignItems="center">
       <Typography fontWeight={800}>Προμήθειες συνεργάτη ανά μήνα</Typography><Box sx={{ flex: 1 }} />
+      <Button size="small" variant="outlined" onClick={() => setLedgerOpen(true)}>Καθολικό συνεργάτη</Button>
       {(q.data?.currencies.length ?? 0) > 1 && <TextField select size="small" label="Νόμισμα" value={currency} onChange={event => { setCurrency(event.target.value); setPage(0); }} sx={{ minWidth: 150 }}>
         <MenuItem value="">Όλα</MenuItem>{q.data?.currencies.map(row => <MenuItem key={row.currency} value={row.currency}>{row.currency}</MenuItem>)}
       </TextField>}
@@ -118,5 +121,7 @@ export function ProducerBalancesPanel({ producerId }: { producerId: string }) {
       </DialogContent>
       <DialogActions><Button variant="contained" color="error" startIcon={<CloseIcon />} onClick={() => setSelectedMonth(null)}>Κλείσιμο</Button></DialogActions>
     </Dialog>
+    <PartyLedgerDialog open={ledgerOpen} onClose={() => setLedgerOpen(false)} partyKind="Producer"
+      partyId={producerId} partyName="Συνεργάτης" />
   </Stack>;
 }

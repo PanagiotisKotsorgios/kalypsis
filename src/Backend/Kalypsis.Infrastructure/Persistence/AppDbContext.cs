@@ -69,6 +69,10 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<Receipt> Receipts => Set<Receipt>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<Security> Securities => Set<Security>();
+    public DbSet<SecurityEvent> SecurityEvents => Set<SecurityEvent>();
+    public DbSet<PartyLedgerEntry> PartyLedgerEntries => Set<PartyLedgerEntry>();
+    public DbSet<LedgerAllocation> LedgerAllocations => Set<LedgerAllocation>();
+    public DbSet<CreditControlRule> CreditControlRules => Set<CreditControlRule>();
     public DbSet<FinancialMovement> FinancialMovements => Set<FinancialMovement>();
     public DbSet<BankConnection> BankConnections => Set<BankConnection>();
     public DbSet<MarketingCampaign> MarketingCampaigns => Set<MarketingCampaign>();

@@ -274,6 +274,11 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
 
         var (useEnum, useRaw) = VehicleUseCategorySplit.Parse(r.VehicleUseCategory);
         var (branchEnum, branchRaw) = PolicyTypeSplit.Parse(r.PolicyType);
+        if (!r.PaidDirectlyToCarrier && r.Status is not PolicyStatus.Draft and not PolicyStatus.Cancelled and not PolicyStatus.Prospect
+            && r.Premium > 0)
+            await CreditControlGuard.EnsureExposureAllowedAsync(_db, tenantId, customer.Id, r.InsuranceCompanyId,
+                branchEnum, string.IsNullOrWhiteSpace(r.Currency) ? "EUR" : r.Currency.Trim().ToUpperInvariant(),
+                r.Premium, null, r.StartDate, ct);
         var autoDelivered = await ReadOfficeWorkflowFlagAsync(tenantId, "AutoMarkPolicyDelivered", true, ct);
         var shouldDeliver = r.Delivered ?? autoDelivered;
         var autoReceipt = await ReadOfficeWorkflowFlagAsync(tenantId, "AutoCreateReceiptOnPolicy", false, ct);
@@ -479,6 +484,7 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
             ?? throw AppException.NotFound("Συμβόλαιο");
 
         var b = request.Body;
+        var previousPremium = p.Premium;
         VehicleDeletionProtection.EnsureCanClearPlate(p, string.IsNullOrWhiteSpace(b.VehicleRegistrationPlate));
         var number = b.PolicyNumber?.Trim();
         if (b.PolicyNumber is not null)
@@ -557,6 +563,15 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
         var covers = await _db.PolicyCovers.IgnoreQueryFilters()
             .Where(c => c.PolicyId == p.Id && c.DeletedAt == null).ToListAsync(ct);
         PolicyPremiumMath.TrySyncPolicyPremiumFromCovers(p, covers);
+
+        // Credit control applies only to the incremental receivable. Existing
+        // debt and receipts remain in the exposure calculation, and a direct
+        // payment to the carrier never increases the office's receivable.
+        var premiumIncrease = p.Premium - previousPremium;
+        if (premiumIncrease > 0.005m && !p.PaidDirectlyToCarrier
+            && p.Status is not PolicyStatus.Draft and not PolicyStatus.Cancelled and not PolicyStatus.Prospect)
+            await CreditControlGuard.EnsureExposureAllowedAsync(_db, tenantId, p.CustomerId, p.InsuranceCompanyId,
+                p.PolicyType, p.Currency, premiumIncrease, p.Id, p.StartDate, ct);
 
         try { await _db.SaveChangesAsync(ct); }
         catch (DbUpdateException) when (b.PolicyNumber is not null)
@@ -681,11 +696,13 @@ public class RenewPolicyCommandHandler : IRequestHandler<RenewPolicyCommand, Pol
 {
     private readonly IAppDbContext _db;
     private readonly ICurrentUser _current;
+    private readonly PolicyCommissionCalculator _commissionCalc;
 
-    public RenewPolicyCommandHandler(IAppDbContext db, ICurrentUser current)
+    public RenewPolicyCommandHandler(IAppDbContext db, ICurrentUser current, PolicyCommissionCalculator? commissionCalc = null)
     {
         _db = db;
         _current = current;
+        _commissionCalc = commissionCalc ?? new PolicyCommissionCalculator(db);
     }
 
     public async Task<PolicyDto> Handle(RenewPolicyCommand request, CancellationToken ct)
@@ -693,13 +710,27 @@ public class RenewPolicyCommandHandler : IRequestHandler<RenewPolicyCommand, Pol
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var src = await _db.Policies
             .Include(x => x.Customer)
+            .Include(x => x.Covers)
+            .Include(x => x.Objects)
             .FirstOrDefaultAsync(x => x.Id == request.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Συμβόλαιο");
+
+        if (await _db.Policies.AnyAsync(x => x.TenantId == tenantId && x.DeletedAt == null && x.RenewedFromPolicyId == src.Id, ct))
+            throw AppException.Validation("Το συμβόλαιο έχει ήδη ανανεωθεί. Ανοίξτε το πιο πρόσφατο συμβόλαιο για την επόμενη ανανέωση.");
 
         var count = await _db.Policies.IgnoreQueryFilters().CountAsync(x => x.TenantId == tenantId, ct);
         var number = $"P-{(count + 1):D6}";
 
         var b = request.Body;
+        var renewalCarrierId = src.RenewalTransferToCarrierId ?? src.InsuranceCompanyId;
+        var renewalProducerId = b.ProducerId ?? src.RenewalTransferToProducerId ?? src.ProducerId;
+        if (renewalProducerId.HasValue)
+            await TenantFkGuard.RequireTenantOwnedAsync(_db.Producers, renewalProducerId, tenantId, "Συνεργάτης ανανέωσης", ct);
+        if (renewalCarrierId != src.InsuranceCompanyId)
+            await TenantFkGuard.RequireCarrierAsync(_db.InsuranceCompanies, renewalCarrierId, tenantId, ct);
+        if (!src.PaidDirectlyToCarrier && b.Premium > 0m)
+            await CreditControlGuard.EnsureExposureAllowedAsync(_db, tenantId, src.CustomerId, renewalCarrierId,
+                src.PolicyType, src.Currency, b.Premium, null, b.StartDate, ct);
         // Body overrides win over the source policy's values so operators
         // can adjust coverages, producer, plate, etc. at renewal time
         // without re-opening the new policy for editing.
@@ -709,8 +740,8 @@ public class RenewPolicyCommandHandler : IRequestHandler<RenewPolicyCommand, Pol
             TenantId = tenantId,
             PolicyNumber = number,
             CustomerId = src.CustomerId,
-            InsuranceCompanyId = src.InsuranceCompanyId,
-            ProducerId = b.ProducerId ?? src.ProducerId,
+            InsuranceCompanyId = renewalCarrierId,
+            ProducerId = renewalProducerId,
             PolicyType = src.PolicyType,
             Status = PolicyStatus.Active,
             StartDate = b.StartDate,
@@ -719,6 +750,22 @@ public class RenewPolicyCommandHandler : IRequestHandler<RenewPolicyCommand, Pol
             Premium = b.Premium,
             NetPremium = b.NetPremium ?? src.NetPremium,
             Currency = src.Currency,
+            PaymentFrequency = src.PaymentFrequency,
+            PremiumIncludesVat = src.PremiumIncludesVat,
+            PaidDirectlyToCarrier = src.PaidDirectlyToCarrier,
+            PaidOnCredit = false,
+            PaymentPromisedOn = null,
+            CreditReason = null,
+            ContractPartyCustomerId = src.ContractPartyCustomerId,
+            PreviousInsuranceCompanyId = renewalCarrierId != src.InsuranceCompanyId ? src.InsuranceCompanyId : src.PreviousInsuranceCompanyId,
+            CarrierBranchCode = src.CarrierBranchCode,
+            CarrierPackageCode = b.PackageCode ?? src.CarrierPackageCode,
+            CarrierCoverageCode = b.CoverCode ?? src.CarrierCoverageCode,
+            ReasonForCirculation = src.ReasonForCirculation,
+            DriverVatNumber = src.DriverVatNumber,
+            Deductible = src.Deductible,
+            Characteristic = src.Characteristic,
+            Notes = src.Notes,
             CreatedByUserId = _current.UserId,
             RenewedFromPolicyId = src.Id,
             DeliveredAt = DateOnly.FromDateTime(DateTime.UtcNow),
@@ -738,8 +785,66 @@ public class RenewPolicyCommandHandler : IRequestHandler<RenewPolicyCommand, Pol
         };
         _db.Policies.Add(newPolicy);
 
+        // Copy insured objects and cover definitions to the renewed term, but
+        // scale cover premiums to the renewal's new totals and never carry old
+        // receipts, instalment payments, or settlement dates.
+        var objectIds = new Dictionary<Guid, Guid>();
+        foreach (var oldObject in src.Objects.Where(x => x.DeletedAt == null))
+        {
+            var newId = Guid.NewGuid(); objectIds[oldObject.Id] = newId;
+            _db.PolicyObjects.Add(new PolicyObject { Id = newId, TenantId = tenantId, PolicyId = newPolicy.Id,
+                ObjectKind = oldObject.ObjectKind, FbcLinkCode = oldObject.FbcLinkCode, Identifier = oldObject.Identifier,
+                Description = oldObject.Description, Characteristic = oldObject.Characteristic, CreatedAt = DateTime.UtcNow });
+        }
+        var oldCovers = src.Covers.Where(x => x.DeletedAt == null).ToList();
+        if (oldCovers.Count > 0)
+        {
+            var targetNet = newPolicy.NetPremium ?? oldCovers.Sum(x => x.NetPremium);
+            decimal grossAssigned = 0m, netAssigned = 0m;
+            for (var i = 0; i < oldCovers.Count; i++)
+            {
+                var old = oldCovers[i]; var last = i == oldCovers.Count - 1;
+                var gross = last ? newPolicy.Premium - grossAssigned
+                    : oldCovers.Sum(x => x.GrossPremium) == 0m ? Math.Round(newPolicy.Premium / oldCovers.Count, 2)
+                    : Math.Round(newPolicy.Premium * old.GrossPremium / oldCovers.Sum(x => x.GrossPremium), 2);
+                var net = last ? targetNet - netAssigned
+                    : oldCovers.Sum(x => x.NetPremium) == 0m ? Math.Round(targetNet / oldCovers.Count, 2)
+                    : Math.Round(targetNet * old.NetPremium / oldCovers.Sum(x => x.NetPremium), 2);
+                grossAssigned += gross; netAssigned += net;
+                _db.PolicyCovers.Add(new PolicyCover { Id = Guid.NewGuid(), TenantId = tenantId, PolicyId = newPolicy.Id,
+                    PolicyObjectId = old.PolicyObjectId.HasValue && objectIds.TryGetValue(old.PolicyObjectId.Value, out var mapped) ? mapped : null,
+                    CoverCode = old.CoverCode, CoverName = old.CoverName, GrossPremium = gross, NetPremium = net,
+                    CoverageAmount = old.CoverageAmount, CommissionPercent = old.CommissionPercent,
+                    AgencyCommissionPercent = old.AgencyCommissionPercent, CreatedAt = DateTime.UtcNow });
+            }
+        }
+
+        var installmentCount = newPolicy.PaymentFrequency switch
+        {
+            PaymentFrequency.Semiannual => 2, PaymentFrequency.Quarterly => 4, PaymentFrequency.Monthly => 12, _ => 0
+        };
+        if (installmentCount > 0 && newPolicy.Premium > 0m)
+        {
+            var per = Math.Round(newPolicy.Premium / installmentCount, 2);
+            for (var n = 1; n <= installmentCount; n++)
+            {
+                var months = installmentCount == 12 ? n - 1 : installmentCount == 4 ? (n - 1) * 3 : (n - 1) * 6;
+                _db.PolicyInstallments.Add(new PolicyInstallment { Id = Guid.NewGuid(), TenantId = tenantId,
+                    PolicyId = newPolicy.Id, Ordinal = n, DueDate = b.StartDate.AddMonths(months),
+                    Amount = n == installmentCount ? newPolicy.Premium - per * (installmentCount - 1) : per,
+                    Currency = newPolicy.Currency, CreatedAt = DateTime.UtcNow });
+            }
+        }
+
         src.Status = PolicyStatus.Renewed;
         await _db.SaveChangesAsync(ct);
+
+        try
+        {
+            await _commissionCalc.RecomputeAsync(newPolicy, ct);
+            await _db.SaveChangesAsync(ct);
+        }
+        catch { /* commission splits are a derived view and must not undo a saved renewal */ }
 
         var saved = await _db.Policies
             .Include(x => x.Customer).Include(x => x.InsuranceCompany).Include(x => x.Producer)

@@ -4295,6 +4295,72 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.ToTable("CoverageOptions");
                 });
 
+            modelBuilder.Entity("Kalypsis.Domain.Entities.CreditControlRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("AgencyOfficeScopeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Currency")
+                        .HasColumnType("longtext");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("InsuranceCompanyId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsException")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int?>("MaximumOpenPolicies")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("MaximumOutstanding")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<int?>("MaximumOverdueDays")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("longtext");
+
+                    b.Property<int?>("PolicyType")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("InsuranceCompanyId");
+
+                    b.ToTable("CreditControlRules");
+                });
+
             modelBuilder.Entity("Kalypsis.Domain.Entities.CreditNote", b =>
                 {
                     b.Property<Guid>("Id")
@@ -8594,6 +8660,47 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.ToTable("landing_contents", (string)null);
                 });
 
+            modelBuilder.Entity("Kalypsis.Domain.Entities.LedgerAllocation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("AgencyOfficeScopeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("AllocatedOn")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("CreditEntryId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("DebitEntryId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("longtext");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("LedgerAllocations");
+                });
+
             modelBuilder.Entity("Kalypsis.Domain.Entities.LegalForm", b =>
                 {
                     b.Property<Guid>("Id")
@@ -10327,6 +10434,74 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.ToTable("partner_portal_accesses", (string)null);
                 });
 
+            modelBuilder.Entity("Kalypsis.Domain.Entities.PartyLedgerEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("AgencyOfficeScopeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("CollectionCentreCode")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("CostCentreCode")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<decimal>("Credit")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<decimal>("Debit")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("DocumentNumber")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("DueDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("EntryDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("longtext");
+
+                    b.Property<Guid>("PartyId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("PartyKind")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<Guid?>("PolicyId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PartyLedgerEntries");
+                });
+
             modelBuilder.Entity("Kalypsis.Domain.Entities.PasswordResetToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -10413,6 +10588,9 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<decimal?>("GrossCommissionAmount")
+                        .HasColumnType("decimal(65,30)");
+
                     b.Property<int>("Method")
                         .HasColumnType("int");
 
@@ -10430,6 +10608,12 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid?>("PolicyId")
                         .HasColumnType("char(36)");
+
+                    b.Property<decimal>("ProducerWithholdingAmount")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal?>("ProducerWithholdingPercent")
+                        .HasColumnType("decimal(65,30)");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("char(36)");
@@ -13508,6 +13692,9 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .HasPrecision(14, 2)
                         .HasColumnType("decimal(14,2)");
 
+                    b.Property<string>("BankAccount")
+                        .HasColumnType("longtext");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
@@ -13518,11 +13705,24 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .HasColumnType("varchar(3)")
                         .HasDefaultValue("EUR");
 
-                    b.Property<Guid>("CustomerId")
+                    b.Property<Guid?>("CustomerId")
                         .HasColumnType("char(36)");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Direction")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("DrawerName")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("EndorserName")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("HolderName")
+                        .HasColumnType("longtext");
 
                     b.Property<DateOnly>("IssueDate")
                         .HasColumnType("date");
@@ -13548,6 +13748,26 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Property<DateOnly?>("PaidDate")
                         .HasColumnType("date");
 
+                    b.Property<Guid?>("PartyId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("PartyKind")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("PartyName")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("PlaceOfIssue")
+                        .HasColumnType("longtext");
+
+                    b.Property<Guid?>("PolicyId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<decimal>("SettledAmount")
+                        .HasColumnType("decimal(65,30)");
+
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
@@ -13563,9 +13783,73 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("IssuingBankId");
 
+                    b.HasIndex("PolicyId");
+
                     b.HasIndex("TenantId", "MaturityDate");
 
                     b.ToTable("securities", (string)null);
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.SecurityEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("AgencyOfficeScopeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<string>("Counterparty")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("NewValuesJson")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("OccurredOn")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("PaymentId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("PreviousValuesJson")
+                        .HasColumnType("longtext");
+
+                    b.Property<Guid?>("ReceiptId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("ReversesEventId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("SecurityId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SecurityId");
+
+                    b.ToTable("SecurityEvents");
                 });
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.ServiceRequest", b =>
@@ -16714,6 +16998,23 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Navigation("CarrierConnection");
                 });
 
+            modelBuilder.Entity("Kalypsis.Domain.Entities.CreditControlRule", b =>
+                {
+                    b.HasOne("Kalypsis.Domain.Entities.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Kalypsis.Domain.Entities.InsuranceCompany", "InsuranceCompany")
+                        .WithMany()
+                        .HasForeignKey("InsuranceCompanyId");
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("InsuranceCompany");
+                });
+
             modelBuilder.Entity("Kalypsis.Domain.Entities.CreditNote", b =>
                 {
                     b.HasOne("Kalypsis.Domain.Entities.Customer", "Customer")
@@ -18048,17 +18349,33 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.HasOne("Kalypsis.Domain.Entities.Customer", "Customer")
                         .WithMany()
                         .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Kalypsis.Domain.Entities.BankConnection", "IssuingBank")
                         .WithMany()
                         .HasForeignKey("IssuingBankId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("Kalypsis.Domain.Entities.Policy", "Policy")
+                        .WithMany()
+                        .HasForeignKey("PolicyId");
+
                     b.Navigation("Customer");
 
                     b.Navigation("IssuingBank");
+
+                    b.Navigation("Policy");
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.SecurityEvent", b =>
+                {
+                    b.HasOne("Kalypsis.Domain.Entities.Security", "Security")
+                        .WithMany("Events")
+                        .HasForeignKey("SecurityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Security");
                 });
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.ServiceRequest", b =>
@@ -18541,6 +18858,11 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Kalypsis.Domain.Entities.Quote", b =>
                 {
                     b.Navigation("Offers");
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.Security", b =>
+                {
+                    b.Navigation("Events");
                 });
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.ServiceRequest", b =>

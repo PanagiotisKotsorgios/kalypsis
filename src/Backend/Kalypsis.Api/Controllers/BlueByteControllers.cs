@@ -190,10 +190,44 @@ public class PaymentsController : ControllerBase
 public class SecuritiesController : ControllerBase
 {
     private readonly IMediator _m; public SecuritiesController(IMediator m) => _m = m;
-    [HttpGet] public async Task<ActionResult<IReadOnlyList<SecurityDto>>> List([FromQuery] SecurityStatus? status, CancellationToken ct) => Ok(await _m.Send(new ListSecuritiesQuery(status), ct));
+    [HttpGet] public async Task<ActionResult<IReadOnlyList<SecurityDto>>> List([FromQuery] SecurityStatus? status, [FromQuery] string? direction, [FromQuery] DateOnly? dueFrom, [FromQuery] DateOnly? dueTo, CancellationToken ct) => Ok(await _m.Send(new ListSecuritiesQuery(status, direction, dueFrom, dueTo), ct));
+    [HttpGet("{id:guid}/events")] public async Task<ActionResult<IReadOnlyList<SecurityEventDto>>> Events(Guid id, CancellationToken ct) => Ok(await _m.Send(new GetSecurityEventsQuery(id), ct));
+    [HttpPost("{id:guid}/events")] [RequirePermission("securities.write")] public async Task<ActionResult<SecurityDto>> RecordEvent(Guid id, [FromBody] RecordSecurityEventBody body, CancellationToken ct) => Ok(await _m.Send(new RecordSecurityEventCommand(id, body), ct));
     [HttpPost] [RequirePermission("securities.write")] public async Task<ActionResult<SecurityDto>> Create([FromBody] SecurityBody body, CancellationToken ct) => Ok(await _m.Send(new CreateSecurityCommand(body), ct));
     [HttpPut("{id:guid}")] [RequirePermission("securities.write")] public async Task<ActionResult<SecurityDto>> Update(Guid id, [FromBody] SecurityBody body, CancellationToken ct) => Ok(await _m.Send(new UpdateSecurityCommand(id, body), ct));
     [HttpDelete("{id:guid}")] [RequirePermission("securities.write")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeleteSecurityCommand(id), ct); return NoContent(); }
+}
+
+[ApiController]
+[Route("api/party-ledger")]
+[Authorize(Policy = "AgencyStaff")]
+[RequiresPackage(PackageCode.BackOffice)]
+[RequirePermission("financials.read")]
+public sealed class PartyLedgerController(IMediator mediator) : ControllerBase
+{
+    [HttpGet("{partyKind}/{partyId:guid}")]
+    public async Task<ActionResult<PartyLedgerAccountDto>> Get(string partyKind, Guid partyId, CancellationToken ct)
+        => Ok(await mediator.Send(new ListPartyLedgerQuery(partyKind, partyId), ct));
+
+    [HttpPost]
+    [RequirePermission("financials.write")]
+    public async Task<ActionResult<PartyLedgerLineDto>> Create([FromBody] PartyLedgerEntryBody body, CancellationToken ct)
+        => Ok(await mediator.Send(new CreatePartyLedgerEntryCommand(body), ct));
+
+    [HttpPut("entries/{id:guid}")]
+    [RequirePermission("financials.write")]
+    public async Task<ActionResult<PartyLedgerLineDto>> Update(Guid id, [FromBody] PartyLedgerEntryBody body, CancellationToken ct)
+        => Ok(await mediator.Send(new UpdatePartyLedgerEntryCommand(id, body), ct));
+
+    [HttpPost("allocations")]
+    [RequirePermission("financials.write")]
+    public async Task<IActionResult> Allocate([FromBody] AllocateLedgerBody body, CancellationToken ct)
+    { await mediator.Send(new AllocateLedgerCommand(body), ct); return NoContent(); }
+
+    [HttpDelete("entries/{id:guid}")]
+    [RequirePermission("financials.write")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    { await mediator.Send(new DeletePartyLedgerEntryCommand(id), ct); return NoContent(); }
 }
 
 [ApiController]

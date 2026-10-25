@@ -14,6 +14,7 @@ import { api, extractErrorMessage } from "../api/client";
 import { money } from "../utils/format";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
+import { CreditControlRulesPanel } from "../components/CreditControlRulesPanel";
 
 type Regime = "TypoPlirono" | "PlironoTypono" | "Koumparas";
 
@@ -159,6 +160,8 @@ export function PlafondPage() {
           </Table>
         </Card>
       )}
+
+      <CreditControlRulesPanel />
 
       <ConfigureDialog open={configureOpen} onClose={() => setConfigureOpen(false)} producers={producers.data ?? []}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["plafonds"] }); setConfigureOpen(false); }} />

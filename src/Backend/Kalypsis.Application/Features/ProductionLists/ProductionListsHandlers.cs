@@ -210,12 +210,10 @@ public static class ProductionListBuilder
                 || requestedPackages.Contains(p.CarrierPackageCode ?? "", StringComparer.OrdinalIgnoreCase)).ToList();
         if (!includeAll) policies = policies.Take(5000).ToList();
 
-        // Pull active commission rules so partner commission % can be read from
-        // parameterization (NOT the bridge). Most-specific rule wins.
+        // Pull commission rules so historical policy rows use the rule that
+        // was effective when the policy began, rather than today's rule.
         var rules = await _db.CommissionRules
-            .Where(r => r.TenantId == tenantId && r.DeletedAt == null
-                && (r.EffectiveFrom <= DateOnly.FromDateTime(DateTime.UtcNow))
-                && (r.EffectiveTo == null || r.EffectiveTo >= DateOnly.FromDateTime(DateTime.UtcNow)))
+            .Where(r => r.TenantId == tenantId && r.DeletedAt == null)
             .ToListAsync(ct);
 
         // Resolve producer tiers so per-tier rules can target a whole bucket
@@ -321,6 +319,7 @@ public static class ProductionListBuilder
 
             return rules
                 .Where(r => (!r.ProducerId.HasValue           || r.ProducerId == p.ProducerId)
+                         && r.EffectiveFrom <= p.StartDate && (!r.EffectiveTo.HasValue || r.EffectiveTo.Value >= p.StartDate)
                          && (!r.ProducerTier.HasValue         || r.ProducerTier == tier)
                          && (!r.InsuranceCompanyId.HasValue   || r.InsuranceCompanyId == p.InsuranceCompanyId)
                          && (!r.PolicyType.HasValue           || r.PolicyType == p.PolicyType)
@@ -333,6 +332,7 @@ public static class ProductionListBuilder
                     (r.VehicleUseCategory.HasValue ? 4 : 0) +
                     (r.InsuranceCompanyId.HasValue ? 2 : 0) +
                     (r.PolicyType.HasValue ? 1 : 0))
+                .ThenByDescending(r => r.EffectiveFrom)
                 .FirstOrDefault();
         }
 
@@ -347,6 +347,7 @@ public static class ProductionListBuilder
 
             return rules
                 .Where(r => ConfiguredTotalPercent(r).HasValue
+                         && r.EffectiveFrom <= p.StartDate && (!r.EffectiveTo.HasValue || r.EffectiveTo.Value >= p.StartDate)
                          && (!r.ProducerId.HasValue           || r.ProducerId == p.ProducerId)
                          && (!r.ProducerTier.HasValue         || r.ProducerTier == tier)
                          && (!r.InsuranceCompanyId.HasValue   || r.InsuranceCompanyId == p.InsuranceCompanyId)
@@ -360,6 +361,7 @@ public static class ProductionListBuilder
                     (r.VehicleUseCategory.HasValue ? 4 : 0) +
                     (r.InsuranceCompanyId.HasValue ? 2 : 0) +
                     (r.PolicyType.HasValue ? 1 : 0))
+                .ThenByDescending(r => r.EffectiveFrom)
                 .FirstOrDefault();
         }
 

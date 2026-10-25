@@ -8,6 +8,7 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import BusinessIcon from "@mui/icons-material/Business";
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import { ExcelImportButton } from "../components/ExcelImportButton";
 import AddIcon from "@mui/icons-material/Add";
@@ -17,6 +18,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
 import { BulkImportDialog, type BulkImportColumn, type BulkImportResult } from "../components/BulkImportDialog";
+import { PartyLedgerDialog } from "../components/PartyLedgerDialog";
 
 export interface CompanyDto {
   id: string;
@@ -191,6 +193,7 @@ export function InsuranceCompaniesPage({ onlyBrokers = false }: { onlyBrokers?: 
   }, [search, JSON.stringify(allOwnRows.map(c => c.id))]);
 
   const [profileFor, setProfileFor] = useState<CompanyDto | null>(null);
+  const [ledgerFor, setLedgerFor] = useState<CompanyDto | null>(null);
 
   return (
     <Box>
@@ -313,7 +316,10 @@ export function InsuranceCompaniesPage({ onlyBrokers = false }: { onlyBrokers?: 
         carrier={profileFor}
         onClose={() => setProfileFor(null)}
         onEdit={(c) => { setProfileFor(null); setEditing(c); }}
+        onLedger={(c) => { setProfileFor(null); setLedgerFor(c); }}
       />
+      <PartyLedgerDialog open={!!ledgerFor} onClose={() => setLedgerFor(null)} partyKind="InsuranceCompany"
+        partyId={ledgerFor?.id ?? ""} partyName={ledgerFor?.name ?? ""} />
     </Box>
   );
 }
@@ -682,11 +688,12 @@ export interface CarrierProfile {
   }>;
 }
 
-export function CarrierProfileDialog({ open, carrier, onClose, onEdit }: {
+export function CarrierProfileDialog({ open, carrier, onClose, onEdit, onLedger }: {
   open: boolean;
   carrier: CompanyDto | null;
   onClose: () => void;
   onEdit: (c: CompanyDto) => void;
+  onLedger: (c: CompanyDto) => void;
 }) {
   const q = useQuery({
     queryKey: ["insurance-company-profile", carrier?.id],
@@ -711,6 +718,7 @@ export function CarrierProfileDialog({ open, carrier, onClose, onEdit }: {
             </Typography>
           </Box>
           {carrier?.isActive ? <Chip size="small" color="success" label="Ενεργή" /> : <Chip size="small" label="Ανενεργή" />}
+          {carrier && <Button startIcon={<AccountBalanceWalletIcon />} size="small" variant="contained" color="primary" onClick={() => onLedger(carrier)}>Οικονομικό καθολικό</Button>}
           {carrier && <Button startIcon={<EditIcon />} size="small" variant="contained" color="success" sx={{ color: "#fff", fontWeight: 800 }} onClick={() => onEdit(carrier)}>Επεξεργασία</Button>}
         </Stack>
       </DialogTitle>
