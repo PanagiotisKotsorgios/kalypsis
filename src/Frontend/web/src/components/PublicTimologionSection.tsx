@@ -24,6 +24,30 @@ export function PublicTimologionSection() {
                 <Typography sx={{ color: "#506981", fontSize: 13 }}>Ηλεκτρονική τιμολόγηση για ελληνικές επιχειρήσεις</Typography>
               </Box>
             </Stack>
+            <Stack direction="row" alignItems="center" useFlexGap flexWrap="wrap" gap={1.25} sx={{ mb: 2.5 }}>
+              <Box
+                component="a"
+                href="https://timologion.gr/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="timologion.gr"
+                sx={{ width: { xs: 152, sm: 176 }, height: 66, px: 1.5, borderRadius: 2, display: "grid", placeItems: "center", bgcolor: "#fff", border: "1px solid #CFE0EF", transition: "transform .2s ease, box-shadow .2s ease", "&:hover": { transform: "translateY(-2px)", boxShadow: "0 10px 24px rgba(11,43,84,.12)" } }}
+              >
+                <Box component="img" src="/images/partners/timologion-logo.png" alt="timologion" sx={{ display: "block", width: "100%", height: 48, objectFit: "contain" }} />
+              </Box>
+              <Typography aria-hidden sx={{ color: "#6B8095", fontSize: 21, fontWeight: 900 }}>×</Typography>
+              <Box
+                component="a"
+                href="https://wrapp.ai/el"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="WRAPP Α.Ε."
+                sx={{ width: { xs: 142, sm: 166 }, height: 66, px: 2, borderRadius: 2, display: "grid", placeItems: "center", bgcolor: "#fff", border: "1px solid #CFE0EF", transition: "transform .2s ease, box-shadow .2s ease", "&:hover": { transform: "translateY(-2px)", boxShadow: "0 10px 24px rgba(11,43,84,.12)" } }}
+              >
+                <Box component="img" src="/images/partners/wrapp-logo.png" alt="WRAPP Α.Ε." sx={{ display: "block", width: "100%", height: 42, objectFit: "contain" }} />
+              </Box>
+              <Chip size="small" icon={<VerifiedOutlinedIcon />} label="Πιστοποιημένος πάροχος ΥΠΑΗΕΣ" sx={{ bgcolor: "#E8F6EE", color: "#17623C", border: "1px solid #C2E4D0", fontWeight: 800, "& .MuiChip-icon": { color: "#16844B" } }} />
+            </Stack>
             <Typography component="h2" id="timologion-partnership-title" sx={{ color: "#0B2545", fontSize: { xs: 27, sm: 34, md: 40 }, fontWeight: 900, lineHeight: 1.15, letterSpacing: "-.03em", mb: 2 }}>
               Έκδοση παραστατικών με πιστοποιημένο πάροχο.
             </Typography>
