@@ -840,6 +840,7 @@ export default function App() {
         <Route path="/docs" element={<Navigate to={user ? "/app/agency-and-profile?tab=documentation" : "/login"} replace />} />
         <Route path="/help" element={<Navigate to={user ? "/app/agency-and-profile?tab=documentation" : "/login"} replace />} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route path="/company/contact" element={<ContactPage companyMode />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/cookies" element={<CookiesPage />} />

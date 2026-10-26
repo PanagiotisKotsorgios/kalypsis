@@ -10,6 +10,7 @@ import {
   DialogActions,
   DialogContent,
   FormControlLabel,
+  IconButton,
   Link,
   MenuItem,
   Stack,
@@ -25,6 +26,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 import ScheduleOutlinedIcon from "@mui/icons-material/ScheduleOutlined";
+import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import { LanguageToggle } from "../components/LanguageToggle";
 import { PublicFooter } from "../components/PublicFooter";
 import { AccessibilityWidget } from "../components/AccessibilityWidget";
@@ -89,16 +91,27 @@ const initialForm: ContactForm = {
   website: ""
 };
 
-export function ContactPage() {
+export function ContactPage({ companyMode = false }: { companyMode?: boolean }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [form, setForm] = useState<ContactForm>(initialForm);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState<{ ref: string } | null>(null);
+  const [copiedContact, setCopiedContact] = useState<"phone" | "email" | null>(null);
 
   const set = <K extends keyof ContactForm>(k: K, v: ContactForm[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
+
+  const copyContact = async (value: string, kind: "phone" | "email") => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedContact(kind);
+      window.setTimeout(() => setCopiedContact((current) => current === kind ? null : current), 1500);
+    } catch {
+      setError(t("contact.errors.copy", "Δεν ήταν δυνατή η αντιγραφή. Δοκιμάστε ξανά."));
+    }
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -134,9 +147,9 @@ export function ContactPage() {
   // the reference code, short enough not to feel stuck.
   useEffect(() => {
     if (!submitted) return;
-    const id = window.setTimeout(() => navigate("/"), 4000);
+    const id = window.setTimeout(() => navigate(companyMode ? "/company" : "/"), 4000);
     return () => window.clearTimeout(id);
-  }, [submitted, navigate]);
+  }, [submitted, navigate, companyMode]);
 
   const INQUIRY_TYPES = ["support", "bug", "complaint", "sales", "agency", "agent", "customer", "press", "other"] as const;
 
@@ -243,7 +256,7 @@ export function ContactPage() {
             sx={{ ml: "auto", display: { xs: "none", md: "flex" }, flexShrink: 0, whiteSpace: "nowrap" }}>
             <Button
               component={RouterLink}
-              to="/"
+              to={companyMode ? "/company" : "/"}
               variant="outlined"
               sx={{
                 borderRadius: 999,
@@ -461,12 +474,26 @@ export function ContactPage() {
             alignItems="center"
             sx={{ mt: 5, color: NAVY_SOFT, fontSize: 14 }}
           >
-            <Box component="a" href="tel:+302631028971" sx={inlineLinkSx}>
-              <PhoneOutlinedIcon sx={{ fontSize: 17 }} /> 2631028971
-            </Box>
-            <Box component="a" href="mailto:info@mykalypsis.gr" sx={inlineLinkSx}>
-              <MailOutlineIcon sx={{ fontSize: 17 }} /> info@mykalypsis.gr
-            </Box>
+            <Stack direction="row" alignItems="center" spacing={0.5}>
+              <Box component="a" href="tel:+302631028971" sx={inlineLinkSx}>
+                <PhoneOutlinedIcon sx={{ fontSize: 17 }} /> 2631028971
+              </Box>
+              <IconButton aria-label={copiedContact === "phone" ? "Αντιγράφηκε το τηλέφωνο" : "Αντιγραφή τηλεφώνου"}
+                onClick={() => void copyContact("2631028971", "phone")} size="small"
+                sx={{ color: copiedContact === "phone" ? "#16834a" : NAVY_SOFT, transition: "transform 180ms ease, color 180ms ease", transform: copiedContact === "phone" ? "scale(1.16)" : "scale(1)" }}>
+                {copiedContact === "phone" ? <CheckCircleIcon fontSize="small" /> : <ContentCopyOutlinedIcon fontSize="small" />}
+              </IconButton>
+            </Stack>
+            <Stack direction="row" alignItems="center" spacing={0.5}>
+              <Box component="a" href="mailto:info@mykalypsis.gr" sx={inlineLinkSx}>
+                <MailOutlineIcon sx={{ fontSize: 17 }} /> info@mykalypsis.gr
+              </Box>
+              <IconButton aria-label={copiedContact === "email" ? "Αντιγράφηκε το email" : "Αντιγραφή email"}
+                onClick={() => void copyContact("info@mykalypsis.gr", "email")} size="small"
+                sx={{ color: copiedContact === "email" ? "#16834a" : NAVY_SOFT, transition: "transform 180ms ease, color 180ms ease", transform: copiedContact === "email" ? "scale(1.16)" : "scale(1)" }}>
+                {copiedContact === "email" ? <CheckCircleIcon fontSize="small" /> : <ContentCopyOutlinedIcon fontSize="small" />}
+              </IconButton>
+            </Stack>
           </Stack>
         </PageEnter>
       </Container>
@@ -477,7 +504,7 @@ export function ContactPage() {
       {/* Success popup → auto-redirect to home */}
       <Dialog
         open={!!submitted}
-        onClose={() => navigate("/")}
+        onClose={() => navigate(companyMode ? "/company" : "/")}
         maxWidth="xs"
         fullWidth
         slotProps={{ paper: { sx: { borderRadius: 3, p: 1 } } }}
@@ -513,7 +540,7 @@ export function ContactPage() {
         </DialogContent>
         <DialogActions sx={{ justifyContent: "center", pb: 3 }}>
           <Button
-            onClick={() => navigate("/")}
+            onClick={() => navigate(companyMode ? "/company" : "/")}
             variant="contained"
             sx={{
               bgcolor: NAVY, color: "#fff",
