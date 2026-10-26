@@ -465,7 +465,6 @@ export function CatalogueItemDialog({
           <TextField size="small" label="Όνομα" value={form.name} required fullWidth
             onChange={(e) => setForm({ ...form, name: e.target.value })} />
           {!compactCoverage && <TextField size="small" label="Κλάδος / τύπος συμβολαίου (προαιρετικό)" value={form.policyType ?? ""}
-            helperText="Ελεύθερη τιμή γραφείου — δεν περιορίζεται σε προκαθορισμένες επιλογές."
             onChange={(e) => setForm({ ...form, policyType: e.target.value })} />}
           {form.kind === "Use" && (
             <TextField size="small" label="Κατηγορία χρήσης οχήματος (προαιρετικό)" value={form.vehicleUseCategory ?? ""}

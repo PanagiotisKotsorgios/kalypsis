@@ -417,8 +417,7 @@ function EditDialog({ open, item, carrierId, carrierName, kind, onClose, onSaved
           <TextField label="Κλάδος / τύπος συμβολαίου (προαιρετικό)"
             value={form.policyType}
             onChange={e => setForm({ ...form, policyType: e.target.value as PolicyType })}
-            fullWidth
-            helperText="Ελεύθερη τιμή γραφείου. Δεν περιορίζεται σε προκαθορισμένη λίστα.">
+            fullWidth>
           </TextField>
           {kind === "Use" && (
             <TextField label="Κατηγορία χρήσης οχήματος (προαιρετικό)"
