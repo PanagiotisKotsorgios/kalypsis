@@ -203,8 +203,7 @@ export function ProductionListsPage() {
     text: (r: Row) => string;
     defaultOff?: boolean;
   }
-  // Open the PolicyDetailDrawer (καρτέλα with καλύψεις / πακέτα / τα
-  // πάντα ανά συμβόλαιο) when the operator clicks a row's Αρ. Συμβ.
+  // Open the standard policy card modal when the operator clicks a row's Αρ. Συμβ.
   const [detailPolicyId, setDetailPolicyId] = useState<string | null>(null);
   const [coveragePolicyId, setCoveragePolicyId] = useState<string | null>(null);
   const coveragePolicyRow = useMemo(
@@ -1061,6 +1060,7 @@ export function ProductionListsPage() {
         policyId={detailPolicyId}
         open={detailPolicyId !== null}
         onClose={() => setDetailPolicyId(null)}
+        presentation="modal"
       />
     </Box>
   );
