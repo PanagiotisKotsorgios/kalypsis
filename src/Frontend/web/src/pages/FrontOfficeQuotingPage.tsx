@@ -91,7 +91,7 @@ import ClearAllOutlinedIcon from "@mui/icons-material/ClearAllOutlined";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { KalypsisLogo } from "../components/KalypsisLogo";
-import { Brush, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
+import { Area, Bar, BarChart, Brush, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 
 type ViewKey = "dashboard" | "quotes" | "contracts" | "customers" | "reports" | "forms" | "print-pay" | "pay-print" | "requests" | QuotingViewKey;
 type QuotingViewKey = "quoting-vehicles" | "quoting-vehicle-compare" | "quoting-property" | "quoting-health" | "quoting-marine" | "quoting-requests" | "quoting-roadside" | "quoting-green-card" | "quoting-bicycles" | "quoting-accident" | "quoting-legal" | "quoting-professional-liability" | "quoting-life";
@@ -496,7 +496,7 @@ function StandalonePluginHeader({ view, onNavigate, partnerBranding }: { view: V
   </Box>;
 }
 
-type HomeWidgetId = "pricing" | "announcements" | "production";
+type HomeWidgetId = "pricing";
 
 function DashboardWidget({
   id,
@@ -703,31 +703,9 @@ function StandaloneHomeSections({ branch, onSelectPricing }: { branch: BranchKey
     { key: branchLabels[4], title: "Επαγγελματικής Ευθύνης", count: "9 ασφαλιστικά προγράμματα", icon: <BusinessCenterOutlinedIcon />, colour: "#7865be", darkColour: "#3d1ca5", gradient: "linear-gradient(135deg, #9373f4 0%, #6843d3 60%, #a78bf8 100%)", contentColour: "#fff", visualColour: "rgba(47,20,133,.3)", illustration: "liability" },
     { key: branchLabels[3], title: "Ζωής", count: "8 ασφαλιστικά προγράμματα", icon: <FavoriteBorderRoundedIcon />, colour: "#e5a14b", darkColour: "#e54805", gradient: "linear-gradient(135deg, #ffb36f 0%, #ff8a38 60%, #ffd078 100%)", contentColour: "#17365a", visualColour: "rgba(217,79,16,.25)", illustration: "life" },
   ];
-  const production = [
-    { month: "Νοε", contracts: 14, premium: 1850 },
-    { month: "Δεκ", contracts: 18, premium: 2160 },
-    { month: "Ιαν", contracts: 19, premium: 2400 },
-    { month: "Φεβ", contracts: 21, premium: 2730 },
-    { month: "Μαρ", contracts: 24, premium: 2980 },
-    { month: "Απρ", contracts: 20, premium: 2610 },
-    { month: "Μάι", contracts: 22, premium: 2840 },
-    { month: "Ιούν", contracts: 27, premium: 3520 },
-    { month: "Ιούλ", contracts: 31, premium: 4180 },
-    { month: "Αύγ", contracts: 25, premium: 3310 },
-    { month: "Σεπ", contracts: 36, premium: 4920 },
-    { month: "Οκτ", contracts: 41, premium: 5680 },
-  ];
-  const [productionPeriod, setProductionPeriod] = useState<6 | 12>(6);
-  const [productionMetric, setProductionMetric] = useState<"premium" | "contracts">("premium");
-  const productionWindow = production.slice(-productionPeriod);
-  const productionTotals = productionWindow.reduce((totals, item) => ({ contracts: totals.contracts + item.contracts, premium: totals.premium + item.premium }), { contracts: 0, premium: 0 });
-  const averagePremium = productionTotals.contracts ? Math.round(productionTotals.premium / productionTotals.contracts) : 0;
-  const chartAverage = productionWindow.length ? productionWindow.reduce((sum, item) => sum + item[productionMetric], 0) / productionWindow.length : 0;
-  const defaultOrder: HomeWidgetId[] = ["pricing", "announcements", "production"];
+  const defaultOrder: HomeWidgetId[] = ["pricing"];
   const defaultSizes: Record<HomeWidgetId, { span: number; height: number; minimized: boolean }> = {
     pricing: { span: 12, height: pricingHeight, minimized: false },
-    announcements: { span: 5, height: 365, minimized: false },
-    production: { span: 7, height: 365, minimized: false },
   };
   const loadLayout = () => {
     if (typeof window === "undefined") return { order: defaultOrder, sizes: defaultSizes };
@@ -759,7 +737,7 @@ function StandaloneHomeSections({ branch, onSelectPricing }: { branch: BranchKey
   };
   const widgetControls = (id: HomeWidgetId) => ({
     span: widgetSizes[id].span,
-    height: id === "pricing" ? Math.max(widgetSizes[id].height, pricingHeight) : widgetSizes[id].height,
+    height: Math.max(widgetSizes[id].height, pricingHeight),
     order: widgetOrder.indexOf(id),
     minimized: minimized[id],
     maximized: maximized === id,
@@ -771,14 +749,7 @@ function StandaloneHomeSections({ branch, onSelectPricing }: { branch: BranchKey
     onDragOver: (event: React.DragEvent<HTMLDivElement>) => event.preventDefault(),
     onDrop: (event: React.DragEvent<HTMLDivElement>) => { event.stopPropagation(); dropWidget(id); },
   });
-  const dropWidgetAtEnd = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const source = dragWidget.current;
-    dragWidget.current = null;
-    if (!source) return;
-    setWidgetOrder(current => [...current.filter(id => id !== source), source]);
-  };
-  return <Box onDragOver={event => event.preventDefault()} onDrop={dropWidgetAtEnd} sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(12, minmax(0, 1fr))" }, gridAutoFlow: "dense", gap: { xs: 2, md: 2.5 }, alignItems: "start" }}>
+  return <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(12, minmax(0, 1fr))" }, gap: { xs: 2, md: 2.5 }, alignItems: "start" }}>
     <DashboardWidget id="pricing" title="Τιμολόγηση" accent="#c9e2f6" prominentHeader {...widgetControls("pricing")}>
       <Card variant="outlined" sx={{ position: "relative", height: "100%", borderRadius: 1.5, overflow: "hidden", borderTop: 0, bgcolor: "#f8fcff", borderColor: "#dce5ec", "&::after": { content: '""', position: "absolute", right: -170, bottom: -210, width: 560, height: 430, borderRadius: "50% 0 0 0", border: "2px solid rgba(104,170,221,.13)", boxShadow: "0 -18px 0 rgba(104,170,221,.07), 0 -36px 0 rgba(104,170,221,.045)", pointerEvents: "none" } }}>
         <CardContent sx={{ position: "relative", zIndex: 1, p: { xs: 1.25, md: 1.75 }, height: "100%", "&:last-child": { pb: { xs: 1.25, md: 1.75 } } }}>
@@ -788,41 +759,100 @@ function StandaloneHomeSections({ branch, onSelectPricing }: { branch: BranchKey
         </CardContent>
       </Card>
     </DashboardWidget>
-    <DashboardWidget id="announcements" title="Ανακοινώσεις-Εγκύκλιοι" accent="#17b8d1" {...widgetControls("announcements")}>
-      <Card variant="outlined" aria-label="Κενές ανακοινώσεις και εγκύκλιοι" sx={{ height: "100%", minHeight: 245, borderRadius: "18px", border: "1px solid #bfe5f1", bgcolor: "#f9fdff", boxShadow: "0 8px 24px rgba(18,108,139,.05)" }} />
-    </DashboardWidget>
-    <DashboardWidget id="production" title="Παραγωγή" accent="#1b7f55" {...widgetControls("production")}>
-      <Card variant="outlined" sx={{ borderRadius: "18px", overflow: "hidden", border: "1px solid #c6e4d5", background: "linear-gradient(145deg, #eaf8f1 0%, #fbfefd 62%, #e1f4e9 100%)", boxShadow: "0 8px 24px rgba(27,127,85,.09)", position: "relative", "&::before": { content: '""', position: "absolute", width: 190, height: 150, right: -72, top: -68, borderRadius: "50%", background: "radial-gradient(circle, rgba(27,127,85,.14), transparent 70%)", pointerEvents: "none" } }}>
-        <CardContent sx={{ p: { xs: 1.5, md: 2 }, position: "relative", zIndex: 1 }}>
-          <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} gap={1} sx={{ mb: 1.5 }}>
-            <Box><Typography fontWeight={900} sx={{ color: "#123a64", fontSize: { xs: 16, md: 18 } }}>Μηνιαία πορεία παραγωγής</Typography><Typography variant="caption" sx={{ color: "#587064" }}>Ενδεικτικά δεδομένα επίδειξης · σύγκριση ανά μήνα</Typography></Box>
-            <Stack direction="row" alignItems="center" gap={1}>
-              <ToggleButtonGroup exclusive size="small" value={productionMetric} onChange={(_, value: "premium" | "contracts" | null) => value && setProductionMetric(value)} aria-label="Μετρική γραφήματος παραγωγής" sx={{ bgcolor: "rgba(255,255,255,.72)", "& .MuiToggleButton-root": { px: 1.1, py: .45, textTransform: "none", fontSize: 11.5, fontWeight: 800, color: "#456655", borderColor: "rgba(27,127,85,.22)" }, "& .Mui-selected": { bgcolor: "#1b7f55 !important", color: "#fff !important" } }}>
-                <ToggleButton value="premium">Ασφάλιστρα</ToggleButton><ToggleButton value="contracts">Συμβόλαια</ToggleButton>
-              </ToggleButtonGroup>
-              <ToggleButtonGroup exclusive size="small" value={productionPeriod} onChange={(_, value: 6 | 12 | null) => value && setProductionPeriod(value)} aria-label="Χρονικό διάστημα παραγωγής" sx={{ bgcolor: "rgba(255,255,255,.72)", "& .MuiToggleButton-root": { minWidth: 37, px: .7, py: .45, textTransform: "none", fontSize: 11.5, fontWeight: 800, color: "#456655", borderColor: "rgba(27,127,85,.22)" }, "& .Mui-selected": { bgcolor: "#d9efe2 !important", color: "#145e3d !important" } }}>
-                <ToggleButton value={6}>6Μ</ToggleButton><ToggleButton value={12}>12Μ</ToggleButton>
-              </ToggleButtonGroup>
-            </Stack>
-          </Stack>
-          <Grid container spacing={1} sx={{ mb: 1.25 }}>{[["Νέα συμβόλαια", productionTotals.contracts.toLocaleString("el-GR"), "#147f8d"], ["Μικτά ασφάλιστρα", `${productionTotals.premium.toLocaleString("el-GR")} €`, "#1b7f55"], ["Μέσο ασφάλιστρο", `${averagePremium.toLocaleString("el-GR")} €`, "#3457a6"]].map(([label, value, colour]) => <Grid item xs={4} key={label}><Box sx={{ p: { xs: .8, sm: 1 }, bgcolor: "rgba(255,255,255,.72)", border: `1px solid ${colour}38`, borderRadius: 1.5, boxShadow: "0 3px 10px rgba(26,95,71,.05)" }}><Typography variant="caption" color="text.secondary" noWrap>{label}</Typography><Typography fontWeight={900} sx={{ color: colour, fontSize: { xs: 14, sm: 17 } }}>{value}</Typography></Box></Grid>)}</Grid>
-          <Box sx={{ height: { xs: 210, md: 250 }, p: { xs: .5, md: 1 }, borderRadius: 1.75, bgcolor: "rgba(255,255,255,.68)", border: "1px solid rgba(27,127,85,.18)" }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={productionWindow} margin={{ top: 14, right: 14, left: 4, bottom: 2 }}>
-                <CartesianGrid vertical={false} strokeDasharray="3 5" stroke="#cfe4d9" />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#60746a" }} tickLine={false} axisLine={{ stroke: "#b9d2c3" }} />
-                <YAxis width={productionMetric === "premium" ? 58 : 38} tick={{ fontSize: 10, fill: "#60746a" }} tickLine={false} axisLine={false} tickFormatter={value => productionMetric === "premium" ? `${Number(value).toLocaleString("el-GR")}€` : String(value)} />
-                <ChartTooltip cursor={{ stroke: "#83b79b", strokeDasharray: "4 4" }} contentStyle={{ borderRadius: 10, borderColor: "#b9d7c5", boxShadow: "0 8px 22px rgba(30,80,52,.12)" }} labelStyle={{ color: "#17432d", fontWeight: 800 }} formatter={value => productionMetric === "premium" ? [`${Number(value ?? 0).toLocaleString("el-GR")} €`, "Μικτά ασφάλιστρα"] : [Number(value ?? 0), "Νέα συμβόλαια"]} />
-                <ReferenceLine y={chartAverage} stroke="#788d80" strokeDasharray="5 5" label={{ value: "Μέσος όρος", fill: "#60746a", fontSize: 10, position: "insideTopRight" }} />
-                <Line type="monotone" dataKey={productionMetric} name={productionMetric === "premium" ? "Μικτά ασφάλιστρα" : "Νέα συμβόλαια"} stroke={productionMetric === "premium" ? "#1b7f55" : "#147f8d"} strokeWidth={3} activeDot={{ r: 6, strokeWidth: 2, stroke: "#fff" }} dot={{ r: 3, strokeWidth: 2, fill: "#fff" }} />
-                <Brush dataKey="month" height={16} stroke="#1b7f55" travellerWidth={9} startIndex={Math.max(0, productionWindow.length - 6)} endIndex={productionWindow.length - 1} />
-              </LineChart>
-            </ResponsiveContainer>
-          </Box>
-        </CardContent>
-      </Card>
-    </DashboardWidget>
+    <Box sx={{ gridColumn: "1 / -1", minWidth: 0 }}><PortfolioStatisticsDashboard /></Box>
   </Box>;
+}
+
+
+const demoPortfolioSeries = [
+  { month: "Νοε 25", premium: 36, contracts: 2 }, { month: "Δεκ 25", premium: 54, contracts: 3 },
+  { month: "Ιαν 26", premium: 28, contracts: 2 }, { month: "Φεβ 26", premium: 64, contracts: 4 },
+  { month: "Μαρ 26", premium: 32, contracts: 2 }, { month: "Απρ 26", premium: 46, contracts: 3 },
+  { month: "Μάι 26", premium: 18, contracts: 1 }, { month: "Ιουν 26", premium: 34, contracts: 2 },
+  { month: "Ιουλ 26", premium: 68, contracts: 4 }, { month: "Αυγ 26", premium: 42, contracts: 3 },
+  { month: "Σεπ 26", premium: 92, contracts: 5 }, { month: "Οκτ 26", premium: 128, contracts: 7 },
+];
+const statsColours = ["#168c75", "#3d79bd", "#e5a23b", "#8b70c8", "#d76565"];
+
+function PortfolioChartCard({ title, subtitle, children, delay = 0, chartHeight = 225 }: { title: string; subtitle: string; children: ReactNode; delay?: number; chartHeight?: number }) {
+  return <Card variant="outlined" sx={{ height: "100%", minWidth: 0, borderRadius: 2, borderColor: "#d9e5ef", bgcolor: "rgba(255,255,255,.96)", boxShadow: "0 10px 30px rgba(20,52,82,.055)", overflow: "hidden", animation: `portfolio-chart-enter .48s cubic-bezier(.2,.7,.2,1) ${delay}ms both`, "@keyframes portfolio-chart-enter": { from: { opacity: 0, transform: "translateY(12px)" }, to: { opacity: 1, transform: "translateY(0)" } }, "@media (prefers-reduced-motion: reduce)": { animation: "none" }, transition: "box-shadow .2s ease, transform .2s ease", "&:hover": { boxShadow: "0 15px 36px rgba(20,52,82,.10)", transform: "translateY(-2px)" } }}>
+    <Box sx={{ px: { xs: 1.5, md: 2 }, pt: 1.5, pb: 1 }}><Typography fontWeight={900} sx={{ color: "#173d63", fontSize: 15 }}>{title}</Typography><Typography variant="caption" sx={{ color: "#698095" }}>{subtitle}</Typography></Box>
+    <Box sx={{ height: chartHeight, px: { xs: .5, md: 1 }, pb: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>{children}</Box>
+  </Card>;
+}
+
+function PortfolioStatisticsDashboard() {
+  const [period, setPeriod] = useState<6 | 12>(6);
+  const [metric, setMetric] = useState<"premium" | "contracts">("premium");
+  const [showAverage, setShowAverage] = useState(true);
+  const [showCumulative, setShowCumulative] = useState(true);
+  const selected = useMemo(() => demoPortfolioSeries.slice(-period), [period]);
+  const trend = useMemo(() => {
+    let cumulative = 0;
+    return selected.map((row, index) => {
+      cumulative += row[metric];
+      const start = Math.max(0, index - 2);
+      const average = selected.slice(start, index + 1).reduce((sum, item) => sum + item[metric], 0) / (index - start + 1);
+      return { ...row, average, cumulative };
+    });
+  }, [selected, metric]);
+  const values = selected.map(row => row[metric]);
+  const average = values.reduce((sum, value) => sum + value, 0) / Math.max(values.length, 1);
+  const deviation = Math.sqrt(values.reduce((sum, value) => sum + (value - average) ** 2, 0) / Math.max(values.length, 1));
+  const first = values.find(value => value > 0) ?? 0;
+  const last = [...values].reverse().find(value => value > 0) ?? 0;
+  const change = first ? ((last - first) / first) * 100 : null;
+  const formatValue = (value: number) => metric === "premium" ? `${value.toLocaleString("el-GR", { maximumFractionDigits: 0 })} €` : value.toLocaleString("el-GR", { maximumFractionDigits: 0 });
+  const statusData = [{ name: "Ενεργά", value: 3 }, { name: "Πιθανά", value: 1 }];
+  const branchData = [{ name: "Οχήματα", value: 4 }, { name: "Υγεία", value: 2 }, { name: "Περιουσία", value: 1 }, { name: "Ζωή", value: 1 }];
+  const insurerData = [{ name: "Altius Insurance", premium: 126, contracts: 3 }, { name: "Νέος Ποσειδών", premium: 72, contracts: 2 }, { name: "ERGO", premium: 48, contracts: 1 }, { name: "Interamerican", premium: 34, contracts: 1 }];
+  const claimsData = [{ name: "Ανοιχτές", value: 1 }, { name: "Υπό εξέταση", value: 1 }, { name: "Ολοκληρωμένες", value: 0 }];
+  const tooltipStyle = { borderRadius: 12, border: "1px solid #d8e4ed", boxShadow: "0 10px 24px rgba(20,52,82,.15)", fontSize: 12 };
+  const axisStyle = { fontSize: 10, fill: "#71869a" };
+  return <Card variant="outlined" sx={{ borderRadius: 2.5, overflow: "hidden", borderColor: "#d5e2ec", background: "linear-gradient(145deg,#f3f8fc 0%,#edf5f8 52%,#f7fafc 100%)", boxShadow: "0 14px 38px rgba(19,53,83,.08)" }}>
+    <Box sx={{ px: { xs: 1.5, md: 2.5 }, pt: { xs: 1.5, md: 2 }, pb: 1.5, display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 1.5, borderBottom: "1px solid #dce7ef", background: "linear-gradient(105deg,rgba(255,255,255,.92),rgba(232,243,249,.82))" }}>
+      <Box><Stack direction="row" spacing={1} alignItems="center"><SpeedRoundedIcon sx={{ color: "#147f8d" }} /><Typography fontWeight={950} sx={{ color: "#123a64", fontSize: { xs: 18, md: 21 } }}>Στατιστικά χαρτοφυλακίου</Typography><Chip size="small" label="Ενδεικτική εικόνα" sx={{ bgcolor: "#e5eef7", color: "#496782", fontWeight: 750 }} /></Stack><Typography variant="caption" sx={{ color: "#637b8d", mt: .4, display: "block" }}>Παραγωγή, κατάσταση συμβολαίων, κλάδοι, εταιρείες και ζημιές</Typography></Box>
+      <Stack direction="row" gap={1} flexWrap="wrap" alignItems="center">
+        <ToggleButtonGroup exclusive size="small" value={period} onChange={(_, value: 6 | 12 | null) => value && setPeriod(value)} aria-label="Περίοδος τάσης" sx={{ bgcolor: "#fff", "& .MuiToggleButton-root": { px: 1.2, py: .55, textTransform: "none", fontSize: 12, fontWeight: 800, color: "#526b80", borderColor: "#d7e3eb" }, "& .Mui-selected": { bgcolor: "#dceef1 !important", color: "#0b7180 !important" } }}><ToggleButton value={6}>6 μήνες</ToggleButton><ToggleButton value={12}>12 μήνες</ToggleButton></ToggleButtonGroup>
+        <ToggleButtonGroup exclusive size="small" value={metric} onChange={(_, value: "premium" | "contracts" | null) => value && setMetric(value)} aria-label="Απεικόνιση" sx={{ bgcolor: "#fff", "& .MuiToggleButton-root": { px: 1.2, py: .55, textTransform: "none", fontSize: 12, fontWeight: 800, color: "#526b80", borderColor: "#d7e3eb" }, "& .Mui-selected": { bgcolor: "#e6f3eb !important", color: "#187348 !important" } }}><ToggleButton value="premium">Ασφάλιστρα</ToggleButton><ToggleButton value="contracts">Συμβόλαια</ToggleButton></ToggleButtonGroup>
+      </Stack>
+    </Box>
+    <Box sx={{ p: { xs: 1.25, md: 2.25 } }}>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3,minmax(0,1fr))" }, gap: 1, mb: 1.5 }}>
+        {[["Μέσος μήνας", formatValue(average), "#147f8d"], ["Τυπική απόκλιση", formatValue(deviation), "#6276aa"], ["Μεταβολή πρώτου–τελευταίου μήνα", change == null ? "—" : `${change > 0 ? "+" : ""}${change.toLocaleString("el-GR", { maximumFractionDigits: 1 })}%`, change == null ? "#71869a" : change >= 0 ? "#19835b" : "#c64d55"]].map(([label, value, colour]) => <Box key={label} sx={{ px: 1.5, py: 1.1, borderRadius: 1.75, bgcolor: "#fff", border: "1px solid #dbe6ed", boxShadow: "0 3px 10px rgba(19,53,83,.035)" }}><Typography variant="caption" sx={{ color: "#71869a" }}>{label}</Typography><Typography fontWeight={900} sx={{ color: colour, fontSize: 17 }}>{value}</Typography></Box>)}
+      </Box>
+      <PortfolioChartCard title="Πορεία παραγωγής" subtitle="Ασφάλιστρα ανά μήνα έναρξης · σύρετε την κάτω μπάρα για επιλογή εύρους" delay={30} chartHeight={300}>
+        <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ px: 1, minHeight: 30, flexShrink: 0 }}>
+          <FormControlLabel sx={{ mr: .5, "& .MuiFormControlLabel-label": { fontSize: 10.5, color: "#5f7488" } }} control={<Checkbox size="small" checked={showAverage} onChange={event => setShowAverage(event.target.checked)} sx={{ p: .25, color: "#607d8b", "&.Mui-checked": { color: "#168c75" } }} />} label="Κινητός μέσος 3 μηνών" />
+          <FormControlLabel sx={{ mr: .5, "& .MuiFormControlLabel-label": { fontSize: 10.5, color: "#5f7488" } }} control={<Checkbox size="small" checked={showCumulative} onChange={event => setShowCumulative(event.target.checked)} sx={{ p: .25, color: "#607d8b", "&.Mui-checked": { color: "#dc9a35" } }} />} label="Συσσωρευμένα" />
+        </Stack>
+        <Box sx={{ flex: 1, minHeight: 0 }}><ResponsiveContainer width="100%" height="100%"><LineChart data={trend} margin={{ top: 12, right: 36, left: 6, bottom: 16 }}>
+          <CartesianGrid vertical={false} strokeDasharray="3 5" stroke="#e0e8ee" /><XAxis dataKey="month" tick={axisStyle} tickLine={false} axisLine={{ stroke: "#d0dce5" }} /><YAxis yAxisId="main" width={58} tick={axisStyle} tickLine={false} axisLine={false} tickFormatter={value => metric === "premium" ? `${value} €` : String(value)} /><YAxis yAxisId="cum" orientation="right" width={46} tick={axisStyle} tickLine={false} axisLine={false} tickFormatter={value => metric === "premium" ? `${value} €` : String(value)} hide={!showCumulative} />
+          <ChartTooltip contentStyle={tooltipStyle} labelStyle={{ color: "#173d63", fontWeight: 850 }} formatter={(value, name) => [formatValue(Number(value ?? 0)), String(name)]} /><Legend verticalAlign="top" align="left" height={26} wrapperStyle={{ fontSize: 10.5, color: "#526b80" }} />
+          <ReferenceLine yAxisId="main" y={average} stroke="#8b9aa7" strokeDasharray="4 5" />
+          <Line isAnimationActive animationDuration={900} yAxisId="main" type="monotone" dataKey={metric} name={metric === "premium" ? "Ασφάλιστρα" : "Συμβόλαια"} stroke="#168c75" strokeWidth={2.8} dot={{ r: 3, fill: "#fff", strokeWidth: 2 }} activeDot={{ r: 6, stroke: "#fff", strokeWidth: 2 }} />
+          {showAverage && <Line isAnimationActive animationDuration={1100} yAxisId="main" type="monotone" dataKey="average" name="Κινητός μέσος 3 μηνών" stroke="#4b78bd" strokeWidth={2} strokeDasharray="6 4" dot={false} />}
+          {showCumulative && <Area isAnimationActive animationDuration={1200} yAxisId="cum" type="monotone" dataKey="cumulative" name="Συσσωρευμένα (δεξιά κλίμακα)" stroke="#e2a33d" fill="#f3d9a8" fillOpacity={.22} strokeWidth={2} />}
+          <Brush dataKey="month" height={17} stroke="#168c75" travellerWidth={9} startIndex={Math.max(0, trend.length - 6)} endIndex={trend.length - 1} />
+        </LineChart></ResponsiveContainer></Box>
+      </PortfolioChartCard>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2,minmax(0,1fr))" }, gap: 1.5, mt: 1.5 }}>
+        <PortfolioChartCard title="Συμβόλαια ανά κατάσταση" subtitle="Τρέχουσα εικόνα χαρτοφυλακίου · πλήθος εγγραφών" delay={90}>
+          <ResponsiveContainer width="100%" height="100%"><PieChart><Pie isAnimationActive animationDuration={850} data={statusData} dataKey="value" nameKey="name" innerRadius="48%" outerRadius="72%" paddingAngle={4} label={({ name, value }) => `${name}: ${value}`} labelLine={false}>{statusData.map((entry, index) => <Cell key={entry.name} fill={statsColours[index]} />)}</Pie><ChartTooltip contentStyle={tooltipStyle} formatter={(value, name) => [`${value} εγγραφές`, name]} /><Legend verticalAlign="bottom" height={28} wrapperStyle={{ fontSize: 11 }} /></PieChart></ResponsiveContainer>
+        </PortfolioChartCard>
+        <PortfolioChartCard title="Κλάδοι ασφάλισης" subtitle="Κατανομή συμβολαίων ανά κλάδο" delay={150}>
+          <ResponsiveContainer width="100%" height="100%"><BarChart data={branchData} margin={{ top: 8, right: 15, left: 0, bottom: 8 }}><CartesianGrid vertical={false} strokeDasharray="3 5" stroke="#e0e8ee" /><XAxis dataKey="name" tick={axisStyle} tickLine={false} axisLine={{ stroke: "#d0dce5" }} /><YAxis allowDecimals={false} width={28} tick={axisStyle} tickLine={false} axisLine={false} /><ChartTooltip contentStyle={tooltipStyle} formatter={value => [`${value} συμβόλαια`, "Πλήθος"]} /><Bar isAnimationActive animationDuration={900} dataKey="value" name="Συμβόλαια" radius={[6, 6, 0, 0]}>{branchData.map((entry, index) => <Cell key={entry.name} fill={statsColours[index % statsColours.length]} />)}</Bar></BarChart></ResponsiveContainer>
+        </PortfolioChartCard>
+        <PortfolioChartCard title="Κορυφαίες ασφαλιστικές" subtitle="Ανάλογα με την επιλεγμένη απεικόνιση" delay={210}>
+          <ResponsiveContainer width="100%" height="100%"><BarChart data={insurerData} layout="vertical" margin={{ top: 8, right: 18, left: 18, bottom: 8 }}><CartesianGrid horizontal={false} strokeDasharray="3 5" stroke="#e0e8ee" /><XAxis type="number" tick={axisStyle} tickLine={false} axisLine={{ stroke: "#d0dce5" }} /><YAxis type="category" dataKey="name" width={105} tick={axisStyle} tickLine={false} axisLine={false} /><ChartTooltip contentStyle={tooltipStyle} formatter={value => metric === "premium" ? [`${Number(value).toLocaleString("el-GR")} €`, "Ασφάλιστρα"] : [`${value} συμβόλαια`, "Συμβόλαια"]} /><Bar isAnimationActive animationDuration={1050} dataKey={metric} name={metric === "premium" ? "Ασφάλιστρα" : "Συμβόλαια"} radius={[0, 6, 6, 0]}>{insurerData.map((entry, index) => <Cell key={entry.name} fill={statsColours[index % statsColours.length]} />)}</Bar></BarChart></ResponsiveContainer>
+        </PortfolioChartCard>
+        <PortfolioChartCard title="Ζημιές ανά κατάσταση" subtitle="Τρέχουσα εικόνα χαρτοφυλακίου · πλήθος φακέλων" delay={270}>
+          <ResponsiveContainer width="100%" height="100%"><BarChart data={claimsData} margin={{ top: 16, right: 16, left: 2, bottom: 8 }}><CartesianGrid vertical={false} strokeDasharray="3 5" stroke="#e0e8ee" /><XAxis dataKey="name" tick={axisStyle} tickLine={false} axisLine={{ stroke: "#d0dce5" }} /><YAxis allowDecimals={false} width={26} tick={axisStyle} tickLine={false} axisLine={false} /><ChartTooltip contentStyle={tooltipStyle} formatter={value => [`${value} φάκελοι`, "Πλήθος"]} /><Bar isAnimationActive animationDuration={950} dataKey="value" name="Ζημιές" radius={[6, 6, 0, 0]}>{claimsData.map((entry, index) => <Cell key={entry.name} fill={index === 0 ? "#dc6870" : index === 1 ? "#e2a33d" : "#4b9a79"} />)}</Bar></BarChart></ResponsiveContainer>
+        </PortfolioChartCard>
+      </Box>
+      <Typography variant="caption" sx={{ color: "#8091a0", display: "block", textAlign: "right", mt: 1 }}>Τα στοιχεία των γραφημάτων είναι ενδεικτικά δεδομένα παρουσίασης.</Typography>
+    </Box>
+  </Card>;
 }
 
 function StandaloneBranchPanel({ branch, setBranch, onSelectPricing }: { branch: BranchKey; setBranch: (value: BranchKey) => void; onSelectPricing: (label: string) => void }) {
