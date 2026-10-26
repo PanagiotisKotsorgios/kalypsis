@@ -56,6 +56,7 @@ import { ScrollToTop } from "./components/ScrollToTop";
 import { SeoController } from "./components/SeoController";
 import { PreloginResponsiveStyles } from "./components/PreloginResponsiveStyles";
 import { LandingPage } from "./pages/LandingPage";
+import { CompanyWebsitePage } from "./pages/CompanyWebsitePage";
 import { LoginPage } from "./pages/LoginPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
@@ -820,6 +821,7 @@ export default function App() {
         <Route path="/register/agency" element={<Navigate to="/register" replace />} />
         <Route path="/register/agent" element={<Navigate to="/register" replace />} />
         <Route path="/site/:slug" element={<OfficePublicSitePage />} />
+        <Route path="/company/*" element={<CompanyWebsitePage />} />
         {/* Insurance preview and intake require login, including direct links. */}
         <Route path="/insurance-request" element={<ProtectedRoute><InsuranceRequestPage /></ProtectedRoute>} />
         <Route path="/insurance/*" element={<ProtectedRoute><Suspense fallback={<PageLoader minHeight="100vh" />}><InsuranceWebsitePage /></Suspense></ProtectedRoute>} />

@@ -46,7 +46,7 @@ import { CliProjectLink } from "../components/CliProjectLink";
 import { PublicProductShowcase } from "../components/PublicProductShowcase";
 import { PublicRemoteAccessSection } from "../components/PublicRemoteAccessSection";
 import { PublicTimologionSection } from "../components/PublicTimologionSection";
-import { HostingPromoButton } from "../components/HostingPromoButton";
+import { CompanyPromoButton } from "../components/HostingPromoButton";
 import { PublicOfferingsSection } from "../components/PublicOfferingsSection";
 import { api } from "../api/client";
 
@@ -409,7 +409,7 @@ export function LandingPage() {
           </Stack>
           <Box sx={{ px: { xs: 1.5, md: 4.5 }, mt: 1.5, display: "flex", flexDirection: { xs: "column", md: "row" }, justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" }, gap: 1.5 }}>
             <PreloginDesktopDownload />
-            <HostingPromoButton />
+            <CompanyPromoButton />
           </Box>
         </Container>
 

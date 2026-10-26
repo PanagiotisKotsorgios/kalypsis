@@ -28,6 +28,34 @@ const PUBLIC_META: Record<string, { title: string; description: string }> = {
     title: "Επικοινωνία με την Kalypsis",
     description: "Επικοινωνήστε με την ομάδα Kalypsis για πληροφορίες, υποστήριξη ή συνεργασία.",
   },
+  "/company": {
+    title: "KALYPSIS SOFTWARE SOLUTIONS — Ψηφιακές λύσεις για ασφαλιστικά γραφεία",
+    description: "Web και desktop backoffice, ασφαλιστική τιμολόγηση και υπηρεσίες φιλοξενίας από την KALYPSIS SOFTWARE SOLUTIONS.",
+  },
+  "/company/about": {
+    title: "Η Εταιρεία — KALYPSIS SOFTWARE SOLUTIONS",
+    description: "Γνωρίστε την KALYPSIS SOFTWARE SOLUTIONS και το συνδεδεμένο ψηφιακό οικοσύστημα για ασφαλιστικά γραφεία.",
+  },
+  "/company/solutions": {
+    title: "Λύσεις λογισμικού — KALYPSIS",
+    description: "KALYPSIS Web, KALYPSIS Desktop, InsureOne και KALYPSIS Hosting.",
+  },
+  "/company/services": {
+    title: "Υπηρεσίες — KALYPSIS SOFTWARE SOLUTIONS",
+    description: "Ψηφιακές υπηρεσίες backoffice, ασφαλιστικές ροές, διασυνδέσεις και φιλοξενία από την KALYPSIS.",
+  },
+  "/company/customers": {
+    title: "Σε ποιους απευθυνόμαστε — KALYPSIS",
+    description: "Εργαλεία KALYPSIS για ασφαλιστικά γραφεία, παραγωγούς, ομάδες και τις ροές εξυπηρέτησης πελατών τους.",
+  },
+  "/company/contact": {
+    title: "Επικοινωνία — KALYPSIS SOFTWARE SOLUTIONS",
+    description: "Επικοινωνήστε με την ομάδα KALYPSIS για πληροφορίες προϊόντων, FrontOffice ή φιλοξενία.",
+  },
+  "/company/insureone": {
+    title: "InsureOne — KALYPSIS FrontOffice",
+    description: "Μάθετε για το περιβάλλον ασφαλιστικής τιμολόγησης InsureOne και το KALYPSIS FrontOffice.",
+  },
   "/legal": {
     title: "Νομικά κείμενα και πολιτικές — Kalypsis",
     description: "Νομικές πληροφορίες, πολιτικές και όροι χρήσης της Kalypsis.",
