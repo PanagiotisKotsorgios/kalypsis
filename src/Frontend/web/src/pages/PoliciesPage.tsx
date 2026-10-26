@@ -1169,6 +1169,10 @@ function PolicyFormDialog({
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const selectedCarrier = (carriersQuery.data ?? []).find(company => company.id === form.insuranceCompanyId);
+      if (!editing && selectedCarrier?.isBroker) {
+        throw new Error("Επιλέξτε την ασφαλιστική εταιρεία που εκδίδει το συμβόλαιο μέσω του πρακτορείου.");
+      }
       // Keep historical accounting data when editing; no tax input is exposed.
       const existingTax = policy ? (await api.get<{ vatAmount: number | null }>(`/policies/${policy.id}/detail`)).data.vatAmount : null;
       const taxAmount = policy ? existingTax : (form.netPremium !== "" && form.premium > 0
@@ -1247,9 +1251,10 @@ function PolicyFormDialog({
               required disabled={editing} options={customerSearch.options}
               helperText={editing ? t("policies.form.customerLocked") : "Αναζήτηση με όνομα, ΑΦΜ, τηλέφωνο ή email"}
               createNewLabel="+ Νέος πελάτης" onCreateNew={editing ? undefined : input => setInlineCustomerCreate(input || "")} />
-            <SearchableSelect label={t("policies.form.carrier")} value={form.insuranceCompanyId}
+            <SearchableSelect label="Ασφαλιστική εταιρεία ή πρακτορείο" value={form.insuranceCompanyId}
               onChange={v => setForm({ ...form, insuranceCompanyId: v, policyType: "Auto", vehicleUseCategory: "", coverCode: "", packageCode: "" })}
               required options={(carriersQuery.data ?? []).filter(c => !c.parentCompanyId).map(c => ({ value: c.id, label: c.name, hint: c.isBroker ? "πρακτορείο" : undefined }))}
+              helperText="Επιλέξτε απευθείας ασφαλιστική ή πρακτορείο. Για πρακτορείο, επιλέξτε και την ασφαλιστική εταιρεία παρακάτω."
               createNewLabel="+ Νέα ασφαλιστική" onCreateNew={editing ? undefined : input => setInlineCarrierCreate(input || "")} />
             {(() => {
               const carrierData = carriersQuery.data ?? [];
@@ -1258,9 +1263,10 @@ function PolicyFormDialog({
               if (!broker?.isBroker) return null;
               const subs = carrierData.filter(c => c.parentCompanyId === broker.id);
               const subValue = selected?.id !== broker.id ? selected?.id ?? "" : "";
-              return <SearchableSelect label="Υποασφαλιστική" value={subValue}
+              return <SearchableSelect label="Ασφαλιστική εταιρεία μέσω του πρακτορείου" value={subValue}
                 onChange={v => setForm({ ...form, insuranceCompanyId: v || broker.id, vehicleUseCategory: "", coverCode: "", packageCode: "" })}
-                emptyLabel="— επιλέξτε υποασφαλιστική —" options={subs.map(s => ({ value: s.id, label: s.name }))} />;
+                required emptyLabel="— επιλέξτε ασφαλιστική εταιρεία —" options={subs.map(s => ({ value: s.id, label: s.name }))}
+                helperText="Επιλέξτε την εταιρεία που εκδίδει το συμβόλαιο." />;
             })()}
             <SearchableSelect label="Συνεργάτης" value={form.producerId}
               onChange={v => setForm({ ...form, producerId: v })} emptyLabel="— Παραγωγή γραφείου —"

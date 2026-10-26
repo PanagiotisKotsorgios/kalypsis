@@ -26,9 +26,25 @@
     {
       "key": "insuranceCompanyId",
       "path": "InsuranceCompanyId",
-      "label": "Ασφαλιστική",
+      "label": "Ασφαλιστική εταιρεία",
       "section": "main",
       "kind": "link",
+      "column": 0
+    },
+    {
+      "key": "distributionChannel",
+      "path": "@DistributionChannel",
+      "label": "Τρόπος διάθεσης",
+      "section": "main",
+      "kind": "readonly",
+      "column": 0
+    },
+    {
+      "key": "intermediaryAgencyName",
+      "path": "@IntermediaryAgencyName",
+      "label": "Πρακτορείο",
+      "section": "main",
+      "kind": "readonly",
       "column": 0
     },
     {

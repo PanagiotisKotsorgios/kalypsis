@@ -134,7 +134,9 @@ public record PolicyDetailDto(
     decimal CarrierCommissionDue = 0m,
     decimal CarrierCommissionReceived = 0m,
     decimal CarrierCommissionOutstanding = 0m,
-    decimal CarrierCommissionCredit = 0m);
+    decimal CarrierCommissionCredit = 0m,
+    bool IsThroughAgency = false,
+    string? IntermediaryAgencyName = null);
 
 public record GetPolicyDetailQuery(Guid Id) : IRequest<PolicyDetailDto>;
 
@@ -421,6 +423,11 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
         }
         var createdByName = p.CreatedByUser is null ? null : $"{p.CreatedByUser.FirstName} {p.CreatedByUser.LastName}".Trim();
         var contractParty = p.ContractPartyCustomerId.HasValue ? p.ContractPartyCustomer : p.Customer;
+        var intermediaryAgencyName = p.InsuranceCompany.ParentCompanyId is Guid parentCompanyId
+            ? await _db.InsuranceCompanies.Where(company => company.Id == parentCompanyId)
+                .Select(company => company.Name).FirstOrDefaultAsync(ct)
+            : p.InsuranceCompany.IsBroker ? p.InsuranceCompany.Name : null;
+        var isThroughAgency = p.InsuranceCompany.ParentCompanyId.HasValue || p.InsuranceCompany.IsBroker;
 
         var carrierCommission = _current.Role is Role.AgencyAdmin or Role.AgencyOfficeAdmin or Role.AgencyUser or Role.PlatformAdmin or Role.PlatformEmployee
             ? (await CarrierCommissionLedger.BalancesAsync(_db, tenantId, ct, p.Id)).SingleOrDefault()
@@ -487,7 +494,9 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
             carrierCommission?.Expected ?? 0m,
             carrierCommission?.Received ?? 0m,
             carrierCommission?.Outstanding ?? 0m,
-            carrierCommission?.Credit ?? 0m);
+            carrierCommission?.Credit ?? 0m,
+            isThroughAgency,
+            intermediaryAgencyName);
     }
 }
 

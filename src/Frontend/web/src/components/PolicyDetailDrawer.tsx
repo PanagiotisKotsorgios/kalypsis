@@ -51,6 +51,7 @@ export interface PolicyDetail {
   customerId: string; customerDisplay: string;
   customerEmail: string | null; customerPhone: string | null; customerVat: string | null;
   insuranceCompanyId: string; insuranceCompanyName: string; insuranceCompanyCode: string | null;
+  isThroughAgency?: boolean; intermediaryAgencyName?: string | null;
   producerId: string | null; producerName: string | null; producerCode: string | null;
   premium: number; currency: string;
   paymentFrequency: string; premiumIncludesVat: boolean;
