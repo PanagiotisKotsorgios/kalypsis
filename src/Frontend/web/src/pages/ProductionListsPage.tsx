@@ -61,7 +61,7 @@ interface Result {
   grand: GroupTotal;
 }
 
-const STATUSES = ["Prospect", "Draft", "Active", "Expired", "Cancelled", "Renewed", "PendingRenewal", "Undelivered", "AwaitingIssue"];
+const STATUSES = ["Draft", "Active", "Expired", "Cancelled", "Renewed", "PendingRenewal", "Undelivered", "AwaitingIssue"];
 const PRODUCTION_FILTERS: FilterVisibilityDescriptor[] = [
   { key: "dateField", label: "Πεδίο ημερομηνίας" }, { key: "from", label: "Από" }, { key: "to", label: "Έως" },
   { key: "carrier", label: "Ασφαλιστική" }, { key: "subcarrier", label: "Υποασφαλιστική" },

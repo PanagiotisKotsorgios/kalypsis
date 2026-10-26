@@ -154,7 +154,7 @@ public static class ProductionListBuilder
             .Include(p => p.Customer)
             .Include(p => p.InsuranceCompany)
             .Include(p => p.Producer)
-            .Where(p => p.TenantId == tenantId && p.DeletedAt == null);
+            .Where(p => p.TenantId == tenantId && p.DeletedAt == null && p.Status != PolicyStatus.Prospect);
         if (policyId.HasValue) query = query.Where(p => p.Id == policyId.Value);
 
         // Date-field switch (Έναρξη κάλυψης | Έκδοση | Καταχώρηση).
