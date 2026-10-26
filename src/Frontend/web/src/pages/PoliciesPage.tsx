@@ -1009,6 +1009,8 @@ export function PoliciesPage() {
 interface FormBody {
   customerId: string;
   policyNumber: string;
+  distributionMode: "direct" | "agency";
+  agencyId: string;
   insuranceCompanyId: string;
   producerId: string;
   policyType: PolicyType;
@@ -1055,7 +1057,7 @@ function PolicyFormDialog({
   const [inlineCustomerCreate, setInlineCustomerCreate] = useState<string | null>(null);
   const [inlineCarrierCreate, setInlineCarrierCreate] = useState<string | null>(null);
   const carriersQuery = useQuery({
-    queryKey: ["insurance-companies-used"],
+    queryKey: ["insurance-companies-for-policy-form"],
     queryFn: async () => (await api.get<CarrierDto[]>("/insurance-companies")).data,
     enabled: open
   });
@@ -1077,6 +1079,8 @@ function PolicyFormDialog({
   const [form, setForm] = useState<FormBody>({
     customerId: "",
     policyNumber: "",
+    distributionMode: "direct",
+    agencyId: "",
     insuranceCompanyId: "",
     producerId: "",
     policyType: "Auto",
@@ -1102,9 +1106,13 @@ function PolicyFormDialog({
 
   useEffect(() => {
     if (policy) {
+      const selectedCarrier = carriersQuery.data?.find(company => company.id === policy.insuranceCompanyId);
+      const agencyId = selectedCarrier?.parentCompanyId ?? "";
       setForm({
         customerId: policy.customerId,
         policyNumber: policy.policyNumber,
+        distributionMode: agencyId ? "agency" : "direct",
+        agencyId,
         insuranceCompanyId: policy.insuranceCompanyId,
         producerId: policy.producerId ?? "",
         policyType: policy.policyType,
@@ -1128,6 +1136,8 @@ function PolicyFormDialog({
       setForm({
         customerId: "",
         policyNumber: "",
+        distributionMode: "direct",
+        agencyId: "",
         insuranceCompanyId: "",
         producerId: "",
         policyType: "Auto",
@@ -1150,6 +1160,17 @@ function PolicyFormDialog({
     }
   }, [policy, open, initialStatus]);
 
+  useEffect(() => {
+    if (!policy || !carriersQuery.data) return;
+    const selectedCarrier = carriersQuery.data.find(company => company.id === policy.insuranceCompanyId);
+    const agencyId = selectedCarrier?.parentCompanyId ?? "";
+    setForm(previous => previous.insuranceCompanyId !== policy.insuranceCompanyId ? previous : {
+      ...previous,
+      distributionMode: agencyId ? "agency" : "direct",
+      agencyId,
+    });
+  }, [policy, carriersQuery.data]);
+
   // Initialise defaults first, then silently restore the draft. Reversing
   // these effects overwrote restored input with an empty form on opening.
   const { clearDraft, hasDraft, hydrated } = useDraftPersistence<FormBody>(
@@ -1170,8 +1191,12 @@ function PolicyFormDialog({
   const saveMutation = useMutation({
     mutationFn: async () => {
       const selectedCarrier = (carriersQuery.data ?? []).find(company => company.id === form.insuranceCompanyId);
-      if (!editing && selectedCarrier?.isBroker) {
-        throw new Error("Επιλέξτε την ασφαλιστική εταιρεία που εκδίδει το συμβόλαιο μέσω του πρακτορείου.");
+      if (!selectedCarrier || selectedCarrier.isBroker) throw new Error("Επιλέξτε την ασφαλιστική εταιρεία του συμβολαίου.");
+      if (form.distributionMode === "agency") {
+        if (!form.agencyId) throw new Error("Επιλέξτε το πρακτορείο μέσω του οποίου τοποθετήθηκε το συμβόλαιο.");
+        if (selectedCarrier.parentCompanyId !== form.agencyId) throw new Error("Επιλέξτε ασφαλιστική εταιρεία που ανήκει στο συγκεκριμένο πρακτορείο.");
+      } else if (selectedCarrier.parentCompanyId) {
+        throw new Error("Η ασφαλιστική εταιρεία είναι συνδεδεμένη με πρακτορείο. Επιλέξτε «Μέσω πρακτορείου» και το αντίστοιχο πρακτορείο.");
       }
       // Keep historical accounting data when editing; no tax input is exposed.
       const existingTax = policy ? (await api.get<{ vatAmount: number | null }>(`/policies/${policy.id}/detail`)).data.vatAmount : null;
@@ -1251,10 +1276,18 @@ function PolicyFormDialog({
               required disabled={editing} options={customerSearch.options}
               helperText={editing ? t("policies.form.customerLocked") : "Αναζήτηση με όνομα, ΑΦΜ, τηλέφωνο ή email"}
               createNewLabel="+ Νέος πελάτης" onCreateNew={editing ? undefined : input => setInlineCustomerCreate(input || "")} />
+            <SearchableSelect label="Το συμβόλαιο είναι απευθείας ή μέσω πρακτορείου;" value={form.distributionMode}
+              onChange={v => setForm({ ...form, distributionMode: v === "agency" ? "agency" : "direct", agencyId: "", insuranceCompanyId: "", policyType: "Auto", vehicleUseCategory: "", coverCode: "", packageCode: "" })}
+              required options={[{ value: "direct", label: "Απευθείας στην ασφαλιστική εταιρεία" }, { value: "agency", label: "Μέσω πρακτορείου"}]} />
+            {form.distributionMode === "agency" && <SearchableSelect label="Πρακτορείο" value={form.agencyId}
+              onChange={v => setForm({ ...form, agencyId: v, insuranceCompanyId: "", policyType: "Auto", vehicleUseCategory: "", coverCode: "", packageCode: "" })}
+              required options={(carriersQuery.data ?? []).filter(company => company.isBroker).map(company => ({ value: company.id, label: company.name }))}
+              helperText="Επιλέξτε το πρακτορείο που διαχειρίζεται την τοποθέτηση." />}
             <SearchableSelect label="Ασφαλιστική εταιρεία" value={form.insuranceCompanyId}
               onChange={v => setForm({ ...form, insuranceCompanyId: v, policyType: "Auto", vehicleUseCategory: "", coverCode: "", packageCode: "" })}
-              required options={(carriersQuery.data ?? []).filter(c => !c.isBroker).map(c => ({ value: c.id, label: c.name }))}
-              helperText="Η εταιρεία με την οποία έχει εκδοθεί το συμβόλαιο."
+              required disabled={form.distributionMode === "agency" && !form.agencyId}
+              options={(carriersQuery.data ?? []).filter(company => !company.isBroker && (form.distributionMode === "agency" ? company.parentCompanyId === form.agencyId : !company.parentCompanyId)).map(company => ({ value: company.id, label: company.name }))}
+              helperText={form.distributionMode === "agency" ? "Επιλέξτε την ασφαλιστική εταιρεία στην οποία το πρακτορείο τοποθέτησε το συμβόλαιο." : "Η εταιρεία με την οποία έχει εκδοθεί το συμβόλαιο."}
               createNewLabel="+ Νέα ασφαλιστική" onCreateNew={editing ? undefined : input => setInlineCarrierCreate(input || "")} />
             {(() => {
               const carrierData = carriersQuery.data ?? [];
@@ -1368,7 +1401,7 @@ function PolicyFormDialog({
         onCreated={c => { setForm(prev => ({ ...prev, customerId: c.id })); customerSearch.setInput(c.displayName); setInlineCustomerCreate(null); }} />
       <InlineCreateInsuranceCompanyDialog open={inlineCarrierCreate !== null} prefillText={inlineCarrierCreate ?? ""}
         onClose={() => setInlineCarrierCreate(null)}
-        onCreated={c => { setForm(prev => ({ ...prev, insuranceCompanyId: c.id, policyType: "Auto", vehicleUseCategory: "", coverCode: "", packageCode: "" })); setInlineCarrierCreate(null); }} />
+        onCreated={c => { setForm(prev => ({ ...prev, distributionMode: "direct", agencyId: "", insuranceCompanyId: c.id, policyType: "Auto", vehicleUseCategory: "", coverCode: "", packageCode: "" })); setInlineCarrierCreate(null); }} />
     </Dialog>
   );
 }
