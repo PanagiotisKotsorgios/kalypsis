@@ -5,7 +5,6 @@ import LeaderboardOutlinedIcon from "@mui/icons-material/LeaderboardOutlined";
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
-import SmartphoneOutlinedIcon from "@mui/icons-material/SmartphoneOutlined";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { Link as RouterLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -36,7 +35,6 @@ const offerings = [
     area: "e",
     image: "/images/feature-access-control.jpg",
   },
-  { key: "portal", icon: SmartphoneOutlinedIcon, area: "f" },
 ];
 
 const carrierMarks = [
@@ -92,7 +90,14 @@ function OfferingImageFlipCard({
             <Box aria-hidden sx={{ width: 48, height: 48, flexShrink: 0, borderRadius: 1.75, bgcolor: "rgba(255,255,255,.12)", display: "grid", placeItems: "center" }}><Icon sx={{ fontSize: 27, color: "#B9E0FF" }} /></Box>
             <Typography component="h3" sx={{ color: "#fff", fontSize: { xs: 20, md: 25 }, fontWeight: 850, lineHeight: 1.3 }}>{title}</Typography>
             <Typography sx={{ color: "#D2E1F1", fontSize: { xs: 14.5, md: 15.5 }, lineHeight: 1.8 }}>{body}</Typography>
-            <Typography sx={{ color: "#91C9F4", fontSize: 12, fontWeight: 750, mt: "auto" }}>Πατήστε για επιστροφή στην εικόνα</Typography>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1} sx={{ mt: "auto" }}>
+              <Typography sx={{ color: "#91C9F4", fontSize: 12, fontWeight: 750 }}>Πατήστε ξανά για την εικόνα</Typography>
+              <Tooltip title="Επικοινωνήστε μαζί μας">
+                <IconButton component={RouterLink} to="/contact" aria-label={`Επικοινωνία για ${title}`} onClick={event => event.stopPropagation()} sx={{ color: "#fff", border: "1px solid rgba(255,255,255,.35)", bgcolor: "rgba(255,255,255,.1)", "&:hover": { bgcolor: "rgba(255,255,255,.2)" } }}>
+                  <ArrowForwardIcon />
+                </IconButton>
+              </Tooltip>
+            </Stack>
           </Box>
         </Box>
       </Box>
@@ -197,13 +202,13 @@ export function PublicOfferingsSection() {
       <Stack direction="row" alignItems="center" gap={2} sx={{ mb: 1.5 }}><Typography sx={{ color: "#145DA7", fontSize: 12, letterSpacing: ".17em", textTransform: "uppercase", fontWeight: 800 }}>{t("landing.v2.featuresEyebrow")}</Typography><Box aria-hidden sx={{ width: 65, height: 2, bgcolor: "#145DA7" }} /></Stack>
       <Typography component="h2" id="public-offerings-title" sx={{ fontSize: { xs: 25, sm: 29, md: 33 }, lineHeight: 1.3, color: "#0B2545", fontWeight: 800, letterSpacing: "-.025em", maxWidth: 1180, textWrap: "balance", mb: 1.5 }}>{t("landing.v2.featuresHeadline")}</Typography>
       <Typography sx={{ color: "#435A77", fontSize: { xs: 15, md: 16 }, lineHeight: 1.8, maxWidth: 1140, mb: { xs: 3, md: 3.5 } }}>{t("landing.v2.featuresSub")}</Typography>
-      <Box sx={{ display: "grid", gap: { xs: 2, lg: 2.5 }, gridTemplateColumns: { xs: "minmax(0,1fr)", sm: "repeat(2,minmax(0,1fr))", lg: "repeat(12,minmax(0,1fr))" }, gridTemplateAreas: { xs: '"a" "b" "c" "d" "e" "f"', sm: '"a a" "b c" "d e" "f f"', lg: '"a a a a a a a a b b b b" "c c c d d d e e e f f f"' } }}>
+      <Box sx={{ display: "grid", alignItems: "stretch", gap: { xs: 2, lg: 2.5 }, gridTemplateColumns: { xs: "minmax(0,1fr)", sm: "repeat(2,minmax(0,1fr))" }, gridTemplateAreas: { xs: '"a" "b" "c" "d" "e"', sm: '"a b" "c d" "e ."' } }}>
         {offerings.map(({ key, icon: Icon, area, image }, index) => {
           const title = t(`landing.v2.feat.${key}T`);
           const label = english ? `Ask us about ${title}` : `Ρωτήστε μας για: ${title}`;
           const body = t(`landing.v2.feat.${key}B`);
           if (image) return <OfferingImageFlipCard key={key} title={title} body={body} image={image} Icon={Icon} label={area} />;
-          return <Box component="article" key={key} aria-labelledby={`offering-${key}-title`} sx={{ gridArea: area, minWidth: 0, p: { xs: 2.25, lg: 2.75 }, border: "1px solid #5278AF", borderRadius: 2.5, bgcolor: "#F9FBFD", position: "relative", overflow: "hidden", boxShadow: "0 4px 10px rgba(11,48,92,.07)", transition: "border-color 180ms ease, box-shadow 180ms ease", "&:hover": { borderColor: "#174C8C", boxShadow: "0 6px 16px rgba(11,48,92,.11)" }, "&:hover .offering-preview-image": { transform: "scale(1.02)" }, "&:focus-within": { outline: "2px solid #087CEB", outlineOffset: 2 }, "&::after": { content: '""', position: "absolute", bottom: -38, right: -14, width: 105, height: 65, transform: "rotate(-45deg)", borderTop: "1px solid #DFE7F2", borderBottom: "10px solid #E9EFF7", pointerEvents: "none" }, "@media (prefers-reduced-motion: reduce)": { transition: "none" } }}>
+          return <Box component="article" key={key} aria-labelledby={`offering-${key}-title`} sx={{ gridArea: area, minWidth: 0, minHeight: { xs: 280, md: 330, lg: 360 }, boxSizing: "border-box", p: { xs: 2.25, lg: 2.75 }, border: "3px solid #07172D", borderRadius: 2.5, bgcolor: "#F9FBFD", position: "relative", overflow: "hidden", boxShadow: "0 4px 10px rgba(11,48,92,.12)", transition: "border-color 180ms ease, box-shadow 180ms ease", "&:hover": { borderColor: "#0B2B54", boxShadow: "0 8px 22px rgba(11,48,92,.2)" }, "&:focus-within": { outline: "2px solid #087CEB", outlineOffset: 2 }, "&::after": { content: '""', position: "absolute", bottom: -38, right: -14, width: 105, height: 65, transform: "rotate(-45deg)", borderTop: "1px solid #DFE7F2", borderBottom: "10px solid #E9EFF7", pointerEvents: "none" }, "@media (prefers-reduced-motion: reduce)": { transition: "none" } }}>
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "42px minmax(0,1fr) 30px", sm: "50px minmax(0,1fr) 30px" }, gap: { xs: 1.25, sm: 1.75 }, alignItems: "start", position: "relative", zIndex: 1 }}>
               <Box aria-hidden sx={{ width: { xs: 42, sm: 50 }, height: { xs: 46, sm: 54 }, borderRadius: 1.75, bgcolor: "#082A56", color: "#EDF5FF", display: "grid", placeItems: "center" }}><Icon sx={{ fontSize: { xs: 25, sm: 28 } }} /></Box>
               <Typography component="h3" id={`offering-${key}-title`} sx={{ color: "#102D55", fontSize: { xs: 18, xl: index === 0 ? 24 : 20 }, fontWeight: 800, lineHeight: 1.4, pt: .75, textWrap: "balance" }}>{title}</Typography>

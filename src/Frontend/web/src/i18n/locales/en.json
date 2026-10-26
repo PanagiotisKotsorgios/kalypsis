@@ -794,9 +794,7 @@
         "cashT": "Cash Position",
         "cashB": "Receipts and payments in real time, with commission netting.",
         "accessT": "Access Control",
-        "accessB": "Per-user, per-role, per-branch permissions. Full access audit log.",
-        "portalT": "Client & Producer Portal",
-        "portalB": "Mobile app for clients and a web portal for producers, wired into the back-office."
+        "accessB": "Per-user, per-role, per-branch permissions. Full access audit log."
       },
       "desktop": {
         "eyebrow": "KALYPSIS DESKTOP · NEW",
