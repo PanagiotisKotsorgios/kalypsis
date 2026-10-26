@@ -105,7 +105,7 @@ function CompanyHome({ english }: { english: boolean }) {
   ];
   return <>
     <Box component="section" sx={{ position: "relative", overflow: "hidden", color: "#fff", background: "linear-gradient(115deg,#061b34 0%,#082d50 62%,#0b3c65 100%)" }}>
-      <Box aria-hidden sx={{ position: "absolute", zIndex: 0, top: 0, right: 0, width: { xs: "100%", md: "58%" }, height: { xs: "48%", md: "100%" }, backgroundImage: "linear-gradient(100deg,rgba(5,25,49,.38),rgba(5,25,49,.06) 62%),url('/images/company/kalypsis-company-hero.png')", backgroundSize: "cover", backgroundPosition: "center 55%", backgroundRepeat: "no-repeat", clipPath: { xs: "none", md: "polygon(18% 0,100% 0,100% 100%,0 100%)" }, opacity: { xs: .48, md: 1 }, "@media (prefers-reduced-motion: reduce)": { transition: "none" } }} />
+      <Box aria-hidden sx={{ position: "absolute", zIndex: 0, top: 0, right: 0, width: { xs: "100%", md: "52%" }, height: { xs: "48%", md: "100%" }, backgroundImage: "linear-gradient(100deg,rgba(5,25,49,.72),rgba(5,25,49,.52) 62%,rgba(5,25,49,.40)),url('/images/company/kalypsis-company-hero.png')", backgroundSize: "cover", backgroundPosition: "center 55%", backgroundRepeat: "no-repeat", clipPath: { xs: "none", md: "polygon(24% 0,100% 0,100% 100%,0 100%)" }, opacity: { xs: .48, md: 1 }, "@media (prefers-reduced-motion: reduce)": { transition: "none" } }} />
       <Container maxWidth={false} sx={{ maxWidth: 1440, px: { xs: 2.5, md: 5 }, py: { xs: 6, md: 9 } }}>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1.08fr .82fr" }, gap: { xs: 4, md: 5 }, alignItems: "center", position: "relative", zIndex: 1 }}>
           <Box sx={{ position: "relative", zIndex: 1 }}>
