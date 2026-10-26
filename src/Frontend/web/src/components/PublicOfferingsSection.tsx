@@ -1,4 +1,5 @@
 import { Box, Container, IconButton, Stack, Tooltip, Typography } from "@mui/material";
+import { useState, type KeyboardEvent } from "react";
 import LayersOutlinedIcon from "@mui/icons-material/LayersOutlined";
 import LeaderboardOutlinedIcon from "@mui/icons-material/LeaderboardOutlined";
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
@@ -48,6 +49,56 @@ const carrierMarks = [
   { name: "GROUPAMA", color: "#4b8b2a", accent: "#f1c400" },
   { name: "ΜΙΝΕΤΤΑ", color: "#124f86", accent: "#e03a3e" },
 ];
+
+function OfferingImageFlipCard({
+  title,
+  body,
+  image,
+  Icon,
+  label,
+}: {
+  title: string;
+  body: string;
+  image: string;
+  Icon: typeof LayersOutlinedIcon;
+  label: string;
+}) {
+  const [flipped, setFlipped] = useState(false);
+  const toggle = () => setFlipped(value => !value);
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      toggle();
+    }
+  };
+
+  return (
+    <Box component="article" aria-label={title} sx={{ gridArea: label, minWidth: 0, minHeight: { xs: 280, md: 330, lg: 360 }, perspective: "1400px", "@media (prefers-reduced-motion: reduce)": { perspective: "none" } }}>
+      <Box
+        role="button"
+        tabIndex={0}
+        aria-label={`${title}. ${body}. ${flipped ? "Εμφάνιση εικόνας" : "Εμφάνιση περιγραφής"}`}
+        aria-expanded={flipped}
+        onClick={(event) => { if (event.detail > 0 && window.matchMedia("(hover: none)").matches) toggle(); }}
+        onKeyDown={onKeyDown}
+        className={`offering-flip-trigger${flipped ? " offering-flipped" : ""}`}
+        sx={{ height: "100%", minHeight: "inherit", borderRadius: 2.5, cursor: "pointer", outline: "none", "&:focus-visible": { boxShadow: "0 0 0 3px #087CEB" }, "&:hover .offering-flip-inner, &:focus-visible .offering-flip-inner, &:focus-within .offering-flip-inner": { transform: "rotateY(180deg)" }, "@media (hover: none)": { "&:hover .offering-flip-inner": { transform: "none" } }, "@media (prefers-reduced-motion: reduce)": { "&:hover .offering-flip-inner, &:focus-visible .offering-flip-inner, &:focus-within .offering-flip-inner": { transform: "none" }, "& .offering-flip-inner": { transform: "none !important" }, "&:hover .offering-card-front, &:focus-visible .offering-card-front, &:focus-within .offering-card-front, &.offering-flipped .offering-card-front": { opacity: 0, pointerEvents: "none" }, "&:hover .offering-card-back, &:focus-visible .offering-card-back, &:focus-within .offering-card-back, &.offering-flipped .offering-card-back": { opacity: 1, transform: "none" } } }}
+      >
+        <Box className="offering-flip-inner" sx={{ position: "relative", height: "100%", minHeight: "inherit", transformStyle: "preserve-3d", transition: "transform 850ms cubic-bezier(.2,.72,.2,1)", borderRadius: 2.5, boxShadow: "0 16px 40px rgba(11,37,69,.2)", "@media (prefers-reduced-motion: reduce)": { transition: "opacity 180ms ease" }, ...(flipped ? { transform: "rotateY(180deg)" } : {}) }}>
+          <Box className="offering-card-front" sx={{ position: "absolute", inset: 0, overflow: "hidden", borderRadius: 2.5, backfaceVisibility: "hidden", bgcolor: "#0B2545", transition: "opacity 180ms ease" }}>
+            <Box component="img" src={image} alt="" loading="lazy" sx={{ width: "100%", height: "100%", minHeight: "inherit", display: "block", objectFit: "cover", objectPosition: "center", transition: "transform 700ms cubic-bezier(.16,1,.3,1)", ".offering-flip-trigger:hover &": { transform: "scale(1.035)" }, "@media (prefers-reduced-motion: reduce)": { transition: "none" } }} />
+          </Box>
+          <Box className="offering-card-back" sx={{ position: "absolute", inset: 0, p: { xs: 2.5, md: 3.5 }, display: "flex", flexDirection: "column", justifyContent: "center", gap: 1.5, overflow: "auto", borderRadius: 2.5, bgcolor: "#0B2B54", color: "#fff", border: "1px solid rgba(124,199,255,.55)", backfaceVisibility: "hidden", transform: "rotateY(180deg)", transition: "opacity 180ms ease" }}>
+            <Box aria-hidden sx={{ width: 48, height: 48, flexShrink: 0, borderRadius: 1.75, bgcolor: "rgba(255,255,255,.12)", display: "grid", placeItems: "center" }}><Icon sx={{ fontSize: 27, color: "#B9E0FF" }} /></Box>
+            <Typography component="h3" sx={{ color: "#fff", fontSize: { xs: 20, md: 25 }, fontWeight: 850, lineHeight: 1.3 }}>{title}</Typography>
+            <Typography sx={{ color: "#D2E1F1", fontSize: { xs: 14.5, md: 15.5 }, lineHeight: 1.8 }}>{body}</Typography>
+            <Typography sx={{ color: "#91C9F4", fontSize: 12, fontWeight: 750, mt: "auto" }}>Πατήστε για επιστροφή στην εικόνα</Typography>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
+  );
+}
 
 function CarrierLogoRail() {
   const loop = [...carrierMarks, ...carrierMarks];
@@ -150,42 +201,16 @@ export function PublicOfferingsSection() {
         {offerings.map(({ key, icon: Icon, area, image }, index) => {
           const title = t(`landing.v2.feat.${key}T`);
           const label = english ? `Ask us about ${title}` : `Ρωτήστε μας για: ${title}`;
+          const body = t(`landing.v2.feat.${key}B`);
+          if (image) return <OfferingImageFlipCard key={key} title={title} body={body} image={image} Icon={Icon} label={area} />;
           return <Box component="article" key={key} aria-labelledby={`offering-${key}-title`} sx={{ gridArea: area, minWidth: 0, p: { xs: 2.25, lg: 2.75 }, border: "1px solid #5278AF", borderRadius: 2.5, bgcolor: "#F9FBFD", position: "relative", overflow: "hidden", boxShadow: "0 4px 10px rgba(11,48,92,.07)", transition: "border-color 180ms ease, box-shadow 180ms ease", "&:hover": { borderColor: "#174C8C", boxShadow: "0 6px 16px rgba(11,48,92,.11)" }, "&:hover .offering-preview-image": { transform: "scale(1.02)" }, "&:focus-within": { outline: "2px solid #087CEB", outlineOffset: 2 }, "&::after": { content: '""', position: "absolute", bottom: -38, right: -14, width: 105, height: 65, transform: "rotate(-45deg)", borderTop: "1px solid #DFE7F2", borderBottom: "10px solid #E9EFF7", pointerEvents: "none" }, "@media (prefers-reduced-motion: reduce)": { transition: "none" } }}>
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "42px minmax(0,1fr) 30px", sm: "50px minmax(0,1fr) 30px" }, gap: { xs: 1.25, sm: 1.75 }, alignItems: "start", position: "relative", zIndex: 1 }}>
               <Box aria-hidden sx={{ width: { xs: 42, sm: 50 }, height: { xs: 46, sm: 54 }, borderRadius: 1.75, bgcolor: "#082A56", color: "#EDF5FF", display: "grid", placeItems: "center" }}><Icon sx={{ fontSize: { xs: 25, sm: 28 } }} /></Box>
               <Typography component="h3" id={`offering-${key}-title`} sx={{ color: "#102D55", fontSize: { xs: 18, xl: index === 0 ? 24 : 20 }, fontWeight: 800, lineHeight: 1.4, pt: .75, textWrap: "balance" }}>{title}</Typography>
               <Tooltip title={label}><IconButton component={RouterLink} to="/contact" aria-label={label} size="small" sx={{ width: 30, height: 30, mt: .25, border: "1px solid #7494C0", color: "#0B305C", bgcolor: "#F8FBFF", "&:hover": { bgcolor: "#E2EDFB", borderColor: "#174C8C" } }}><ArrowForwardIcon sx={{ fontSize: 19 }} /></IconButton></Tooltip>
               <Box sx={{ gridColumn: { xs: "1 / -1", sm: "2 / -1" }, display: "grid", gridTemplateColumns: "minmax(0,1fr)", gap: 2, minWidth: 0, mt: { xs: 0, sm: -.75 } }}>
-                <Typography sx={{ color: "#334F72", fontSize: { xs: 14.5, md: 15 }, lineHeight: 1.8, overflowWrap: "anywhere" }}>{t(`landing.v2.feat.${key}B`)}</Typography>
+                <Typography sx={{ color: "#334F72", fontSize: { xs: 14.5, md: 15 }, lineHeight: 1.8, overflowWrap: "anywhere" }}>{body}</Typography>
                 {index === 0 && <CarrierLogoRail />}
-                {image && (
-                  <Box
-                    sx={{
-                      overflow: "hidden",
-                      borderRadius: 1.75,
-                      border: "1px solid #D6E3F2",
-                      bgcolor: "#EAF0F6",
-                      boxShadow: "0 10px 24px -20px rgba(11,37,69,.6)",
-                    }}
-                  >
-                    <Box
-                      component="img"
-                      className="offering-preview-image"
-                      src={image}
-                      alt=""
-                      loading="lazy"
-                      sx={{
-                        display: "block",
-                        width: "100%",
-                        height: { xs: 190, lg: index < 3 ? 145 : 170 },
-                        objectFit: "cover",
-                        objectPosition: "top center",
-                        transition: "transform 400ms cubic-bezier(.16,1,.3,1)",
-                        "@media (prefers-reduced-motion: reduce)": { transition: "none" },
-                      }}
-                    />
-                  </Box>
-                )}
               </Box>
             </Box>
           </Box>;
