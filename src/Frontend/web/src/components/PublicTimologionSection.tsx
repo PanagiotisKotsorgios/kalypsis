@@ -15,12 +15,14 @@ export function PublicTimologionSection() {
       <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3, md: 5 } }}>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "repeat(2, minmax(0, 1fr))" }, gap: 2.5 }}>
           {[
-            { name: "timologion", logo: "/images/partners/timologion-logo.png", href: "https://timologion.gr/", label: "timologion.gr", description: "Η πλατφόρμα ηλεκτρονικής τιμολόγησης για την έκδοση και οργάνωση παραστατικών." },
-            { name: "WRAPP Α.Ε.", logo: "/images/partners/wrapp-logo.png", href: "https://wrapp.ai/el", label: "Πιστοποιημένος πάροχος ηλεκτρονικής τιμολόγησης", description: "Η τεχνολογία παρόχου που υποστηρίζει την ηλεκτρονική τιμολόγηση και τη διαβίβαση στο myDATA." },
+            { name: "timologion", logo: "/images/partners/timologion-logo.png", href: "https://timologion.gr/", label: "timologion.gr", logoHeight: { xs: 120, md: 168 }, logoWidth: { xs: "96%", md: "94%" }, description: "Η πλατφόρμα ηλεκτρονικής τιμολόγησης για την έκδοση και οργάνωση παραστατικών." },
+            { name: "WRAPP Α.Ε.", logo: "/images/partners/wrapp-logo.png", href: "https://wrapp.ai/el", label: "Πιστοποιημένος πάροχος ηλεκτρονικής τιμολόγησης", logoHeight: { xs: 84, md: 110 }, logoWidth: { xs: "90%", md: "82%" }, description: "Η τεχνολογία παρόχου που υποστηρίζει την ηλεκτρονική τιμολόγηση και τη διαβίβαση στο myDATA." },
           ].map((partner) => (
             <Box component="article" key={partner.name} sx={{ minWidth: 0, overflow: "hidden", border: "1px solid rgba(118,169,224,.25)", borderRadius: 3, bgcolor: "#0B2545", boxShadow: "0 18px 48px rgba(0,0,0,.24)", transition: "transform .2s ease, border-color .2s ease", "&:hover": { transform: "translateY(-3px)", borderColor: "rgba(76,179,255,.7)" } }}>
-              <Box component="a" href={partner.href} target="_blank" rel="noopener noreferrer" aria-label={`${partner.label} — άνοιγμα επίσημου ιστότοπου`} sx={{ minHeight: { xs: 190, md: 230 }, p: { xs: 3, md: 4 }, display: "grid", placeItems: "center", textDecoration: "none", background: "radial-gradient(ellipse at center, rgba(34,114,190,.22), transparent 70%), linear-gradient(145deg,#102F55,#07172D)" }}>
-                <Box component="img" src={partner.logo} alt={partner.name} loading="lazy" sx={{ display: "block", maxWidth: { xs: "92%", md: "82%" }, width: "auto", height: { xs: 84, md: 112 }, objectFit: "contain", filter: "drop-shadow(0 8px 24px rgba(0,0,0,.22))" }} />
+              <Box component="a" href={partner.href} target="_blank" rel="noopener noreferrer" aria-label={`${partner.label} — άνοιγμα επίσημου ιστότοπου`} sx={{ minHeight: { xs: 190, md: 230 }, p: { xs: 2.5, md: 3 }, display: "grid", placeItems: "center", textDecoration: "none", background: "radial-gradient(ellipse at center, rgba(34,114,190,.22), transparent 70%), linear-gradient(145deg,#102F55,#07172D)" }}>
+                <Box sx={{ width: "100%", minHeight: { xs: 142, md: 184 }, display: "grid", placeItems: "center", px: { xs: 1.5, md: 2.5 }, bgcolor: "#fff", borderRadius: 2.5, boxShadow: "0 10px 30px rgba(0,0,0,.2)" }}>
+                  <Box component="img" src={partner.logo} alt={partner.name} loading="lazy" sx={{ display: "block", maxWidth: partner.logoWidth, width: "100%", height: partner.logoHeight, objectFit: "contain" }} />
+                </Box>
               </Box>
               <Box sx={{ p: { xs: 2.5, md: 3.5 }, borderTop: "1px solid rgba(118,169,224,.2)" }}>
                 <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1} sx={{ mb: 1 }}>
