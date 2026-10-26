@@ -65,6 +65,7 @@ const KIND_HELP: Record<ParameterKind, string> = {
 export function AgencyCompanyParametricsPage() {
   const qc = useQueryClient();
   const [err, setErr] = useState<string | null>(null);
+
   const [selectedCarrierId, setSelectedCarrierId] = useState<string>("");
   const [tab, setTab] = useState<ParameterKind>("Branch");
   const [editing, setEditing] = useState<ParameterDto | null>(null);
@@ -365,6 +366,19 @@ function EditDialog({ open, item, carrierId, carrierName, kind, onClose, onSaved
   });
   const [err, setErr] = useState<string | null>(null);
 
+  const parentParametersQ = useQuery({
+    enabled: open && !!carrierId && (kind === "Coverage" || kind === "Package"),
+    queryKey: ["company-parameters", "parent-options", carrierId],
+    queryFn: async () => (await api.get<ParameterDto[]>("/company-parameters", {
+      params: { insuranceCompanyId: carrierId }
+    })).data,
+  });
+  const parentOptions = (parentParametersQ.data ?? []).filter(parameter =>
+    parameter.id !== item?.id
+    && (kind === "Package" ? parameter.kind === "Branch" : parameter.kind === "Branch" || parameter.kind === "Package")
+    && (parameter.isActive || parameter.code === form.parentCode)
+  );
+
   const save = useMutation({
     mutationFn: async () => {
       const body = {
@@ -428,12 +442,19 @@ function EditDialog({ open, item, carrierId, carrierName, kind, onClose, onSaved
             </TextField>
           )}
           {(kind === "Coverage" || kind === "Package") && (
-            <TextField label="Κωδικός γονέα (κλάδος/πακέτο)" required
+            <SearchableTextField label="Κλάδος / πακέτο γονέα" required
               value={form.parentCode}
-              onChange={e => setForm({ ...form, parentCode: e.target.value.toUpperCase() })}
+              onChange={e => setForm({ ...form, parentCode: e.target.value })}
               fullWidth
-              helperText="π.χ. AUTO για κλάδο αυτοκινήτου. Το raw ID είναι ο δικός σας κωδικός."
-            />
+              placeholder="Αναζήτηση με κωδικό ή όνομα"
+              textFieldProps={{ size: "small" }}
+            >
+              {parentOptions.map(parameter => <MenuItem key={parameter.id} value={parameter.code}>
+                {parameter.code} · {parameter.name} ({KIND_LABEL[parameter.kind]})
+              </MenuItem>)}
+              {form.parentCode && !parentOptions.some(parameter => parameter.code === form.parentCode) &&
+                <MenuItem value={form.parentCode}>{form.parentCode} · υπάρχουσα τιμή</MenuItem>}
+            </SearchableTextField>
           )}
           <Stack direction="row" spacing={2}>
             <TextField label="Σειρά εμφάνισης" type="number" value={form.displayOrder}

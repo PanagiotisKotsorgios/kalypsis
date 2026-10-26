@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { FilterHelp } from "./FilterHelp";
+import { SearchableTextField } from "./SearchableTextField";
 import {
   Alert,
   Box,
@@ -347,6 +348,7 @@ export function CompanyCatalogueDialog({
         insuranceCompanyId={insuranceCompanyId}
         defaultKind={tab}
         editing={editing}
+        parentItems={q.data ?? []}
         onSaved={() => qc.invalidateQueries({ queryKey: ["company-parameters", insuranceCompanyId] })}
       />
       <BulkImportDialog
@@ -375,13 +377,14 @@ function DeleteButton({ id, onDeleted }: { id: string; onDeleted: () => void }) 
 }
 
 export function CatalogueItemDialog({
-  open, onClose, insuranceCompanyId, defaultKind, editing, onSaved, onCreated, lockKind = false, simpleCoverage = false
+  open, onClose, insuranceCompanyId, defaultKind, editing, parentItems = [], onSaved, onCreated, lockKind = false, simpleCoverage = false
 }: {
   open: boolean;
   onClose: () => void;
   insuranceCompanyId: string | null;
   defaultKind: Kind;
   editing: Item | null;
+  parentItems?: Item[];
   onSaved: () => void;
   onCreated?: (item: { id: string; code: string; name: string }) => void;
   lockKind?: boolean;
@@ -405,6 +408,11 @@ export function CatalogueItemDialog({
 
   const [form, setForm] = useState(initial);
   const [error, setError] = useState<string | null>(null);
+  const parentOptions = parentItems.filter(item =>
+    item.id !== editing?.id
+    && (form.kind === "Package" ? item.kind === "Branch" : item.kind === "Branch" || item.kind === "Package")
+    && (item.isActive || item.code === form.parentCode)
+  );
   // Reset whenever the dialog opens with a different item.
   useMemo(() => { setForm(initial); setError(null); }, [initial]);
 
@@ -472,8 +480,15 @@ export function CatalogueItemDialog({
               onChange={(e) => setForm({ ...form, vehicleUseCategory: e.target.value })} />
           )}
           {!compactCoverage && (form.kind === "Coverage" || form.kind === "Package") ? (
-            <TextField size="small" label="Parent code (π.χ. branch / package)" value={form.parentCode}
-              onChange={(e) => setForm({ ...form, parentCode: e.target.value.toUpperCase() })} />
+            <SearchableTextField size="small" label="Κλάδος / πακέτο γονέα" value={form.parentCode}
+              placeholder="Αναζήτηση με κωδικό ή όνομα"
+              onChange={(e) => setForm({ ...form, parentCode: e.target.value })}>
+              {parentOptions.map(parent => <MenuItem key={parent.id} value={parent.code}>
+                {parent.code} · {parent.name} ({KIND_LABEL[parent.kind]})
+              </MenuItem>)}
+              {form.parentCode && !parentOptions.some(parent => parent.code === form.parentCode) &&
+                <MenuItem value={form.parentCode}>{form.parentCode} · υπάρχουσα τιμή</MenuItem>}
+            </SearchableTextField>
           ) : null}
           {!compactCoverage && <Stack direction="row" spacing={1.5}>
             <TextField size="small" label="Bridge system" fullWidth value={form.bridgeSystem}
