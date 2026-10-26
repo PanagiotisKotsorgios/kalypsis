@@ -88,6 +88,11 @@ public sealed class DesktopSyncController : ControllerBase
 
         pushed["policies"] = await UpsertAsync<Policy>(syncData, "policies", tenantId, conflict, warnings, ct);
         await FlushSyncPhaseAsync("συμβόλαια", warnings, ct);
+        pushed["policyObjects"] = await UpsertAsync<PolicyObject>(syncData, "policyObjects", tenantId, conflict, warnings, ct);
+        await FlushSyncPhaseAsync("αντικείμενα συμβολαίων", warnings, ct);
+        pushed["policyCovers"] = await UpsertAsync<PolicyCover>(syncData, "policyCovers", tenantId, conflict, warnings, ct);
+        pushed["policyInstallments"] = await UpsertAsync<PolicyInstallment>(syncData, "policyInstallments", tenantId, conflict, warnings, ct);
+        await FlushSyncPhaseAsync("καλύψεις και δόσεις", warnings, ct);
         pushed["claims"] = await UpsertAsync<Claim>(syncData, "claims", tenantId, conflict, warnings, ct);
         pushed["receipts"] = await UpsertAsync<Receipt>(syncData, "receipts", tenantId, conflict, warnings, ct);
         pushed["payments"] = await UpsertAsync<Payment>(syncData, "payments", tenantId, conflict, warnings, ct);
@@ -104,7 +109,7 @@ public sealed class DesktopSyncController : ControllerBase
         return Ok(new
         {
             protocol = "kalypsis-desktop-sync",
-            version = 1,
+            version = 2,
             serverTimeUtc = DateTime.UtcNow,
             lastSyncUtc = DateTime.UtcNow,
             conflictPolicy = conflict,
@@ -213,6 +218,15 @@ public sealed class DesktopSyncController : ControllerBase
                 var localUpdated = existing.UpdatedAt ?? existing.CreatedAt;
                 var incomingUpdated = item.UpdatedAt ?? item.CreatedAt;
                 if (incomingUpdated <= localUpdated) continue;
+            }
+            else if (conflict == "last_write_wins")
+            {
+                var cloudUpdated = existing.UpdatedAt ?? existing.CreatedAt;
+                var desktopUpdated = item.UpdatedAt ?? item.CreatedAt;
+                // A sync must not blindly replace newer Cloud rows with the
+                // same older desktop snapshot. Use the row timestamps for the
+                // advertised Last Write Wins policy.
+                if (desktopUpdated <= cloudUpdated) continue;
             }
 
             if(existing is Customer&&customerFields.TryGetValue(item.Id,out var fields))
@@ -521,6 +535,20 @@ public sealed class DesktopSyncController : ControllerBase
                 DateOnlyAlias("PaymentPromisedOn", "PaymentPromisedOn");
                 NormalizeCurrency(node);
                 break;
+            case nameof(PolicyObject):
+                Alias("Identifier", "Reference");
+                break;
+            case nameof(PolicyCover):
+                Alias("GrossPremium", "Premium");
+                Alias("CoverageAmount", "SumInsured");
+                break;
+            case nameof(PolicyInstallment):
+                Alias("Ordinal", "InstallmentNumber");
+                Alias("PaidAt", "PaidOn");
+                Alias("ReceiptReference", "Reference");
+                DateOnlyAlias("DueDate", "DueDate");
+                DateOnlyAlias("PaidAt", "PaidOn");
+                break;
             case nameof(Receipt):
                 Alias("Number", "ReceiptNumber");
                 Alias("ReceivedOn", "ReceiptDate");
@@ -691,6 +719,12 @@ public sealed class DesktopSyncController : ControllerBase
             .Where(x => x.TenantId == null || x.TenantId == tenantId).ToListAsync(ct);
         var policies = await _db.Policies.IgnoreQueryFilters().AsNoTracking()
             .Where(x => x.TenantId == tenantId && (sinceUtc == null || x.UpdatedAt >= sinceUtc || x.CreatedAt >= sinceUtc || x.DeletedAt >= sinceUtc)).ToListAsync(ct);
+        var policyObjects = await _db.PolicyObjects.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.TenantId == tenantId && (sinceUtc == null || x.UpdatedAt >= sinceUtc || x.CreatedAt >= sinceUtc || x.DeletedAt >= sinceUtc)).ToListAsync(ct);
+        var policyCovers = await _db.PolicyCovers.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.TenantId == tenantId && (sinceUtc == null || x.UpdatedAt >= sinceUtc || x.CreatedAt >= sinceUtc || x.DeletedAt >= sinceUtc)).ToListAsync(ct);
+        var policyInstallments = await _db.PolicyInstallments.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.TenantId == tenantId && (sinceUtc == null || x.UpdatedAt >= sinceUtc || x.CreatedAt >= sinceUtc || x.DeletedAt >= sinceUtc)).ToListAsync(ct);
         var claims = await _db.Claims.IgnoreQueryFilters().AsNoTracking()
             .Where(x => x.TenantId == tenantId && (sinceUtc == null || x.UpdatedAt >= sinceUtc || x.CreatedAt >= sinceUtc || x.DeletedAt >= sinceUtc)).ToListAsync(ct);
         var receipts = await _db.Receipts.IgnoreQueryFilters().AsNoTracking()
@@ -710,6 +744,9 @@ public sealed class DesktopSyncController : ControllerBase
             ["producers"] = JsonSerializer.SerializeToElement(producers, SyncJson),
             ["carriers"] = JsonSerializer.SerializeToElement(carriers, SyncJson),
             ["policies"] = JsonSerializer.SerializeToElement(policies, SyncJson),
+            ["policyObjects"] = JsonSerializer.SerializeToElement(policyObjects, SyncJson),
+            ["policyCovers"] = JsonSerializer.SerializeToElement(policyCovers, SyncJson),
+            ["policyInstallments"] = JsonSerializer.SerializeToElement(policyInstallments, SyncJson),
             ["claims"] = JsonSerializer.SerializeToElement(claims, SyncJson),
             ["receipts"] = JsonSerializer.SerializeToElement(receipts, SyncJson),
             ["payments"] = JsonSerializer.SerializeToElement(payments, SyncJson),
