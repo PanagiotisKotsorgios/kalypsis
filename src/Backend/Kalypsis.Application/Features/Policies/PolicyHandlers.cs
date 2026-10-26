@@ -727,7 +727,7 @@ public class RenewPolicyCommandHandler : IRequestHandler<RenewPolicyCommand, Pol
         if (renewalProducerId.HasValue)
             await TenantFkGuard.RequireTenantOwnedAsync(_db.Producers, renewalProducerId, tenantId, "Συνεργάτης ανανέωσης", ct);
         await TenantFkGuard.RequireCarrierAsync(_db.InsuranceCompanies, renewalCarrierId, tenantId, ct);
-        if (!src.PaidDirectlyToCarrier && b.Premium > 0m)
+        if (src.Status != PolicyStatus.Prospect && !src.PaidDirectlyToCarrier && b.Premium > 0m)
             await CreditControlGuard.EnsureExposureAllowedAsync(_db, tenantId, src.CustomerId, renewalCarrierId,
                 src.PolicyType, src.Currency, b.Premium, null, b.StartDate, ct);
         // Body overrides win over the source policy's values so operators
@@ -742,7 +742,9 @@ public class RenewPolicyCommandHandler : IRequestHandler<RenewPolicyCommand, Pol
             InsuranceCompanyId = renewalCarrierId,
             ProducerId = renewalProducerId,
             PolicyType = src.PolicyType,
-            Status = PolicyStatus.Active,
+            // Renewing a potential contract extends the prospect period; it
+            // must not silently become an issued/active policy or enter finance.
+            Status = src.Status == PolicyStatus.Prospect ? PolicyStatus.Prospect : PolicyStatus.Active,
             StartDate = b.StartDate,
             EndDate = b.EndDate,
             NextRenewalDate = b.EndDate,
@@ -771,9 +773,9 @@ public class RenewPolicyCommandHandler : IRequestHandler<RenewPolicyCommand, Pol
             Notes = src.Notes,
             CreatedByUserId = _current.UserId,
             RenewedFromPolicyId = src.Id,
-            DeliveredAt = DateOnly.FromDateTime(DateTime.UtcNow),
-            DeliveredTo = src.Customer?.CompanyName ?? null,
-            DeliveryMethod = "Email",
+            DeliveredAt = src.Status == PolicyStatus.Prospect ? null : DateOnly.FromDateTime(DateTime.UtcNow),
+            DeliveredTo = src.Status == PolicyStatus.Prospect ? null : src.Customer?.CompanyName,
+            DeliveryMethod = src.Status == PolicyStatus.Prospect ? null : "Email",
             VehicleUseCategory = VehicleUseCategorySplit.Parse(b.VehicleUseCategory).Enum ?? src.VehicleUseCategory,
             CarrierUseCode = VehicleUseCategorySplit.Parse(b.VehicleUseCategory).Raw ?? src.CarrierUseCode,
             ApplicationNumber = b.ApplicationNumber ?? src.ApplicationNumber,
@@ -900,7 +902,7 @@ public class RenewPolicyCommandHandler : IRequestHandler<RenewPolicyCommand, Pol
         {
             PaymentFrequency.Semiannual => 2, PaymentFrequency.Quarterly => 4, PaymentFrequency.Monthly => 12, _ => 0
         };
-        if (installmentCount > 0 && newPolicy.Premium > 0m)
+        if (newPolicy.Status != PolicyStatus.Prospect && installmentCount > 0 && newPolicy.Premium > 0m)
         {
             var per = Math.Round(newPolicy.Premium / installmentCount, 2);
             for (var n = 1; n <= installmentCount; n++)
@@ -913,13 +915,17 @@ public class RenewPolicyCommandHandler : IRequestHandler<RenewPolicyCommand, Pol
             }
         }
 
-        src.Status = PolicyStatus.Renewed;
+        if (src.Status != PolicyStatus.Prospect)
+            src.Status = PolicyStatus.Renewed;
         await _db.SaveChangesAsync(ct);
 
         try
         {
-            await _commissionCalc.RecomputeAsync(newPolicy, ct);
-            await _db.SaveChangesAsync(ct);
+            if (newPolicy.Status != PolicyStatus.Prospect)
+            {
+                await _commissionCalc.RecomputeAsync(newPolicy, ct);
+                await _db.SaveChangesAsync(ct);
+            }
         }
         catch { /* commission splits are a derived view and must not undo a saved renewal */ }
 

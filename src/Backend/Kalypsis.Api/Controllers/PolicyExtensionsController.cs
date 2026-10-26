@@ -469,8 +469,8 @@ public class RenewalsController : ControllerBase
     { _db = db; _current = current; _mediator = mediator; }
 
     public record UpcomingDto(Guid PolicyId, string PolicyNumber, string CustomerDisplay,
-        string InsuranceCompanyName, string PolicyType, DateOnly EndDate, decimal Premium, string Currency,
-        int DaysToRenewal);
+        string InsuranceCompanyName, string PolicyType, PolicyStatus Status, DateOnly EndDate,
+        decimal Premium, string Currency, int DaysToRenewal);
 
     [HttpGet("upcoming")]
     public async Task<ActionResult<IReadOnlyList<UpcomingDto>>> Upcoming(
@@ -481,6 +481,11 @@ public class RenewalsController : ControllerBase
         var cutoff = today.AddDays(Math.Clamp(days, 1, 365));
         IQueryable<Policy> q = _db.Policies
             .Where(p => p.TenantId == tenantId && p.DeletedAt == null
+                && (p.Status == PolicyStatus.Active || p.Status == PolicyStatus.PendingRenewal || p.Status == PolicyStatus.Prospect)
+                // A prospect renewal creates another Prospect in the same lineage;
+                // only the latest term should appear in the upcoming list.
+                && !_db.Policies.Any(next => next.TenantId == tenantId && next.DeletedAt == null
+                    && next.RenewedFromPolicyId == p.Id)
                 && p.EndDate >= today && p.EndDate <= cutoff)
             .Include(p => p.Customer)
             .Include(p => p.InsuranceCompany);
@@ -498,7 +503,7 @@ public class RenewalsController : ControllerBase
                 ? string.Empty
                 : (p.Customer.CompanyName ?? $"{p.Customer.FirstName} {p.Customer.LastName}".Trim());
             return new UpcomingDto(p.Id, p.PolicyNumber, name,
-                p.InsuranceCompany?.Name ?? string.Empty, p.PolicyType.ToString(),
+                p.InsuranceCompany?.Name ?? string.Empty, p.PolicyType.ToString(), p.Status,
                 p.EndDate, p.Premium, p.Currency, p.EndDate.DayNumber - today.DayNumber);
         }).ToList());
     }

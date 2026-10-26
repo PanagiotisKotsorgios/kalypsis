@@ -22,6 +22,7 @@ interface UpcomingRow {
   customerDisplay: string;
   insuranceCompanyName: string;
   policyType: string;
+  status: string;
   endDate: string;
   premium: number;
   currency: string;
@@ -44,6 +45,7 @@ const WEEKDAYS = ["Δε", "Τρ", "Τε", "Πε", "Πα", "Σα", "Κυ"];
 export function RenewalsPage() {
   const qc = useQueryClient();
   const [windowDays, setWindowDays] = useState(90);
+  const [policyFilter, setPolicyFilter] = useState<"all" | "issued" | "prospect">("all");
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"list" | "calendar">("list");
   const [cursor, setCursor] = useState(() => {
@@ -71,7 +73,7 @@ export function RenewalsPage() {
       policyIds: Array.from(selected), renewalTermDays: 365
     })).data,
     onSuccess: (n) => {
-      setSuccess(`Ανανεώθηκαν ${n} συμβόλαια.`);
+      setSuccess(`Ανανεώθηκαν ${n} εγγραφές. Τα πιθανά συμβόλαια διατηρούνται ως πιθανά και δεν δημιουργούν οικονομικές κινήσεις.`);
       setSelected(new Set());
       void qc.invalidateQueries({ queryKey: ["renewals-upcoming"] });
       void qc.invalidateQueries({ queryKey: ["policies"] });
@@ -82,10 +84,14 @@ export function RenewalsPage() {
   const allRows = q.data ?? [];
   const rows = useMemo(() => {
     const term = search.trim().toLocaleLowerCase("el-GR");
-    if (!term) return allRows;
-    return allRows.filter(r => [r.policyNumber, r.customerDisplay, r.insuranceCompanyName, r.policyType]
-      .some(value => value.toLocaleLowerCase("el-GR").includes(term)));
-  }, [allRows, search]);
+    return allRows.filter(r => {
+      if (policyFilter === "prospect" && r.status !== "Prospect") return false;
+      if (policyFilter === "issued" && r.status === "Prospect") return false;
+      if (!term) return true;
+      return [r.policyNumber, r.customerDisplay, r.insuranceCompanyName, r.policyType]
+        .some(value => value.toLocaleLowerCase("el-GR").includes(term));
+    });
+  }, [allRows, policyFilter, search]);
 
   // Sort by end date so pagination cuts cleanly along the timeline instead
   // of shuffling months around.
@@ -178,9 +184,17 @@ export function RenewalsPage() {
             <ToggleButton value="calendar"><CalendarViewMonthIcon fontSize="small" sx={{ mr: 0.5 }} />Ημερολόγιο</ToggleButton>
           </ToggleButtonGroup>
           <FilterFieldWrap tip="Χρονικό παράθυρο εμφάνισης — δείχνει τα συμβόλαια που λήγουν εντός τόσων ημερών.">
-            <SearchableTextField size="small" label="Παράθυρο" value={windowDays}
+            <SearchableTextField size="small" label="Παράθυρο λήξης" value={windowDays}
               onChange={(e) => setWindowDays(Number(e.target.value))} sx={{ minWidth: 150, width: "100%" }}>
               {WINDOWS.map(w => <MenuItem key={w.value} value={w.value}>{w.label}</MenuItem>)}
+            </SearchableTextField>
+          </FilterFieldWrap>
+          <FilterFieldWrap tip="Επιλέξτε αν θα εμφανίζονται όλα τα ασφαλιστήρια ή μόνο τα πιθανά συμβόλαια.">
+            <SearchableTextField size="small" label="Είδος συμβολαίου" value={policyFilter}
+              onChange={e => setPolicyFilter(e.target.value as "all" | "issued" | "prospect")} sx={{ minWidth: 180, width: "100%" }}>
+              <MenuItem value="all">Όλα τα συμβόλαια</MenuItem>
+              <MenuItem value="issued">Κανονικά συμβόλαια</MenuItem>
+              <MenuItem value="prospect">Πιθανά συμβόλαια</MenuItem>
             </SearchableTextField>
           </FilterFieldWrap>
           <TextField size="small" label="Αναζήτηση" placeholder="Συμβόλαιο, πελάτης, ασφαλιστική..."
@@ -256,11 +270,16 @@ export function RenewalsPage() {
                   </TableHead>
                   <TableBody>
                     {monthRows.map(r => (
-                      <TableRow key={r.policyId} hover>
+                      <TableRow key={r.policyId} hover sx={r.status === "Prospect" ? { bgcolor: "#FFF1D6", "&:hover": { bgcolor: "#FFE3AD" } } : undefined}>
                         <TableCell>
                           <Checkbox checked={selected.has(r.policyId)} onChange={() => toggle(r.policyId)} />
                         </TableCell>
-                        <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{r.policyNumber}</TableCell>
+                        <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>
+                          <Stack direction="row" alignItems="center" gap={1}>
+                            <span>{r.policyNumber}</span>
+                            {r.status === "Prospect" && <Chip size="small" label="Πιθανό" sx={{ bgcolor: "#F2A900", color: "#2C2100", fontWeight: 800 }} />}
+                          </Stack>
+                        </TableCell>
                         <TableCell>{r.customerDisplay}</TableCell>
                         <TableCell>{r.insuranceCompanyName}</TableCell>
                         <TableCell>{r.policyType}</TableCell>
