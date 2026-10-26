@@ -707,7 +707,7 @@ export function ProductionListsPage() {
             values={f.insuranceCompanyIds} onChange={values => setF({ ...f, insuranceCompanyIds: productionCarrierSelection(f.insuranceCompanyIds, values, carriers.data ?? []) })}
             options={(carriers.data ?? []).map(carrier => ({
               value: carrier.id, label: carrier.name,
-              hint: carrier.parentCompanyId ? "Υποασφαλιστική" : carrier.isBroker ? "Πρακτορείο · περιλαμβάνει τις υποασφαλιστικές του" : undefined,
+              hint: carrier.parentCompanyId ? "Υποασφαλιστική" : carrier.isBroker ? "Πρακτορείο" : undefined,
             }))} />}
           {(() => {
             const carrierData = carriers.data ?? [];
@@ -718,7 +718,6 @@ export function ProductionListsPage() {
               showSelectAll
               values={f.insuranceCompanyIds.filter(id => subs.some(carrier => carrier.id === id))}
               onChange={values => setF({ ...f, insuranceCompanyIds: replaceProductionSubcarriers(f.insuranceCompanyIds, values, carrierData) })}
-              helperText="Κενή επιλογή: όλες οι υποασφαλιστικές του αντίστοιχου πρακτορείου."
               options={subs.map(carrier => ({ value: carrier.id, label: carrier.name, hint: carrierData.find(parent => parent.id === carrier.parentCompanyId)?.name }))} />;
           })()}
           {filterVisibility.visible("producer") && <SearchableMultiSelect label={t("productionList.producer")}
