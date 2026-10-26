@@ -39,6 +39,8 @@ import {
   TableHead,
   TableRow,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography,
   useMediaQuery,
@@ -89,7 +91,7 @@ import ClearAllOutlinedIcon from "@mui/icons-material/ClearAllOutlined";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { KalypsisLogo } from "../components/KalypsisLogo";
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
+import { Brush, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 
 type ViewKey = "dashboard" | "quotes" | "contracts" | "customers" | "reports" | "forms" | "print-pay" | "pay-print" | "requests" | QuotingViewKey;
 type QuotingViewKey = "quoting-vehicles" | "quoting-vehicle-compare" | "quoting-property" | "quoting-health" | "quoting-marine" | "quoting-requests" | "quoting-roadside" | "quoting-green-card" | "quoting-bicycles" | "quoting-accident" | "quoting-legal" | "quoting-professional-liability" | "quoting-life";
@@ -559,7 +561,7 @@ function DashboardWidget({
     onRefresh();
     window.setTimeout(() => setRefreshing(false), 550);
   };
-  const headerHeight = prominentHeader ? 74 : 38;
+  const headerHeight = prominentHeader ? 64 : 38;
   return <Box
     id={`insureone-widget-${id}`}
     onDragEnter={event => { event.preventDefault(); setDragOver(true); }}
@@ -584,9 +586,9 @@ function DashboardWidget({
       <Box
         draggable
         onDragStart={onDragStart}
-        sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: prominentHeader ? { xs: 1.5, md: 2.5 } : 1.25, py: prominentHeader ? 1.25 : .5, minHeight: headerHeight, bgcolor: prominentHeader ? "#edf6ff" : "rgba(18,58,100,.025)", borderBottom: "1px solid #dce9f4", cursor: "grab", userSelect: "none" }}
+        sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: prominentHeader ? { xs: 1.5, md: 2.25 } : 1.25, py: prominentHeader ? 1 : .5, minHeight: headerHeight, bgcolor: prominentHeader ? "#edf6ff" : "rgba(18,58,100,.025)", borderBottom: "1px solid #dce9f4", cursor: "grab", userSelect: "none" }}
       >
-        <Stack direction="row" spacing={prominentHeader ? 1.5 : .5} alignItems="center" minWidth={0}>{prominentHeader ? <GridViewOutlinedIcon sx={{ color: "#28548a", fontSize: 28 }} /> : <DragIndicatorRoundedIcon sx={{ color: "#7990a4", fontSize: 18 }} />}<Typography fontWeight={prominentHeader ? 900 : 850} noWrap sx={{ color: prominentHeader ? "#28548a" : "#515960", fontSize: prominentHeader ? { xs: 20, sm: 24, md: 28 } : 13 }}>{title}</Typography></Stack>
+        <Stack direction="row" spacing={prominentHeader ? 1.25 : .5} alignItems="center" minWidth={0}>{prominentHeader ? <GridViewOutlinedIcon sx={{ color: "#28548a", fontSize: 25 }} /> : <DragIndicatorRoundedIcon sx={{ color: "#7990a4", fontSize: 18 }} />}<Typography fontWeight={prominentHeader ? 900 : 850} noWrap sx={{ color: prominentHeader ? "#28548a" : "#515960", fontSize: prominentHeader ? { xs: 19, sm: 22, md: 25 } : 13 }}>{title}</Typography></Stack>
         <Stack direction="row" spacing={0} alignItems="center" flexShrink={0}>
           <Tooltip title="Ανανέωση"><IconButton size="small" aria-label={`Ανανέωση ${title}`} onMouseDown={event => event.stopPropagation()} onClick={refresh} sx={{ color: "#52728e" }}><RefreshRoundedIcon fontSize="small" sx={{ animation: refreshing ? "insureone-spin .55s linear" : "none", "@keyframes insureone-spin": { from: { transform: "rotate(0deg)" }, to: { transform: "rotate(360deg)" } } }} /></IconButton></Tooltip>
           <Tooltip title={minimized ? "Επαναφορά" : "Ελαχιστοποίηση"}><IconButton size="small" aria-label={minimized ? `Επαναφορά ${title}` : `Ελαχιστοποίηση ${title}`} onMouseDown={event => event.stopPropagation()} onClick={onMinimize} sx={{ color: "#52728e" }}><RemoveRoundedIcon fontSize="small" /></IconButton></Tooltip>
@@ -647,7 +649,7 @@ function PricingCategoryCard({ card, selected, onSelect }: { card: PricingCardCo
     fullWidth
     sx={{
       p: 0,
-      minHeight: { xs: 160, sm: 190, md: 220 },
+      minHeight: { xs: 132, sm: 158, md: 178 },
       height: "100%",
       display: "flex",
       flexDirection: "column",
@@ -672,17 +674,17 @@ function PricingCategoryCard({ card, selected, onSelect }: { card: PricingCardCo
     }}
   >
     <Box aria-hidden sx={{ position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none", backgroundImage: `${card.photoOverlay ?? photo.overlay}, url("${card.backgroundImage ?? photo.image}")`, backgroundSize: "cover", backgroundPosition: card.backgroundPosition ?? photo.position, backgroundRepeat: "no-repeat", opacity: { xs: .9, sm: .94, md: .97 }, filter: "saturate(.92) contrast(1.02)" }} />
-    <Box sx={{ p: { xs: 1.5, sm: 2, md: 2.25 }, display: "flex", alignItems: "center", gap: { xs: 1.25, sm: 1.75, md: 2.25 }, position: "relative", zIndex: 1, minWidth: 0 }}>
-      <Box sx={{ width: { xs: 58, sm: 78, md: 94 }, height: { xs: 58, sm: 78, md: 94 }, flexShrink: 0, borderRadius: "50%", display: "grid", placeItems: "center", bgcolor: "rgba(255,255,255,.18)", border: "2px solid rgba(255,255,255,.35)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.22), 0 0 0 3px rgba(255,255,255,.08)", "& svg": { fontSize: { xs: 32, sm: 45, md: 58 } } }}>{card.icon}</Box>
+    <Box sx={{ p: { xs: 1.25, sm: 1.6, md: 1.8 }, display: "flex", alignItems: "center", gap: { xs: 1.1, sm: 1.5, md: 1.75 }, position: "relative", zIndex: 1, minWidth: 0 }}>
+      <Box sx={{ width: { xs: 50, sm: 66, md: 76 }, height: { xs: 50, sm: 66, md: 76 }, flexShrink: 0, borderRadius: "50%", display: "grid", placeItems: "center", bgcolor: "rgba(255,255,255,.18)", border: "2px solid rgba(255,255,255,.35)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.22), 0 0 0 3px rgba(255,255,255,.08)", "& svg": { fontSize: { xs: 28, sm: 37, md: 44 } } }}>{card.icon}</Box>
       <Box sx={{ minWidth: 0, color: card.contentColour }}>
-        <Typography fontWeight={900} sx={{ fontSize: { xs: 16, sm: 21, md: 29 }, lineHeight: 1.12, whiteSpace: "normal" }}>{card.title}</Typography>
-        <Typography sx={{ mt: { xs: .65, md: .95 }, fontSize: { xs: 12, sm: 14, md: 18 }, color: card.contentColour === "#fff" ? "rgba(255,255,255,.94)" : "rgba(16,47,77,.92)", lineHeight: 1.25 }}>{card.count}</Typography>
+        <Typography fontWeight={900} sx={{ fontSize: { xs: 15, sm: 18, md: 23 }, lineHeight: 1.12, whiteSpace: "normal" }}>{card.title}</Typography>
+        <Typography sx={{ mt: { xs: .5, md: .7 }, fontSize: { xs: 11.5, sm: 13, md: 15 }, color: card.contentColour === "#fff" ? "rgba(255,255,255,.94)" : "rgba(16,47,77,.92)", lineHeight: 1.25 }}>{card.count}</Typography>
       </Box>
     </Box>
     <Box sx={{ display: "none" }}><PricingIllustration kind={card.illustration} /></Box>
-    <Box className="pricing-card-cta" sx={{ mx: { xs: 1, sm: 1.25 }, mb: { xs: 1, sm: 1.25 }, px: { xs: 1.25, md: 1.5 }, py: { xs: .8, sm: 1.05 }, borderRadius: 1.5, bgcolor: `${card.darkColour}e6`, border: "1px solid rgba(255,255,255,.35)", fontSize: { xs: 14, sm: 17, md: 21 }, lineHeight: 1, fontWeight: 900, letterSpacing: ".01em", display: "flex", justifyContent: "space-between", alignItems: "center", position: "relative", zIndex: 1, color: "#fff" }}>
+    <Box className="pricing-card-cta" sx={{ mx: { xs: .8, sm: 1 }, mb: { xs: .8, sm: 1 }, px: { xs: 1, md: 1.25 }, py: { xs: .65, sm: .8 }, borderRadius: 1.5, bgcolor: `${card.darkColour}e6`, border: "1px solid rgba(255,255,255,.35)", fontSize: { xs: 12.5, sm: 14, md: 16 }, lineHeight: 1, fontWeight: 900, letterSpacing: ".01em", display: "flex", justifyContent: "space-between", alignItems: "center", position: "relative", zIndex: 1, color: "#fff" }}>
       <span>Τιμολογήστε τώρα</span>
-      <Box component="span" className="pricing-card-arrow" sx={{ fontSize: { xs: 21, sm: 25, md: 30 }, lineHeight: 1, ml: 1, transition: "transform .18s ease" }}>→</Box>
+      <Box component="span" className="pricing-card-arrow" sx={{ fontSize: { xs: 18, sm: 21, md: 23 }, lineHeight: 1, ml: 1, transition: "transform .18s ease" }}>→</Box>
     </Box>
   </Button>;
 }
@@ -690,7 +692,7 @@ function PricingCategoryCard({ card, selected, onSelect }: { card: PricingCardCo
 function StandaloneHomeSections({ branch, onSelectPricing }: { branch: BranchKey; onSelectPricing: (label: string) => void }) {
   const pricingMobile = useMediaQuery("(max-width:599px)");
   const pricingTablet = useMediaQuery("(min-width:600px) and (max-width:899px)");
-  const pricingHeight = pricingMobile ? 1520 : pricingTablet ? 980 : 870;
+  const pricingHeight = pricingMobile ? 1220 : pricingTablet ? 790 : 700;
   const pricingCards: PricingCardConfig[] = [
     { key: branchLabels[0], title: "Οχημάτων", count: "19 ασφαλιστικά προγράμματα", icon: <DirectionsCarFilledOutlinedIcon />, colour: "#2fb8ad", darkColour: "#0873a6", gradient: "linear-gradient(135deg, #20b9ee 0%, #168ddd 60%, #41c4f2 100%)", contentColour: "#fff", visualColour: "rgba(10,77,145,.28)", illustration: "vehicle" },
     { key: branchLabels[0], title: "Σύγκριση Οχημάτων", count: "19 ασφαλιστικά προγράμματα", icon: <Box sx={{ display: "flex", alignItems: "center", "& svg": { fontSize: { xs: 22, sm: 32, md: 39 } }, "& svg + svg": { ml: -1.1, transform: "translateY(5px)" } }}><DirectionsCarFilledOutlinedIcon /><DirectionsCarFilledOutlinedIcon /></Box>, colour: "#398fc7", darkColour: "#173daf", gradient: "linear-gradient(135deg, #4765f1 0%, #2d4fd7 60%, #6178ff 100%)", contentColour: "#fff", visualColour: "rgba(14,45,138,.32)", illustration: "vehicle-compare" },
@@ -701,13 +703,13 @@ function StandaloneHomeSections({ branch, onSelectPricing }: { branch: BranchKey
     { key: branchLabels[4], title: "Επαγγελματικής Ευθύνης", count: "9 ασφαλιστικά προγράμματα", icon: <BusinessCenterOutlinedIcon />, colour: "#7865be", darkColour: "#3d1ca5", gradient: "linear-gradient(135deg, #9373f4 0%, #6843d3 60%, #a78bf8 100%)", contentColour: "#fff", visualColour: "rgba(47,20,133,.3)", illustration: "liability" },
     { key: branchLabels[3], title: "Ζωής", count: "8 ασφαλιστικά προγράμματα", icon: <FavoriteBorderRoundedIcon />, colour: "#e5a14b", darkColour: "#e54805", gradient: "linear-gradient(135deg, #ffb36f 0%, #ff8a38 60%, #ffd078 100%)", contentColour: "#17365a", visualColour: "rgba(217,79,16,.25)", illustration: "life" },
   ];
-  const announcements = [
-    ["202/2024 · Ενημέρωση ασφαλιστικής αγοράς", "18/04/2024 · Εγκύκλιος"],
-    ["96/2024 · Αλλαγή διαδικασίας υποβολής", "26/01/2024 · Εγκύκλιος"],
-    ["14/2024 · Τεχνική ενημέρωση ηλεκτρονικού ταχυδρομείου", "09/11/2023 · Εγκύκλιος"],
-    ["206/2023 · Επικαιροποίηση διαδικασίας", "09/11/2023 · Εγκύκλιος"],
-  ];
   const production = [
+    { month: "Νοε", contracts: 14, premium: 1850 },
+    { month: "Δεκ", contracts: 18, premium: 2160 },
+    { month: "Ιαν", contracts: 19, premium: 2400 },
+    { month: "Φεβ", contracts: 21, premium: 2730 },
+    { month: "Μαρ", contracts: 24, premium: 2980 },
+    { month: "Απρ", contracts: 20, premium: 2610 },
     { month: "Μάι", contracts: 22, premium: 2840 },
     { month: "Ιούν", contracts: 27, premium: 3520 },
     { month: "Ιούλ", contracts: 31, premium: 4180 },
@@ -715,6 +717,12 @@ function StandaloneHomeSections({ branch, onSelectPricing }: { branch: BranchKey
     { month: "Σεπ", contracts: 36, premium: 4920 },
     { month: "Οκτ", contracts: 41, premium: 5680 },
   ];
+  const [productionPeriod, setProductionPeriod] = useState<6 | 12>(6);
+  const [productionMetric, setProductionMetric] = useState<"premium" | "contracts">("premium");
+  const productionWindow = production.slice(-productionPeriod);
+  const productionTotals = productionWindow.reduce((totals, item) => ({ contracts: totals.contracts + item.contracts, premium: totals.premium + item.premium }), { contracts: 0, premium: 0 });
+  const averagePremium = productionTotals.contracts ? Math.round(productionTotals.premium / productionTotals.contracts) : 0;
+  const chartAverage = productionWindow.length ? productionWindow.reduce((sum, item) => sum + item[productionMetric], 0) / productionWindow.length : 0;
   const defaultOrder: HomeWidgetId[] = ["pricing", "announcements", "production"];
   const defaultSizes: Record<HomeWidgetId, { span: number; height: number; minimized: boolean }> = {
     pricing: { span: 12, height: pricingHeight, minimized: false },
@@ -727,6 +735,7 @@ function StandaloneHomeSections({ branch, onSelectPricing }: { branch: BranchKey
       const saved = JSON.parse(window.localStorage.getItem("insureone-dashboard-layout") ?? "null") as { order?: HomeWidgetId[]; sizes?: typeof defaultSizes } | null;
       const order = saved?.order?.filter(id => defaultOrder.includes(id));
       const sizes = { ...defaultSizes, ...(saved?.sizes ?? {}) };
+      sizes.pricing = { ...sizes.pricing, height: Math.min(sizes.pricing.height, pricingHeight) };
       const hadRemovedBlog = (saved?.order as string[] | undefined)?.includes("blog");
       if (hadRemovedBlog) sizes.pricing = { ...sizes.pricing, span: 12, height: pricingHeight };
       return { order: order?.length === defaultOrder.length ? order : defaultOrder, sizes };
@@ -772,57 +781,44 @@ function StandaloneHomeSections({ branch, onSelectPricing }: { branch: BranchKey
   return <Box onDragOver={event => event.preventDefault()} onDrop={dropWidgetAtEnd} sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(12, minmax(0, 1fr))" }, gridAutoFlow: "dense", gap: { xs: 2, md: 2.5 }, alignItems: "start" }}>
     <DashboardWidget id="pricing" title="Τιμολόγηση" accent="#c9e2f6" prominentHeader {...widgetControls("pricing")}>
       <Card variant="outlined" sx={{ position: "relative", height: "100%", borderRadius: 1.5, overflow: "hidden", borderTop: 0, bgcolor: "#f8fcff", borderColor: "#dce5ec", "&::after": { content: '""', position: "absolute", right: -170, bottom: -210, width: 560, height: 430, borderRadius: "50% 0 0 0", border: "2px solid rgba(104,170,221,.13)", boxShadow: "0 -18px 0 rgba(104,170,221,.07), 0 -36px 0 rgba(104,170,221,.045)", pointerEvents: "none" } }}>
-        <CardContent sx={{ position: "relative", zIndex: 1, p: { xs: 1.5, md: 2.5 }, height: "100%" }}>
-          <Grid container spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }}>
+        <CardContent sx={{ position: "relative", zIndex: 1, p: { xs: 1.25, md: 1.75 }, height: "100%", "&:last-child": { pb: { xs: 1.25, md: 1.75 } } }}>
+          <Grid container spacing={{ xs: .85, sm: 1, md: 1.25 }}>
             {pricingCards.map((card, index) => <Grid item xs={12} sm={6} md={4} key={`${card.title}-${index}`}><PricingCategoryCard card={card} selected={branch === card.key && index < 5} onSelect={() => onSelectPricing(card.title)} /></Grid>)}
           </Grid>
         </CardContent>
       </Card>
     </DashboardWidget>
     <DashboardWidget id="announcements" title="Ανακοινώσεις-Εγκύκλιοι" accent="#17b8d1" {...widgetControls("announcements")}>
-      <Card variant="outlined" sx={{
-        borderRadius: "18px",
-        overflow: "hidden",
-        border: "1px solid #bfe5f1",
-        background: "linear-gradient(145deg, #e9f9ff 0%, #f9fdff 64%, #dff3fa 100%)",
-        boxShadow: "0 8px 24px rgba(18,108,139,.09)",
-        height: "100%",
-        position: "relative",
-        "&::before": { content: '""', position: "absolute", width: 170, height: 170, right: -66, top: -74, borderRadius: "50%", background: "radial-gradient(circle, rgba(23,184,209,.16), transparent 68%)", pointerEvents: "none" },
-      }}>
-        <CardContent sx={{ p: { xs: 1.5, md: 2 }, position: "relative", zIndex: 1 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
-            <Stack direction="row" spacing={1} alignItems="center" minWidth={0}>
-              <Box sx={{ width: 40, height: 40, borderRadius: 1.75, display: "grid", placeItems: "center", bgcolor: "rgba(23,184,209,.14)", color: "#087b9d", border: "1px solid rgba(23,184,209,.22)" }}><DescriptionOutlinedIcon fontSize="small" /></Box>
-              <Typography fontWeight={900} sx={{ color: "#123a64", fontSize: { xs: 15, md: 17 }, minWidth: 0 }}>Ανακοινώσεις-Εγκύκλιοι</Typography>
-            </Stack>
-            <Stack direction="row" spacing={.25} flexShrink={0}><IconButton size="small" aria-label="Ανανέωση" sx={{ color: "#287b9c" }}><RefreshRoundedIcon fontSize="small" /></IconButton><IconButton size="small" aria-label="Σύμπτυξη" sx={{ color: "#287b9c" }}><Typography fontWeight={900}>−</Typography></IconButton></Stack>
-          </Stack>
-          <Divider sx={{ borderColor: "rgba(23,184,209,.2)", mb: .75 }} />
-          <Stack spacing={.8}>{announcements.map(([title, meta]) => <Box key={title} sx={{ p: { xs: 1, md: 1.15 }, borderRadius: 1.5, border: "1px solid rgba(82,170,202,.2)", bgcolor: "rgba(255,255,255,.68)", transition: "transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease", "&:hover": { transform: "translateX(2px)", borderColor: "rgba(23,184,209,.48)", boxShadow: "0 5px 14px rgba(24,109,139,.09)" } }}><Typography variant="body2" sx={{ color: "#216285", fontWeight: 850, fontSize: { xs: 12, md: 12.5 }, lineHeight: 1.35 }}>{title}</Typography><Typography variant="caption" color="text.secondary"><Chip size="small" label="ΣΗΜΑΝΤΙΚΟ" sx={{ height: 18, mr: .75, bgcolor: "#ed8b2e", color: "#fff", borderRadius: .7, fontSize: 9, fontWeight: 900 }} />{meta}</Typography></Box>)}</Stack>
-        </CardContent>
-      </Card>
+      <Card variant="outlined" aria-label="Κενές ανακοινώσεις και εγκύκλιοι" sx={{ height: "100%", minHeight: 245, borderRadius: "18px", border: "1px solid #bfe5f1", bgcolor: "#f9fdff", boxShadow: "0 8px 24px rgba(18,108,139,.05)" }} />
     </DashboardWidget>
     <DashboardWidget id="production" title="Παραγωγή" accent="#1b7f55" {...widgetControls("production")}>
-      <Card variant="outlined" sx={{
-        borderRadius: "18px",
-        overflow: "hidden",
-        border: "1px solid #c6e4d5",
-        background: "linear-gradient(145deg, #eaf8f1 0%, #fbfefd 62%, #e1f4e9 100%)",
-        boxShadow: "0 8px 24px rgba(27,127,85,.09)",
-        position: "relative",
-        "&::before": { content: '""', position: "absolute", width: 190, height: 150, right: -72, top: -68, borderRadius: "50%", background: "radial-gradient(circle, rgba(27,127,85,.14), transparent 70%)", pointerEvents: "none" },
-      }}>
+      <Card variant="outlined" sx={{ borderRadius: "18px", overflow: "hidden", border: "1px solid #c6e4d5", background: "linear-gradient(145deg, #eaf8f1 0%, #fbfefd 62%, #e1f4e9 100%)", boxShadow: "0 8px 24px rgba(27,127,85,.09)", position: "relative", "&::before": { content: '""', position: "absolute", width: 190, height: 150, right: -72, top: -68, borderRadius: "50%", background: "radial-gradient(circle, rgba(27,127,85,.14), transparent 70%)", pointerEvents: "none" } }}>
         <CardContent sx={{ p: { xs: 1.5, md: 2 }, position: "relative", zIndex: 1 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
-            <Stack direction="row" spacing={1} alignItems="center" minWidth={0}>
-              <Box sx={{ width: 40, height: 40, borderRadius: 1.75, display: "grid", placeItems: "center", bgcolor: "rgba(27,127,85,.14)", color: "#1b7f55", border: "1px solid rgba(27,127,85,.22)" }}><TableRowsOutlinedIcon fontSize="small" /></Box>
-              <Typography fontWeight={900} sx={{ color: "#123a64", fontSize: { xs: 15, md: 17 } }}>Παραγωγή</Typography>
+          <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} gap={1} sx={{ mb: 1.5 }}>
+            <Box><Typography fontWeight={900} sx={{ color: "#123a64", fontSize: { xs: 16, md: 18 } }}>Μηνιαία πορεία παραγωγής</Typography><Typography variant="caption" sx={{ color: "#587064" }}>Ενδεικτικά δεδομένα επίδειξης · σύγκριση ανά μήνα</Typography></Box>
+            <Stack direction="row" alignItems="center" gap={1}>
+              <ToggleButtonGroup exclusive size="small" value={productionMetric} onChange={(_, value: "premium" | "contracts" | null) => value && setProductionMetric(value)} aria-label="Μετρική γραφήματος παραγωγής" sx={{ bgcolor: "rgba(255,255,255,.72)", "& .MuiToggleButton-root": { px: 1.1, py: .45, textTransform: "none", fontSize: 11.5, fontWeight: 800, color: "#456655", borderColor: "rgba(27,127,85,.22)" }, "& .Mui-selected": { bgcolor: "#1b7f55 !important", color: "#fff !important" } }}>
+                <ToggleButton value="premium">Ασφάλιστρα</ToggleButton><ToggleButton value="contracts">Συμβόλαια</ToggleButton>
+              </ToggleButtonGroup>
+              <ToggleButtonGroup exclusive size="small" value={productionPeriod} onChange={(_, value: 6 | 12 | null) => value && setProductionPeriod(value)} aria-label="Χρονικό διάστημα παραγωγής" sx={{ bgcolor: "rgba(255,255,255,.72)", "& .MuiToggleButton-root": { minWidth: 37, px: .7, py: .45, textTransform: "none", fontSize: 11.5, fontWeight: 800, color: "#456655", borderColor: "rgba(27,127,85,.22)" }, "& .Mui-selected": { bgcolor: "#d9efe2 !important", color: "#145e3d !important" } }}>
+                <ToggleButton value={6}>6Μ</ToggleButton><ToggleButton value={12}>12Μ</ToggleButton>
+              </ToggleButtonGroup>
             </Stack>
-            <Chip size="small" label="Τελευταίοι 6 μήνες" sx={{ bgcolor: "rgba(27,127,85,.14)", color: "#1b6848", fontWeight: 800, border: "1px solid rgba(27,127,85,.2)" }} />
           </Stack>
-          <Grid container spacing={1} sx={{ mb: 1.25 }}>{[["Νέα συμβόλαια", "41", "#147f8d"], ["Μικτά ασφάλιστρα", "5.680 €", "#1b7f55"], ["Μέση αξία", "138 €", "#3457a6"]].map(([label, value, colour]) => <Grid item xs={4} key={label}><Box sx={{ p: 1, bgcolor: "rgba(255,255,255,.72)", border: `1px solid ${colour}38`, borderRadius: 1.5, boxShadow: "0 3px 10px rgba(26,95,71,.05)" }}><Typography variant="caption" color="text.secondary" noWrap>{label}</Typography><Typography fontWeight={900} sx={{ color: colour, fontSize: { xs: 15, sm: 18 } }}>{value}</Typography></Box></Grid>)}</Grid>
-          <Box sx={{ height: 210, p: { xs: .5, md: 1 }, borderRadius: 1.75, bgcolor: "rgba(255,255,255,.58)", border: "1px solid rgba(27,127,85,.16)" }}><ResponsiveContainer width="100%" height="100%"><LineChart data={production} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke="#cfe4d9" /><XAxis dataKey="month" tick={{ fontSize: 11 }} /><YAxis yAxisId="left" tick={{ fontSize: 10 }} /><YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} /><ChartTooltip formatter={(value, name) => { const key = String(name); const numeric = Number(value ?? 0); return [key === "premium" ? `${numeric.toLocaleString("el-GR")} €` : numeric, key === "premium" ? "Μικτά ασφάλιστρα" : "Συμβόλαια"]; }} /><Line yAxisId="left" type="monotone" dataKey="contracts" stroke="#147f8d" strokeWidth={3} dot={{ r: 3 }} /><Line yAxisId="right" type="monotone" dataKey="premium" stroke="#1b7f55" strokeWidth={3} dot={{ r: 3 }} /></LineChart></ResponsiveContainer></Box>
+          <Grid container spacing={1} sx={{ mb: 1.25 }}>{[["Νέα συμβόλαια", productionTotals.contracts.toLocaleString("el-GR"), "#147f8d"], ["Μικτά ασφάλιστρα", `${productionTotals.premium.toLocaleString("el-GR")} €`, "#1b7f55"], ["Μέσο ασφάλιστρο", `${averagePremium.toLocaleString("el-GR")} €`, "#3457a6"]].map(([label, value, colour]) => <Grid item xs={4} key={label}><Box sx={{ p: { xs: .8, sm: 1 }, bgcolor: "rgba(255,255,255,.72)", border: `1px solid ${colour}38`, borderRadius: 1.5, boxShadow: "0 3px 10px rgba(26,95,71,.05)" }}><Typography variant="caption" color="text.secondary" noWrap>{label}</Typography><Typography fontWeight={900} sx={{ color: colour, fontSize: { xs: 14, sm: 17 } }}>{value}</Typography></Box></Grid>)}</Grid>
+          <Box sx={{ height: { xs: 210, md: 250 }, p: { xs: .5, md: 1 }, borderRadius: 1.75, bgcolor: "rgba(255,255,255,.68)", border: "1px solid rgba(27,127,85,.18)" }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={productionWindow} margin={{ top: 14, right: 14, left: 4, bottom: 2 }}>
+                <CartesianGrid vertical={false} strokeDasharray="3 5" stroke="#cfe4d9" />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#60746a" }} tickLine={false} axisLine={{ stroke: "#b9d2c3" }} />
+                <YAxis width={productionMetric === "premium" ? 58 : 38} tick={{ fontSize: 10, fill: "#60746a" }} tickLine={false} axisLine={false} tickFormatter={value => productionMetric === "premium" ? `${Number(value).toLocaleString("el-GR")}€` : String(value)} />
+                <ChartTooltip cursor={{ stroke: "#83b79b", strokeDasharray: "4 4" }} contentStyle={{ borderRadius: 10, borderColor: "#b9d7c5", boxShadow: "0 8px 22px rgba(30,80,52,.12)" }} labelStyle={{ color: "#17432d", fontWeight: 800 }} formatter={value => productionMetric === "premium" ? [`${Number(value ?? 0).toLocaleString("el-GR")} €`, "Μικτά ασφάλιστρα"] : [Number(value ?? 0), "Νέα συμβόλαια"]} />
+                <ReferenceLine y={chartAverage} stroke="#788d80" strokeDasharray="5 5" label={{ value: "Μέσος όρος", fill: "#60746a", fontSize: 10, position: "insideTopRight" }} />
+                <Line type="monotone" dataKey={productionMetric} name={productionMetric === "premium" ? "Μικτά ασφάλιστρα" : "Νέα συμβόλαια"} stroke={productionMetric === "premium" ? "#1b7f55" : "#147f8d"} strokeWidth={3} activeDot={{ r: 6, strokeWidth: 2, stroke: "#fff" }} dot={{ r: 3, strokeWidth: 2, fill: "#fff" }} />
+                <Brush dataKey="month" height={16} stroke="#1b7f55" travellerWidth={9} startIndex={Math.max(0, productionWindow.length - 6)} endIndex={productionWindow.length - 1} />
+              </LineChart>
+            </ResponsiveContainer>
+          </Box>
         </CardContent>
       </Card>
     </DashboardWidget>

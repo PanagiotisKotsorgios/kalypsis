@@ -1193,7 +1193,7 @@
           "example": "An agency currently using a legacy accounting system can replace just that, while keeping their existing carrier-portal policy issuance flow untouched."
         },
         "frontoffice": {
-          "name": "FrontOffice — Your office website",
+          "name": "FrontOffice & Office Website",
           "tagline": "Domain, posts, offers, enquiries.",
           "body": "Create a public office website on your own domain with posts, offers, popup banners and enquiry forms. Requests arrive at the office by email and notification for fast follow-up. It does not include multi-carrier quoting or policy issuance.",
           "example": "An agency can build a professional public presence and collect new enquiries without changing the carrier-portal issuance process it already uses."
@@ -1808,7 +1808,7 @@
       "body": "Cashier, payments, commissions, over-commissions, accounting exports. Manual or bridged data entry."
     },
     "FrontOffice": {
-      "name": "FrontOffice — Office website",
+      "name": "FrontOffice & Office Website",
       "body": "A public office website on your own domain with posts, offers, popup banners and enquiry forms."
     },
     "Crm": {
@@ -2781,7 +2781,7 @@
       "subtitle": "Enable or disable packages at any time. Changes take effect within seconds — no user logout required.",
       "items": {
         "BackOffice":   { "name": "BackOffice",   "tag": "Package I",   "body": "Agency ledger: cashier, payments, commissions, over-commissions, accounting exports, KEPYO, magnetic imports, legacy back-office bridges." },
-        "FrontOffice":  { "name": "FrontOffice",  "tag": "Package II",  "body": "An office website on your own domain with posts, offers, popup banners and insurance request forms delivered to your office by email and notification. No multi-quote or policy issuance." },
+        "FrontOffice":  { "name": "FrontOffice & Office Website",  "tag": "Package II",  "body": "An office website on your own domain with posts, offers, popup banners and insurance request forms delivered to your office by email and notification. No multi-quote or policy issuance." },
         "Crm":          { "name": "CRM & Customer Portal", "tag": "Package III", "body": "Customer portal, mobile app, requests, appointments, marketing campaigns, bulk Email/SMS/Viber." },
         "Intelligence": { "name": "Reports & Intelligence", "tag": "Package IV", "body": "Production goals, report builder, audit logs, AI churn prediction, AI PDF extraction, communication drafting, workflows." },
         "Integrations": { "name": "Integrations & Compliance", "tag": "Package V", "body": "myDATA, online payments (e-pos, ePay, DIAS, Viva), telephony with recording, mailbox sync, branches, B2B portal." },
