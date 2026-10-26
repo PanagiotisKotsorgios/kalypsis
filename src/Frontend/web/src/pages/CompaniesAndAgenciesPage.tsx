@@ -21,9 +21,6 @@ export function CompaniesAndAgenciesPage() {
           {tab === 0 ? <BusinessIcon color="primary" /> : <HandshakeIcon color="primary" />}
           <Box>
             <Typography variant="h5" fontWeight={800}>Εταιρείες &amp; Πρακτορεία</Typography>
-            <Typography variant="body2" color="text.secondary">
-              Πλήρεις καρτέλες ασφαλιστικών εταιρειών και συνεργαζόμενων πρακτορείων. Τα υποκαταστήματα διαχειρίζονται ξεχωριστά.
-            </Typography>
           </Box>
         </Box>
         <Tabs
