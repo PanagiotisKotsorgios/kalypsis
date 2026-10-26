@@ -72,6 +72,7 @@ import { DocumentationPage } from "./pages/DocumentationPage";
 import { DocumentationEditorPage } from "./pages/DocumentationEditorPage";
 import { LandingEditorPage } from "./pages/LandingEditorPage";
 import { ContactPage } from "./pages/ContactPage";
+import { CompanyContactPage } from "./pages/CompanyContactPage";
 import { TermsPage } from "./pages/TermsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { CookiesPage } from "./pages/CookiesPage";
@@ -840,7 +841,7 @@ export default function App() {
         <Route path="/docs" element={<Navigate to={user ? "/app/agency-and-profile?tab=documentation" : "/login"} replace />} />
         <Route path="/help" element={<Navigate to={user ? "/app/agency-and-profile?tab=documentation" : "/login"} replace />} />
         <Route path="/contact" element={<ContactPage />} />
-        <Route path="/company/contact" element={<ContactPage companyMode />} />
+        <Route path="/company/contact" element={<CompanyContactPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/cookies" element={<CookiesPage />} />
