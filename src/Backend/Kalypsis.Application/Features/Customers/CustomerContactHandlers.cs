@@ -20,8 +20,12 @@ public class UpsertCustomerContactBodyValidator : AbstractValidator<UpsertCustom
 {
     public UpsertCustomerContactBodyValidator()
     {
-        RuleFor(x => x.FirstName).NotEmpty().MaximumLength(100);
-        RuleFor(x => x.LastName).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.FirstName).MaximumLength(100);
+        RuleFor(x => x.LastName).MaximumLength(100);
+        RuleFor(x => x).Must(x => !string.IsNullOrWhiteSpace(x.FirstName) || !string.IsNullOrWhiteSpace(x.LastName) ||
+                                   !string.IsNullOrWhiteSpace(x.Email) || !string.IsNullOrWhiteSpace(x.Phone) ||
+                                   !string.IsNullOrWhiteSpace(x.MobilePhone))
+            .WithMessage("Συμπληρώστε όνομα ή ένα στοιχείο επικοινωνίας.");
         RuleFor(x => x.Email).MaximumLength(256);
         RuleFor(x => x.MobilePhone).MaximumLength(40);
     }
@@ -74,8 +78,8 @@ public class CreateContactHandler : IRequestHandler<CreateContactCommand, Custom
             Id = Guid.NewGuid(),
             TenantId = tenantId,
             CustomerId = customer.Id,
-            FirstName = request.Body.FirstName.Trim(),
-            LastName = request.Body.LastName.Trim(),
+            FirstName = request.Body.FirstName?.Trim() ?? string.Empty,
+            LastName = request.Body.LastName?.Trim() ?? string.Empty,
             Role = request.Body.Role?.Trim(),
             Email = request.Body.Email?.Trim(),
             Phone = request.Body.Phone?.Trim(),
@@ -123,8 +127,8 @@ public class UpdateContactHandler : IRequestHandler<UpdateContactCommand, Custom
             foreach (var p in others) p.IsPrimary = false;
         }
 
-        c.FirstName = request.Body.FirstName.Trim();
-        c.LastName = request.Body.LastName.Trim();
+        c.FirstName = request.Body.FirstName?.Trim() ?? string.Empty;
+        c.LastName = request.Body.LastName?.Trim() ?? string.Empty;
         c.Role = request.Body.Role?.Trim();
         c.Email = request.Body.Email?.Trim();
         c.Phone = request.Body.Phone?.Trim();

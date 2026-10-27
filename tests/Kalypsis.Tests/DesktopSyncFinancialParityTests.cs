@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Kalypsis.Api.Controllers;
+using Kalypsis.Application.Features.Customers;
 using Kalypsis.Domain.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +13,16 @@ namespace Kalypsis.Tests;
 
 public sealed class DesktopSyncFinancialParityTests
 {
+    [Fact]
+    public void Cloud_contact_can_be_edited_when_desktop_only_has_a_phone_number()
+    {
+        var validator = new UpsertCustomerContactBodyValidator();
+        var contact = new UpsertCustomerContactBody("", "", null, null, "6900000000", null, false);
+        Assert.True(validator.Validate(contact).IsValid);
+        var empty = contact with { Phone = null };
+        Assert.False(validator.Validate(empty).IsValid);
+    }
+
     [Fact]
     public async Task Full_snapshot_includes_customer_household_and_asset_collections()
     {

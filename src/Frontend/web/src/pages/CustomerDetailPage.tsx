@@ -1575,7 +1575,7 @@ function ContactsTab({ customerId, customerType }: { customerId: string; custome
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpen(false)} color="error" variant="contained">Άκυρο</Button>
-          <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending || !form.firstName || !form.lastName}>
+          <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending || ![form.firstName, form.lastName, form.email, form.phone, form.mobilePhone].some(value => value.trim())}>
             Αποθήκευση
           </Button>
         </DialogActions>
