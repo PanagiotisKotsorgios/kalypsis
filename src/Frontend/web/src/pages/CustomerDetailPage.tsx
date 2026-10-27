@@ -1599,7 +1599,7 @@ export function FamilyNeedsTab({ customerId }: { customerId: string }) {
       <CustomerNeedsCard customerId={customerId} needs={q.data.needs} />
       <FamilyMembersCard customerId={customerId} members={q.data.family} />
       <IndependentFamilyMembersCard customerId={customerId} members={q.data.independentMembers ?? []} />
-      <CustomerAssetsCard customerId={customerId} assets={q.data.assets ?? []} />
+      <CustomerAssetsCard customerId={customerId} assets={q.data.assets ?? []} members={q.data.independentMembers ?? []} />
     </Stack>
   );
 }
@@ -1722,13 +1722,13 @@ const assetNumberFields = new Set<string>(["yearOfConstruction", "engineCc", "ta
 const assetDateFields = new Set<string>(["firstLicenseDate", "purchaseDate"]);
 const assetBooleanFields = new Set<string>(["wasPurchasedNew", "isYoungDriver", "hasSunroof", "hasAlarm", "hasImmobilizer"]);
 
-function CustomerAssetsCard({ customerId, assets }: { customerId: string; assets: CustomerAssetRecord[] }) {
+function CustomerAssetsCard({ customerId, assets, members }: { customerId: string; assets: CustomerAssetRecord[]; members: IndependentFamilyMember[] }) {
   const qc = useQueryClient();
   const [editing, setEditing] = useState<CustomerAssetRecord | null>(null);
   const [details, setDetails] = useState<CustomerAssetRecord | null>(null);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState({ assetKind: "House", description: "", plate: "", brand: "", model: "", address: "", city: "", isInsuredWithUs: false, currentCarrierName: "", currentPolicyExpiresOn: "", notes: "" });
+  const [form, setForm] = useState({ assetKind: "House", familyMemberId: "", description: "", plate: "", brand: "", model: "", address: "", city: "", isInsuredWithUs: false, currentCarrierName: "", currentPolicyExpiresOn: "", notes: "" });
   const [extraForm, setExtraForm] = useState<Record<string, string | boolean>>({});
   const refresh = () => qc.invalidateQueries({ queryKey: ["customer-family", customerId] });
   const save = useMutation({ mutationFn: async () => {
@@ -1738,14 +1738,16 @@ function CustomerAssetsCard({ customerId, assets }: { customerId: string; assets
       if (assetNumberFields.has(key)) return [key, value === "" || value == null ? null : Number(value)];
       return [key, value === "" || value == null ? null : value];
     }));
-    const body = { ...(editing ?? {}), ...form, ...extras, currentPolicyExpiresOn: form.currentPolicyExpiresOn || null };
+    const body = { ...(editing ?? {}), ...form, ...extras, familyMemberId: form.familyMemberId || null,
+      currentPolicyExpiresOn: form.currentPolicyExpiresOn || null };
     return editing ? api.put(`/customers/${customerId}/family/assets/${editing.id}`, body) : api.post(`/customers/${customerId}/family/assets`, body);
   }, onSuccess: () => { setOpen(false); setEditing(null); setError(null); void refresh(); }, onError: e => setError(extractErrorMessage(e)) });
   const remove = useMutation({ mutationFn: async (id: string) => api.delete(`/customers/${customerId}/family/assets/${id}`),
     onSuccess: () => { setError(null); void refresh(); }, onError: e => setError(extractErrorMessage(e)) });
   const start = (asset: CustomerAssetRecord | null) => {
     setEditing(asset);
-    setForm({ assetKind: asset?.assetKind ?? "House", description: asset?.description ?? "", plate: asset?.plate ?? "",
+    setForm({ assetKind: asset?.assetKind ?? "House", familyMemberId: String(asset?.familyMemberId ?? ""),
+      description: asset?.description ?? "", plate: asset?.plate ?? "",
       brand: asset?.brand ?? "", model: asset?.model ?? "", address: asset?.address ?? "", city: asset?.city ?? "",
       isInsuredWithUs: asset?.isInsuredWithUs ?? false, currentCarrierName: asset?.currentCarrierName ?? "",
       currentPolicyExpiresOn: asset?.currentPolicyExpiresOn?.slice(0, 10) ?? "", notes: asset?.notes ?? "" });
@@ -1784,6 +1786,10 @@ function CustomerAssetsCard({ customerId, assets }: { customerId: string; assets
     </Dialog>
     <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm"><DialogTitle>{editing ? "Επεξεργασία περιουσίας" : "Νέα περιουσία"}</DialogTitle><DialogContent><Stack spacing={1.5} mt={1}>
       <SearchableTextField label="Είδος" value={form.assetKind} onChange={e => setForm({ ...form, assetKind: e.target.value })}>{Object.entries(assetKindLabels).map(([kind, label]) => <MenuItem key={kind} value={kind}>{label}</MenuItem>)}</SearchableTextField>
+      <SearchableTextField label="Μέλος οικογένειας (προαιρετικό)" value={form.familyMemberId} onChange={e => setForm({ ...form, familyMemberId: e.target.value })}>
+        <MenuItem value="">Ίδιος ο πελάτης</MenuItem>
+        {members.map(member => <MenuItem key={member.id} value={member.id}>{member.fullName}</MenuItem>)}
+      </SearchableTextField>
       <TextField label="Περιγραφή" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1}><TextField label="Πινακίδα" value={form.plate} onChange={e => setForm({ ...form, plate: e.target.value })} fullWidth /><TextField label="Πόλη" value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} fullWidth /></Stack>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1}><TextField label="Μάρκα" value={form.brand} onChange={e => setForm({ ...form, brand: e.target.value })} fullWidth /><TextField label="Μοντέλο" value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} fullWidth /></Stack>
