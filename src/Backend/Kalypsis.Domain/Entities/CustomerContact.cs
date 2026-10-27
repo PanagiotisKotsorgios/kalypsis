@@ -16,6 +16,8 @@ public class CustomerContact : TenantEntity
     public string? Role { get; set; }              // free text in case the agency needs a custom role
     public string? Email { get; set; }
     public string? Phone { get; set; }
+    public string? MobilePhone { get; set; }
+    public string Kind { get; set; } = "Other";
     public string? Notes { get; set; }
     public bool IsPrimary { get; set; }
 }

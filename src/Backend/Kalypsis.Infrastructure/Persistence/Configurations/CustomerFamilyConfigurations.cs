@@ -4,6 +4,39 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Kalypsis.Infrastructure.Persistence.Configurations;
 
+public class CustomerFamilyMemberConfiguration : IEntityTypeConfiguration<CustomerFamilyMember>
+{
+    public void Configure(EntityTypeBuilder<CustomerFamilyMember> b)
+    {
+        b.ToTable("customer_family_members");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Relation).HasMaxLength(40).IsRequired();
+        b.Property(x => x.FullName).HasMaxLength(200).IsRequired();
+        b.Property(x => x.Gender).HasMaxLength(40);
+        b.Property(x => x.Amka).HasMaxLength(20);
+        b.Property(x => x.Notes).HasMaxLength(2000);
+        b.Property(x => x.AfmVat).HasMaxLength(20);
+        b.Property(x => x.Occupation).HasMaxLength(120);
+        b.Property(x => x.Email).HasMaxLength(256);
+        b.Property(x => x.MobilePhone).HasMaxLength(40);
+        b.HasIndex(x => new { x.TenantId, x.CustomerId });
+    }
+}
+
+public class CustomerAssetConfiguration : IEntityTypeConfiguration<CustomerAsset>
+{
+    public void Configure(EntityTypeBuilder<CustomerAsset> b)
+    {
+        b.ToTable("customer_assets");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.AssetKind).HasMaxLength(40).IsRequired();
+        b.Property(x => x.Plate).HasMaxLength(30);
+        b.Property(x => x.Description).HasMaxLength(500);
+        b.HasIndex(x => new { x.TenantId, x.CustomerId });
+        b.HasIndex(x => new { x.TenantId, x.FamilyMemberId });
+    }
+}
+
 public class CustomerRelationshipConfiguration : IEntityTypeConfiguration<CustomerRelationship>
 {
     public void Configure(EntityTypeBuilder<CustomerRelationship> b)

@@ -5023,6 +5023,178 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.ToTable("customers", (string)null);
                 });
 
+            modelBuilder.Entity("Kalypsis.Domain.Entities.CustomerAsset", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Address")
+                        .HasColumnType("longtext");
+
+                    b.Property<Guid?>("AgencyOfficeScopeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<decimal?>("AreaSquareMeters")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<string>("AssetKind")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<string>("Brand")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("BusinessActivity")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ChassisNumber")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("City")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Color")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ConstructionType")
+                        .HasColumnType("longtext");
+
+                    b.Property<int?>("ConstructionYear")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Country")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("CurrentCarrierName")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("CurrentPolicyExpiresOn")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<int?>("DoorCount")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("EmployeeCount")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("EngineCc")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("EstimatedValue")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<Guid?>("FamilyMemberId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("FirstLicenseDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("FuelType")
+                        .HasColumnType("longtext");
+
+                    b.Property<bool?>("HasAlarm")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool?>("HasImmobilizer")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool?>("HasSunroof")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("InsuranceClass")
+                        .HasColumnType("longtext");
+
+                    b.Property<int?>("InterestScore")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsInsuredWithUs")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool?>("IsYoungDriver")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Kad")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("LicenseCountry")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Model")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("longtext");
+
+                    b.Property<int?>("OwnerCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Plate")
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("PostalCode")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("PurchaseDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int?>("SeatCount")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TaxableHorsepower")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Transmission")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<decimal?>("Value")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<string>("VehicleSpecsJson")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("VehicleUse")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Vin")
+                        .HasColumnType("longtext");
+
+                    b.Property<bool?>("WasPurchasedNew")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int?>("YearOfConstruction")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "CustomerId");
+
+                    b.HasIndex("TenantId", "FamilyMemberId");
+
+                    b.ToTable("customer_assets", (string)null);
+                });
+
             modelBuilder.Entity("Kalypsis.Domain.Entities.CustomerCategory", b =>
                 {
                     b.Property<Guid>("Id")
@@ -5102,10 +5274,21 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsPrimary")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)")
+                        .HasDefaultValue("Other");
+
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
+
+                    b.Property<string>("MobilePhone")
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)
@@ -5132,6 +5315,87 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId", "CustomerId");
 
                     b.ToTable("customer_contacts", (string)null);
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.CustomerFamilyMember", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("AfmVat")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<Guid?>("AgencyOfficeScopeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Amka")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<decimal?>("BeneficiarySharePercent")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<DateTime?>("BirthDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("CanReceiveMarketing")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("Gender")
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<bool>("IsBeneficiary")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("MobilePhone")
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<string>("Occupation")
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)");
+
+                    b.Property<string>("Relation")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "CustomerId");
+
+                    b.ToTable("customer_family_members", (string)null);
                 });
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.CustomerFormSigning", b =>

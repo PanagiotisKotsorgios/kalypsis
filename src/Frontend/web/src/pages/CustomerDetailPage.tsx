@@ -64,7 +64,7 @@ import { drivingFields, persistCustomerEdits, type CustomerDrafts } from "../com
 import { customerDraftErrors, customerFieldError, fieldMaxLength } from "../components/customer/customerValidation";
 import { customerAge } from "../components/customer/customerAge";
 import { DetailProfileTabs } from "../components/profile/DetailProfileTabs";
-import { CustomerNeedsTable, FamilyMembersTable } from "../components/customer/CustomerFamilyTables";
+import { CustomerCompactTable, CustomerNeedsTable, FamilyMembersTable } from "../components/customer/CustomerFamilyTables";
 import { NEED_KINDS, NEED_LABEL, RELATIONSHIP_TYPES, RELATION_LABEL, type CustomerNeed, type FamilyMember } from "../components/customer/customerFamilyData";
 
 interface CustomerDto {
@@ -165,6 +165,8 @@ interface ContactRow {
   role?: string;
   email?: string;
   phone?: string;
+  mobilePhone?: string;
+  kind?: string;
   notes?: string;
   isPrimary: boolean;
 }
@@ -184,7 +186,42 @@ interface FamilyProfile {
   };
   needs: CustomerNeed[];
   family: FamilyMember[];
+  independentMembers: IndependentFamilyMember[];
+  assets: CustomerAssetRecord[];
   opportunities: { customerId: string; customerName: string; relationship: string | null; needKind: string; needTitle: string; reason: string; priority: number; }[];
+}
+
+interface IndependentFamilyMember {
+  id: string;
+  fullName: string;
+  relation: string;
+  birthDate: string | null;
+  gender: string | null;
+  amka: string | null;
+  isBeneficiary: boolean;
+  beneficiarySharePercent: number | null;
+  notes: string | null;
+  afmVat: string | null;
+  occupation: string | null;
+  email: string | null;
+  mobilePhone: string | null;
+  canReceiveMarketing: boolean;
+}
+
+interface CustomerAssetRecord {
+  id: string;
+  assetKind: string;
+  description: string | null;
+  plate: string | null;
+  brand: string | null;
+  model: string | null;
+  address: string | null;
+  city: string | null;
+  isInsuredWithUs: boolean;
+  currentCarrierName: string | null;
+  currentPolicyExpiresOn: string | null;
+  notes: string | null;
+  [key: string]: unknown;
 }
 
 // Ομαδοποιημένα consent types για το UI του CustomerDetailPage. Οι δύο
@@ -1408,7 +1445,7 @@ function ContactsTab({ customerId, customerType }: { customerId: string; custome
     queryFn: async () => (await api.get<ContactRow[]>(`/customers/${customerId}/contacts`)).data
   });
 
-  const empty = { firstName: "", lastName: "", role: "", email: "", phone: "", notes: "", isPrimary: false };
+  const empty = { firstName: "", lastName: "", role: "", email: "", phone: "", mobilePhone: "", kind: "Other", notes: "", isPrimary: false };
   const [form, setForm] = useState<typeof empty>(empty);
 
   const startCreate = () => { setEditing(null); setForm(empty); setOpen(true); };
@@ -1420,6 +1457,8 @@ function ContactsTab({ customerId, customerType }: { customerId: string; custome
       role: c.role ?? "",
       email: c.email ?? "",
       phone: c.phone ?? "",
+      mobilePhone: c.mobilePhone ?? "",
+      kind: c.kind ?? "Other",
       notes: c.notes ?? "",
       isPrimary: c.isPrimary
     });
@@ -1434,6 +1473,8 @@ function ContactsTab({ customerId, customerType }: { customerId: string; custome
         role: form.role.trim() || null,
         email: form.email.trim() || null,
         phone: form.phone.trim() || null,
+        mobilePhone: form.mobilePhone.trim() || null,
+        kind: form.kind,
         notes: form.notes.trim() || null,
         isPrimary: form.isPrimary
       };
@@ -1481,6 +1522,7 @@ function ContactsTab({ customerId, customerType }: { customerId: string; custome
                 <TableCell>Όνομα</TableCell>
                 <TableCell>Ρόλος</TableCell>
                 <TableCell>Email</TableCell>
+                <TableCell>Κινητό</TableCell>
                 <TableCell>Τηλέφωνο</TableCell>
                 <TableCell />
               </TableRow>
@@ -1494,6 +1536,7 @@ function ContactsTab({ customerId, customerType }: { customerId: string; custome
                   </TableCell>
                   <TableCell>{c.role ?? "—"}</TableCell>
                   <TableCell>{c.email ?? "—"}</TableCell>
+                  <TableCell>{c.mobilePhone ?? "—"}</TableCell>
                   <TableCell>{c.phone ?? "—"}</TableCell>
                   <TableCell align="right">
                     <Button size="small" onClick={() => startEdit(c)}>Επεξεργασία</Button>
@@ -1522,6 +1565,7 @@ function ContactsTab({ customerId, customerType }: { customerId: string; custome
               <TextField label="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} fullWidth />
               <TextField label="Τηλέφωνο" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} fullWidth />
             </Stack>
+            <TextField label="Κινητό" value={form.mobilePhone} onChange={(e) => setForm({ ...form, mobilePhone: e.target.value })} fullWidth />
             <TextField label="Σημειώσεις" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} multiline rows={2} />
             <Stack direction="row" alignItems="center" spacing={1}>
               <Switch checked={form.isPrimary} onChange={(e) => setForm({ ...form, isPrimary: e.target.checked })} />
@@ -1554,8 +1598,210 @@ export function FamilyNeedsTab({ customerId }: { customerId: string }) {
     <Stack spacing={0.75}>
       <CustomerNeedsCard customerId={customerId} needs={q.data.needs} />
       <FamilyMembersCard customerId={customerId} members={q.data.family} />
+      <IndependentFamilyMembersCard customerId={customerId} members={q.data.independentMembers ?? []} />
+      <CustomerAssetsCard customerId={customerId} assets={q.data.assets ?? []} />
     </Stack>
   );
+}
+
+const emptyIndependentMember = {
+  fullName: "", relation: "Child", birthDate: "", gender: "", amka: "",
+  isBeneficiary: false, beneficiarySharePercent: "", notes: "", afmVat: "",
+  occupation: "", email: "", mobilePhone: "", canReceiveMarketing: false,
+};
+
+function IndependentFamilyMembersCard({ customerId, members }: { customerId: string; members: IndependentFamilyMember[] }) {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState<IndependentFamilyMember | null>(null);
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState(emptyIndependentMember);
+  const refresh = () => qc.invalidateQueries({ queryKey: ["customer-family", customerId] });
+  const save = useMutation({
+    mutationFn: async () => {
+      const body = { ...form, birthDate: form.birthDate || null,
+        beneficiarySharePercent: form.beneficiarySharePercent ? Number(form.beneficiarySharePercent) : null };
+      return editing
+        ? api.put(`/customers/${customerId}/family/independent-members/${editing.id}`, body)
+        : api.post(`/customers/${customerId}/family/independent-members`, body);
+    },
+    onSuccess: () => { setOpen(false); setEditing(null); setError(null); void refresh(); },
+    onError: e => setError(extractErrorMessage(e)),
+  });
+  const remove = useMutation({
+    mutationFn: async (id: string) => api.delete(`/customers/${customerId}/family/independent-members/${id}`),
+    onSuccess: () => { setError(null); void refresh(); },
+    onError: e => setError(extractErrorMessage(e)),
+  });
+  const start = (member: IndependentFamilyMember | null) => {
+    setEditing(member);
+    setForm(member ? {
+      fullName: member.fullName, relation: member.relation, birthDate: member.birthDate?.slice(0, 10) ?? "",
+      gender: member.gender ?? "", amka: member.amka ?? "", isBeneficiary: member.isBeneficiary,
+      beneficiarySharePercent: member.beneficiarySharePercent?.toString() ?? "", notes: member.notes ?? "",
+      afmVat: member.afmVat ?? "", occupation: member.occupation ?? "", email: member.email ?? "",
+      mobilePhone: member.mobilePhone ?? "", canReceiveMarketing: member.canReceiveMarketing,
+    } : emptyIndependentMember);
+    setOpen(true);
+  };
+
+  return <Card variant="outlined" sx={{ p: 1, bgcolor: "#f8fafc" }}>
+    <Stack direction="row" justifyContent="space-between" alignItems="center" gap={1} flexWrap="wrap">
+      <Typography variant="subtitle2" fontWeight={800}>Μέλη οικογένειας χωρίς καρτέλα πελάτη</Typography>
+      <Button size="small" variant="contained" color="success" startIcon={<AddIcon />} onClick={() => start(null)}>Προσθήκη μέλους</Button>
+    </Stack>
+    {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mt: 1 }}>{error}</Alert>}
+    <CustomerCompactTable rows={members} rowKey={m => m.id} label="Ανεξάρτητα μέλη οικογένειας"
+      searchPlaceholder="Όνομα, συγγένεια, τηλέφωνο…"
+      searchText={m => `${m.fullName} ${m.relation} ${m.mobilePhone ?? ""} ${m.email ?? ""}`}
+      columns={[
+        { key: "name", title: "Ονοματεπώνυμο", cell: m => m.fullName },
+        { key: "relation", title: "Συγγένεια", cell: m => RELATION_LABEL[m.relation] ?? m.relation },
+        { key: "birth", title: "Ημ. γέννησης", cell: m => m.birthDate ? new Date(m.birthDate).toLocaleDateString("el-GR") : "—" },
+        { key: "phone", title: "Κινητό", cell: m => m.mobilePhone || "—" },
+        { key: "email", title: "Email", cell: m => m.email || "—" },
+        { key: "actions", title: "Ενέργειες", cell: m => <Stack direction="row" spacing={.5}>
+          <IconButton size="small" color="success" aria-label={`Επεξεργασία ${m.fullName}`} onClick={() => start(m)}><EditIcon fontSize="small" /></IconButton>
+          <IconButton size="small" color="error" aria-label={`Διαγραφή ${m.fullName}`} onClick={() => { if (confirm(`Να διαγραφεί το μέλος «${m.fullName}»;`)) remove.mutate(m.id); }}><DeleteIcon fontSize="small" /></IconButton>
+        </Stack> },
+      ]} />
+    <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
+      <DialogTitle>{editing ? "Επεξεργασία μέλους" : "Νέο μέλος οικογένειας"}</DialogTitle>
+      <DialogContent><Stack spacing={1.5} mt={1}>
+        <TextField label="Ονοματεπώνυμο" required value={form.fullName} onChange={e => setForm({ ...form, fullName: e.target.value })} />
+        <SearchableTextField label="Συγγένεια" value={form.relation} onChange={e => setForm({ ...form, relation: e.target.value })}>{RELATIONSHIP_TYPES.map(value => <MenuItem key={value} value={value}>{RELATION_LABEL[value]}</MenuItem>)}</SearchableTextField>
+        <TextField label="Ημ. γέννησης" type="date" InputLabelProps={{ shrink: true }} value={form.birthDate} onChange={e => setForm({ ...form, birthDate: e.target.value })} />
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+          <TextField label="Φύλο" value={form.gender} onChange={e => setForm({ ...form, gender: e.target.value })} fullWidth />
+          <TextField label="ΑΦΜ" value={form.afmVat} onChange={e => setForm({ ...form, afmVat: e.target.value })} fullWidth />
+        </Stack>
+        <TextField label="Επάγγελμα" value={form.occupation} onChange={e => setForm({ ...form, occupation: e.target.value })} />
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+          <TextField label="Κινητό" value={form.mobilePhone} onChange={e => setForm({ ...form, mobilePhone: e.target.value })} fullWidth />
+          <TextField label="Email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} fullWidth />
+        </Stack>
+        <TextField label="ΑΜΚΑ" value={form.amka} onChange={e => setForm({ ...form, amka: e.target.value })} />
+        <FormControlLabel control={<Switch checked={form.isBeneficiary} onChange={e => setForm({ ...form, isBeneficiary: e.target.checked })} />} label="Δικαιούχος" />
+        {form.isBeneficiary && <TextField label="Ποσοστό δικαιούχου %" type="number" value={form.beneficiarySharePercent} onChange={e => setForm({ ...form, beneficiarySharePercent: e.target.value })} />}
+        <FormControlLabel control={<Switch checked={form.canReceiveMarketing} onChange={e => setForm({ ...form, canReceiveMarketing: e.target.checked })} />} label="Συγκατάθεση επικοινωνίας" />
+        <TextField label="Σημειώσεις" multiline minRows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
+      </Stack></DialogContent>
+      <DialogActions><Button color="error" onClick={() => setOpen(false)}>Κλείσιμο</Button><Button variant="contained" color="success" disabled={!form.fullName.trim() || save.isPending} onClick={() => save.mutate()}>Αποθήκευση</Button></DialogActions>
+    </Dialog>
+  </Card>;
+}
+
+const assetFieldLabels: Record<string, string> = {
+  assetKind: "Είδος", description: "Περιγραφή", address: "Διεύθυνση", city: "Πόλη",
+  postalCode: "Τ.Κ.", country: "Χώρα", plate: "Πινακίδα", brand: "Μάρκα", model: "Μοντέλο",
+  yearOfConstruction: "Έτος κατασκευής", engineCc: "Κυβισμός", vin: "VIN", chassisNumber: "Αριθμός πλαισίου",
+  fuelType: "Καύσιμο", transmission: "Κιβώτιο", color: "Χρώμα", licenseCountry: "Χώρα αδείας",
+  vehicleUse: "Χρήση οχήματος", insuranceClass: "Κλάδος ασφάλισης", taxableHorsepower: "Φορολογήσιμοι ίπποι",
+  doorCount: "Πόρτες", seatCount: "Θέσεις", ownerCount: "Ιδιοκτήτες", estimatedValue: "Εκτιμώμενη αξία",
+  firstLicenseDate: "Πρώτη άδεια", purchaseDate: "Ημ. απόκτησης", wasPurchasedNew: "Αγοράστηκε καινούργιο",
+  isYoungDriver: "Νέος οδηγός", hasSunroof: "Ηλιοροφή", hasAlarm: "Συναγερμός", hasImmobilizer: "Immobilizer",
+  value: "Αξία", areaSquareMeters: "Τετραγωνικά", constructionYear: "Έτος κατασκευής ακινήτου",
+  constructionType: "Είδος κατασκευής", businessActivity: "Δραστηριότητα επιχείρησης", kad: "ΚΑΔ",
+  employeeCount: "Εργαζόμενοι", isInsuredWithUs: "Ασφαλισμένο στο γραφείο", currentCarrierName: "Τρέχουσα ασφαλιστική",
+  currentPolicyExpiresOn: "Λήξη υφιστάμενου συμβολαίου", interestScore: "Δείκτης ενδιαφέροντος", notes: "Σημειώσεις",
+};
+const assetHiddenFields = new Set(["id", "tenantId", "agencyOfficeScopeId", "customerId", "familyMemberId", "createdAt", "updatedAt", "deletedAt", "vehicleSpecsJson"]);
+const assetKindLabels: Record<string, string> = {
+  House: "Κατοικία", Apartment: "Διαμέρισμα", HolidayHome: "Εξοχική κατοικία", Land: "Οικόπεδο",
+  Vehicle: "Όχημα", Motorcycle: "Μοτοσυκλέτα", Truck: "Φορτηγό", Business: "Επιχείρηση",
+  Office: "Γραφείο", Warehouse: "Αποθήκη", Farm: "Αγρόκτημα", Boat: "Σκάφος",
+  Aircraft: "Αεροσκάφος", Pet: "Κατοικίδιο", Health: "Υγεία", Life: "Ζωή", Other: "Άλλο",
+};
+const assetExtraFields = ["postalCode", "country", "yearOfConstruction", "engineCc", "vin", "chassisNumber",
+  "fuelType", "transmission", "color", "licenseCountry", "vehicleUse", "insuranceClass", "taxableHorsepower",
+  "doorCount", "seatCount", "ownerCount", "estimatedValue", "firstLicenseDate", "purchaseDate", "wasPurchasedNew",
+  "isYoungDriver", "hasSunroof", "hasAlarm", "hasImmobilizer", "value", "areaSquareMeters", "constructionYear",
+  "constructionType", "businessActivity", "kad", "employeeCount", "interestScore"] as const;
+const assetNumberFields = new Set<string>(["yearOfConstruction", "engineCc", "taxableHorsepower", "doorCount", "seatCount",
+  "ownerCount", "estimatedValue", "value", "areaSquareMeters", "constructionYear", "employeeCount", "interestScore"]);
+const assetDateFields = new Set<string>(["firstLicenseDate", "purchaseDate"]);
+const assetBooleanFields = new Set<string>(["wasPurchasedNew", "isYoungDriver", "hasSunroof", "hasAlarm", "hasImmobilizer"]);
+
+function CustomerAssetsCard({ customerId, assets }: { customerId: string; assets: CustomerAssetRecord[] }) {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState<CustomerAssetRecord | null>(null);
+  const [details, setDetails] = useState<CustomerAssetRecord | null>(null);
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState({ assetKind: "House", description: "", plate: "", brand: "", model: "", address: "", city: "", isInsuredWithUs: false, currentCarrierName: "", currentPolicyExpiresOn: "", notes: "" });
+  const [extraForm, setExtraForm] = useState<Record<string, string | boolean>>({});
+  const refresh = () => qc.invalidateQueries({ queryKey: ["customer-family", customerId] });
+  const save = useMutation({ mutationFn: async () => {
+    const extras = Object.fromEntries(assetExtraFields.map(key => {
+      const value = extraForm[key];
+      if (assetBooleanFields.has(key)) return [key, value === true];
+      if (assetNumberFields.has(key)) return [key, value === "" || value == null ? null : Number(value)];
+      return [key, value === "" || value == null ? null : value];
+    }));
+    const body = { ...(editing ?? {}), ...form, ...extras, currentPolicyExpiresOn: form.currentPolicyExpiresOn || null };
+    return editing ? api.put(`/customers/${customerId}/family/assets/${editing.id}`, body) : api.post(`/customers/${customerId}/family/assets`, body);
+  }, onSuccess: () => { setOpen(false); setEditing(null); setError(null); void refresh(); }, onError: e => setError(extractErrorMessage(e)) });
+  const remove = useMutation({ mutationFn: async (id: string) => api.delete(`/customers/${customerId}/family/assets/${id}`),
+    onSuccess: () => { setError(null); void refresh(); }, onError: e => setError(extractErrorMessage(e)) });
+  const start = (asset: CustomerAssetRecord | null) => {
+    setEditing(asset);
+    setForm({ assetKind: asset?.assetKind ?? "House", description: asset?.description ?? "", plate: asset?.plate ?? "",
+      brand: asset?.brand ?? "", model: asset?.model ?? "", address: asset?.address ?? "", city: asset?.city ?? "",
+      isInsuredWithUs: asset?.isInsuredWithUs ?? false, currentCarrierName: asset?.currentCarrierName ?? "",
+      currentPolicyExpiresOn: asset?.currentPolicyExpiresOn?.slice(0, 10) ?? "", notes: asset?.notes ?? "" });
+    setExtraForm(Object.fromEntries(assetExtraFields.map(key => [key,
+      assetBooleanFields.has(key) ? asset?.[key] === true : assetDateFields.has(key)
+        ? String(asset?.[key] ?? "").slice(0, 10) : String(asset?.[key] ?? "")])));
+    setOpen(true);
+  };
+  return <Card variant="outlined" sx={{ p: 1, bgcolor: "#f8fafc" }}>
+    <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
+      <Typography variant="subtitle2" fontWeight={800}>Καταχωρημένη περιουσία πελάτη</Typography>
+      <Button size="small" variant="contained" color="success" startIcon={<AddIcon />} onClick={() => start(null)}>Προσθήκη περιουσίας</Button>
+    </Stack>
+    {error && <Alert severity="error" sx={{ mt: 1 }} onClose={() => setError(null)}>{error}</Alert>}
+    <CustomerCompactTable rows={assets} rowKey={a => a.id} label="Περιουσία πελάτη" searchPlaceholder="Περιγραφή, πινακίδα, πόλη…"
+      searchText={a => `${assetKindLabels[a.assetKind] ?? a.assetKind} ${a.description ?? ""} ${a.plate ?? ""} ${a.city ?? ""}`}
+      columns={[
+        { key: "kind", title: "Είδος", cell: a => assetKindLabels[a.assetKind] ?? a.assetKind },
+        { key: "description", title: "Περιγραφή", cell: a => a.description || "—" },
+        { key: "plate", title: "Πινακίδα", cell: a => a.plate || "—" },
+        { key: "city", title: "Πόλη", cell: a => a.city || "—" },
+        { key: "insured", title: "Ασφαλισμένο", cell: a => a.isInsuredWithUs ? "Ναι" : "Όχι" },
+        { key: "actions", title: "Ενέργειες", cell: a => <Stack direction="row" spacing={.5}>
+          <Button size="small" color="success" onClick={() => setDetails(a)}>Λεπτομέρειες</Button>
+          <IconButton size="small" color="success" aria-label="Επεξεργασία περιουσίας" onClick={() => start(a)}><EditIcon fontSize="small" /></IconButton>
+          <IconButton size="small" color="error" aria-label="Διαγραφή περιουσίας" onClick={() => { if (confirm("Να διαγραφεί η καταχώρηση περιουσίας;")) remove.mutate(a.id); }}><DeleteIcon fontSize="small" /></IconButton>
+        </Stack> },
+      ]} />
+    <Dialog open={!!details} onClose={() => setDetails(null)} fullWidth maxWidth="md">
+      <DialogTitle>Στοιχεία περιουσίας</DialogTitle><DialogContent>
+        {details && <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1 }}>
+          {Object.entries(details).filter(([key, value]) => !assetHiddenFields.has(key) && value !== null && value !== "").map(([key, value]) =>
+            <Box key={key} sx={{ p: 1, bgcolor: "#f1f5f9", borderRadius: 1 }}><Typography variant="caption" color="text.secondary">{assetFieldLabels[key] ?? key}</Typography><Typography variant="body2">{key === "assetKind" ? assetKindLabels[String(value)] ?? String(value) : typeof value === "boolean" ? value ? "Ναι" : "Όχι" : String(value)}</Typography></Box>)}
+        </Box>}
+      </DialogContent><DialogActions><Button onClick={() => setDetails(null)}>Κλείσιμο</Button></DialogActions>
+    </Dialog>
+    <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm"><DialogTitle>{editing ? "Επεξεργασία περιουσίας" : "Νέα περιουσία"}</DialogTitle><DialogContent><Stack spacing={1.5} mt={1}>
+      <SearchableTextField label="Είδος" value={form.assetKind} onChange={e => setForm({ ...form, assetKind: e.target.value })}>{Object.entries(assetKindLabels).map(([kind, label]) => <MenuItem key={kind} value={kind}>{label}</MenuItem>)}</SearchableTextField>
+      <TextField label="Περιγραφή" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1}><TextField label="Πινακίδα" value={form.plate} onChange={e => setForm({ ...form, plate: e.target.value })} fullWidth /><TextField label="Πόλη" value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} fullWidth /></Stack>
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1}><TextField label="Μάρκα" value={form.brand} onChange={e => setForm({ ...form, brand: e.target.value })} fullWidth /><TextField label="Μοντέλο" value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} fullWidth /></Stack>
+      <TextField label="Διεύθυνση" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} />
+      <FormControlLabel control={<Switch checked={form.isInsuredWithUs} onChange={e => setForm({ ...form, isInsuredWithUs: e.target.checked })} />} label="Ασφαλισμένο στο γραφείο" />
+      <TextField label="Τρέχουσα ασφαλιστική" value={form.currentCarrierName} onChange={e => setForm({ ...form, currentCarrierName: e.target.value })} />
+      <TextField type="date" label="Λήξη υφιστάμενου συμβολαίου" InputLabelProps={{ shrink: true }} value={form.currentPolicyExpiresOn} onChange={e => setForm({ ...form, currentPolicyExpiresOn: e.target.value })} />
+      <TextField label="Σημειώσεις" multiline minRows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
+      <Typography variant="subtitle2" fontWeight={800}>Πρόσθετα στοιχεία περιουσίας</Typography>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1 }}>
+        {assetExtraFields.map(key => assetBooleanFields.has(key)
+          ? <FormControlLabel key={key} control={<Switch checked={extraForm[key] === true} onChange={e => setExtraForm(previous => ({ ...previous, [key]: e.target.checked }))} />} label={assetFieldLabels[key]} />
+          : <TextField key={key} size="small" label={assetFieldLabels[key]} type={assetDateFields.has(key) ? "date" : assetNumberFields.has(key) ? "number" : "text"}
+              InputLabelProps={assetDateFields.has(key) ? { shrink: true } : undefined}
+              value={extraForm[key] ?? ""} onChange={e => setExtraForm(previous => ({ ...previous, [key]: e.target.value }))} />)}
+      </Box>
+    </Stack></DialogContent><DialogActions><Button color="error" onClick={() => setOpen(false)}>Κλείσιμο</Button><Button variant="contained" color="success" disabled={save.isPending} onClick={() => save.mutate()}>Αποθήκευση</Button></DialogActions></Dialog>
+  </Card>;
 }
 
 function ConsentsCard({ customerId }: { customerId: string }) {

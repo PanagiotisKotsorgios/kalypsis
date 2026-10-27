@@ -15,6 +15,8 @@ public class CustomerContactConfiguration : IEntityTypeConfiguration<CustomerCon
         b.Property(x => x.Role).HasMaxLength(80);
         b.Property(x => x.Email).HasMaxLength(256);
         b.Property(x => x.Phone).HasMaxLength(40);
+        b.Property(x => x.MobilePhone).HasMaxLength(40);
+        b.Property(x => x.Kind).HasMaxLength(40).IsRequired().HasDefaultValue("Other");
         b.Property(x => x.Notes).HasMaxLength(1000);
         b.HasIndex(x => new { x.TenantId, x.CustomerId });
         b.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Cascade);

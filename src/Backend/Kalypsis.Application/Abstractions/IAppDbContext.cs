@@ -10,6 +10,8 @@ public interface IAppDbContext
     DbSet<RefreshToken> RefreshTokens { get; }
     DbSet<Customer> Customers { get; }
     DbSet<CustomerRelationship> CustomerRelationships { get; }
+    DbSet<CustomerFamilyMember> CustomerFamilyMembers { get; }
+    DbSet<CustomerAsset> CustomerAssets { get; }
     DbSet<CustomerInsuranceNeed> CustomerInsuranceNeeds { get; }
     DbSet<ProducerCardEntry> ProducerCardEntries {get;}
     DbSet<Producer> Producers { get; }

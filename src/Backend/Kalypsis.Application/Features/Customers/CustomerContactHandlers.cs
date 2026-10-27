@@ -9,10 +9,12 @@ namespace Kalypsis.Application.Features.Customers;
 
 public record CustomerContactDto(
     Guid Id, Guid CustomerId, string FirstName, string LastName,
-    string? Role, string? Email, string? Phone, string? Notes, bool IsPrimary);
+    string? Role, string? Email, string? Phone, string? Notes, bool IsPrimary,
+    string? MobilePhone, string Kind);
 
 public record UpsertCustomerContactBody(
-    string FirstName, string LastName, string? Role, string? Email, string? Phone, string? Notes, bool IsPrimary);
+    string FirstName, string LastName, string? Role, string? Email, string? Phone, string? Notes, bool IsPrimary,
+    string? MobilePhone = null, string Kind = "Other");
 
 public class UpsertCustomerContactBodyValidator : AbstractValidator<UpsertCustomerContactBody>
 {
@@ -21,6 +23,7 @@ public class UpsertCustomerContactBodyValidator : AbstractValidator<UpsertCustom
         RuleFor(x => x.FirstName).NotEmpty().MaximumLength(100);
         RuleFor(x => x.LastName).NotEmpty().MaximumLength(100);
         RuleFor(x => x.Email).MaximumLength(256);
+        RuleFor(x => x.MobilePhone).MaximumLength(40);
     }
 }
 
@@ -41,7 +44,7 @@ public class ListContactsHandler : IRequestHandler<ListContactsQuery, IReadOnlyL
         return await _db.CustomerContacts
             .Where(c => c.TenantId == tenantId && c.CustomerId == request.CustomerId && c.DeletedAt == null)
             .OrderByDescending(c => c.IsPrimary).ThenBy(c => c.LastName)
-            .Select(c => new CustomerContactDto(c.Id, c.CustomerId, c.FirstName, c.LastName, c.Role, c.Email, c.Phone, c.Notes, c.IsPrimary))
+            .Select(c => new CustomerContactDto(c.Id, c.CustomerId, c.FirstName, c.LastName, c.Role, c.Email, c.Phone, c.Notes, c.IsPrimary, c.MobilePhone, c.Kind))
             .ToListAsync(ct);
     }
 }
@@ -59,6 +62,7 @@ public class CreateContactHandler : IRequestHandler<CreateContactCommand, Custom
             ?? throw AppException.NotFound("Πελάτης");
         ContactValueRules.Ensure("Email", request.Body.Email);
         ContactValueRules.Ensure("Phone", request.Body.Phone);
+        ContactValueRules.Ensure("Phone", request.Body.MobilePhone);
 
         if (request.Body.IsPrimary)
         {
@@ -75,12 +79,14 @@ public class CreateContactHandler : IRequestHandler<CreateContactCommand, Custom
             Role = request.Body.Role?.Trim(),
             Email = request.Body.Email?.Trim(),
             Phone = request.Body.Phone?.Trim(),
+            MobilePhone = request.Body.MobilePhone?.Trim(),
+            Kind = string.IsNullOrWhiteSpace(request.Body.Kind) ? "Other" : request.Body.Kind.Trim(),
             Notes = request.Body.Notes,
             IsPrimary = request.Body.IsPrimary
         };
         _db.CustomerContacts.Add(c);
         await _db.SaveChangesAsync(ct);
-        return new CustomerContactDto(c.Id, c.CustomerId, c.FirstName, c.LastName, c.Role, c.Email, c.Phone, c.Notes, c.IsPrimary);
+        return new CustomerContactDto(c.Id, c.CustomerId, c.FirstName, c.LastName, c.Role, c.Email, c.Phone, c.Notes, c.IsPrimary, c.MobilePhone, c.Kind);
     }
 
     private async Task DemoteCurrentPrimaryAsync(Guid tenantId, Guid customerId, CancellationToken ct)
@@ -107,6 +113,7 @@ public class UpdateContactHandler : IRequestHandler<UpdateContactCommand, Custom
 
         ContactValueRules.Ensure("Email", request.Body.Email, c.Email, changedOnly: true);
         ContactValueRules.Ensure("Phone", request.Body.Phone, c.Phone, changedOnly: true);
+        ContactValueRules.Ensure("Phone", request.Body.MobilePhone, c.MobilePhone, changedOnly: true);
 
         if (request.Body.IsPrimary && !c.IsPrimary)
         {
@@ -121,10 +128,12 @@ public class UpdateContactHandler : IRequestHandler<UpdateContactCommand, Custom
         c.Role = request.Body.Role?.Trim();
         c.Email = request.Body.Email?.Trim();
         c.Phone = request.Body.Phone?.Trim();
+        c.MobilePhone = request.Body.MobilePhone?.Trim();
+        c.Kind = string.IsNullOrWhiteSpace(request.Body.Kind) ? "Other" : request.Body.Kind.Trim();
         c.Notes = request.Body.Notes;
         c.IsPrimary = request.Body.IsPrimary;
         await _db.SaveChangesAsync(ct);
-        return new CustomerContactDto(c.Id, c.CustomerId, c.FirstName, c.LastName, c.Role, c.Email, c.Phone, c.Notes, c.IsPrimary);
+        return new CustomerContactDto(c.Id, c.CustomerId, c.FirstName, c.LastName, c.Role, c.Email, c.Phone, c.Notes, c.IsPrimary, c.MobilePhone, c.Kind);
     }
 }
 

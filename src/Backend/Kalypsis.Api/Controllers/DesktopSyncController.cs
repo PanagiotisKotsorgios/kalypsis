@@ -52,7 +52,7 @@ public sealed class DesktopSyncController : ControllerBase
 
     [HttpGet("health")]
     public ActionResult<object> Health()
-        => Ok(new { ok = true, protocol = "kalypsis-desktop-sync", version = 1, serverTimeUtc = DateTime.UtcNow });
+        => Ok(new { ok = true, protocol = "kalypsis-desktop-sync", version = 6, serverTimeUtc = DateTime.UtcNow });
 
     [HttpPost("sync")]
     [RequestSizeLimit(64L * 1024 * 1024)]
@@ -86,6 +86,13 @@ public sealed class DesktopSyncController : ControllerBase
             warnings.Add($"{removedPolicies} εγγραφές συμβολαίων παραλείφθηκαν επειδή έλειπε ο απαιτούμενος πελάτης ή η ασφαλιστική εταιρεία.");
         syncData = ToSyncElement(dataNode);
 
+        pushed["customerRelationships"] = await UpsertAsync<CustomerRelationship>(syncData, "customerRelationships", tenantId, conflict, warnings, ct);
+        pushed["customerFamilyMembers"] = await UpsertAsync<CustomerFamilyMember>(syncData, "customerFamilyMembers", tenantId, conflict, warnings, ct);
+        pushed["customerAssets"] = await UpsertAsync<CustomerAsset>(syncData, "customerAssets", tenantId, conflict, warnings, ct);
+        pushed["customerInsuranceNeeds"] = await UpsertAsync<CustomerInsuranceNeed>(syncData, "customerInsuranceNeeds", tenantId, conflict, warnings, ct);
+        pushed["customerContacts"] = await UpsertAsync<CustomerContact>(syncData, "customerContacts", tenantId, conflict, warnings, ct);
+        await FlushSyncPhaseAsync("οικογένεια και ανάγκες πελατών", warnings, ct);
+
         pushed["policies"] = await UpsertAsync<Policy>(syncData, "policies", tenantId, conflict, warnings, ct);
         await FlushSyncPhaseAsync("συμβόλαια", warnings, ct);
         pushed["policyObjects"] = await UpsertAsync<PolicyObject>(syncData, "policyObjects", tenantId, conflict, warnings, ct);
@@ -101,6 +108,18 @@ public sealed class DesktopSyncController : ControllerBase
         pushed["instructions"] = await UpsertAsync<AgencyInstruction>(syncData, "instructions", tenantId, conflict, warnings, ct);
         await FlushSyncPhaseAsync("λειτουργικά δεδομένα", warnings, ct);
 
+        pushed["producerCardEntries"] = await UpsertAsync<ProducerCardEntry>(syncData, "producerCardEntries", tenantId, conflict, warnings, ct);
+        pushed["claimInvolvedParties"] = await UpsertAsync<ClaimInvolvedParty>(syncData, "claimInvolvedParties", tenantId, conflict, warnings, ct);
+        pushed["emailTemplates"] = await UpsertAsync<EmailTemplate>(syncData, "emailTemplates", tenantId, conflict, warnings, ct);
+        pushed["overCommissionStatements"] = await UpsertAsync<OverCommissionStatement>(syncData, "overCommissionStatements", tenantId, conflict, warnings, ct);
+        pushed["generalFinancialEntries"] = await UpsertAsync<GeneralFinancialEntry>(syncData, "generalFinancialEntries", tenantId, conflict, warnings, ct);
+        pushed["advancePayments"] = await UpsertAsync<AdvancePayment>(syncData, "advancePayments", tenantId, conflict, warnings, ct);
+        pushed["creditNotes"] = await UpsertAsync<CreditNote>(syncData, "creditNotes", tenantId, conflict, warnings, ct);
+        pushed["partyLedgerEntries"] = await UpsertAsync<PartyLedgerEntry>(syncData, "partyLedgerEntries", tenantId, conflict, warnings, ct);
+        await FlushSyncPhaseAsync("καρτέλες συναλλασσομένων", warnings, ct);
+        pushed["ledgerAllocations"] = await UpsertAsync<LedgerAllocation>(syncData, "ledgerAllocations", tenantId, conflict, warnings, ct);
+        await FlushSyncPhaseAsync("επικοινωνία και οικονομικά", warnings, ct);
+
         // Pull after the push so both sides converge to the same server state.
         // A full pull is used for the first sync; later calls can pass SinceUtc
         // to keep the payload small.  DeletedAt is included, so the client can
@@ -109,7 +128,7 @@ public sealed class DesktopSyncController : ControllerBase
         return Ok(new
         {
             protocol = "kalypsis-desktop-sync",
-            version = 2,
+            version = 6,
             serverTimeUtc = DateTime.UtcNow,
             lastSyncUtc = DateTime.UtcNow,
             conflictPolicy = conflict,
@@ -129,7 +148,10 @@ public sealed class DesktopSyncController : ControllerBase
             return 0;
 
         var items = new List<T>();
-        var customerFields=new Dictionary<Guid,HashSet<string>>();
+        // Track the scalar members supplied by Desktop for every entity.
+        // The two clients do not have identical schemas; replacing an entire
+        // Cloud row would erase Cloud-only fields (including financial links).
+        var suppliedFields = new Dictionary<Guid, HashSet<string>>();
         var rowNumber = 0;
         foreach (var rawRow in rows.EnumerateArray())
         {
@@ -141,7 +163,8 @@ public sealed class DesktopSyncController : ControllerBase
                 if (item is not null)
                 {
                     items.Add(item);
-                    if(item is Customer)customerFields[item.Id]=normalized.EnumerateObject().Select(p=>p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    suppliedFields[item.Id] = normalized.EnumerateObject()
+                        .Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
                 }
             }
             catch (Exception ex)
@@ -205,7 +228,9 @@ public sealed class DesktopSyncController : ControllerBase
                 continue;
             }
 
-            if (conflict == "cloud_wins")
+            var hasIncomingTimestamp = suppliedFields.TryGetValue(item.Id, out var timeFields)
+                && (timeFields.Contains("UpdatedAt") || timeFields.Contains("CreatedAt"));
+            if (conflict == "cloud_wins" && hasIncomingTimestamp)
             {
                 // The desktop row loses only when the cloud row is newer.
                 // When there is no comparable timestamp, cloud wins by choice.
@@ -213,13 +238,13 @@ public sealed class DesktopSyncController : ControllerBase
                 var incomingUpdated = item.UpdatedAt ?? item.CreatedAt;
                 if (incomingUpdated < localUpdated) continue;
             }
-            else if (conflict == "local_wins")
+            else if (conflict == "local_wins" && hasIncomingTimestamp)
             {
                 var localUpdated = existing.UpdatedAt ?? existing.CreatedAt;
                 var incomingUpdated = item.UpdatedAt ?? item.CreatedAt;
                 if (incomingUpdated <= localUpdated) continue;
             }
-            else if (conflict == "last_write_wins")
+            else if (conflict == "last_write_wins" && hasIncomingTimestamp)
             {
                 var cloudUpdated = existing.UpdatedAt ?? existing.CreatedAt;
                 var desktopUpdated = item.UpdatedAt ?? item.CreatedAt;
@@ -229,10 +254,9 @@ public sealed class DesktopSyncController : ControllerBase
                 if (desktopUpdated <= cloudUpdated) continue;
             }
 
-            if(existing is Customer&&customerFields.TryGetValue(item.Id,out var fields))
+            if(suppliedFields.TryGetValue(item.Id,out var fields))
             {
-                // A desktop snapshot owns its supplied customer fields. It must
-                // not clear web-only office/advisor references that it never sent.
+                // An incoming snapshot owns only members it actually sent.
                 var entry=_db.Entry(existing);
                 foreach(var property in entry.Properties)
                     if(property.Metadata.Name is not ("Id" or "TenantId")&&fields.Contains(property.Metadata.Name))
@@ -381,6 +405,37 @@ public sealed class DesktopSyncController : ControllerBase
         RewriteOptionalRows(data["appointments"] as JsonArray, "CustomerId", customers);
         RewriteOptionalRows(data["appointments"] as JsonArray, "ProducerId", producers);
         RewriteOptionalRows(data["appointments"] as JsonArray, "PolicyId", policyIds);
+        RewriteRequiredRows(data["producerCardEntries"] as JsonArray, "ProducerId", producers);
+        RewriteRequiredRows(data["overCommissionStatements"] as JsonArray, "ProducerId", producers);
+        RewriteRequiredRows(data["overCommissionStatements"] as JsonArray, "InsuranceCompanyId", carriers);
+        RewriteOptionalRows(data["generalFinancialEntries"] as JsonArray, "PolicyId", policyIds);
+        RewriteOptionalRows(data["generalFinancialEntries"] as JsonArray, "CustomerId", customers);
+        RewriteOptionalRows(data["generalFinancialEntries"] as JsonArray, "ProducerId", producers);
+        RewriteOptionalRows(data["creditNotes"] as JsonArray, "PolicyId", policyIds);
+        RewriteOptionalRows(data["creditNotes"] as JsonArray, "CustomerId", customers);
+        RewriteOptionalRows(data["creditNotes"] as JsonArray, "ProducerId", producers);
+        RewriteOptionalRows(data["creditNotes"] as JsonArray, "InsuranceCompanyId", carriers);
+        RewriteRequiredRows(data["customerRelationships"] as JsonArray, "CustomerId", customers);
+        RewriteRequiredRows(data["customerRelationships"] as JsonArray, "RelatedCustomerId", customers);
+        RewriteRequiredRows(data["customerFamilyMembers"] as JsonArray, "CustomerId", customers);
+        RewriteRequiredRows(data["customerAssets"] as JsonArray, "CustomerId", customers);
+        RewriteRequiredRows(data["customerInsuranceNeeds"] as JsonArray, "CustomerId", customers);
+        RewriteRequiredRows(data["customerContacts"] as JsonArray, "CustomerId", customers);
+        if (data["partyLedgerEntries"] is JsonArray ledger)
+            for (var i = ledger.Count - 1; i >= 0; i--)
+            {
+                if (ledger[i] is not JsonObject line) continue;
+                var kind = line["PartyKind"]?.ToString() ?? "";
+                var partyMap = kind.Equals("Producer", StringComparison.OrdinalIgnoreCase) ? producers :
+                    kind.Equals("Carrier", StringComparison.OrdinalIgnoreCase) ||
+                    kind.Equals("InsuranceCompany", StringComparison.OrdinalIgnoreCase) ? carriers : customers;
+                if (!RewriteRequired(line, "PartyId", partyMap)) ledger.RemoveAt(i);
+                else RewriteOptional(line, "PolicyId", policyIds.ToDictionary(x => x, x => x));
+            }
+        var claimIds = (data["claims"] as JsonArray)?.OfType<JsonObject>()
+            .Select(x => TryGuid(x, "Id", out var id) ? id : Guid.Empty)
+            .Where(x => x != Guid.Empty).ToHashSet() ?? new HashSet<Guid>();
+        RewriteRows(data["claimInvolvedParties"] as JsonArray, "ClaimId", claimIds);
         return removedPolicies;
     }
 
@@ -406,6 +461,13 @@ public sealed class DesktopSyncController : ControllerBase
             if (rows[i] is not JsonObject row) continue;
             if (!TryGuid(row, property, out var value) || !allowed.Contains(value)) rows.RemoveAt(i);
         }
+    }
+
+    private static void RewriteRequiredRows(JsonArray? rows, string property, IReadOnlyDictionary<Guid, Guid> map)
+    {
+        if (rows is null) return;
+        for (var i = rows.Count - 1; i >= 0; i--)
+            if (rows[i] is JsonObject row && !RewriteRequired(row, property, map)) rows.RemoveAt(i);
     }
 
     private static void RewriteOptionalRows(JsonArray? rows, string property, IReadOnlyDictionary<Guid, Guid> map)
@@ -503,6 +565,15 @@ public sealed class DesktopSyncController : ControllerBase
                 DateOnlyAlias("DriverLicenseIssueDate", "DriverLicenseIssuedOn");
                 DateOnlyAlias("DriverLicenseExpiryDate", "DriverLicenseExpiresOn");
                 break;
+            case nameof(CustomerContact):
+                Alias("Role", "Label");
+                if (node["FullName"] is JsonValue fullNameValue && fullNameValue.TryGetValue<string>(out var fullName))
+                {
+                    var parts = fullName.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+                    if (!node.ContainsKey("FirstName")) node["FirstName"] = parts.Length > 0 ? parts[0][..Math.Min(parts[0].Length, 100)] : "";
+                    if (!node.ContainsKey("LastName")) node["LastName"] = parts.Length > 1 ? parts[1][..Math.Min(parts[1].Length, 100)] : "";
+                }
+                break;
             case nameof(Producer):
                 Alias("TaxId", "AfmVat");
                 Alias("Iban", "BankAccount");
@@ -589,6 +660,32 @@ public sealed class DesktopSyncController : ControllerBase
             case nameof(AgencyInstruction):
                 Alias("ContentHtml", "Body");
                 Alias("UpdatedByUserId", "AuthorUserId");
+                break;
+            case nameof(ClaimInvolvedParty):
+                Alias("Role", "Kind");
+                Alias("InsuranceCompany", "InsuredWith");
+                Alias("PolicyNumber", "InsurancePolicyNumber");
+                break;
+            case nameof(GeneralFinancialEntry):
+                Alias("Kind", "Direction");
+                Alias("Counterparty", "CounterpartyName");
+                Alias("Reference", "DocumentNumber");
+                NormalizeCurrency(node);
+                break;
+            case nameof(AdvancePayment):
+                Alias("PartyType", "PartyKind");
+                Alias("AllocatedAmount", "SettledAmount");
+                Alias("PaymentMethod", "Method");
+                DateOnlyAlias("ReceivedOn", "ReceivedOn");
+                NormalizeCurrency(node);
+                break;
+            case nameof(CreditNote):
+                Alias("CreditNoteNumber", "Number");
+                Alias("Description", "Reason");
+                DateOnlyAlias("IssuedAt", "Date");
+                if (!node.ContainsKey("Kind")) node["Kind"] = "Manual";
+                if (!node.ContainsKey("Status")) node["Status"] = "Issued";
+                NormalizeCurrency(node);
                 break;
         }
 
@@ -713,6 +810,16 @@ public sealed class DesktopSyncController : ControllerBase
     {
         var customers = await _db.Customers.IgnoreQueryFilters().AsNoTracking()
             .Where(x => x.TenantId == tenantId && (sinceUtc == null || x.UpdatedAt >= sinceUtc || x.CreatedAt >= sinceUtc || x.DeletedAt >= sinceUtc)).ToListAsync(ct);
+        var customerRelationships = await _db.CustomerRelationships.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.TenantId == tenantId && (sinceUtc == null || x.UpdatedAt >= sinceUtc || x.CreatedAt >= sinceUtc || x.DeletedAt >= sinceUtc)).ToListAsync(ct);
+        var customerFamilyMembers = await _db.CustomerFamilyMembers.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.TenantId == tenantId && (sinceUtc == null || x.UpdatedAt >= sinceUtc || x.CreatedAt >= sinceUtc || x.DeletedAt >= sinceUtc)).ToListAsync(ct);
+        var customerAssets = await _db.CustomerAssets.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.TenantId == tenantId && (sinceUtc == null || x.UpdatedAt >= sinceUtc || x.CreatedAt >= sinceUtc || x.DeletedAt >= sinceUtc)).ToListAsync(ct);
+        var customerInsuranceNeeds = await _db.CustomerInsuranceNeeds.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.TenantId == tenantId && (sinceUtc == null || x.UpdatedAt >= sinceUtc || x.CreatedAt >= sinceUtc || x.DeletedAt >= sinceUtc)).ToListAsync(ct);
+        var customerContacts = await _db.CustomerContacts.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.TenantId == tenantId && (sinceUtc == null || x.UpdatedAt >= sinceUtc || x.CreatedAt >= sinceUtc || x.DeletedAt >= sinceUtc)).ToListAsync(ct);
         var producers = await _db.Producers.IgnoreQueryFilters().AsNoTracking()
             .Where(x => x.TenantId == tenantId && (sinceUtc == null || x.UpdatedAt >= sinceUtc || x.CreatedAt >= sinceUtc || x.DeletedAt >= sinceUtc)).ToListAsync(ct);
         var carriers = await _db.InsuranceCompanies.IgnoreQueryFilters().AsNoTracking()
@@ -737,10 +844,33 @@ public sealed class DesktopSyncController : ControllerBase
             .Where(x => x.TenantId == tenantId && (sinceUtc == null || x.UpdatedAt >= sinceUtc || x.CreatedAt >= sinceUtc || x.DeletedAt >= sinceUtc)).ToListAsync(ct);
         var instructions = await _db.AgencyInstructions.IgnoreQueryFilters().AsNoTracking()
             .Where(x => x.TenantId == tenantId && (sinceUtc == null || x.UpdatedAt >= sinceUtc || x.CreatedAt >= sinceUtc || x.DeletedAt >= sinceUtc)).ToListAsync(ct);
+        var producerCardEntries = await _db.ProducerCardEntries.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.TenantId == tenantId && (sinceUtc == null || x.UpdatedAt >= sinceUtc || x.CreatedAt >= sinceUtc || x.DeletedAt >= sinceUtc)).ToListAsync(ct);
+        var claimInvolvedParties = await _db.ClaimInvolvedParties.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.TenantId == tenantId && (sinceUtc == null || x.UpdatedAt >= sinceUtc || x.CreatedAt >= sinceUtc || x.DeletedAt >= sinceUtc)).ToListAsync(ct);
+        var emailTemplates = await _db.EmailTemplates.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.TenantId == tenantId && (sinceUtc == null || x.UpdatedAt >= sinceUtc || x.CreatedAt >= sinceUtc || x.DeletedAt >= sinceUtc)).ToListAsync(ct);
+        var overCommissionStatements = await _db.OverCommissionStatements.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.TenantId == tenantId && (sinceUtc == null || x.UpdatedAt >= sinceUtc || x.CreatedAt >= sinceUtc || x.DeletedAt >= sinceUtc)).ToListAsync(ct);
+        var generalFinancialEntries = await _db.GeneralFinancialEntries.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.TenantId == tenantId && (sinceUtc == null || x.UpdatedAt >= sinceUtc || x.CreatedAt >= sinceUtc || x.DeletedAt >= sinceUtc)).ToListAsync(ct);
+        var advancePayments = await _db.AdvancePayments.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.TenantId == tenantId && (sinceUtc == null || x.UpdatedAt >= sinceUtc || x.CreatedAt >= sinceUtc || x.DeletedAt >= sinceUtc)).ToListAsync(ct);
+        var creditNotes = await _db.CreditNotes.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.TenantId == tenantId && (sinceUtc == null || x.UpdatedAt >= sinceUtc || x.CreatedAt >= sinceUtc || x.DeletedAt >= sinceUtc)).ToListAsync(ct);
+        var partyLedgerEntries = await _db.PartyLedgerEntries.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.TenantId == tenantId && (sinceUtc == null || x.UpdatedAt >= sinceUtc || x.CreatedAt >= sinceUtc || x.DeletedAt >= sinceUtc)).ToListAsync(ct);
+        var ledgerAllocations = await _db.LedgerAllocations.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.TenantId == tenantId && (sinceUtc == null || x.UpdatedAt >= sinceUtc || x.CreatedAt >= sinceUtc || x.DeletedAt >= sinceUtc)).ToListAsync(ct);
 
         var data = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
         {
             ["customers"] = JsonSerializer.SerializeToElement(customers, new JsonSerializerOptions(SyncJson){DefaultIgnoreCondition=JsonIgnoreCondition.Never}),
+            ["customerRelationships"] = JsonSerializer.SerializeToElement(customerRelationships, SyncJson),
+            ["customerFamilyMembers"] = JsonSerializer.SerializeToElement(customerFamilyMembers, SyncJson),
+            ["customerAssets"] = JsonSerializer.SerializeToElement(customerAssets, SyncJson),
+            ["customerInsuranceNeeds"] = JsonSerializer.SerializeToElement(customerInsuranceNeeds, SyncJson),
+            ["customerContacts"] = JsonSerializer.SerializeToElement(customerContacts, SyncJson),
             ["producers"] = JsonSerializer.SerializeToElement(producers, SyncJson),
             ["carriers"] = JsonSerializer.SerializeToElement(carriers, SyncJson),
             ["policies"] = JsonSerializer.SerializeToElement(policies, SyncJson),
@@ -753,6 +883,15 @@ public sealed class DesktopSyncController : ControllerBase
             ["tasks"] = JsonSerializer.SerializeToElement(tasks, SyncJson),
             ["appointments"] = JsonSerializer.SerializeToElement(appointments, SyncJson),
             ["instructions"] = JsonSerializer.SerializeToElement(instructions, SyncJson),
+            ["producerCardEntries"] = JsonSerializer.SerializeToElement(producerCardEntries, SyncJson),
+            ["claimInvolvedParties"] = JsonSerializer.SerializeToElement(claimInvolvedParties, SyncJson),
+            ["emailTemplates"] = JsonSerializer.SerializeToElement(emailTemplates, SyncJson),
+            ["overCommissionStatements"] = JsonSerializer.SerializeToElement(overCommissionStatements, SyncJson),
+            ["generalFinancialEntries"] = JsonSerializer.SerializeToElement(generalFinancialEntries, SyncJson),
+            ["advancePayments"] = JsonSerializer.SerializeToElement(advancePayments, SyncJson),
+            ["creditNotes"] = JsonSerializer.SerializeToElement(creditNotes, SyncJson),
+            ["partyLedgerEntries"] = JsonSerializer.SerializeToElement(partyLedgerEntries, SyncJson),
+            ["ledgerAllocations"] = JsonSerializer.SerializeToElement(ledgerAllocations, SyncJson),
         };
         var summary = data.ToDictionary(x => x.Key, x => x.Value.GetArrayLength(), StringComparer.OrdinalIgnoreCase);
         return (data, summary);

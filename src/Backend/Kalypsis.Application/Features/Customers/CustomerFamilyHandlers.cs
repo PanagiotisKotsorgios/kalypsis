@@ -74,7 +74,9 @@ public record CustomerFamilyProfileDto(
     CustomerProfileDto Profile,
     IReadOnlyList<CustomerNeedDto> Needs,
     IReadOnlyList<CustomerFamilyMemberDto> Family,
-    IReadOnlyList<CustomerOpportunityDto> Opportunities);
+    IReadOnlyList<CustomerOpportunityDto> Opportunities,
+    IReadOnlyList<CustomerFamilyMember> IndependentMembers,
+    IReadOnlyList<CustomerAsset> Assets);
 
 public record CustomerRelationshipBody(Guid RelatedCustomerId, CustomerRelationshipType RelationshipType, string? Notes);
 public record UpdateCustomerRelationshipBody(CustomerRelationshipType RelationshipType, string? Notes);
@@ -140,6 +142,12 @@ public class GetCustomerFamilyProfileHandler : IRequestHandler<GetCustomerFamily
             .Where(r => r.TenantId == tenantId && r.CustomerId == customer.Id && r.DeletedAt == null)
             .OrderBy(r => r.RelationshipType)
             .ToListAsync(ct);
+        var independentMembers = await _db.CustomerFamilyMembers
+            .Where(m => m.TenantId == tenantId && m.CustomerId == customer.Id && m.DeletedAt == null)
+            .OrderBy(m => m.FullName).ToListAsync(ct);
+        var assets = await _db.CustomerAssets
+            .Where(a => a.TenantId == tenantId && a.CustomerId == customer.Id && a.DeletedAt == null)
+            .OrderBy(a => a.AssetKind).ThenBy(a => a.Description).ToListAsync(ct);
         var memberIds = relationships.Select(r => r.RelatedCustomerId).Distinct().ToList();
         var allCustomerIds = memberIds.Append(customer.Id).ToList();
         var people = await _db.Customers
@@ -174,7 +182,9 @@ public class GetCustomerFamilyProfileHandler : IRequestHandler<GetCustomerFamily
             profile,
             needsByCustomer.TryGetValue(customer.Id, out var ownNeeds) ? ownNeeds : Array.Empty<CustomerNeedDto>(),
             family,
-            opportunities);
+            opportunities,
+            independentMembers,
+            assets);
     }
 }
 
