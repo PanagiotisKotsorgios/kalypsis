@@ -602,6 +602,7 @@ public sealed class DesktopSyncController : ControllerBase
                 DateOnlyAlias("IssuedAt", "IssuedAt");
                 DateOnlyAlias("NextRenewalDate", "NextRenewalDate");
                 DateOnlyAlias("HandoverDate", "HandoverDate");
+                DateOnlyAlias("DeliveredAt", "DeliveredAt");
                 DateOnlyAlias("OfficeReceivedAt", "OfficeReceivedAt");
                 DateOnlyAlias("PaymentPromisedOn", "PaymentPromisedOn");
                 NormalizeCurrency(node);
