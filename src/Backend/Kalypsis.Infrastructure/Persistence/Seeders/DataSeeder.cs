@@ -362,6 +362,11 @@ public static class DataSeeder
         try { await SeedOfficeAiPromptTemplatesAsync(db, logger, cancellationToken); }
         catch (Exception ex) { logger.LogError(ex, "Office AI prompt seed failed; continuing boot."); }
 
+        // One independent official Greek branch catalogue per office/carrier.
+        // Existing carrier-specific and bridge codes are left untouched.
+        try { await StatutoryInsuranceBranchCatalog.EnsureForAllUsedCompaniesAsync(db, cancellationToken); }
+        catch (Exception ex) { logger.LogError(ex, "Official insurance branch seed failed; continuing boot."); }
+
         await BackfillPackageGrantsAsync(db, logger, cancellationToken);
     }
 

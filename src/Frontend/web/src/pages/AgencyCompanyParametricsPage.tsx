@@ -45,6 +45,14 @@ interface ParameterDto {
   notes: string | null;
 }
 
+interface StatutoryBranchDto {
+  id: string;
+  code: string;
+  name: string;
+  category: "Ζημιών" | "Ζωής";
+  displayOrder: number;
+}
+
 // Tab order the office uses when they build up a carrier: first the top
 // hierarchy (Κλάδοι → Πακέτα), then the axes that specialise a policy
 // (Χρήσεις for motor use categories), and finally the leaf-level Καλύψεις.
@@ -72,6 +80,9 @@ export function AgencyCompanyParametricsPage() {
   const [creating, setCreating] = useState(false);
   const [inlineCarrierCreate, setInlineCarrierCreate] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [showStatutory, setShowStatutory] = useState(false);
+  const [statutoryCategory, setStatutoryCategory] = useState("");
+  const [statutorySearch, setStatutorySearch] = useState("");
   // Pagination for the parameter list — carriers with many πακέτα /
   // καλύψεις can push past 100 rows in a single tab.
   const [page, setPage] = useState(0);
@@ -106,6 +117,18 @@ export function AgencyCompanyParametricsPage() {
       }));
     }
   });
+
+  const statutoryQ = useQuery({
+    queryKey: ["statutory-insurance-branches", selectedCarrierId],
+    enabled: !!selectedCarrierId,
+    queryFn: async () => (await api.get<StatutoryBranchDto[]>("/statutory-insurance-branches", {
+      params: { insuranceCompanyId: selectedCarrierId }
+    })).data
+  });
+  const statutoryRows = (statutoryQ.data ?? []).filter(row =>
+    (!statutoryCategory || row.category === statutoryCategory) &&
+    (!statutorySearch || `${row.code} ${row.name}`.toLocaleLowerCase("el").includes(statutorySearch.toLocaleLowerCase("el")))
+  );
 
   const filteredParams = useMemo(() => {
     const rows = paramsQ.data ?? [];
@@ -224,6 +247,40 @@ export function AgencyCompanyParametricsPage() {
           <Typography color="text.secondary">
             Επιλέξτε ασφαλιστική για να δείτε και να διαχειριστείτε τα παραμετρικά της.
           </Typography>
+        </Card>
+      )}
+
+      {selectedCarrierId && (
+        <Card variant="outlined" sx={{ mb: 2, p: 1.5 }}>
+          <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
+            <Button variant={showStatutory ? "contained" : "outlined"} onClick={() => setShowStatutory(v => !v)}>
+              Επίσημοι κλάδοι ασφαλίσεων · 27
+            </Button>
+            <Typography variant="caption" color="text.secondary">
+              Διαθέσιμοι για την επιλεγμένη εταιρεία · ανεξάρτητοι από κωδικούς αρχείων και γέφυρες
+            </Typography>
+          </Stack>
+          {showStatutory && <>
+            <Stack direction={{ xs: "column", sm: "row" }} gap={1} sx={{ mt: 1.5, mb: 1 }}>
+              <TextField select label="Κατηγορία" size="small" value={statutoryCategory}
+                onChange={e => setStatutoryCategory(e.target.value)} sx={{ minWidth: 170 }}>
+                <MenuItem value="">Όλοι οι κλάδοι</MenuItem>
+                <MenuItem value="Ζημιών">Ζημιών</MenuItem>
+                <MenuItem value="Ζωής">Ζωής</MenuItem>
+              </TextField>
+              <TextField label="Αναζήτηση κωδικού ή κλάδου" size="small" value={statutorySearch}
+                onChange={e => setStatutorySearch(e.target.value)} sx={{ flex: 1 }} />
+            </Stack>
+            {statutoryQ.isError && <Alert severity="error">Δεν φορτώθηκαν οι επίσημοι κλάδοι.</Alert>}
+            <Box sx={{ maxHeight: 420, overflow: "auto" }}>
+              <Table size="small" stickyHeader>
+                <TableHead><TableRow><TableCell>Κατηγορία</TableCell><TableCell>Κωδικός</TableCell><TableCell>Επίσημη ονομασία</TableCell></TableRow></TableHead>
+                <TableBody>{statutoryRows.map(row => <TableRow key={row.id} hover>
+                  <TableCell>{row.category}</TableCell><TableCell>{row.code}</TableCell><TableCell>{row.name}</TableCell>
+                </TableRow>)}</TableBody>
+              </Table>
+            </Box>
+          </>}
         </Card>
       )}
 

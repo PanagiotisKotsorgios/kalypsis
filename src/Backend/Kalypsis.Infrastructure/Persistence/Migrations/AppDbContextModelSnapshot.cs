@@ -14525,6 +14525,55 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.ToTable("SmsLogs");
                 });
 
+            modelBuilder.Entity("Kalypsis.Domain.Entities.StatutoryInsuranceBranch", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("InsuranceCompanyId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "InsuranceCompanyId", "Code")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "InsuranceCompanyId", "DisplayOrder");
+
+                    b.ToTable("statutory_insurance_branches", (string)null);
+                });
+
             modelBuilder.Entity("Kalypsis.Domain.Entities.SubscriptionUsage", b =>
                 {
                     b.Property<Guid>("Id")
