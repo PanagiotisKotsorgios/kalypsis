@@ -88,6 +88,7 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
             City = r.City?.Trim(),
             PostalCode = r.PostalCode?.Trim(),
             BirthDate = r.BirthDate,
+            NameDayDate = r.NameDayDate,
             Occupation = r.Occupation?.Trim(),
             Notes = r.Notes?.Trim(),
             FatherName = r.FatherName?.Trim(),
@@ -174,7 +175,8 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
             customer.LegalForm, customer.AltPhone, customer.MobilePhone, customer.Amka, customer.IdNumber,
             customer.PassportNumber, customer.Region, customer.Gender, customer.MaritalStatus, customer.Employer,
             customer.DriverLicenseNumber, customer.DriverLicenseClass, customer.DriverLicenseIssueDate,
-            customer.DriverLicenseExpiryDate, customer.Source, customer.TagsJson, customer.PhotoUrl);
+            customer.DriverLicenseExpiryDate, customer.Source, customer.TagsJson, customer.PhotoUrl,
+            NameDayDate: customer.NameDayDate);
 
         return new CreateCustomerResponse(dto, portalEmail, temporaryPassword);
     }

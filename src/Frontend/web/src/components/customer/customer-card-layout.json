@@ -98,6 +98,15 @@
     },
     {
       "section": "general",
+      "key": "nameDayDate",
+      "path": "NameDayDate",
+      "label": "Ημ. ονομαστικής εορτής",
+      "group": "",
+      "kind": "date",
+      "readOnly": false
+    },
+    {
+      "section": "general",
       "key": "phone",
       "path": "Phone",
       "label": "Τηλέφωνο",

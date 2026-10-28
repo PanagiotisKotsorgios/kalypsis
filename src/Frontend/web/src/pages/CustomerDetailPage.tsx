@@ -88,6 +88,7 @@ interface CustomerDto {
   city?: string | null;
   postalCode?: string | null;
   birthDate?: string | null;
+  nameDayDate?: string | null;
   occupation?: string | null;
   fatherName?: string | null;
   motherName?: string | null;
@@ -135,7 +136,7 @@ function customerInlinePayload(customer: CustomerDto, key: keyof CustomerDto, va
     vatNumber: optional("vatNumber"), email: optional("email"), phone: optional("phone"),
     address: optional("address"), city: optional("city"), postalCode: optional("postalCode"),
     occupation: optional("occupation"), notes: optional("notes"), paymentDueDate: optional("paymentDueDate"),
-    birthDate: optional("birthDate"), fatherName: optional("fatherName"), motherName: optional("motherName"), spouseName: optional("spouseName"),
+    birthDate: optional("birthDate"), nameDayDate: optional("nameDayDate"), fatherName: optional("fatherName"), motherName: optional("motherName"), spouseName: optional("spouseName"),
     nationality: optional("nationality"), zone: optional("zone"), activityCode: optional("activityCode"), taxOffice: optional("taxOffice"),
     gemiNumber: optional("gemiNumber"), legalForm: optional("legalForm"), altPhone: optional("altPhone"), mobilePhone: optional("mobilePhone"),
     amka: optional("amka"), idNumber: optional("idNumber"), passportNumber: optional("passportNumber"), region: optional("region"),

@@ -4925,6 +4925,9 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Property<string>("MotherName")
                         .HasColumnType("longtext");
 
+                    b.Property<DateOnly?>("NameDayDate")
+                        .HasColumnType("date");
+
                     b.Property<string>("Nationality")
                         .HasColumnType("longtext");
 

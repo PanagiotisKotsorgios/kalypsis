@@ -853,17 +853,19 @@ public class GetTodaysCelebrantsHandler : IRequestHandler<GetTodaysCelebrantsQue
         var names = nameDays.Select(n => n.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var customers = await _db.Customers
-            .Where(c => c.FirstName != null && c.DeletedAt == null)
+            .Where(c => (c.FirstName != null || c.NameDayDate != null) && c.DeletedAt == null)
             .ToListAsync(ct);
 
         return customers
-            .Where(c => names.Any(n => string.Equals(n, c.FirstName, StringComparison.OrdinalIgnoreCase)))
+            .Where(c => c.NameDayDate is { } explicitDate
+                ? explicitDate.Month == month && explicitDate.Day == day
+                : names.Any(n => string.Equals(n, c.FirstName, StringComparison.OrdinalIgnoreCase)))
             .Select(c => new TodaysCelebratingCustomersDto(
                 c.Id,
                 c.CompanyName ?? $"{c.FirstName} {c.LastName}".Trim(),
                 c.CustomerNumber,
                 c.MobilePhone ?? c.Phone, c.Email,
-                c.FirstName ?? ""))
+                c.NameDayDate is null ? c.FirstName ?? "" : "Ονομαστική εορτή"))
             .ToList();
     }
 }

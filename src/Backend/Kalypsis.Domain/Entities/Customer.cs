@@ -55,6 +55,7 @@ public class Customer : TenantEntity
     public string? Region { get; set; }               // νομός
 
     public DateOnly? BirthDate { get; set; }
+    public DateOnly? NameDayDate { get; set; }
     public string? Gender { get; set; }               // Male / Female / Other / PreferNotToSay
     public string? MaritalStatus { get; set; }        // Single / Married / Divorced / Widowed / Other
     public string? Occupation { get; set; }

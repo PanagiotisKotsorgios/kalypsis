@@ -92,6 +92,7 @@ public class ListCustomersQueryHandler : IRequestHandler<ListCustomersQuery, IRe
                 // Sensitive profile-only identifiers (AMKA, identity/passport, licence)
                 // remain confined to the single-customer endpoint.
                 BirthDate = c.BirthDate,
+                NameDayDate = c.NameDayDate,
                 AltPhone = c.AltPhone,
                 MobilePhone = c.MobilePhone,
                 TagsJson = c.TagsJson,

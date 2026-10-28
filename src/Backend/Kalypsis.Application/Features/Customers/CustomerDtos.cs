@@ -62,7 +62,8 @@ public record CustomerDto(
     bool HasCommunicationConsent = false,
     bool HasNeedsForm = false,
     IReadOnlyList<Guid>? ProducerIds = null,
-    IReadOnlyList<string>? ProducerNames = null);
+    IReadOnlyList<string>? ProducerNames = null,
+    DateOnly? NameDayDate = null);
 
 public record CreateCustomerRequest(
     CustomerType Type,
@@ -107,7 +108,8 @@ public record CreateCustomerRequest(
     string? Source = null,
     string? TagsJson = null,
     string? PhotoUrl = null,
-    Guid? AssignedAdvisorId = null);
+    Guid? AssignedAdvisorId = null,
+    DateOnly? NameDayDate = null);
 
 public record CreateCustomerResponse(
     CustomerDto Customer,

@@ -50,6 +50,6 @@ public class GetCustomerQueryHandler : IRequestHandler<GetCustomerQuery, Custome
             c.Employer, c.DriverLicenseNumber, c.DriverLicenseClass, c.DriverLicenseIssueDate,
             c.DriverLicenseExpiryDate, c.Source, c.TagsJson, c.PhotoUrl,
             c.ThirdPhone, c.SecondaryMobilePhone, c.SecondaryEmail, c.AssignedAdvisorId,
-            c.HasDrivingLicense, c.IsDriver, c.IsNewDriver);
+            c.HasDrivingLicense, c.IsDriver, c.IsNewDriver, NameDayDate: c.NameDayDate);
     }
 }

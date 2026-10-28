@@ -26,6 +26,7 @@ public sealed class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustome
         c.VatNumber = r.VatNumber?.Trim(); c.Email = string.IsNullOrWhiteSpace(r.Email) ? null : r.Email.Trim().ToLowerInvariant();
         c.Phone = r.Phone?.Trim(); c.Address = r.Address?.Trim(); c.City = r.City?.Trim(); c.PostalCode = r.PostalCode?.Trim();
         c.Occupation = r.Occupation?.Trim(); c.Notes = r.Notes?.Trim(); c.BirthDate = r.BirthDate;
+        c.NameDayDate = r.NameDayDate;
         c.FatherName = r.FatherName?.Trim(); c.MotherName = r.MotherName?.Trim(); c.SpouseName = r.SpouseName?.Trim();
         c.Nationality = r.Nationality?.Trim(); c.Zone = r.Zone?.Trim(); c.ActivityCode = r.ActivityCode?.Trim();
         c.TaxOffice = r.TaxOffice?.Trim(); c.GemiNumber = r.GemiNumber?.Trim(); c.LegalForm = r.LegalForm?.Trim();
@@ -45,6 +46,6 @@ public sealed class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustome
             c.MobilePhone, c.Amka, c.IdNumber, c.PassportNumber, c.Region, c.Gender, c.MaritalStatus, c.Employer,
             c.DriverLicenseNumber, c.DriverLicenseClass, c.DriverLicenseIssueDate, c.DriverLicenseExpiryDate,
             c.Source, c.TagsJson, c.PhotoUrl, c.ThirdPhone, c.SecondaryMobilePhone, c.SecondaryEmail, c.AssignedAdvisorId,
-            c.HasDrivingLicense, c.IsDriver, c.IsNewDriver);
+            c.HasDrivingLicense, c.IsDriver, c.IsNewDriver, NameDayDate: c.NameDayDate);
     }
 }
