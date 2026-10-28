@@ -5,6 +5,42 @@ namespace Kalypsis.Infrastructure.Persistence.Seeders;
 
 public static class StatutoryInsuranceBranchCatalog
 {
+    public static async Task EnsureForTenantAsync(AppDbContext db, Guid tenantId, CancellationToken ct)
+    {
+        var owned = await db.InsuranceCompanies.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && x.DeletedAt == null)
+            .Select(x => x.Id).ToListAsync(ct);
+        var used = await db.Policies.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && x.DeletedAt == null)
+            .Select(x => x.InsuranceCompanyId).Distinct().ToListAsync(ct);
+        foreach (var id in owned.Concat(used).Distinct())
+            await EnsureForCompanyAsync(db, tenantId, id, ct);
+    }
+
+    public static readonly (string Code, string Name)[] VehicleUses =
+    [
+        ("01", "Επιβατικό Ιδιωτικής Χρήσης (Ε.Ι.Χ.)"),
+        ("02", "Επιβατικό Ι.Χ. Ειδικό"),
+        ("03", "Επιβατικό Ι.Χ. Ενοικιαζόμενο"),
+        ("04", "Λεωφορείο"),
+        ("05", "Ταξί"),
+        ("06", "Φορτηγό Ιδιωτικής Χρήσης (Φ.Ι.Χ.)"),
+        ("07", "Φορτηγό Δημόσιας Χρήσης (Φ.Δ.Χ.)"),
+        ("08", "Φορτηγό Ι.Χ. Αγροτικό"),
+        ("09", "Μηχάνημα Έργου (Μ.Ε.)"),
+        ("10", "Αγροτικό Μηχάνημα"),
+        ("11", "Μοτοσυκλέτα Ιδιωτικής Χρήσης"),
+        ("12", "Μοτοσυκλέτα Ι.Χ. Ενοικιαζόμενη"),
+        ("13", "Όχημα Σχολής Οδηγών"),
+        ("14", "Όχημα Ιστορικού Ενδιαφέροντος"),
+        ("15", "Αυτοκινούμενο Τροχόσπιτο"),
+        ("16", "Νεκροφόρα"),
+        ("17", "Ασθενοφόρο"),
+        ("18", "Ρυμουλκούμενο / Trailer"),
+        ("19", "Φορτηγό Κίνησης Εντός Αεροδρομίου"),
+        ("20", "Όχημα Ταχυμεταφορών (Courier)")
+    ];
+
     public static async Task EnsureForAllUsedCompaniesAsync(AppDbContext db, CancellationToken ct)
     {
         var owned = await db.InsuranceCompanies.IgnoreQueryFilters()
@@ -54,25 +90,40 @@ public static class StatutoryInsuranceBranchCatalog
     {
         var existing = await db.StatutoryInsuranceBranches.IgnoreQueryFilters()
             .Where(x => x.TenantId == tenantId && x.InsuranceCompanyId == companyId)
-            .ToDictionaryAsync(x => x.Code, StringComparer.Ordinal, ct);
+            .ToListAsync(ct);
+        var existingUses = await db.OfficeVehicleUses.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && x.InsuranceCompanyId == companyId)
+            .ToListAsync(ct);
         var changed = false;
         for (var i = 0; i < Entries.Length; i++)
         {
             var entry = Entries[i];
-            if (existing.TryGetValue(entry.Code, out var row))
+            var row = existing.FirstOrDefault(x => string.Equals(x.SeedCode ?? x.Code, entry.Code, StringComparison.OrdinalIgnoreCase));
+            if (row is not null)
             {
-                if (row.DeletedAt is null && row.Name == entry.Name && row.Category == entry.Category && row.DisplayOrder == i + 1) continue;
-                row.DeletedAt = null;
-                row.Name = entry.Name;
-                row.Category = entry.Category;
-                row.DisplayOrder = i + 1;
-                changed = true;
+                if (row.SeedCode is null) { row.SeedCode = entry.Code; changed = true; }
                 continue;
             }
             db.StatutoryInsuranceBranches.Add(new StatutoryInsuranceBranch
             {
-                TenantId = tenantId, InsuranceCompanyId = companyId, Code = entry.Code,
+                TenantId = tenantId, InsuranceCompanyId = companyId, Code = entry.Code, SeedCode = entry.Code,
                 Name = entry.Name, Category = entry.Category, DisplayOrder = i + 1
+            });
+            changed = true;
+        }
+        for (var i = 0; i < VehicleUses.Length; i++)
+        {
+            var entry = VehicleUses[i];
+            var row = existingUses.FirstOrDefault(x => string.Equals(x.SeedCode ?? x.Code, entry.Code, StringComparison.OrdinalIgnoreCase));
+            if (row is not null)
+            {
+                if (row.SeedCode is null) { row.SeedCode = entry.Code; changed = true; }
+                continue;
+            }
+            db.OfficeVehicleUses.Add(new OfficeVehicleUse
+            {
+                TenantId = tenantId, InsuranceCompanyId = companyId, Code = entry.Code, SeedCode = entry.Code,
+                Name = entry.Name, DisplayOrder = i + 1
             });
             changed = true;
         }

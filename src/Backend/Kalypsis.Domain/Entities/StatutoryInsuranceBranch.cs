@@ -9,6 +9,8 @@ public class StatutoryInsuranceBranch : BaseEntity
     public Guid TenantId { get; set; }
     public Guid InsuranceCompanyId { get; set; }
     public string Code { get; set; } = string.Empty;
+    /// <summary>Original default key; survives user edits and deletion so seeding stays idempotent.</summary>
+    public string? SeedCode { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
     public int DisplayOrder { get; set; }

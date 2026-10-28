@@ -2,6 +2,7 @@ import customerCardLayout from "../components/customer/customer-card-layout.json
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Card,
@@ -774,6 +775,8 @@ const blankAddVehicleForm = (policyId = ""): AddVehicleForm => ({
 });
 
 function AddCustomerVehicleDialog({ open, rows, onClose, onSaved }: { open: boolean; rows: CustomerVehicleRow[]; onClose: () => void; onSaved: () => void }) {
+  const usesQ = useQuery({ queryKey: ["office-vehicle-uses", "available"], enabled: open,
+    queryFn: async () => (await api.get<{ code: string; name: string }[]>("/office-vehicle-uses/available")).data });
   const [form, setForm] = useState<AddVehicleForm>(() => blankAddVehicleForm(rows[0]?.id));
   const [ownershipValues, setOwnershipValues] = useState<Record<string, string>>({});
   useEffect(() => { setOwnershipValues({}); }, [open, form.policyId]);
@@ -824,7 +827,10 @@ function AddCustomerVehicleDialog({ open, rows, onClose, onSaved }: { open: bool
           <TextField label="Ημερομηνία αγοράς" type="date" value={form.purchaseDate} onChange={e => set("purchaseDate", e.target.value)} InputLabelProps={{ shrink: true }} />
           <TextField select label="Κατάσταση" value={form.condition} onChange={e => set("condition", e.target.value)}><MenuItem value="Καινούργιο">Καινούργιο</MenuItem><MenuItem value="Μεταχειρισμένο">Μεταχειρισμένο</MenuItem></TextField>
           <TextField label="Αριθμός ιδιοκτητών" type="number" inputProps={{ min: 1, max: 100, step: 1 }} value={form.ownerCount} onChange={e => set("ownerCount", e.target.value)} />
-          <TextField label="Χρήση" value={form.use} onChange={e => set("use", e.target.value)} />
+          <Autocomplete freeSolo options={(usesQ.data ?? []).map(use => use.name)} value={form.use}
+            onChange={(_, value) => set("use", value ?? "")}
+            onInputChange={(_, value) => set("use", value)}
+            renderInput={params => <TextField {...params} label="Χρήση οχήματος" />} />
           <TextField label="Χρώμα" value={form.color} onChange={e => set("color", e.target.value)} />
           <TextField label="Θέσεις" value={form.seats} onChange={e => set("seats", e.target.value)} />
         </Box>

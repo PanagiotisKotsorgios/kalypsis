@@ -51,7 +51,10 @@ interface StatutoryBranchDto {
   name: string;
   category: "Ζημιών" | "Ζωής";
   displayOrder: number;
+  isDefault: boolean;
 }
+interface OfficeVehicleUseDto { id: string; code: string; name: string; displayOrder: number; isDefault: boolean }
+type CatalogEditor = { kind: "branch" | "use"; id?: string; code: string; name: string; category: "Ζημιών" | "Ζωής" };
 
 // Tab order the office uses when they build up a carrier: first the top
 // hierarchy (Κλάδοι → Πακέτα), then the axes that specialise a policy
@@ -81,8 +84,11 @@ export function AgencyCompanyParametricsPage() {
   const [inlineCarrierCreate, setInlineCarrierCreate] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [showStatutory, setShowStatutory] = useState(false);
+  const [showOfficeUses, setShowOfficeUses] = useState(false);
   const [statutoryCategory, setStatutoryCategory] = useState("");
   const [statutorySearch, setStatutorySearch] = useState("");
+  const [useSearch, setUseSearch] = useState("");
+  const [catalogEditor, setCatalogEditor] = useState<CatalogEditor | null>(null);
   // Pagination for the parameter list — carriers with many πακέτα /
   // καλύψεις can push past 100 rows in a single tab.
   const [page, setPage] = useState(0);
@@ -124,6 +130,41 @@ export function AgencyCompanyParametricsPage() {
     queryFn: async () => (await api.get<StatutoryBranchDto[]>("/statutory-insurance-branches", {
       params: { insuranceCompanyId: selectedCarrierId }
     })).data
+  });
+  const officeUsesQ = useQuery({
+    queryKey: ["office-vehicle-uses", selectedCarrierId],
+    enabled: !!selectedCarrierId,
+    queryFn: async () => (await api.get<OfficeVehicleUseDto[]>("/office-vehicle-uses", {
+      params: { insuranceCompanyId: selectedCarrierId }
+    })).data
+  });
+  const officeUseRows = (officeUsesQ.data ?? []).filter(row =>
+    `${row.code} ${row.name}`.toLocaleLowerCase("el").includes(useSearch.toLocaleLowerCase("el"))
+  );
+  const catalogSave = useMutation({
+    mutationFn: async (draft: CatalogEditor) => {
+      const url = draft.kind === "branch" ? "/statutory-insurance-branches" : "/office-vehicle-uses";
+      const body = { insuranceCompanyId: selectedCarrierId, code: draft.code.trim(), name: draft.name.trim(),
+        ...(draft.kind === "branch" ? { category: draft.category } : {}) };
+      if (draft.id) await api.put(`${url}/${draft.id}`, body);
+      else await api.post(url, body);
+    },
+    onSuccess: () => {
+      setCatalogEditor(null);
+      setErr(null);
+      qc.invalidateQueries({ queryKey: ["statutory-insurance-branches", selectedCarrierId] });
+      qc.invalidateQueries({ queryKey: ["office-vehicle-uses", selectedCarrierId] });
+    },
+    onError: e => setErr(extractErrorMessage(e))
+  });
+  const catalogDelete = useMutation({
+    mutationFn: async ({ kind, id }: { kind: "branch" | "use"; id: string }) =>
+      api.delete(`${kind === "branch" ? "/statutory-insurance-branches" : "/office-vehicle-uses"}/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["statutory-insurance-branches", selectedCarrierId] });
+      qc.invalidateQueries({ queryKey: ["office-vehicle-uses", selectedCarrierId] });
+    },
+    onError: e => setErr(extractErrorMessage(e))
   });
   const statutoryRows = (statutoryQ.data ?? []).filter(row =>
     (!statutoryCategory || row.category === statutoryCategory) &&
@@ -253,9 +294,13 @@ export function AgencyCompanyParametricsPage() {
       {selectedCarrierId && (
         <Card variant="outlined" sx={{ mb: 2, p: 1.5 }}>
           <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
-            <Button variant={showStatutory ? "contained" : "outlined"} onClick={() => setShowStatutory(v => !v)}>
-              Επίσημοι κλάδοι ασφαλίσεων · 27
+            <Button variant={showStatutory ? "contained" : "outlined"} onClick={() => { setShowStatutory(v => !v); setShowOfficeUses(false); }}>
+              Κλάδοι ασφαλίσεων · {statutoryQ.data?.length ?? 27}
             </Button>
+            {showStatutory && <Button size="small" variant="contained" color="success" startIcon={<AddIcon />}
+              onClick={() => setCatalogEditor({ kind: "branch", code: "", name: "", category: "Ζημιών" })}>
+              Προσθήκη κλάδου
+            </Button>}
             <Typography variant="caption" color="text.secondary">
               Διαθέσιμοι για την επιλεγμένη εταιρεία · ανεξάρτητοι από κωδικούς αρχείων και γέφυρες
             </Typography>
@@ -274,9 +319,48 @@ export function AgencyCompanyParametricsPage() {
             {statutoryQ.isError && <Alert severity="error">Δεν φορτώθηκαν οι επίσημοι κλάδοι.</Alert>}
             <Box sx={{ maxHeight: 420, overflow: "auto" }}>
               <Table size="small" stickyHeader>
-                <TableHead><TableRow><TableCell>Κατηγορία</TableCell><TableCell>Κωδικός</TableCell><TableCell>Επίσημη ονομασία</TableCell></TableRow></TableHead>
+                <TableHead><TableRow><TableCell>Κατηγορία</TableCell><TableCell>Κωδικός</TableCell><TableCell>Ονομασία κλάδου</TableCell><TableCell align="right">Ενέργειες</TableCell></TableRow></TableHead>
                 <TableBody>{statutoryRows.map(row => <TableRow key={row.id} hover>
                   <TableCell>{row.category}</TableCell><TableCell>{row.code}</TableCell><TableCell>{row.name}</TableCell>
+                  <TableCell align="right">
+                    <Tooltip title="Επεξεργασία"><IconButton size="small" onClick={() => setCatalogEditor({ kind: "branch", id: row.id, code: row.code, name: row.name, category: row.category })}><EditIcon fontSize="small" /></IconButton></Tooltip>
+                    <Tooltip title="Διαγραφή"><IconButton size="small" color="error" onClick={() => {
+                      if (confirm(`Διαγραφή κλάδου «${row.code} · ${row.name}»;`)) catalogDelete.mutate({ kind: "branch", id: row.id });
+                    }}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
+                  </TableCell>
+                </TableRow>)}</TableBody>
+              </Table>
+            </Box>
+          </>}
+        </Card>
+      )}
+
+      {selectedCarrierId && (
+        <Card variant="outlined" sx={{ mb: 2, p: 1.5 }}>
+          <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
+            <Button variant={showOfficeUses ? "contained" : "outlined"} onClick={() => { setShowOfficeUses(v => !v); setShowStatutory(false); }}>
+              Χρήσεις οχημάτων · {officeUsesQ.data?.length ?? 20}
+            </Button>
+            {showOfficeUses && <Button size="small" variant="contained" color="success" startIcon={<AddIcon />}
+              onClick={() => setCatalogEditor({ kind: "use", code: "", name: "", category: "Ζημιών" })}>
+              Προσθήκη χρήσης
+            </Button>}
+          </Stack>
+          {showOfficeUses && <>
+            <TextField label="Αναζήτηση κωδικού ή χρήσης" value={useSearch} size="small" fullWidth
+              onChange={e => setUseSearch(e.target.value)} sx={{ mt: 1.5, mb: 1 }} />
+            {officeUsesQ.isError && <Alert severity="error">Δεν φορτώθηκαν οι χρήσεις οχημάτων.</Alert>}
+            <Box sx={{ maxHeight: 420, overflow: "auto" }}>
+              <Table size="small" stickyHeader>
+                <TableHead><TableRow><TableCell>Κωδικός</TableCell><TableCell>Χρήση οχήματος</TableCell><TableCell align="right">Ενέργειες</TableCell></TableRow></TableHead>
+                <TableBody>{officeUseRows.map(row => <TableRow key={row.id} hover>
+                  <TableCell>{row.code}</TableCell><TableCell>{row.name}</TableCell>
+                  <TableCell align="right">
+                    <Tooltip title="Επεξεργασία"><IconButton size="small" onClick={() => setCatalogEditor({ kind: "use", id: row.id, code: row.code, name: row.name, category: "Ζημιών" })}><EditIcon fontSize="small" /></IconButton></Tooltip>
+                    <Tooltip title="Διαγραφή"><IconButton size="small" color="error" onClick={() => {
+                      if (confirm(`Διαγραφή χρήσης «${row.code} · ${row.name}»;`)) catalogDelete.mutate({ kind: "use", id: row.id });
+                    }}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
+                  </TableCell>
                 </TableRow>)}</TableBody>
               </Table>
             </Box>
@@ -382,6 +466,31 @@ export function AgencyCompanyParametricsPage() {
           />
         </Card>
       )}
+
+      <Dialog open={catalogEditor !== null} onClose={() => setCatalogEditor(null)} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ fontWeight: 800 }}>
+          {catalogEditor?.id ? "Επεξεργασία" : "Προσθήκη"} {catalogEditor?.kind === "branch" ? "κλάδου" : "χρήσης οχήματος"}
+        </DialogTitle>
+        <DialogContent dividers>
+          {catalogEditor && <Stack spacing={2} sx={{ pt: 1 }}>
+            <TextField label="Κωδικός" value={catalogEditor.code} required size="small" autoFocus
+              inputProps={{ maxLength: catalogEditor.kind === "branch" ? 8 : 20 }}
+              onChange={e => setCatalogEditor({ ...catalogEditor, code: e.target.value })} />
+            <TextField label="Ονομασία" value={catalogEditor.name} required size="small"
+              inputProps={{ maxLength: catalogEditor.kind === "branch" ? 200 : 80 }}
+              onChange={e => setCatalogEditor({ ...catalogEditor, name: e.target.value })} />
+            {catalogEditor.kind === "branch" && <TextField select label="Κατηγορία" value={catalogEditor.category} size="small"
+              onChange={e => setCatalogEditor({ ...catalogEditor, category: e.target.value as "Ζημιών" | "Ζωής" })}>
+              <MenuItem value="Ζημιών">Ζημιών</MenuItem><MenuItem value="Ζωής">Ζωής</MenuItem>
+            </TextField>}
+          </Stack>}
+        </DialogContent>
+        <DialogActions>
+          <Button color="error" onClick={() => setCatalogEditor(null)}>Κλείσιμο</Button>
+          <Button variant="contained" color="success" disabled={!catalogEditor?.code.trim() || !catalogEditor?.name.trim() || catalogSave.isPending}
+            onClick={() => { if (catalogEditor) catalogSave.mutate(catalogEditor); }}>Αποθήκευση</Button>
+        </DialogActions>
+      </Dialog>
 
       {(creating || editing) && selectedCarrierId && (
         <EditDialog
