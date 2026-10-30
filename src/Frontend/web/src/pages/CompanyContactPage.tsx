@@ -27,6 +27,7 @@ import PhoneRoundedIcon from "@mui/icons-material/PhoneRounded";
 import ShieldRoundedIcon from "@mui/icons-material/ShieldRounded";
 import { AccessibilityWidget } from "../components/AccessibilityWidget";
 import { LanguageToggle } from "../components/LanguageToggle";
+import { CompanyComingSoonBadge } from "../components/CompanyComingSoonBadge";
 import { PageEnter } from "../components/PageEnter";
 import { PublicFooter } from "../components/PublicFooter";
 import { api, extractErrorMessage } from "../api/client";
@@ -169,6 +170,7 @@ export function CompanyContactPage() {
         </Container>
       </Box>
 
+      <CompanyComingSoonBadge english={english} />
       <PageEnter>
         <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5.5 }, flex: 1 }}>
           <Box sx={{ mb: { xs: 3, md: 4.5 }, maxWidth: 950 }}>

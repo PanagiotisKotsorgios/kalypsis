@@ -19,6 +19,7 @@ import WebRoundedIcon from "@mui/icons-material/WebRounded";
 import DesktopWindowsIcon from "@mui/icons-material/DesktopWindows";
 import { useTranslation } from "react-i18next";
 import { LanguageToggle } from "../components/LanguageToggle";
+import { CompanyComingSoonBadge } from "../components/CompanyComingSoonBadge";
 
 const NAVY = "#0b2545";
 const BLUE = "#087ceB";
@@ -188,6 +189,7 @@ export function CompanyWebsitePage() {
   const valid = ["", "about", "solutions", "services", "customers", "contact", "insureone"];
   return <Box sx={{ minHeight: "100vh", color: INK, bgcolor: "#fff", fontFamily: '"Inter","Segoe UI",system-ui,sans-serif' }}>
     <CompanyHeader english={english} active={active} onNavigate={() => window.scrollTo({ top: 0, behavior: "smooth" })} />
+    <CompanyComingSoonBadge english={english} />
     <Box component="main">{slug === "" ? <CompanyHome english={english} /> : <CompanyDetail english={english} slug={valid.includes(slug) ? slug : "about"} />}</Box>
     <Box component="footer" sx={{ bgcolor: "#f2f7fb", borderTop: "1px solid #dbe7f0" }}><Container maxWidth={false} sx={{ maxWidth: 1440, px: { xs: 2.5, md: 5 }, py: 3 }}><Stack direction={{ xs: "column", md: "row" }} alignItems={{ xs: "flex-start", md: "center" }} justifyContent="space-between" gap={2}><Stack direction="row" alignItems="center" gap={1.25}><Box component="img" src="/kalypsis-logo.png" alt="KALYPSIS" sx={{ width: 150, height: 38, objectFit: "contain", objectPosition: "left center" }} /><Typography variant="caption" sx={{ color: SOFT }}>Software Solutions</Typography></Stack><Stack direction="row" useFlexGap flexWrap="wrap" gap={{ xs: 1.5, md: 2.5 }}>{navItems.slice(1).map(item => <Box key={item.slug} component={RouterLink} to={routeFor(item.slug)} sx={{ textDecoration: "none", color: SOFT, fontSize: 13, fontWeight: 750, "&:hover": { color: BLUE } }}>{english ? item.en : item.el}</Box>)}</Stack><Typography variant="caption" sx={{ color: SOFT }}>© {new Date().getFullYear()} KALYPSIS SOFTWARE SOLUTIONS</Typography></Stack></Container></Box>
   </Box>;
