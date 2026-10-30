@@ -56,7 +56,7 @@ import { ScrollToTop } from "./components/ScrollToTop";
 import { SeoController } from "./components/SeoController";
 import { PreloginResponsiveStyles } from "./components/PreloginResponsiveStyles";
 import { LandingPage } from "./pages/LandingPage";
-import { CompanyWebsitePage } from "./pages/CompanyWebsitePage";
+import { CompanyComingSoonPage } from "./pages/CompanyComingSoonPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
@@ -72,7 +72,6 @@ import { DocumentationPage } from "./pages/DocumentationPage";
 import { DocumentationEditorPage } from "./pages/DocumentationEditorPage";
 import { LandingEditorPage } from "./pages/LandingEditorPage";
 import { ContactPage } from "./pages/ContactPage";
-import { CompanyContactPage } from "./pages/CompanyContactPage";
 import { TermsPage } from "./pages/TermsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { CookiesPage } from "./pages/CookiesPage";
@@ -822,7 +821,7 @@ export default function App() {
         <Route path="/register/agency" element={<Navigate to="/register" replace />} />
         <Route path="/register/agent" element={<Navigate to="/register" replace />} />
         <Route path="/site/:slug" element={<OfficePublicSitePage />} />
-        <Route path="/company/*" element={<CompanyWebsitePage />} />
+        <Route path="/company/*" element={<CompanyComingSoonPage />} />
         {/* Insurance preview and intake require login, including direct links. */}
         <Route path="/insurance-request" element={<ProtectedRoute><InsuranceRequestPage /></ProtectedRoute>} />
         <Route path="/insurance/*" element={<ProtectedRoute><Suspense fallback={<PageLoader minHeight="100vh" />}><InsuranceWebsitePage /></Suspense></ProtectedRoute>} />
@@ -841,7 +840,7 @@ export default function App() {
         <Route path="/docs" element={<Navigate to={user ? "/app/agency-and-profile?tab=documentation" : "/login"} replace />} />
         <Route path="/help" element={<Navigate to={user ? "/app/agency-and-profile?tab=documentation" : "/login"} replace />} />
         <Route path="/contact" element={<ContactPage />} />
-        <Route path="/company/contact" element={<CompanyContactPage />} />
+        <Route path="/company/contact" element={<CompanyComingSoonPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/cookies" element={<CookiesPage />} />
