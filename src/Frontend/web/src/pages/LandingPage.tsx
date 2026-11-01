@@ -964,12 +964,11 @@ function Hero() {
           component={RouterLink}
           to="/custom-software-solutions"
           aria-label={t("landing.v2.ctaCustomSoftware")}
-          variant="outlined"
+          variant="contained"
+          disableElevation
           endIcon={<ArrowForwardIcon sx={{ fontSize: 24 }} />}
           sx={{
             display: "flex",
-            position: "relative",
-            isolation: "isolate",
             width: "100%",
             maxWidth: { xs: "100%", sm: 620 },
             minHeight: { xs: 58, md: 62 },
@@ -982,37 +981,16 @@ function Hero() {
             letterSpacing: "0.02em",
             textTransform: "uppercase",
             color: "#fff",
-            border: "none",
-            backgroundColor: "#159447",
-            textShadow: "0 1px 1px rgba(0,0,0,0.28)",
-            boxShadow: "inset 0 1px 0 #72d995, 0 8px 0 #075b2a",
-            WebkitTapHighlightColor: "transparent",
-            touchAction: "manipulation",
+            bgcolor: "#0b2545",
+            boxShadow: "0 5px 14px rgba(11,37,69,0.22)",
             transition:
-              "transform 100ms ease, box-shadow 100ms ease, background-color 160ms ease",
-            "&::after": {
-              content: '""',
-              position: "absolute",
-              left: 0,
-              bottom: -8,
-              width: "100%",
-              height: "100%",
-              borderRadius: "14px",
-              backgroundColor: "#06451f",
-              zIndex: -1,
-              pointerEvents: "none",
-              transition: "bottom 100ms ease",
-            },
+              "transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease",
             "&:hover": {
-              backgroundColor: "#18a64f",
-              boxShadow: "inset 0 1px 0 #83e3a1, 0 8px 0 #075b2a",
+              bgcolor: "#163d68",
+              boxShadow: "0 8px 20px rgba(11,37,69,0.28)",
+              transform: "translateY(-1px)",
             },
-            "&:active": {
-              transform: "translateY(8px)",
-              backgroundColor: "#117638",
-              boxShadow: "inset 0 1px 0 #72d995, inset 0 -3px 0 #075b2a",
-              "&::after": { bottom: 0 },
-            },
+            "&:active": { transform: "translateY(0)" },
             "&:focus-visible": {
               outline: "3px solid #0b2545",
               outlineOffset: 5,
