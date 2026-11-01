@@ -436,16 +436,20 @@ const english = {
   methodTitle: "Agile development. Shared progress. Clear decisions.",
   methodIntro:
     "Instead of waiting until the end to see the result, you stay involved throughout delivery. Every iteration produces something reviewable, with decisions and changes agreed together.",
-  agileDiagramLabel: "Agile iteration diagram: plan, build, review and repeat",
-  agilePlan: "PLAN",
-  agileBuild: "BUILD",
-  agileReview: "REVIEW",
-  agileFeedback: "Your feedback shapes the next iteration",
+  agileDiagramLabel:
+    "Agile delivery cycle: plan and design, develop, test, release and gather feedback",
+  agileStages: ["PLAN & DESIGN", "DEVELOP", "TEST", "RELEASE", "FEEDBACK"],
+  agileImageAlt:
+    "Agile methodology cycle showing Plan, Design, Develop, Test, Release and Feedback",
+  agileImageCaption:
+    "Plan → Design → Develop → Test → Release → Feedback",
   agileIterations: "Short, reviewable iterations",
   methodSteps: [
-    ["01", "Agree on the outcome", "We define the problem, users, priorities, scope, responsibilities and acceptance criteria before implementation."],
-    ["02", "Deliver in small increments", "We break work into manageable iterations, share working software and keep decisions visible."],
-    ["03", "Review, learn and adapt", "We use your feedback to reprioritize. Any material change to scope, timeline or budget is discussed and approved before work changes."],
+    ["01", "Plan and design", "We clarify goals, users and priorities, then shape the experience, solution and acceptance criteria before implementation."],
+    ["02", "Develop in increments", "We turn the agreed plan into working software in focused iterations, sharing progress and keeping decisions visible."],
+    ["03", "Test and improve", "We check functionality, usability and quality, resolve issues and use review feedback to refine the product."],
+    ["04", "Release with confidence", "We prepare the agreed deliverables for release, coordinate the handover and help your team get started."],
+    ["05", "Gather feedback", "We learn from real use, agree priorities for the next iteration and discuss any changes to scope, timeline or budget before proceeding."],
   ],
   agreementTitle: "The agreement keeps the project clear.",
   agreementBody:
@@ -532,16 +536,20 @@ export function CustomSoftwarePage() {
         methodTitle: "Agile ανάπτυξη. Κοινή πρόοδος. Καθαρές αποφάσεις.",
         methodIntro:
           "Δεν περιμένετε μέχρι το τέλος για να δείτε το αποτέλεσμα. Συμμετέχετε σε όλη την πορεία: κάθε κύκλος παράγει κάτι αξιολογήσιμο και οι αποφάσεις συμφωνούνται από κοινού.",
-        agileDiagramLabel: "Διάγραμμα Agile κύκλου: σχεδιασμός, υλοποίηση, αξιολόγηση και επανάληψη",
-        agilePlan: "ΣΧΕΔΙΑΣΜΟΣ",
-        agileBuild: "ΥΛΟΠΟΙΗΣΗ",
-        agileReview: "ΑΞΙΟΛΟΓΗΣΗ",
-        agileFeedback: "Η δική σας ανατροφοδότηση οδηγεί στον επόμενο κύκλο",
+        agileDiagramLabel:
+          "Κύκλος Agile: προγραμματισμός και σχεδίαση, ανάπτυξη, δοκιμές, έκδοση και ανατροφοδότηση",
+        agileStages: ["ΠΛΑΝΟ & ΣΧΕΔΙΑΣΗ", "ΑΝΑΠΤΥΞΗ", "ΔΟΚΙΜΕΣ", "ΠΑΡΑΔΟΣΗ", "ΑΝΑΤΡΟΦΟΔΟΤΗΣΗ"],
+        agileImageAlt:
+          "Κύκλος Agile με τα στάδια Plan, Design, Develop, Test, Release και Feedback",
+        agileImageCaption:
+          "Πλάνο → Σχεδίαση → Ανάπτυξη → Δοκιμές → Έκδοση → Ανατροφοδότηση",
         agileIterations: "Σύντομοι κύκλοι με αξιολογήσιμα παραδοτέα",
         methodSteps: [
-          ["01", "Συμφωνούμε το αποτέλεσμα", "Ορίζουμε το πρόβλημα, τους χρήστες, τις προτεραιότητες, το αντικείμενο, τις ευθύνες και τα κριτήρια αποδοχής πριν ξεκινήσει η υλοποίηση."],
-          ["02", "Παραδίδουμε σταδιακά", "Χωρίζουμε την εργασία σε διαχειρίσιμους κύκλους, παρουσιάζουμε λειτουργικό λογισμικό και κρατάμε τις αποφάσεις ορατές."],
-          ["03", "Αξιολογούμε και προσαρμοζόμαστε", "Αξιοποιούμε τα σχόλιά σας για νέες προτεραιότητες. Κάθε ουσιαστική αλλαγή σε εύρος, χρόνο ή κόστος συζητείται και εγκρίνεται πριν εφαρμοστεί."],
+          ["01", "Προγραμματίζουμε και σχεδιάζουμε", "Ξεκαθαρίζουμε τους στόχους, τους χρήστες και τις προτεραιότητες και ορίζουμε την εμπειρία, τη λύση και τα κριτήρια αποδοχής πριν από την υλοποίηση."],
+          ["02", "Αναπτύσσουμε σταδιακά", "Μετατρέπουμε το συμφωνημένο πλάνο σε λειτουργικό λογισμικό μέσα από σύντομους κύκλους, με ορατή πρόοδο και ξεκάθαρες αποφάσεις."],
+          ["03", "Δοκιμάζουμε και βελτιώνουμε", "Ελέγχουμε τη λειτουργικότητα, την ευχρηστία και την ποιότητα, διορθώνουμε προβλήματα και ενσωματώνουμε τα σχόλια στις επόμενες βελτιώσεις."],
+          ["04", "Παραδίδουμε με ασφάλεια", "Προετοιμάζουμε τα συμφωνημένα παραδοτέα για έκδοση, οργανώνουμε την παράδοση και βοηθάμε την ομάδα σας να ξεκινήσει."],
+          ["05", "Συλλέγουμε ανατροφοδότηση", "Μαθαίνουμε από την πραγματική χρήση, συμφωνούμε τις προτεραιότητες του επόμενου κύκλου και συζητάμε κάθε αλλαγή σε εύρος, χρόνο ή κόστος πριν προχωρήσουμε."],
         ],
         agreementTitle: "Η συμφωνία κρατά το έργο ξεκάθαρο.",
         agreementBody:
@@ -1053,14 +1061,17 @@ export function CustomSoftwarePage() {
                 </Typography>
               </Box>
               <Box
-                role="img"
-                aria-label={labels.agileDiagramLabel}
                 sx={{
                   position: "relative",
                   overflow: "hidden",
                   minHeight: { xs: 305, md: 390 },
                   display: "grid",
-                  placeItems: "center",
+                  gridTemplateColumns: {
+                    xs: "minmax(0,1fr)",
+                    md: "minmax(0,1.55fr) minmax(220px,.8fr)",
+                  },
+                  alignItems: "center",
+                  gap: { xs: 1, md: 2 },
                   border: "1px solid rgba(150,198,235,.22)",
                   borderRadius: 3,
                   background:
@@ -1069,8 +1080,9 @@ export function CustomSoftwarePage() {
               >
                 <Box
                   component="svg"
-                  viewBox="0 0 900 390"
-                  role="presentation"
+                  viewBox="0 0 900 360"
+                  role="img"
+                  aria-label={labels.agileDiagramLabel}
                   sx={{
                     width: "100%",
                     maxWidth: 980,
@@ -1098,39 +1110,57 @@ export function CustomSoftwarePage() {
                     </marker>
                   </defs>
                   <path
-                    d="M 285 104 C 370 39, 532 40, 615 105"
+                    d="M 245 115 H 365"
                     fill="none"
                     stroke="url(#agileLoop)"
-                    strokeWidth="5"
+                    strokeWidth="4"
                     strokeLinecap="round"
                     markerEnd="url(#agileArrow)"
                   />
                   <path
-                    d="M 656 142 C 693 220, 632 290, 555 310"
+                    d="M 535 115 H 645"
                     fill="none"
                     stroke="url(#agileLoop)"
-                    strokeWidth="5"
+                    strokeWidth="4"
                     strokeLinecap="round"
                     markerEnd="url(#agileArrow)"
                   />
                   <path
-                    d="M 344 310 C 266 293, 205 220, 244 142"
+                    d="M 730 169 C 760 205 700 225 630 247"
                     fill="none"
                     stroke="url(#agileLoop)"
-                    strokeWidth="5"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    markerEnd="url(#agileArrow)"
+                  />
+                  <path
+                    d="M 515 285 H 385"
+                    fill="none"
+                    stroke="url(#agileLoop)"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    markerEnd="url(#agileArrow)"
+                  />
+                  <path
+                    d="M 235 285 C 70 285 35 115 95 115"
+                    fill="none"
+                    stroke="url(#agileLoop)"
+                    strokeWidth="4"
                     strokeLinecap="round"
                     markerEnd="url(#agileArrow)"
                   />
                   {[
-                    { x: 225, label: labels.agilePlan, icon: "01" },
-                    { x: 450, label: labels.agileBuild, icon: "02" },
-                    { x: 675, label: labels.agileReview, icon: "03" },
+                    { x: 170, y: 115, label: labels.agileStages[0], icon: "01" },
+                    { x: 450, y: 115, label: labels.agileStages[1], icon: "02" },
+                    { x: 730, y: 115, label: labels.agileStages[2], icon: "03" },
+                    { x: 590, y: 285, label: labels.agileStages[3], icon: "04" },
+                    { x: 310, y: 285, label: labels.agileStages[4], icon: "05" },
                   ].map((node) => (
-                    <g key={node.label} transform={`translate(${node.x} 185)`}>
+                    <g key={node.label} transform={`translate(${node.x} ${node.y})`}>
                       <rect
-                        x="-100"
+                        x="-75"
                         y="-54"
-                        width="200"
+                        width="150"
                         height="108"
                         rx="20"
                         fill="#102f4e"
@@ -1143,7 +1173,7 @@ export function CustomSoftwarePage() {
                         y="-14"
                         textAnchor="middle"
                         fill="#9ddcff"
-                        fontSize="14"
+                        fontSize="13"
                         fontWeight="800"
                         fontFamily="system-ui,sans-serif"
                       >
@@ -1154,7 +1184,7 @@ export function CustomSoftwarePage() {
                         y="28"
                         textAnchor="middle"
                         fill="#f3f8ff"
-                        fontSize="16"
+                        fontSize="12"
                         fontWeight="800"
                         fontFamily="system-ui,sans-serif"
                       >
@@ -1162,26 +1192,48 @@ export function CustomSoftwarePage() {
                       </text>
                     </g>
                   ))}
-                  <rect
-                    x="260"
-                    y="342"
-                    width="380"
-                    height="36"
-                    rx="18"
-                    fill="#143b5b"
-                    stroke="#38678a"
+                </Box>
+                <Box
+                  component="figure"
+                  sx={{
+                    m: 0,
+                    px: { xs: 2, md: 1.5 },
+                    pb: { xs: 6, md: 0 },
+                    display: "grid",
+                    justifyItems: "center",
+                    alignContent: "center",
+                    gap: 1.25,
+                  }}
+                >
+                  <Box
+                    component="img"
+                    src="https://aguayo-co.s3.amazonaws.com/public/images/Agile-methodology-user-experience.width-490.png"
+                    alt={labels.agileImageAlt}
+                    loading="lazy"
+                    decoding="async"
+                    sx={{
+                      display: "block",
+                      width: "100%",
+                      maxWidth: 360,
+                      maxHeight: { xs: 250, md: 300 },
+                      objectFit: "contain",
+                      borderRadius: 2,
+                      bgcolor: "#fff",
+                      boxShadow: "0 16px 40px rgba(0,0,0,.24)",
+                    }}
                   />
-                  <text
-                    x="450"
-                    y="365"
-                    textAnchor="middle"
-                    fill="#c6e8ff"
-                    fontSize="13"
-                    fontWeight="700"
-                    fontFamily="system-ui,sans-serif"
+                  <Typography
+                    component="figcaption"
+                    sx={{
+                      color: "#c6e8ff",
+                      textAlign: "center",
+                      fontSize: { xs: 12, md: 13 },
+                      fontWeight: 750,
+                      lineHeight: 1.6,
+                    }}
                   >
-                    {labels.agileFeedback}
-                  </text>
+                    {labels.agileImageCaption}
+                  </Typography>
                 </Box>
                 <Chip
                   label={labels.agileIterations}
@@ -1206,7 +1258,8 @@ export function CustomSoftwarePage() {
                   display: "grid",
                   gridTemplateColumns: {
                     xs: "1fr",
-                    md: "repeat(3,minmax(0,1fr))",
+                    sm: "repeat(2,minmax(0,1fr))",
+                    xl: "repeat(5,minmax(0,1fr))",
                   },
                   gap: 1.5,
                 }}
