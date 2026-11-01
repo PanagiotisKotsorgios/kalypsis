@@ -2336,221 +2336,26 @@ function ProjectCard({
 function ProductPreview({ isEnglish }: { isEnglish: boolean }) {
   return (
     <Box
-      aria-hidden
+      component="img"
+      src="/images/custom-software-collections.jpg"
+      alt={
+        isEnglish
+          ? "KALYPSIS Desktop BackOffice collections screen"
+          : "Οθόνη εισπράξεων του KALYPSIS Desktop BackOffice"
+      }
+      loading="eager"
+      fetchPriority="high"
       sx={{
-        position: "relative",
+        display: "block",
         minWidth: 0,
-        py: { xs: 1, md: 2 },
-        perspective: 1200,
+        width: "100%",
+        height: "auto",
+        maxHeight: { xs: 320, sm: 390, md: 450 },
+        objectFit: "contain",
+        border: "1px solid rgba(210,230,250,.55)",
+        borderRadius: 2.5,
+        boxShadow: "0 28px 65px rgba(0,0,0,.4)",
       }}
-    >
-      <Card
-        elevation={0}
-        sx={{
-          position: "relative",
-          overflow: "hidden",
-          border: "1px solid rgba(147,181,218,.65)",
-          borderRadius: 3,
-          bgcolor: "#fff",
-          boxShadow: "0 28px 65px rgba(19,63,112,.18)",
-          transform: { md: "rotateY(-5deg) rotateX(2deg)" },
-        }}
-      >
-        <Stack
-          direction="row"
-          alignItems="center"
-          gap={1}
-          sx={{ height: 44, px: 1.75, borderBottom: "1px solid #e7eef6" }}
-        >
-          <Stack direction="row" gap={0.5}>
-            {["#ff8178", "#ffc867", "#51c992"].map((color) => (
-              <Box
-                key={color}
-                sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: color }}
-              />
-            ))}
-          </Stack>
-          <Typography sx={{ ml: 1, color: "#708198", fontSize: 10, fontWeight: 800 }}>
-            KALYPSIS · BUSINESS SOFTWARE
-          </Typography>
-        </Stack>
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: "82px 1fr",
-            minHeight: { xs: 240, sm: 300 },
-          }}
-        >
-          <Stack sx={{ p: 1.25, gap: 1, bgcolor: "#0c2d55" }}>
-            <Box
-              sx={{
-                width: 26,
-                height: 26,
-                display: "grid",
-                placeItems: "center",
-                borderRadius: 1,
-                bgcolor: "#1684dd",
-                color: "#fff",
-              }}
-            >
-              <LayersRoundedIcon sx={{ fontSize: 16 }} />
-            </Box>
-            {[0, 1, 2, 3, 4].map((item) => (
-              <Box
-                key={item}
-                sx={{
-                  height: 6,
-                  width: item === 0 ? "90%" : `${52 + item * 7}%`,
-                  borderRadius: 5,
-                  bgcolor: item === 0 ? "#65baff" : "rgba(217,235,255,.25)",
-                }}
-              />
-            ))}
-          </Stack>
-          <Stack spacing={1.25} sx={{ minWidth: 0, p: { xs: 1.5, sm: 2.25 } }}>
-            <Box>
-              <Typography sx={{ color: "#0b2545", fontSize: 14, fontWeight: 900 }}>
-                {isEnglish ? "Business overview" : "Επισκόπηση επιχείρησης"}
-              </Typography>
-              <Typography sx={{ color: "#8190a3", fontSize: 9 }}>
-                {isEnglish
-                  ? "Your data, connected in one place"
-                  : "Τα δεδομένα σας, συνδεδεμένα σε ένα σημείο"}
-              </Typography>
-            </Box>
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: "repeat(3,minmax(0,1fr))",
-                gap: 0.75,
-              }}
-            >
-              {(isEnglish
-                ? [
-                    ["PROJECTS", "24"],
-                    ["WORKFLOWS", "18"],
-                    ["REPORTS", "96"],
-                  ]
-                : [
-                    ["ΕΡΓΑ", "24"],
-                    ["ΡΟΕΣ", "18"],
-                    ["ΑΝΑΦΟΡΕΣ", "96"],
-                  ]
-              ).map(([label, value], index) => (
-                <Box
-                  key={label}
-                  sx={{
-                    minWidth: 0,
-                    p: 1,
-                    border: "1px solid #e5edf6",
-                    borderRadius: 1.5,
-                    bgcolor: "#fbfdff",
-                  }}
-                >
-                  <Typography
-                    sx={{
-                      overflow: "hidden",
-                      color: "#788ba2",
-                      fontSize: 8,
-                      fontWeight: 850,
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {label}
-                  </Typography>
-                  <Typography sx={{ mt: 0.25, color: "#123d6a", fontSize: 17, fontWeight: 900 }}>
-                    {value}
-                  </Typography>
-                  <Box
-                    sx={{
-                      mt: 0.5,
-                      width: `${58 + index * 12}%`,
-                      height: 3,
-                      borderRadius: 3,
-                      bgcolor: ["#14a99a", "#2878d1", "#8d6ce0"][index],
-                    }}
-                  />
-                </Box>
-              ))}
-            </Box>
-            <Box
-              sx={{
-                flex: 1,
-                minHeight: 112,
-                p: 1.25,
-                border: "1px solid #e5edf6",
-                borderRadius: 1.5,
-                background:
-                  "linear-gradient(180deg,rgba(45,133,223,.1),rgba(45,133,223,0)),#fff",
-              }}
-            >
-              <Stack
-                direction="row"
-                alignItems="center"
-                justifyContent="space-between"
-                sx={{ mb: 0.5 }}
-              >
-                <Typography sx={{ color: "#314e6f", fontSize: 9, fontWeight: 850 }}>
-                  {isEnglish ? "Activity" : "Δραστηριότητα"}
-                </Typography>
-                <Typography sx={{ color: "#8190a3", fontSize: 8 }}>
-                  2025—2026
-                </Typography>
-              </Stack>
-              <Box
-                component="svg"
-                viewBox="0 0 360 95"
-                preserveAspectRatio="none"
-                sx={{ display: "block", width: "100%", height: 76, overflow: "visible" }}
-              >
-                <defs>
-                  <linearGradient id="custom-software-chart-fill" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%" stopColor="#2785de" stopOpacity=".28" />
-                    <stop offset="100%" stopColor="#2785de" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                {[20, 45, 70].map((y) => (
-                  <line
-                    key={y}
-                    x1="0"
-                    x2="360"
-                    y1={y}
-                    y2={y}
-                    stroke="#e8eff7"
-                    strokeWidth="1"
-                  />
-                ))}
-                <path
-                  d="M0,72 C30,64 40,68 66,51 S106,61 132,42 S173,49 203,31 S242,42 266,25 S321,33 360,7 L360,95 L0,95 Z"
-                  fill="url(#custom-software-chart-fill)"
-                />
-                <path
-                  d="M0,72 C30,64 40,68 66,51 S106,61 132,42 S173,49 203,31 S242,42 266,25 S321,33 360,7"
-                  fill="none"
-                  stroke="#247bd0"
-                  strokeWidth="3"
-                  vectorEffect="non-scaling-stroke"
-                />
-              </Box>
-            </Box>
-          </Stack>
-        </Box>
-      </Card>
-      <Chip
-        icon={<CheckCircleRoundedIcon />}
-        label={isEnglish ? "Built around your workflow" : "Σχεδιασμένο για τη ροή σας"}
-        sx={{
-          position: "absolute",
-          right: { xs: 0, md: -12 },
-          bottom: { xs: 0, md: 4 },
-          height: 38,
-          bgcolor: "#fff",
-          color: "#24425f",
-          fontWeight: 850,
-          boxShadow: "0 8px 24px rgba(11,53,108,.14)",
-          "& .MuiChip-icon": { color: "#15845b" },
-        }}
-      />
-    </Box>
+    />
   );
 }
