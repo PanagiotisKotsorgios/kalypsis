@@ -951,6 +951,8 @@ function Hero() {
           endIcon={<ArrowForwardIcon sx={{ fontSize: 24 }} />}
           sx={{
             display: "flex",
+            position: "relative",
+            isolation: "isolate",
             width: "100%",
             maxWidth: { xs: "100%", sm: 620 },
             minHeight: { xs: 58, md: 62 },
@@ -962,66 +964,45 @@ function Hero() {
             fontWeight: 800,
             letterSpacing: "0.02em",
             textTransform: "uppercase",
-            color: "#17417f",
-            borderColor: "#2f6bd6",
-            borderWidth: "1.8px",
-            background:
-              "linear-gradient(135deg, #2f6bd6 0%, #17417f 50%, #ffffff 50%, #ffffff 100%)",
-            boxShadow: "0 8px 20px rgba(47,107,214,0.14)",
+            color: "#fff",
+            border: "none",
+            backgroundColor: "#159447",
+            textShadow: "0 1px 1px rgba(0,0,0,0.28)",
+            boxShadow: "inset 0 1px 0 #72d995, 0 8px 0 #075b2a",
+            WebkitTapHighlightColor: "transparent",
+            touchAction: "manipulation",
             transition:
-              "transform 180ms ease, box-shadow 180ms ease, background 220ms ease, border-color 180ms ease",
-            "&:hover": {
-              borderWidth: "1.8px",
-              borderColor: "#17417f",
-              background:
-                "linear-gradient(135deg, #ffffff 0%, #ffffff 50%, #2f6bd6 50%, #17417f 100%)",
-              boxShadow: "0 12px 26px rgba(47,107,214,0.22)",
-              transform: "translateY(-2px)",
-              "& .cta-blue-side": { color: "#fff" },
-              "& .cta-white-side": { color: "#17417f" },
-              "& .MuiButton-endIcon": { color: "#fff" },
+              "transform 100ms ease, box-shadow 100ms ease, background-color 160ms ease",
+            "&::after": {
+              content: '""',
+              position: "absolute",
+              left: 0,
+              bottom: -8,
+              width: "100%",
+              height: "100%",
+              borderRadius: "14px",
+              backgroundColor: "#06451f",
+              zIndex: -1,
+              pointerEvents: "none",
+              transition: "bottom 100ms ease",
             },
-            "& .cta-blue-side": { color: "#fff" },
-            "& .cta-white-side": { color: "#17417f" },
-            "&:active": { transform: "translateY(0)" },
+            "&:hover": {
+              backgroundColor: "#18a64f",
+              boxShadow: "inset 0 1px 0 #83e3a1, 0 8px 0 #075b2a",
+            },
+            "&:active": {
+              transform: "translateY(8px)",
+              backgroundColor: "#117638",
+              boxShadow: "inset 0 1px 0 #72d995, inset 0 -3px 0 #075b2a",
+              "&::after": { bottom: 0 },
+            },
+            "&:focus-visible": {
+              outline: "3px solid #0b2545",
+              outlineOffset: 5,
+            },
           }}
         >
-          <Box
-            component="span"
-            aria-hidden
-            sx={{ position: "absolute", inset: 0, pointerEvents: "none" }}
-          >
-            <Box
-              component="span"
-              className="cta-blue-side"
-              sx={{
-                position: "absolute",
-                inset: "0 -1px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                whiteSpace: "nowrap",
-                clipPath: "polygon(0 100%, 100% 0, 100% 100%)",
-              }}
-            >
-              {t("landing.v2.ctaCustomSoftware")}
-            </Box>
-            <Box
-              component="span"
-              className="cta-white-side"
-              sx={{
-                position: "absolute",
-                inset: "0 -1px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                whiteSpace: "nowrap",
-                clipPath: "polygon(0 0, 100% 0, 0 100%)",
-              }}
-            >
-              {t("landing.v2.ctaCustomSoftware")}
-            </Box>
-          </Box>
+          {t("landing.v2.ctaCustomSoftware")}
         </Button>
       </Box>
     </Box>
