@@ -99,26 +99,36 @@ const lifecycle = [
     icon: SearchRoundedIcon,
     title: "Ανάλυση απαιτήσεων",
     body: "Καταγράφουμε τις ανάγκες, τις ροές εργασίας και τους στόχους σας.",
+    detail:
+      "Συζητήσεις με stakeholders, καταγραφή λειτουργικών απαιτήσεων, προτεραιοτήτων, χρηστών και περιορισμών.",
   },
   {
     icon: DesignServicesRoundedIcon,
     title: "Σχεδιασμός λύσης",
     body: "Ορίζουμε αρχιτεκτονική, εμπειρία χρήστη και πλάνο υλοποίησης.",
+    detail:
+      "Ροές χρήστη, πρωτότυπα, μοντέλο δεδομένων, τεχνική αρχιτεκτονική και συμφωνημένο πλάνο παράδοσης.",
   },
   {
     icon: CodeRoundedIcon,
     title: "Ανάπτυξη",
     body: "Υλοποιούμε το λογισμικό σταδιακά, με τακτική ανατροφοδότηση.",
+    detail:
+      "Ιεραρχημένες εργασίες, ορατή πρόοδος, τακτικές παρουσιάσεις και συνεργατικές αποφάσεις.",
   },
   {
     icon: FactCheckRoundedIcon,
     title: "Δοκιμές & έλεγχοι",
     body: "Ελέγχουμε λειτουργικότητα, ασφάλεια και ποιότητα πριν την παράδοση.",
+    detail:
+      "Έλεγχοι λειτουργιών και ροών, διορθώσεις, έλεγχος δικαιωμάτων και προετοιμασία παραγωγικής διάθεσης.",
   },
   {
     icon: RocketLaunchRoundedIcon,
     title: "Παράδοση & υποστήριξη",
     body: "Θέτουμε τη λύση σε λειτουργία και σας υποστηρίζουμε στη συνέχεια.",
+    detail:
+      "Παράδοση συμφωνημένων πηγαίων αρχείων και τεκμηρίωσης, εκπαίδευση, μετάβαση και συμφωνημένη υποστήριξη.",
   },
 ];
 
@@ -126,42 +136,172 @@ const technologyLogos = [
   {
     name: "C#",
     category: { el: "Γλώσσα προγραμματισμού", en: "Programming language" },
+    details: {
+      el: "Ισχυρή, τυποποιημένη γλώσσα για επιχειρησιακή λογική, APIs και desktop εφαρμογές.",
+      en: "A strongly typed language for business logic, APIs and desktop applications.",
+    },
+    core: true,
     logo: "https://cdn.jsdelivr.net/gh/devicons/devicon@v2.16.0/icons/csharp/csharp-original.svg",
   },
   {
     name: ".NET / ASP.NET Core",
     category: { el: "Backend", en: "Backend" },
+    details: {
+      el: "Πλαίσιο για APIs και υπηρεσίες με έμφαση στην απόδοση, την ασφάλεια και τη συντηρησιμότητα.",
+      en: "A framework for APIs and services focused on performance, security and maintainability.",
+    },
+    core: true,
     logo: "https://cdn.simpleicons.org/dotnet/512BD4",
   },
   {
     name: "React",
     category: { el: "Frontend", en: "Frontend" },
+    details: {
+      el: "Component-based ανάπτυξη σύγχρονων και διαδραστικών web εμπειριών.",
+      en: "Component-based development for modern, interactive web experiences.",
+    },
+    core: true,
     logo: "https://cdn.simpleicons.org/react/61DAFB",
   },
   {
     name: "TypeScript",
     category: { el: "Γλώσσα προγραμματισμού", en: "Programming language" },
+    details: {
+      el: "Τυποποιημένη JavaScript για πιο προβλέψιμο και εύκολα συντηρήσιμο frontend.",
+      en: "Typed JavaScript for more predictable and maintainable frontends.",
+    },
+    core: true,
     logo: "https://cdn.simpleicons.org/typescript/3178C6",
   },
   {
     name: "MySQL",
     category: { el: "Σχεσιακή βάση δεδομένων", en: "Relational database" },
+    details: {
+      el: "Σχεσιακή αποθήκευση με συναλλαγές, σχέσεις και συνέπεια δεδομένων.",
+      en: "Relational storage with transactions, relationships and data consistency.",
+    },
+    core: true,
     logo: "https://cdn.simpleicons.org/mysql/4479A1",
   },
   {
     name: "Vite",
     category: { el: "Build εργαλείο", en: "Build tool" },
+    details: {
+      el: "Γρήγορο development server και build pipeline για σύγχρονα web projects.",
+      en: "A fast development server and build pipeline for modern web projects.",
+    },
+    core: true,
     logo: "https://cdn.simpleicons.org/vite/646CFF",
   },
   {
     name: "Material UI",
     category: { el: "UI framework", en: "UI framework" },
+    details: {
+      el: "Συνεπή, προσβάσιμα UI components και responsive σχεδιασμός.",
+      en: "Consistent, accessible UI components and responsive design.",
+    },
+    core: true,
     logo: "https://cdn.simpleicons.org/mui/007FFF",
   },
   {
     name: "Entity Framework Core",
     category: { el: "ORM / πρόσβαση δεδομένων", en: "ORM / data access" },
+    details: {
+      el: "Αντιστοίχιση μοντέλων εφαρμογής με σχεσιακά δεδομένα και migrations.",
+      en: "Mapping application models to relational data and managing migrations.",
+    },
+    core: true,
     logo: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/entityframeworkcore/entityframeworkcore-original.svg",
+  },
+  {
+    name: "Java",
+    category: { el: "Γλώσσα προγραμματισμού", en: "Programming language" },
+    details: {
+      el: "Επιλογή για backend υπηρεσίες, εταιρικές εφαρμογές και Android οικοσυστήματα.",
+      en: "An option for backend services, enterprise applications and Android ecosystems.",
+    },
+    core: false,
+    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon@v2.16.0/icons/java/java-original.svg",
+  },
+  {
+    name: "C++",
+    category: { el: "Γλώσσα προγραμματισμού", en: "Programming language" },
+    details: {
+      el: "Για έργα που απαιτούν native απόδοση, συστήματα ή διαχείριση πόρων χαμηλού επιπέδου.",
+      en: "For projects requiring native performance, systems work or low-level resource control.",
+    },
+    core: false,
+    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon@v2.16.0/icons/cplusplus/cplusplus-original.svg",
+  },
+  {
+    name: "Python",
+    category: { el: "Γλώσσα προγραμματισμού", en: "Programming language" },
+    details: {
+      el: "Χρήσιμη για αυτοματισμούς, data workflows και επιλεγμένες υπηρεσίες backend.",
+      en: "Useful for automation, data workflows and selected backend services.",
+    },
+    core: false,
+    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon@v2.16.0/icons/python/python-original.svg",
+  },
+  {
+    name: "Angular",
+    category: { el: "Frontend framework", en: "Frontend framework" },
+    details: {
+      el: "Δομημένο framework για μεγάλα, σύνθετα web περιβάλλοντα.",
+      en: "A structured framework for large, complex web applications.",
+    },
+    core: false,
+    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon@v2.16.0/icons/angularjs/angularjs-original.svg",
+  },
+  {
+    name: "Vue.js",
+    category: { el: "Frontend framework", en: "Frontend framework" },
+    details: {
+      el: "Progressive framework για ευέλικτες web εφαρμογές και interfaces.",
+      en: "A progressive framework for flexible web applications and interfaces.",
+    },
+    core: false,
+    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon@v2.16.0/icons/vuejs/vuejs-original.svg",
+  },
+  {
+    name: "Node.js",
+    category: { el: "JavaScript runtime", en: "JavaScript runtime" },
+    details: {
+      el: "Runtime JavaScript για APIs, εργαλεία και event-driven υπηρεσίες.",
+      en: "A JavaScript runtime for APIs, tooling and event-driven services.",
+    },
+    core: false,
+    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon@v2.16.0/icons/nodejs/nodejs-original.svg",
+  },
+  {
+    name: "PostgreSQL",
+    category: { el: "Σχεσιακή βάση δεδομένων", en: "Relational database" },
+    details: {
+      el: "Ισχυρή σχεσιακή βάση για εφαρμογές με σύνθετα queries και απαιτήσεις ακεραιότητας.",
+      en: "A powerful relational database for applications with complex queries and integrity requirements.",
+    },
+    core: false,
+    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon@v2.16.0/icons/postgresql/postgresql-original.svg",
+  },
+  {
+    name: "MongoDB",
+    category: { el: "NoSQL βάση δεδομένων", en: "NoSQL database" },
+    details: {
+      el: "Document database για δεδομένα με ευέλικτη δομή όπου ταιριάζει στην αρχιτεκτονική.",
+      en: "A document database for flexible data structures when they fit the architecture.",
+    },
+    core: false,
+    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon@v2.16.0/icons/mongodb/mongodb-original.svg",
+  },
+  {
+    name: "Docker",
+    category: { el: "Containers & deployment", en: "Containers & deployment" },
+    details: {
+      el: "Συσκευασία εφαρμογών σε επαναλήψιμα περιβάλλοντα ανάπτυξης και διάθεσης.",
+      en: "Packaging applications into repeatable development and deployment environments.",
+    },
+    core: false,
+    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon@v2.16.0/icons/docker/docker-original.svg",
   },
 ];
 
@@ -170,6 +310,15 @@ const serviceTechnologyLogos: Record<string, string> = {
   PostgreSQL: "https://cdn.simpleicons.org/postgresql/4169E1",
   MongoDB: "https://cdn.simpleicons.org/mongodb/47A248",
   OWASP: "https://cdn.simpleicons.org/owasp/FFFFFF",
+  OpenSSL: "https://cdn.simpleicons.org/openssl/721412",
+  "Let's Encrypt": "https://cdn.simpleicons.org/letsencrypt/003A70",
+  Docker: "https://cdn.simpleicons.org/docker/2496ED",
+  NGINX: "https://cdn.simpleicons.org/nginx/009639",
+  Linux: "https://cdn.simpleicons.org/linux/FCC624",
+  Cloudflare: "https://cdn.simpleicons.org/cloudflare/F38020",
+  Postman: "https://cdn.simpleicons.org/postman/FF6C37",
+  GitHub: "https://cdn.simpleicons.org/github/FFFFFF",
+  "GitHub Actions": "https://cdn.simpleicons.org/githubactions/2088FF",
 };
 
 const serviceAreas = [
@@ -185,6 +334,7 @@ const serviceAreas = [
       en: "Relational databases with clear schemas and data integrity, as well as non-relational options when they better fit the data shape and scale.",
     },
     tags: ["MySQL", "PostgreSQL", "MongoDB"],
+    logos: ["MySQL", "PostgreSQL", "MongoDB"],
   },
   {
     icon: KeyRoundedIcon,
@@ -197,7 +347,8 @@ const serviceAreas = [
       el: "Εφαρμόζουμε δοκιμασμένους αλγορίθμους και ασφαλή διαχείριση κλειδιών, χωρίς να επινοούμε ιδιόκρυπτα σχήματα.",
       en: "We use established algorithms and secure key management rather than inventing custom cryptographic schemes.",
     },
-    tags: ["AES-GCM", "TLS", "Key management"],
+    tags: ["AES-GCM", "OpenSSL", "TLS"],
+    logos: ["OpenSSL", "Let's Encrypt"],
   },
   {
     icon: SecurityRoundedIcon,
@@ -211,6 +362,7 @@ const serviceAreas = [
       en: "Identity and access controls, secure secret handling, audit trails, request throttling and vulnerability checks.",
     },
     tags: ["OWASP", "Access control", "Security testing"],
+    logos: ["OWASP", "OpenSSL"],
   },
   {
     icon: LanRoundedIcon,
@@ -223,7 +375,8 @@ const serviceAreas = [
       el: "Περιλαμβάνει περιβάλλοντα ανάπτυξης και παραγωγής, δικτυακή πρόσβαση, αντίγραφα ασφαλείας, παρακολούθηση και διαδικασίες διάθεσης.",
       en: "This can include development and production environments, network access, backups, monitoring and release processes.",
     },
-    tags: ["HTTPS / TLS", "Backups", "Monitoring"],
+    tags: ["Docker", "NGINX", "Linux"],
+    logos: ["Docker", "NGINX", "Linux", "Cloudflare"],
   },
   {
     icon: ApiRoundedIcon,
@@ -236,7 +389,8 @@ const serviceAreas = [
       el: "Σχεδιάζουμε APIs, ανταλλαγή δεδομένων, webhooks και ασφαλή διαχείριση διαπιστευτηρίων σύμφωνα με τις ανάγκες του έργου.",
       en: "We design APIs, data exchange, webhooks and secure credential handling to fit project requirements.",
     },
-    tags: ["REST APIs", "Webhooks", "OAuth / API keys"],
+    tags: ["Postman", "REST APIs", "Webhooks"],
+    logos: ["Postman", "GitHub"],
   },
   {
     icon: CloudRoundedIcon,
@@ -249,7 +403,8 @@ const serviceAreas = [
       el: "Ανάλογα με το έργο, οργανώνουμε περιβάλλοντα, αυτοματοποιημένα builds, παρακολούθηση σφαλμάτων και πλάνο συντήρησης.",
       en: "Depending on the project, we set up environments, automated builds, error monitoring and a maintenance plan.",
     },
-    tags: ["CI / CD", "Release planning", "Maintenance"],
+    tags: ["GitHub Actions", "Docker", "Maintenance"],
+    logos: ["GitHub Actions", "Docker", "Linux"],
   },
 ];
 
@@ -275,24 +430,50 @@ const english = {
   workTitle: "How we work",
   workIntro:
     "We follow the complete software development lifecycle, from requirements analysis through launch and ongoing support.",
+  lifecycleEyebrow: "FROM FIRST CONVERSATION TO CONTINUOUS IMPROVEMENT",
+  lifecycleOutcome: "A transparent journey, with checkpoints at every stage.",
   methodEyebrow: "A CLEAR, COLLABORATIVE PROCESS",
-  methodTitle: "Agile delivery, with clear agreements.",
+  methodTitle: "Agile development. Shared progress. Clear decisions.",
   methodIntro:
-    "We work in short, reviewable iterations so you can see progress and give feedback throughout the project.",
+    "Instead of waiting until the end to see the result, you stay involved throughout delivery. Every iteration produces something reviewable, with decisions and changes agreed together.",
+  agileDiagramLabel: "Agile iteration diagram: plan, build, review and repeat",
+  agilePlan: "PLAN",
+  agileBuild: "BUILD",
+  agileReview: "REVIEW",
+  agileFeedback: "Your feedback shapes the next iteration",
+  agileIterations: "Short, reviewable iterations",
   methodSteps: [
-    ["01", "Agree on scope", "We document goals, deliverables, responsibilities and acceptance criteria before work begins."],
-    ["02", "Build in iterations", "We prioritize a backlog, share progress and review working software together."],
-    ["03", "Review and adapt", "We capture feedback and agree on any changes to scope, timing or cost before proceeding."],
+    ["01", "Agree on the outcome", "We define the problem, users, priorities, scope, responsibilities and acceptance criteria before implementation."],
+    ["02", "Deliver in small increments", "We break work into manageable iterations, share working software and keep decisions visible."],
+    ["03", "Review, learn and adapt", "We use your feedback to reprioritize. Any material change to scope, timeline or budget is discussed and approved before work changes."],
   ],
-  agreementTitle: "A written agreement before delivery",
+  agreementTitle: "The agreement keeps the project clear.",
   agreementBody:
-    "The project agreement sets expectations for scope, milestones, deliverables, payment terms, ownership and support. Changes are reviewed and agreed in writing.",
-  stackEyebrow: "OUR CURRENT TOOLKIT",
-  stackTitle: "Languages, frameworks & technologies.",
+    "Before work begins, the written proposal or contract records the scope, milestones, deliverables, acceptance process, payment terms, intellectual-property arrangements and support. Agile means adapting together—not making unapproved changes to cost or scope.",
+  agreementTerms: [
+    ["Scope", "What is included and what is not"],
+    ["Milestones", "Reviews, dates and decision points"],
+    ["Deliverables", "What you receive at each stage"],
+    ["Change control", "How changes are assessed and approved"],
+  ],
+  stackEyebrow: "A FLEXIBLE TECHNOLOGY TOOLKIT",
+  stackTitle: "The right tools for the job.",
   stackIntro:
-    "These technologies are part of the KALYPSIS platform we build and maintain. The right stack for each new project is selected around its requirements.",
+    "We build on the .NET, React, TypeScript and MySQL stack behind KALYPSIS, and can select other proven languages, frameworks and data platforms when a project calls for them.",
+  stackCoreLabel: "Used in the KALYPSIS platform",
+  stackOptionsLabel: "Additional options by project",
+  stackCarouselLabel: "Technology stack carousel. Pause by hovering or focusing.",
+  stackOfferTitle: "We build more than screens.",
+  stackOfferBody:
+    "From responsive web products and business portals to APIs, integrations, workflow automation, data-heavy platforms and desktop software, we select the stack around your users, constraints and long-term ownership.",
+  stackOfferPoints: [
+    "Web apps & customer portals",
+    "APIs, integrations & automation",
+    "Business platforms & data systems",
+    "Desktop & internal tools",
+  ],
   stackNote:
-    "Logos are loaded from public technology-icon CDNs. Individual projects may use a different combination.",
+    "Java, C++, Python, Angular, Vue, Node.js, PostgreSQL, MongoDB and Docker are examples of additional options—not a claim that every technology is used in every project.",
   servicesEyebrow: "FROM DATA TO DEPLOYMENT",
   servicesTitle: "Engineering for the whole product.",
   servicesIntro:
@@ -345,24 +526,50 @@ export function CustomSoftwarePage() {
         workTitle: "Πώς εργαζόμαστε",
         workIntro:
           "Τηρούμε πλήρως τον κύκλο ζωής ανάπτυξης λογισμικού: από την ανάλυση απαιτήσεων έως την παράδοση και τη συνεχή υποστήριξη.",
+        lifecycleEyebrow: "ΑΠΟ ΤΗΝ ΠΡΩΤΗ ΣΥΖΗΤΗΣΗ ΕΩΣ ΤΗ ΣΥΝΕΧΗ ΒΕΛΤΙΩΣΗ",
+        lifecycleOutcome: "Μια διαφανής πορεία, με σημεία ελέγχου σε κάθε στάδιο.",
         methodEyebrow: "ΜΙΑ ΣΑΦΗΣ ΚΑΙ ΣΥΝΕΡΓΑΤΙΚΗ ΔΙΑΔΙΚΑΣΙΑ",
-        methodTitle: "Agile υλοποίηση, με ξεκάθαρη συμφωνία.",
+        methodTitle: "Agile ανάπτυξη. Κοινή πρόοδος. Καθαρές αποφάσεις.",
         methodIntro:
-          "Εργαζόμαστε σε σύντομους κύκλους, ώστε να βλέπετε την πρόοδο και να δίνετε ανατροφοδότηση σε όλη τη διάρκεια του έργου.",
+          "Δεν περιμένετε μέχρι το τέλος για να δείτε το αποτέλεσμα. Συμμετέχετε σε όλη την πορεία: κάθε κύκλος παράγει κάτι αξιολογήσιμο και οι αποφάσεις συμφωνούνται από κοινού.",
+        agileDiagramLabel: "Διάγραμμα Agile κύκλου: σχεδιασμός, υλοποίηση, αξιολόγηση και επανάληψη",
+        agilePlan: "ΣΧΕΔΙΑΣΜΟΣ",
+        agileBuild: "ΥΛΟΠΟΙΗΣΗ",
+        agileReview: "ΑΞΙΟΛΟΓΗΣΗ",
+        agileFeedback: "Η δική σας ανατροφοδότηση οδηγεί στον επόμενο κύκλο",
+        agileIterations: "Σύντομοι κύκλοι με αξιολογήσιμα παραδοτέα",
         methodSteps: [
-          ["01", "Συμφωνούμε το πλαίσιο", "Καταγράφουμε στόχους, παραδοτέα, ευθύνες και κριτήρια αποδοχής πριν ξεκινήσει η υλοποίηση."],
-          ["02", "Υλοποιούμε σταδιακά", "Ιεραρχούμε τις εργασίες, παρουσιάζουμε την πρόοδο και αξιολογούμε μαζί λειτουργικό λογισμικό."],
-          ["03", "Αξιολογούμε και προσαρμοζόμαστε", "Καταγράφουμε σχόλια και συμφωνούμε τυχόν αλλαγές σε εύρος, χρονοδιάγραμμα ή κόστος πριν προχωρήσουμε."],
+          ["01", "Συμφωνούμε το αποτέλεσμα", "Ορίζουμε το πρόβλημα, τους χρήστες, τις προτεραιότητες, το αντικείμενο, τις ευθύνες και τα κριτήρια αποδοχής πριν ξεκινήσει η υλοποίηση."],
+          ["02", "Παραδίδουμε σταδιακά", "Χωρίζουμε την εργασία σε διαχειρίσιμους κύκλους, παρουσιάζουμε λειτουργικό λογισμικό και κρατάμε τις αποφάσεις ορατές."],
+          ["03", "Αξιολογούμε και προσαρμοζόμαστε", "Αξιοποιούμε τα σχόλιά σας για νέες προτεραιότητες. Κάθε ουσιαστική αλλαγή σε εύρος, χρόνο ή κόστος συζητείται και εγκρίνεται πριν εφαρμοστεί."],
         ],
-        agreementTitle: "Γραπτή συμφωνία πριν την υλοποίηση",
+        agreementTitle: "Η συμφωνία κρατά το έργο ξεκάθαρο.",
         agreementBody:
-          "Η σύμβαση έργου ορίζει το αντικείμενο, τα ορόσημα, τα παραδοτέα, τους όρους πληρωμής, τα δικαιώματα χρήσης και την υποστήριξη. Κάθε αλλαγή εξετάζεται και συμφωνείται γραπτώς.",
-        stackEyebrow: "ΤΟ ΤΕΧΝΟΛΟΓΙΚΟ ΜΑΣ ΥΠΟΒΑΘΡΟ",
-        stackTitle: "Γλώσσες, frameworks & τεχνολογίες.",
+          "Πριν ξεκινήσει η εργασία, η γραπτή προσφορά ή σύμβαση καταγράφει το αντικείμενο, τα ορόσημα, τα παραδοτέα, τη διαδικασία αποδοχής, τους όρους πληρωμής, τα δικαιώματα πνευματικής ιδιοκτησίας και την υποστήριξη. Agile σημαίνει ότι προσαρμοζόμαστε μαζί — όχι ότι αλλάζουν ανεξέλεγκτα το κόστος ή το αντικείμενο.",
+        agreementTerms: [
+          ["Αντικείμενο", "Τι περιλαμβάνεται και τι όχι"],
+          ["Ορόσημα", "Έλεγχοι, ημερομηνίες και αποφάσεις"],
+          ["Παραδοτέα", "Τι παραλαμβάνετε σε κάθε στάδιο"],
+          ["Διαχείριση αλλαγών", "Πώς αξιολογούνται και εγκρίνονται"],
+        ],
+        stackEyebrow: "ΕΥΕΛΙΚΤΟ ΤΕΧΝΟΛΟΓΙΚΟ ΟΙΚΟΣΥΣΤΗΜΑ",
+        stackTitle: "Τα κατάλληλα εργαλεία για κάθε έργο.",
         stackIntro:
-          "Οι τεχνολογίες αυτές αποτελούν μέρος της πλατφόρμας KALYPSIS που αναπτύσσουμε και συντηρούμε. Για κάθε νέο έργο επιλέγουμε στοίβα με βάση τις απαιτήσεις του.",
+          "Αναπτύσσουμε την πλατφόρμα KALYPSIS με .NET, React, TypeScript και MySQL. Όταν το έργο το απαιτεί, επιλέγουμε και άλλες δοκιμασμένες γλώσσες, frameworks και βάσεις δεδομένων.",
+        stackCoreLabel: "Σε χρήση στην πλατφόρμα KALYPSIS",
+        stackOptionsLabel: "Επιπλέον επιλογές ανά έργο",
+        stackCarouselLabel: "Carousel τεχνολογιών. Παύση με hover ή εστίαση.",
+        stackOfferTitle: "Δημιουργούμε κάτι περισσότερο από οθόνες.",
+        stackOfferBody:
+          "Από responsive web εφαρμογές και portals έως APIs, διασυνδέσεις, αυτοματισμούς, data platforms και desktop λογισμικό, επιλέγουμε τεχνολογίες με βάση τους χρήστες, τους περιορισμούς και τη μελλοντική συντήρηση.",
+        stackOfferPoints: [
+          "Web εφαρμογές & portals πελατών",
+          "APIs, διασυνδέσεις & αυτοματισμοί",
+          "Επιχειρησιακές πλατφόρμες & δεδομένα",
+          "Desktop εφαρμογές & εσωτερικά εργαλεία",
+        ],
         stackNote:
-          "Τα λογότυπα φορτώνονται από δημόσια CDN εικονιδίων τεχνολογιών. Κάθε έργο μπορεί να αξιοποιεί διαφορετικό συνδυασμό.",
+          "Java, C++, Python, Angular, Vue, Node.js, PostgreSQL, MongoDB και Docker είναι ενδεικτικές πρόσθετες επιλογές — δεν σημαίνει ότι κάθε τεχνολογία χρησιμοποιείται σε κάθε έργο.",
         servicesEyebrow: "ΑΠΟ ΤΑ ΔΕΔΟΜΕΝΑ ΕΩΣ ΤΗΝ ΠΑΡΑΔΟΣΗ",
         servicesTitle: "Τεχνογνωσία για ολόκληρο το προϊόν.",
         servicesIntro:
@@ -395,6 +602,92 @@ export function CustomSoftwarePage() {
     activeCategory === "all" || project.categories.includes(activeCategory)
       ? project
       : null;
+
+  const renderTechnologyGroup = (duplicate: boolean) => (
+    <Box
+      className="technology-group"
+      aria-hidden={duplicate || undefined}
+      key={duplicate ? "technology-duplicate" : "technology-primary"}
+      sx={{
+        display: "flex",
+        flexShrink: 0,
+        gap: 2,
+        pr: 2,
+      }}
+    >
+      {technologyLogos.map((technology) => (
+        <Box
+          key={technology.name}
+          sx={{
+            width: { xs: 235, md: 285 },
+            minHeight: { xs: 245, md: 265 },
+            p: { xs: 2.5, md: 3 },
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            border: "1px solid #dfe8f2",
+            borderRadius: 3,
+            bgcolor: "#fff",
+            boxShadow: "0 12px 35px rgba(13,42,73,.07)",
+          }}
+        >
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="flex-start"
+            sx={{ width: "100%" }}
+          >
+            <Box
+              sx={{
+                width: 82,
+                height: 82,
+                display: "grid",
+                placeItems: "center",
+                borderRadius: 2.5,
+                border: "1px solid #edf1f6",
+                bgcolor: "#f8fafc",
+              }}
+            >
+              <Box
+                component="img"
+                src={technology.logo}
+                alt={`${technology.name} logo`}
+                loading={duplicate ? "lazy" : undefined}
+                referrerPolicy="no-referrer"
+                sx={{ width: 58, height: 58, objectFit: "contain" }}
+              />
+            </Box>
+            <Chip
+              size="small"
+              label={technology.core ? labels.stackCoreLabel : labels.stackOptionsLabel}
+              sx={{
+                maxWidth: 150,
+                height: "auto",
+                py: 0.45,
+                color: technology.core ? "#155b3c" : "#385575",
+                bgcolor: technology.core ? "#e7f5ec" : "#edf3f9",
+                fontSize: 10,
+                fontWeight: 800,
+                "& .MuiChip-label": { whiteSpace: "normal", px: 1 },
+              }}
+            />
+          </Stack>
+          <Box sx={{ mt: 2 }}>
+            <Typography sx={{ color: "#102d4a", fontSize: 18, fontWeight: 900 }}>
+              {technology.name}
+            </Typography>
+            <Typography sx={{ mt: 0.35, color: "#236eaa", fontSize: 12, fontWeight: 800 }}>
+              {isEnglish ? technology.category.en : technology.category.el}
+            </Typography>
+            <Typography sx={{ mt: 1, color: "#52647b", fontSize: 13, lineHeight: 1.65 }}>
+              {isEnglish ? technology.details.en : technology.details.el}
+            </Typography>
+          </Box>
+        </Box>
+      ))}
+    </Box>
+  );
 
   return (
     <PublicShell modernNav>
@@ -702,28 +995,36 @@ export function CustomSoftwarePage() {
             <Box
               sx={{
                 display: "grid",
-                gridTemplateColumns: { xs: "1fr", md: "minmax(0,1.05fr) minmax(300px,.95fr)" },
-                gap: { xs: 4, md: 7 },
-                alignItems: "center",
+                gridTemplateColumns: "minmax(0,1fr)",
+                gap: { xs: 3, md: 4 },
               }}
             >
               <Box>
-                <Typography
-                  sx={{
-                    color: "#7fc8ff",
-                    fontSize: 11,
-                    fontWeight: 900,
-                    letterSpacing: ".16em",
-                  }}
-                >
-                  {labels.methodEyebrow}
-                </Typography>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <AutoModeRoundedIcon
+                    sx={{
+                      color: "#83ceff",
+                      fontSize: 23,
+                      filter: "drop-shadow(0 0 10px rgba(88,186,255,.4))",
+                    }}
+                  />
+                  <Typography
+                    sx={{
+                      color: "#7fc8ff",
+                      fontSize: 12,
+                      fontWeight: 900,
+                      letterSpacing: ".16em",
+                    }}
+                  >
+                    {labels.methodEyebrow}
+                  </Typography>
+                </Stack>
                 <Typography
                   component="h2"
                   sx={{
                     mt: 1.25,
-                    maxWidth: 650,
-                    fontSize: { xs: 30, md: 43 },
+                    maxWidth: 920,
+                    fontSize: { xs: 32, md: 48 },
                     fontWeight: 900,
                     lineHeight: 1.12,
                     letterSpacing: "-.035em",
@@ -734,57 +1035,226 @@ export function CustomSoftwarePage() {
                 <Typography
                   sx={{
                     mt: 1.75,
-                    maxWidth: 660,
+                    maxWidth: 880,
                     color: "#b8cce0",
-                    fontSize: { xs: 15, md: 17 },
+                    fontSize: { xs: 17, md: 20 },
                     lineHeight: 1.8,
                   }}
                 >
                   {labels.methodIntro}
                 </Typography>
-                <Stack spacing={1.5} sx={{ mt: 3.5 }}>
-                  {labels.methodSteps.map(([number, title, description]) => (
-                    <Stack
-                      key={number}
-                      direction="row"
-                      spacing={2}
-                      alignItems="flex-start"
+              </Box>
+              <Box
+                role="img"
+                aria-label={labels.agileDiagramLabel}
+                sx={{
+                  position: "relative",
+                  overflow: "hidden",
+                  minHeight: { xs: 305, md: 390 },
+                  display: "grid",
+                  placeItems: "center",
+                  border: "1px solid rgba(150,198,235,.22)",
+                  borderRadius: 3,
+                  background:
+                    "radial-gradient(ellipse at 50% 45%,rgba(38,121,194,.2),transparent 55%),rgba(255,255,255,.035)",
+                }}
+              >
+                <Box
+                  component="svg"
+                  viewBox="0 0 900 390"
+                  role="presentation"
+                  sx={{
+                    width: "100%",
+                    maxWidth: 980,
+                    height: "auto",
+                    px: { xs: 1, md: 4 },
+                    py: { xs: 2, md: 3 },
+                    overflow: "visible",
+                  }}
+                >
+                  <defs>
+                    <linearGradient id="agileLoop" x1="0" x2="1" y1="0" y2="1">
+                      <stop offset="0" stopColor="#52b8ff" />
+                      <stop offset="1" stopColor="#a4e0ff" />
+                    </linearGradient>
+                    <marker
+                      id="agileArrow"
+                      viewBox="0 0 10 10"
+                      refX="8"
+                      refY="5"
+                      markerWidth="7"
+                      markerHeight="7"
+                      orient="auto-start-reverse"
                     >
+                      <path d="M 0 0 L 10 5 L 0 10 z" fill="#78caff" />
+                    </marker>
+                  </defs>
+                  <path
+                    d="M 285 104 C 370 39, 532 40, 615 105"
+                    fill="none"
+                    stroke="url(#agileLoop)"
+                    strokeWidth="5"
+                    strokeLinecap="round"
+                    markerEnd="url(#agileArrow)"
+                  />
+                  <path
+                    d="M 656 142 C 693 220, 632 290, 555 310"
+                    fill="none"
+                    stroke="url(#agileLoop)"
+                    strokeWidth="5"
+                    strokeLinecap="round"
+                    markerEnd="url(#agileArrow)"
+                  />
+                  <path
+                    d="M 344 310 C 266 293, 205 220, 244 142"
+                    fill="none"
+                    stroke="url(#agileLoop)"
+                    strokeWidth="5"
+                    strokeLinecap="round"
+                    markerEnd="url(#agileArrow)"
+                  />
+                  {[
+                    { x: 225, label: labels.agilePlan, icon: "01" },
+                    { x: 450, label: labels.agileBuild, icon: "02" },
+                    { x: 675, label: labels.agileReview, icon: "03" },
+                  ].map((node) => (
+                    <g key={node.label} transform={`translate(${node.x} 185)`}>
+                      <rect
+                        x="-100"
+                        y="-54"
+                        width="200"
+                        height="108"
+                        rx="20"
+                        fill="#102f4e"
+                        stroke="#447ba7"
+                        strokeWidth="2"
+                      />
+                      <circle cx="0" cy="-19" r="20" fill="#17486f" />
+                      <text
+                        x="0"
+                        y="-14"
+                        textAnchor="middle"
+                        fill="#9ddcff"
+                        fontSize="14"
+                        fontWeight="800"
+                        fontFamily="system-ui,sans-serif"
+                      >
+                        {node.icon}
+                      </text>
+                      <text
+                        x="0"
+                        y="28"
+                        textAnchor="middle"
+                        fill="#f3f8ff"
+                        fontSize="16"
+                        fontWeight="800"
+                        fontFamily="system-ui,sans-serif"
+                      >
+                        {node.label}
+                      </text>
+                    </g>
+                  ))}
+                  <rect
+                    x="260"
+                    y="342"
+                    width="380"
+                    height="36"
+                    rx="18"
+                    fill="#143b5b"
+                    stroke="#38678a"
+                  />
+                  <text
+                    x="450"
+                    y="365"
+                    textAnchor="middle"
+                    fill="#c6e8ff"
+                    fontSize="13"
+                    fontWeight="700"
+                    fontFamily="system-ui,sans-serif"
+                  >
+                    {labels.agileFeedback}
+                  </text>
+                </Box>
+                <Chip
+                  label={labels.agileIterations}
+                  icon={<AutoModeRoundedIcon />}
+                  sx={{
+                    position: "absolute",
+                    left: { xs: 1.25, md: 2.5 },
+                    bottom: { xs: 1.25, md: 2 },
+                    maxWidth: "calc(100% - 24px)",
+                    height: "auto",
+                    py: 0.6,
+                    color: "#d7efff",
+                    border: "1px solid rgba(143,202,243,.25)",
+                    bgcolor: "#102e4b",
+                    fontWeight: 800,
+                    "& .MuiChip-label": { whiteSpace: "normal" },
+                  }}
+                />
+              </Box>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    md: "repeat(3,minmax(0,1fr))",
+                  },
+                  gap: 1.5,
+                }}
+              >
+                {labels.methodSteps.map(([number, title, description]) => (
+                  <Box
+                    key={number}
+                    sx={{
+                      minWidth: 0,
+                      p: { xs: 2.5, md: 3 },
+                      border: "1px solid rgba(150,198,235,.2)",
+                      borderRadius: 2.5,
+                      bgcolor: "rgba(255,255,255,.045)",
+                    }}
+                  >
+                    <Stack direction="row" spacing={1.5} alignItems="center">
                       <Box
                         sx={{
                           flexShrink: 0,
-                          width: 42,
-                          height: 42,
+                          width: 46,
+                          height: 46,
                           display: "grid",
                           placeItems: "center",
                           borderRadius: 1.5,
                           border: "1px solid rgba(127,200,255,.32)",
                           bgcolor: "rgba(127,200,255,.1)",
                           color: "#8bd0ff",
-                          fontSize: 13,
+                          fontSize: 14,
                           fontWeight: 900,
                         }}
                       >
                         {number}
                       </Box>
-                      <Box>
-                        <Typography sx={{ fontWeight: 850, color: "#f5f9ff" }}>
-                          {title}
-                        </Typography>
-                        <Typography
-                          sx={{
-                            mt: 0.4,
-                            color: "#adc2d8",
-                            fontSize: 13,
-                            lineHeight: 1.7,
-                          }}
-                        >
-                          {description}
-                        </Typography>
-                      </Box>
+                      <Typography
+                        sx={{
+                          color: "#f5f9ff",
+                          fontSize: { xs: 17, md: 19 },
+                          fontWeight: 850,
+                          lineHeight: 1.35,
+                        }}
+                      >
+                        {title}
+                      </Typography>
                     </Stack>
-                  ))}
-                </Stack>
+                    <Typography
+                      sx={{
+                        mt: 1.5,
+                        color: "#adc2d8",
+                        fontSize: { xs: 14, md: 15 },
+                        lineHeight: 1.8,
+                      }}
+                    >
+                      {description}
+                    </Typography>
+                  </Box>
+                ))}
               </Box>
               <Box
                 sx={{
@@ -797,78 +1267,70 @@ export function CustomSoftwarePage() {
                   boxShadow: "0 24px 70px rgba(0,0,0,.2)",
                 }}
               >
-                <Box
-                  sx={{
-                    position: "absolute",
-                    width: 180,
-                    height: 180,
-                    right: -80,
-                    top: -90,
-                    borderRadius: "50%",
-                    bgcolor: "rgba(48,143,224,.13)",
-                    filter: "blur(2px)",
-                  }}
-                />
-                <Box
-                  sx={{
-                    position: "relative",
-                    width: 52,
-                    height: 52,
-                    display: "grid",
-                    placeItems: "center",
-                    borderRadius: 2,
-                    color: "#90d3ff",
-                    bgcolor: "rgba(91,173,232,.14)",
-                  }}
-                >
-                  <FactCheckRoundedIcon />
-                </Box>
-                <Typography
-                  component="h3"
-                  sx={{
-                    position: "relative",
-                    mt: 2,
-                    fontSize: { xs: 21, md: 24 },
-                    fontWeight: 900,
-                    lineHeight: 1.3,
-                  }}
-                >
-                  {labels.agreementTitle}
-                </Typography>
-                <Typography
-                  sx={{
-                    position: "relative",
-                    mt: 1.25,
-                    color: "#b8cce0",
-                    fontSize: 14,
-                    lineHeight: 1.85,
-                  }}
-                >
-                  {labels.agreementBody}
-                </Typography>
                 <Stack
-                  direction="row"
-                  useFlexGap
-                  flexWrap="wrap"
-                  gap={1}
-                  sx={{ position: "relative", mt: 2.5 }}
+                  direction={{ xs: "column", md: "row" }}
+                  spacing={2.5}
+                  alignItems={{ md: "center" }}
                 >
-                  {(isEnglish
-                    ? ["Scope", "Milestones", "Deliverables", "Change control"]
-                    : ["Αντικείμενο", "Ορόσημα", "Παραδοτέα", "Διαχείριση αλλαγών"]
-                  ).map((item) => (
-                    <Chip
-                      key={item}
-                      label={item}
-                      size="small"
+                  <Box sx={{ flex: 1 }}>
+                    <Typography
+                      component="h3"
                       sx={{
-                        color: "#d8efff",
-                        border: "1px solid rgba(143,202,243,.25)",
-                        bgcolor: "rgba(117,178,222,.1)",
-                        fontWeight: 700,
+                        position: "relative",
+                        fontSize: { xs: 20, md: 24 },
+                        fontWeight: 900,
+                        lineHeight: 1.3,
                       }}
-                    />
-                  ))}
+                    >
+                      {labels.agreementTitle}
+                    </Typography>
+                    <Typography
+                      sx={{
+                        position: "relative",
+                        mt: 1.25,
+                        color: "#b8cce0",
+                        fontSize: { xs: 14, md: 15 },
+                        lineHeight: 1.85,
+                      }}
+                    >
+                      {labels.agreementBody}
+                    </Typography>
+                  </Box>
+                  <Box
+                    sx={{
+                      flex: 1,
+                      display: "grid",
+                      gridTemplateColumns: { xs: "1fr", sm: "repeat(2,minmax(0,1fr))" },
+                      gap: 1,
+                    }}
+                  >
+                    {labels.agreementTerms.map(([title, detail]) => (
+                      <Stack
+                        key={title}
+                        direction="row"
+                        spacing={1}
+                        alignItems="flex-start"
+                        sx={{
+                          p: 1.5,
+                          border: "1px solid rgba(143,202,243,.16)",
+                          borderRadius: 1.5,
+                          bgcolor: "rgba(117,178,222,.07)",
+                        }}
+                      >
+                        <CheckCircleRoundedIcon
+                          sx={{ color: "#8bd0ff", fontSize: 18, mt: 0.15 }}
+                        />
+                        <Box>
+                          <Typography sx={{ color: "#eaf6ff", fontSize: 13, fontWeight: 850 }}>
+                            {title}
+                          </Typography>
+                          <Typography sx={{ mt: 0.25, color: "#adc2d8", fontSize: 12, lineHeight: 1.5 }}>
+                            {detail}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    ))}
+                  </Box>
                 </Stack>
               </Box>
             </Box>
@@ -879,10 +1341,10 @@ export function CustomSoftwarePage() {
           component="section"
           sx={{
             px: { xs: 2, sm: 3, md: 5 },
-            py: { xs: 6, md: 8 },
-            color: "#f4f8ff",
-            bgcolor: "#0b2035",
-            borderTop: "1px solid rgba(150,198,235,.1)",
+            py: { xs: 6, md: 9 },
+            color: "#102d4a",
+            bgcolor: "#fff",
+            borderTop: "1px solid #e1e9f2",
           }}
         >
           <Container maxWidth="xl" disableGutters>
@@ -899,7 +1361,7 @@ export function CustomSoftwarePage() {
               <Box>
                 <Typography
                   sx={{
-                    color: "#7fc8ff",
+                    color: "#1768aa",
                     fontSize: 11,
                     fontWeight: 900,
                     letterSpacing: ".16em",
@@ -911,7 +1373,7 @@ export function CustomSoftwarePage() {
                   component="h2"
                   sx={{
                     mt: 1,
-                    fontSize: { xs: 28, md: 38 },
+                    fontSize: { xs: 32, md: 44 },
                     fontWeight: 900,
                     letterSpacing: "-.03em",
                   }}
@@ -922,7 +1384,8 @@ export function CustomSoftwarePage() {
                   sx={{
                     mt: 1,
                     maxWidth: 780,
-                    color: "#b8cce0",
+                    color: "#53667d",
+                    fontSize: { xs: 16, md: 18 },
                     lineHeight: 1.75,
                   }}
                 >
@@ -932,97 +1395,87 @@ export function CustomSoftwarePage() {
               <CodeRoundedIcon
                 sx={{
                   display: { xs: "none", md: "block" },
-                  color: "rgba(127,200,255,.25)",
+                  color: "rgba(18,98,188,.18)",
                   fontSize: 76,
                 }}
               />
             </Box>
             <Box
+              role="region"
+              aria-label={labels.stackCarouselLabel}
+              tabIndex={0}
               sx={{
-                display: "grid",
-                gridTemplateColumns: {
-                  xs: "repeat(2,minmax(0,1fr))",
-                  sm: "repeat(4,minmax(0,1fr))",
-                  lg: "repeat(8,minmax(0,1fr))",
+                overflow: "hidden",
+                py: 1.5,
+                outline: "none",
+                maskImage:
+                  "linear-gradient(90deg,transparent 0,#000 4%,#000 96%,transparent 100%)",
+                "&:hover .technology-track, &:focus-within .technology-track, &:focus .technology-track": {
+                  animationPlayState: "paused",
                 },
-                gap: { xs: 1, md: 1.5 },
+                "@media (prefers-reduced-motion: reduce)": {
+                  overflowX: "auto",
+                  "& .technology-track": { animation: "none" },
+                },
               }}
             >
-              {technologyLogos.map((technology) => (
-                <Box
-                  key={technology.name}
-                  sx={{
-                    minWidth: 0,
-                    minHeight: { xs: 130, md: 150 },
-                    p: { xs: 1.5, md: 2 },
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    textAlign: "center",
-                    gap: 1.25,
-                    border: "1px solid rgba(150,198,235,.16)",
-                    borderRadius: 2.5,
-                    bgcolor: "rgba(255,255,255,.045)",
-                    transition: "transform .2s ease, border-color .2s ease, background .2s ease",
-                    "&:hover": {
-                      transform: "translateY(-4px)",
-                      borderColor: "rgba(127,200,255,.48)",
-                      bgcolor: "rgba(255,255,255,.075)",
-                    },
-                  }}
+              <Box
+                className="technology-track"
+                sx={{
+                  display: "flex",
+                  width: "max-content",
+                  animation: "technology-scroll 64s linear infinite",
+                  "@keyframes technology-scroll": {
+                    from: { transform: "translateX(0)" },
+                    to: { transform: "translateX(-50%)" },
+                  },
+                }}
+              >
+                {renderTechnologyGroup(false)}
+                {renderTechnologyGroup(true)}
+              </Box>
+            </Box>
+            <Box
+              sx={{
+                mt: { xs: 4, md: 5 },
+                p: { xs: 2.5, md: 3.5 },
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "1fr auto" },
+                gap: { xs: 2, md: 4 },
+                alignItems: "center",
+                border: "1px solid #dfe8f2",
+                borderRadius: 3,
+                bgcolor: "#fff",
+                boxShadow: "0 12px 35px rgba(13,42,73,.055)",
+              }}
+            >
+              <Box>
+                <Typography
+                  component="h3"
+                  sx={{ color: "#102d4a", fontSize: { xs: 21, md: 26 }, fontWeight: 900 }}
                 >
-                  <Box
-                    component="img"
-                    src={technology.logo}
-                    alt={`${technology.name} logo`}
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                    sx={{
-                      width: 42,
-                      height: 42,
-                      objectFit: "contain",
-                      p: technology.name === "React" ? 0.25 : 0,
-                      filter:
-                        technology.name === "C#" ||
-                        technology.name === ".NET / ASP.NET Core" ||
-                        technology.name === "Material UI"
-                          ? "drop-shadow(0 3px 12px rgba(255,255,255,.15))"
-                          : "none",
-                    }}
-                  />
-                  <Box>
-                    <Typography
-                      sx={{
-                        color: "#f4f8ff",
-                        fontSize: { xs: 12, md: 13 },
-                        fontWeight: 850,
-                        lineHeight: 1.35,
-                      }}
-                    >
-                      {technology.name}
+                  {labels.stackOfferTitle}
+                </Typography>
+                <Typography sx={{ mt: 1, color: "#53667d", fontSize: 15, lineHeight: 1.8 }}>
+                  {labels.stackOfferBody}
+                </Typography>
+              </Box>
+              <Stack spacing={1}>
+                {labels.stackOfferPoints.map((point) => (
+                  <Stack key={point} direction="row" spacing={1} alignItems="center">
+                    <CheckCircleRoundedIcon sx={{ color: "#168552", fontSize: 19 }} />
+                    <Typography sx={{ color: "#304a65", fontSize: 13, fontWeight: 750 }}>
+                      {point}
                     </Typography>
-                    <Typography
-                      sx={{
-                        mt: 0.5,
-                        color: "#99b2ca",
-                        fontSize: 10,
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      {isEnglish
-                        ? technology.category.en
-                        : technology.category.el}
-                    </Typography>
-                  </Box>
-                </Box>
-              ))}
+                  </Stack>
+                ))}
+              </Stack>
             </Box>
             <Typography
               sx={{
                 mt: 1.5,
-                color: "#829bb4",
-                fontSize: 11,
+                color: "#718198",
+                fontSize: 12,
                 lineHeight: 1.6,
               }}
             >
@@ -1088,11 +1541,11 @@ export function CustomSoftwarePage() {
                       position: "relative",
                       overflow: "hidden",
                       minWidth: 0,
-                      minHeight: { xs: 0, md: 310 },
-                      p: { xs: 2.5, md: 3 },
-                      border: "1px solid rgba(150,198,235,.17)",
-                      borderRadius: 2.5,
-                      bgcolor: "rgba(255,255,255,.045)",
+                      minHeight: { xs: 0, md: 390 },
+                      p: { xs: 2.5, md: 3.25 },
+                      border: "1px solid rgba(150,198,235,.2)",
+                      borderRadius: 3,
+                      bgcolor: "rgba(255,255,255,.055)",
                       transition:
                         "transform .2s ease, border-color .2s ease, background .2s ease",
                       "&:hover": {
@@ -1118,8 +1571,8 @@ export function CustomSoftwarePage() {
                     <Box
                       sx={{
                         position: "relative",
-                        width: 48,
-                        height: 48,
+                        width: 58,
+                        height: 58,
                         display: "grid",
                         placeItems: "center",
                         borderRadius: 1.75,
@@ -1128,28 +1581,64 @@ export function CustomSoftwarePage() {
                         border: "1px solid rgba(143,202,243,.16)",
                       }}
                     >
-                      <Icon />
+                      <Icon sx={{ fontSize: 30 }} />
                     </Box>
                     <Typography
                       component="h3"
                       sx={{
                         position: "relative",
                         mt: 2,
-                        fontSize: 18,
+                        fontSize: { xs: 20, md: 23 },
                         fontWeight: 900,
                         lineHeight: 1.35,
                       }}
                     >
                       {isEnglish ? service.title.en : service.title.el}
                     </Typography>
+                    <Stack
+                      direction="row"
+                      useFlexGap
+                      flexWrap="wrap"
+                      gap={1}
+                      sx={{ position: "relative", mt: 1.75, mb: 1.75 }}
+                    >
+                      {service.logos.map((name) => (
+                        <Stack
+                          key={name}
+                          direction="row"
+                          spacing={0.75}
+                          alignItems="center"
+                          sx={{
+                            minHeight: 46,
+                            px: 1,
+                            border: "1px solid rgba(143,202,243,.18)",
+                            borderRadius: 1.25,
+                            bgcolor: "rgba(117,178,222,.07)",
+                          }}
+                        >
+                          <Box
+                            component="img"
+                            src={serviceTechnologyLogos[name]}
+                            alt={`${name} logo`}
+                            loading="lazy"
+                            referrerPolicy="no-referrer"
+                            sx={{ width: 32, height: 32, objectFit: "contain" }}
+                          />
+                          <Typography
+                            sx={{ color: "#c6e6ff", fontSize: 11, fontWeight: 800 }}
+                          >
+                            {name}
+                          </Typography>
+                        </Stack>
+                      ))}
+                    </Stack>
                     <Typography
                       sx={{
                         position: "relative",
-                        mt: 1,
                         color: "#c0d0e0",
-                        fontSize: 13,
+                        fontSize: { xs: 14, md: 15 },
                         fontWeight: 700,
-                        lineHeight: 1.65,
+                        lineHeight: 1.75,
                       }}
                     >
                       {isEnglish
@@ -1161,8 +1650,8 @@ export function CustomSoftwarePage() {
                         position: "relative",
                         mt: 1,
                         color: "#9cb2c9",
-                        fontSize: 12,
-                        lineHeight: 1.75,
+                        fontSize: { xs: 13, md: 14 },
+                        lineHeight: 1.8,
                       }}
                     >
                       {isEnglish ? service.detail.en : service.detail.el}
@@ -1227,87 +1716,201 @@ export function CustomSoftwarePage() {
           </Container>
         </Box>
 
-        <Container
+        <Box
           component="section"
-          maxWidth="xl"
-          sx={{ px: { xs: 2.5, sm: 3, md: 5 }, pb: { xs: 6, md: 8 } }}
+          sx={{
+            px: { xs: 2, sm: 3, md: 5 },
+            py: { xs: 7, md: 10 },
+            color: "#102d4a",
+            bgcolor: "#f7faff",
+            borderTop: "1px solid #e4ecf5",
+          }}
         >
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", lg: "230px 1fr" },
-              gap: { xs: 2, lg: 3 },
-              alignItems: "center",
-            }}
-          >
-            <Box>
+          <Container maxWidth="xl" disableGutters>
+            <Box sx={{ maxWidth: 850 }}>
+              <Typography
+                sx={{
+                  color: "#1768aa",
+                  fontSize: 12,
+                  fontWeight: 900,
+                  letterSpacing: ".15em",
+                }}
+              >
+                {labels.lifecycleEyebrow}
+              </Typography>
               <Typography
                 component="h2"
                 sx={{
-                  fontSize: { xs: 27, md: 32 },
+                  mt: 1.25,
+                  fontSize: { xs: 34, md: 48 },
                   fontWeight: 900,
-                  letterSpacing: "-.03em",
+                  lineHeight: 1.12,
+                  letterSpacing: "-.035em",
                 }}
               >
                 {labels.workTitle}
               </Typography>
-              <Typography sx={{ mt: 0.75, color: "#52647c", lineHeight: 1.7 }}>
+              <Typography
+                sx={{
+                  mt: 1.5,
+                  color: "#52647c",
+                  fontSize: { xs: 17, md: 20 },
+                  lineHeight: 1.8,
+                }}
+              >
                 {labels.workIntro}
               </Typography>
             </Box>
             <Box
+              component="ol"
               sx={{
+                position: "relative",
                 display: "grid",
                 gridTemplateColumns: {
                   xs: "1fr",
-                  sm: "repeat(2,minmax(0,1fr))",
-                  lg: "repeat(5,minmax(0,1fr))",
+                  md: "repeat(5,minmax(0,1fr))",
                 },
-                gap: 1,
-                p: { xs: 1.5, md: 2 },
-                border: "1px solid #deebf8",
-                borderRadius: 3,
-                bgcolor: "rgba(255,255,255,.75)",
+                gap: { xs: 1.5, md: 2 },
+                mt: { xs: 4, md: 6 },
+                p: 0,
+                listStyle: "none",
+                "&::before": {
+                  content: '""',
+                  position: "absolute",
+                  zIndex: 0,
+                  bgcolor: "#cfdeed",
+                  left: { xs: 29, md: "10%" },
+                  right: { xs: "auto", md: "10%" },
+                  top: { xs: 28, md: 29 },
+                  bottom: { xs: 48, md: "auto" },
+                  width: { xs: 2, md: "auto" },
+                  height: { xs: "auto", md: 2 },
+                },
               }}
             >
               {lifecycle.map((step, index) => {
                 const Icon = step.icon;
                 const englishStep = lifecycleEnglish[index];
                 return (
-                  <Stack
+                  <Box
+                    component="li"
                     key={step.title}
-                    alignItems={{ xs: "flex-start", lg: "center" }}
-                    textAlign={{ xs: "left", lg: "center" }}
-                    spacing={0.8}
-                    sx={{ p: { xs: 1.5, lg: 1 } }}
+                    sx={{
+                      position: "relative",
+                      zIndex: 1,
+                      display: "grid",
+                      gridTemplateColumns: { xs: "60px minmax(0,1fr)", md: "1fr" },
+                      gridTemplateRows: { md: "60px minmax(0,1fr)" },
+                      alignItems: "start",
+                      gap: { xs: 1.5, md: 2 },
+                    }}
                   >
                     <Box
                       sx={{
-                        width: 42,
-                        height: 42,
-                        display: "grid",
-                        placeItems: "center",
-                        borderRadius: 2,
-                        color: "#1262bc",
-                        bgcolor: "#e9f4ff",
+                        display: "flex",
+                        justifyContent: { xs: "flex-start", md: "center" },
                       }}
                     >
-                      <Icon />
+                      <Box
+                        sx={{
+                          width: 60,
+                          height: 60,
+                          display: "grid",
+                          placeItems: "center",
+                          border: "5px solid #f7faff",
+                          borderRadius: "50%",
+                          color: "#fff",
+                          bgcolor: "#1262a3",
+                          boxShadow: "0 0 0 1px #b8cce0, 0 8px 22px rgba(18,75,125,.18)",
+                        }}
+                      >
+                        <Icon sx={{ fontSize: 27 }} />
+                      </Box>
                     </Box>
-                    <Typography sx={{ fontSize: 13, fontWeight: 900 }}>
-                      {isEnglish ? englishStep.title : step.title}
-                    </Typography>
-                    <Typography
-                      sx={{ color: "#52647c", fontSize: 12, lineHeight: 1.6 }}
+                    <Box
+                      sx={{
+                        minWidth: 0,
+                        minHeight: { md: 300 },
+                        p: { xs: 2.25, md: 2.5 },
+                        border: "1px solid #dfe8f2",
+                        borderRadius: 2.5,
+                        bgcolor: "#fff",
+                        boxShadow: "0 10px 28px rgba(13,42,73,.055)",
+                      }}
                     >
-                      {isEnglish ? englishStep.body : step.body}
-                    </Typography>
-                  </Stack>
+                      <Typography
+                        sx={{
+                          color: "#2778b6",
+                          fontSize: 12,
+                          fontWeight: 900,
+                          letterSpacing: ".12em",
+                        }}
+                      >
+                        {String(index + 1).padStart(2, "0")}
+                      </Typography>
+                      <Typography
+                        component="h3"
+                        sx={{
+                          mt: 0.75,
+                          color: "#102d4a",
+                          fontSize: { xs: 19, md: 20 },
+                          fontWeight: 900,
+                          lineHeight: 1.35,
+                        }}
+                      >
+                        {isEnglish ? englishStep.title : step.title}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          mt: 1,
+                          color: "#344f6d",
+                          fontSize: { xs: 14, md: 15 },
+                          fontWeight: 700,
+                          lineHeight: 1.7,
+                        }}
+                      >
+                        {isEnglish ? englishStep.body : step.body}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          mt: 1,
+                          color: "#687b91",
+                          fontSize: 13,
+                          lineHeight: 1.7,
+                        }}
+                      >
+                        {isEnglish ? englishStep.detail : step.detail}
+                      </Typography>
+                    </Box>
+                  </Box>
                 );
               })}
             </Box>
-          </Box>
-        </Container>
+            <Box
+              sx={{
+                mt: 3,
+                p: { xs: 2, md: 2.5 },
+                display: "flex",
+                gap: 1.5,
+                alignItems: "center",
+                borderLeft: "4px solid #2585c4",
+                borderRadius: 1.5,
+                bgcolor: "#eaf3fb",
+              }}
+            >
+              <AutoModeRoundedIcon sx={{ color: "#1768aa", fontSize: 26 }} />
+              <Typography
+                sx={{
+                  color: "#294866",
+                  fontSize: { xs: 14, md: 16 },
+                  fontWeight: 800,
+                }}
+              >
+                {labels.lifecycleOutcome}
+              </Typography>
+            </Box>
+          </Container>
+        </Box>
 
         <Container
           component="section"
@@ -1536,24 +2139,34 @@ export function CustomSoftwarePage() {
 
 const lifecycleEnglish = [
   {
-    title: "1. Requirements analysis",
+    title: "Requirements analysis",
     body: "We map your requirements, workflows and goals.",
+    detail:
+      "Stakeholder conversations, functional requirements, user needs, priorities and project constraints.",
   },
   {
-    title: "2. Solution design",
+    title: "Solution design",
     body: "We define architecture, user experience and delivery plan.",
+    detail:
+      "User journeys, prototypes, data model, technical architecture and an agreed delivery plan.",
   },
   {
-    title: "3. Development",
+    title: "Development",
     body: "We build iteratively and incorporate regular feedback.",
+    detail:
+      "Prioritized work, visible progress, regular demonstrations and collaborative decisions.",
   },
   {
-    title: "4. Testing",
+    title: "Testing & assurance",
     body: "We verify functionality, security and quality before release.",
+    detail:
+      "Feature and workflow checks, fixes, access-control review and production-readiness preparation.",
   },
   {
-    title: "5. Delivery & support",
+    title: "Delivery & support",
     body: "We launch the solution and support you after delivery.",
+    detail:
+      "Agreed source files and documentation, handover, training and the agreed support arrangement.",
   },
 ];
 
