@@ -696,8 +696,12 @@ export function CustomSoftwarePage() {
           component="section"
           sx={{
             position: "relative",
-            background:
-              "radial-gradient(ellipse at 82% 35%, rgba(116,190,255,.28), transparent 37%), linear-gradient(115deg,#f5f9ff 0%,#eaf4ff 60%,#f8fbff 100%)",
+            color: "#fff",
+            backgroundImage:
+              "linear-gradient(110deg,rgba(4,15,29,.91) 0%,rgba(5,20,38,.82) 52%,rgba(7,26,47,.72) 100%), url(\"https://static.vecteezy.com/system/resources/previews/003/335/579/large_2x/desktop-source-code-and-wallpaper-by-coding-and-programming-free-photo.jpg\")",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
             "&::before": {
               content: '""',
               position: "absolute",
@@ -705,8 +709,9 @@ export function CustomSoftwarePage() {
               height: 520,
               right: "-12%",
               top: "-55%",
-              border: "1px solid rgba(47,107,214,.12)",
+              border: "1px solid rgba(190,220,255,.12)",
               borderRadius: "50%",
+              pointerEvents: "none",
             },
           }}
         >
@@ -720,12 +725,14 @@ export function CustomSoftwarePage() {
                 gridTemplateColumns: { xs: "1fr", md: "1.02fr .98fr" },
                 alignItems: "center",
                 gap: { xs: 4, md: 5 },
+                position: "relative",
+                zIndex: 1,
               }}
             >
               <Stack spacing={2.25} sx={{ position: "relative", zIndex: 1 }}>
                 <Typography
                   sx={{
-                    color: "#1262bc",
+                    color: "#a9dcff",
                     fontSize: 12,
                     fontWeight: 900,
                     letterSpacing: ".18em",
@@ -737,6 +744,7 @@ export function CustomSoftwarePage() {
                   component="h1"
                   sx={{
                     maxWidth: 700,
+                    color: "#fff",
                     fontSize: { xs: 36, sm: 44, md: 54 },
                     fontWeight: 900,
                     lineHeight: 1.08,
@@ -748,7 +756,7 @@ export function CustomSoftwarePage() {
                 <Typography
                   sx={{
                     maxWidth: 640,
-                    color: "#3d4f6b",
+                    color: "rgba(240,247,255,.86)",
                     fontSize: { xs: 16, md: 18 },
                     lineHeight: 1.75,
                   }}
@@ -784,12 +792,12 @@ export function CustomSoftwarePage() {
                       minHeight: 48,
                       borderRadius: 2,
                       px: 2.5,
-                      borderColor: "#2f6bd6",
-                      color: "#0b356c",
+                      borderColor: "rgba(218,237,255,.72)",
+                      color: "#fff",
                       fontWeight: 800,
                       "&:hover": {
-                        borderColor: "#0b356c",
-                        bgcolor: "rgba(47,107,214,.06)",
+                        borderColor: "#fff",
+                        bgcolor: "rgba(255,255,255,.12)",
                       },
                     }}
                   >
