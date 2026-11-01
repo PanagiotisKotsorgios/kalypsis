@@ -946,6 +946,7 @@ function Hero() {
         <Button
           component={RouterLink}
           to="/custom-software-solutions"
+          aria-label={t("landing.v2.ctaCustomSoftware")}
           variant="outlined"
           endIcon={<ArrowForwardIcon sx={{ fontSize: 24 }} />}
           sx={{
@@ -966,7 +967,6 @@ function Hero() {
             borderWidth: "1.8px",
             background:
               "linear-gradient(135deg, #2f6bd6 0%, #17417f 50%, #ffffff 50%, #ffffff 100%)",
-            textShadow: "0 0 3px rgba(255,255,255,0.95)",
             boxShadow: "0 8px 20px rgba(47,107,214,0.14)",
             transition:
               "transform 180ms ease, box-shadow 180ms ease, background 220ms ease, border-color 180ms ease",
@@ -977,11 +977,51 @@ function Hero() {
                 "linear-gradient(135deg, #ffffff 0%, #ffffff 50%, #2f6bd6 50%, #17417f 100%)",
               boxShadow: "0 12px 26px rgba(47,107,214,0.22)",
               transform: "translateY(-2px)",
+              "& .cta-blue-side": { color: "#fff" },
+              "& .cta-white-side": { color: "#17417f" },
+              "& .MuiButton-endIcon": { color: "#fff" },
             },
+            "& .cta-blue-side": { color: "#fff" },
+            "& .cta-white-side": { color: "#17417f" },
             "&:active": { transform: "translateY(0)" },
           }}
         >
-          {t("landing.v2.ctaCustomSoftware")}
+          <Box
+            component="span"
+            aria-hidden
+            sx={{ position: "absolute", inset: 0, pointerEvents: "none" }}
+          >
+            <Box
+              component="span"
+              className="cta-blue-side"
+              sx={{
+                position: "absolute",
+                inset: "0 -1px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                whiteSpace: "nowrap",
+                clipPath: "polygon(0 100%, 100% 0, 100% 100%)",
+              }}
+            >
+              {t("landing.v2.ctaCustomSoftware")}
+            </Box>
+            <Box
+              component="span"
+              className="cta-white-side"
+              sx={{
+                position: "absolute",
+                inset: "0 -1px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                whiteSpace: "nowrap",
+                clipPath: "polygon(0 0, 100% 0, 0 100%)",
+              }}
+            >
+              {t("landing.v2.ctaCustomSoftware")}
+            </Box>
+          </Box>
         </Button>
       </Box>
     </Box>
