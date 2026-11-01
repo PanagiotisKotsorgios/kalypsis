@@ -7,6 +7,21 @@ import { PricingPage } from "./pages/PricingPage";
 import { ContactPage } from "./pages/ContactPage";
 import { FaqPage } from "./pages/FaqPage";
 import { CompanyComingSoonPage } from "./pages/CompanyComingSoonPage";
+import type { NavItem } from "./components/AppLayout";
+import type { Role } from "./auth/AuthContext";
+
+export const navByRole: Partial<Record<Role, NavItem[]>> = {
+  PlatformAdmin: [],
+  PlatformEmployee: [],
+  AgencyAdmin: [],
+  AgencyOfficeAdmin: [],
+  AgencyUser: [],
+  Producer: [],
+  Customer: [],
+  FederationAdmin: [],
+  FederationEmployee: [],
+  ClubManager: [],
+};
 
 export default function App() {
   return (
