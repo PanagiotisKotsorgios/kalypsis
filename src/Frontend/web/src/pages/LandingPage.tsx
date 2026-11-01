@@ -774,10 +774,14 @@ export function LandingPage() {
    Big centered logo — the visual anchor of the page. No effects, no halo.
    ============================================================================ */
 function BigLogo() {
+  const { t } = useTranslation();
+
   return (
     <Box
       sx={{
         display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
         justifyContent: "center",
         pt: { xs: 2, md: 4 },
         pb: { xs: 2, md: 3 },
@@ -787,7 +791,7 @@ function BigLogo() {
         component="img"
         // ?v=… busts the CDN/browser cache when the underlying PNG changes.
         // Bump this whenever the logo file is replaced.
-        src="/kalypsis-logo.png?v=2026-07-01"
+        src="/kalypsis-logo.png?v=2026-11-01"
         alt="Kalypsis"
         sx={{
           width: "100%",
@@ -802,6 +806,19 @@ function BigLogo() {
           },
         }}
       />
+      <Typography
+        variant="caption"
+        sx={{
+          mt: { xs: 0.5, md: 1 },
+          color: NAVY_SOFT,
+          fontSize: { xs: 12, sm: 13 },
+          fontWeight: 600,
+          letterSpacing: "0.04em",
+          textAlign: "center",
+        }}
+      >
+        {t("app.tagline")}
+      </Typography>
     </Box>
   );
 }
