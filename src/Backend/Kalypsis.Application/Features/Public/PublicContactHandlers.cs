@@ -9,9 +9,9 @@ using Microsoft.EntityFrameworkCore;
 namespace Kalypsis.Application.Features.Public;
 
 // ============================================================================
-// Public (pre-login) contact / bug-report / complaint form. Forwards the
-// submission via Brevo to PlatformSetting.SupportEmail (falls back to the
-// configured Brevo sender) so the team gets one email per submission.
+// Public (pre-login) contact / bug-report / complaint form. Forwards submissions
+// via Brevo to PlatformSetting.SupportEmail, except custom software proposals
+// which always go to the platform's info inbox.
 // ============================================================================
 
 public record PublicContactBody(
@@ -60,6 +60,7 @@ public class SubmitPublicContactHandler : IRequestHandler<SubmitPublicContactCom
         }
 
         var contractRequest = string.Equals(b.InquiryType?.Trim(), "contract", StringComparison.OrdinalIgnoreCase);
+        var customSoftwareRequest = string.Equals(b.InquiryType?.Trim(), "custom-software", StringComparison.OrdinalIgnoreCase);
         if (contractRequest)
         {
             if (string.IsNullOrWhiteSpace(b.CompanyName) || b.CompanyName.Trim().Length > 200)
@@ -126,9 +127,11 @@ public class SubmitPublicContactHandler : IRequestHandler<SubmitPublicContactCom
         }
 
         var settings = await _db.PlatformSettings.IgnoreQueryFilters().OrderBy(s => s.CreatedAt).FirstOrDefaultAsync(ct);
-        var to = !string.IsNullOrWhiteSpace(settings?.SupportEmail)
-            ? settings!.SupportEmail!
-            : (!string.IsNullOrWhiteSpace(settings?.BrevoSenderEmail) ? settings!.BrevoSenderEmail! : "info@mykalypsis.gr");
+        var to = customSoftwareRequest
+            ? "info@mykalypsis.gr"
+            : !string.IsNullOrWhiteSpace(settings?.SupportEmail)
+                ? settings!.SupportEmail!
+                : (!string.IsNullOrWhiteSpace(settings?.BrevoSenderEmail) ? settings!.BrevoSenderEmail! : "info@mykalypsis.gr");
 
         var html = BuildHtml(b, reference, cmd.ClientIp, cmd.UserAgent);
         var subjectPrefix = b.InquiryType?.ToLowerInvariant() switch
@@ -138,6 +141,7 @@ public class SubmitPublicContactHandler : IRequestHandler<SubmitPublicContactCom
             "support"   => "[ΥΠΟΣΤΗΡΙΞΗ] ",
             "sales"     => "[SALES] ",
             "contract"  => "[ΣΥΜΒΑΣΗ ΣΥΝΕΡΓΑΣΙΑΣ] ",
+            "custom-software" => "[ΠΡΟΣΦΟΡΑ CUSTOM ΛΟΓΙΣΜΙΚΟΥ] ",
             _ => "[ΕΠΙΚΟΙΝΩΝΙΑ] "
         };
         var subject = $"{subjectPrefix}{TruncForSubject(b.Subject ?? string.Empty)} ({reference})";

@@ -28,9 +28,9 @@ import RocketLaunchRoundedIcon from "@mui/icons-material/RocketLaunchRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import ShoppingCartRoundedIcon from "@mui/icons-material/ShoppingCartRounded";
 import AppsRoundedIcon from "@mui/icons-material/AppsRounded";
-import { Link as RouterLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { PublicShell } from "../components/PublicShell";
+import { CustomSoftwareInquiryDialog } from "../components/CustomSoftwareInquiryDialog";
 
 type CategoryId =
   | "all"
@@ -158,6 +158,7 @@ export function CustomSoftwarePage() {
   const [activeCategory, setActiveCategory] = useState<CategoryId>("all");
   const [selectedProject, setSelectedProject] =
     useState<SoftwareProject | null>(null);
+  const [inquiryOpen, setInquiryOpen] = useState(false);
 
   const labels = isEnglish
     ? english
@@ -284,8 +285,7 @@ export function CustomSoftwarePage() {
                   sx={{ pt: 1 }}
                 >
                   <Button
-                    component={RouterLink}
-                    to="/contact"
+                    onClick={() => setInquiryOpen(true)}
                     variant="contained"
                     endIcon={<ArrowForwardRoundedIcon />}
                     sx={{
@@ -463,8 +463,7 @@ export function CustomSoftwarePage() {
                   {labels.emptyBody}
                 </Typography>
                 <Button
-                  component={RouterLink}
-                  to="/contact"
+                  onClick={() => setInquiryOpen(true)}
                   endIcon={<ArrowForwardRoundedIcon />}
                   sx={{
                     alignSelf: "flex-start",
@@ -496,8 +495,7 @@ export function CustomSoftwarePage() {
                 {labels.emptyBody}
               </Typography>
               <Button
-                component={RouterLink}
-                to="/contact"
+                onClick={() => setInquiryOpen(true)}
                 endIcon={<ArrowForwardRoundedIcon />}
                 sx={{ mt: 1.5, fontWeight: 850 }}
               >
@@ -656,8 +654,7 @@ export function CustomSoftwarePage() {
               </Typography>
             </Box>
             <Button
-              component={RouterLink}
-              to="/contact"
+              onClick={() => setInquiryOpen(true)}
               variant="contained"
               endIcon={<ArrowForwardRoundedIcon />}
               sx={{
@@ -807,6 +804,10 @@ export function CustomSoftwarePage() {
           </>
         )}
       </Dialog>
+      <CustomSoftwareInquiryDialog
+        open={inquiryOpen}
+        onClose={() => setInquiryOpen(false)}
+      />
     </PublicShell>
   );
 }
