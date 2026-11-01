@@ -791,7 +791,7 @@ function BigLogo() {
         component="img"
         // ?v=… busts the CDN/browser cache when the underlying PNG changes.
         // Bump this whenever the logo file is replaced.
-        src="/kalypsis-logo.png?v=2026-11-01"
+        src="/kalypsis-logo.png?v=2026-11-02"
         alt="Kalypsis"
         sx={{
           width: "100%",
