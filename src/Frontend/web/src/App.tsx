@@ -642,6 +642,8 @@ export const navByRole: Record<Role, NavItem[]> = {
     // Ops team runs data-entry for small offices that opted in.
     { to: "/platform/bookkeeping", labelKey: "nav.platformBookkeeping", icon: <FolderIcon />,
       group: "nav.group.adminOperations", groupIcon: <EngineeringIcon /> },
+    { to: "/platform/custom-software-projects", labelKey: "nav.customSoftwareProjects", icon: <ExtensionIcon />,
+      group: "nav.group.adminOperations" },
     { to: "/platform/carriers", labelKey: "nav.platformCarriers", icon: <SecurityIcon />,
       group: "nav.group.adminOperations" },
     { to: "/platform/oc-bridges", labelKey: "nav.platformOcBridges", icon: <SecurityIcon />,
@@ -1126,6 +1128,7 @@ export default function App() {
                   <Route path="platform/economics" element={<PlatformEconomicsPage />} />
                   <Route path="platform/contractors" element={<PlatformContractorsPage />} />
                   <Route path="platform/bookkeeping" element={<PlatformBookkeepingPage />} />
+                  <Route path="platform/custom-software-projects" element={<ProtectedRoute allowedRoles={["PlatformAdmin"]}><PlatformCustomSoftwareProjectsPage /></ProtectedRoute>} />
                   <Route path="bookkeeping" element={<BookkeepingPage />} />
                   <Route path="platform/email-templates" element={<PlatformEmailTemplatesPage />} />
                   <Route path="platform/maintenance" element={<PlatformMaintenancePage />} />

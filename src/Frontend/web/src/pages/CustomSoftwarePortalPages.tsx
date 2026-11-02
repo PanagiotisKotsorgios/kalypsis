@@ -177,30 +177,41 @@ export function CustomSoftwarePortalLoginPage() {
     <Box sx={{ minHeight: "100vh", display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, bgcolor: "#f4f7fb" }}>
       <Box
         sx={{
-          display: { xs: "none", md: "flex" },
+          display: { xs: "none", md: "grid" },
           minHeight: "100vh",
-          flexDirection: "column",
-          justifyContent: "space-between",
+          placeItems: "center",
           p: { md: 6, lg: 9 },
           color: "#fff",
           background: "radial-gradient(circle at 20% 20%,rgba(72,159,223,.3),transparent 40%),linear-gradient(145deg,#07182a,#0b2545 62%,#143c60)",
         }}
       >
-        <Box component={RouterLink} to="/" sx={{ width: "fit-content", p: 1.25, bgcolor: "#fff", borderRadius: 2 }}>
-          <KalypsisLogo size={52} crop />
-        </Box>
-        <Box sx={{ maxWidth: 540 }}>
-          <Typography sx={{ color: "#88cfff", fontSize: 12, fontWeight: 900, letterSpacing: ".18em", textTransform: "uppercase" }}>
-            KALYPSIS · PROJECT PORTAL
+        <Stack spacing={2.5} alignItems="center" sx={{ width: "100%", maxWidth: 620, textAlign: "center" }}>
+          <Box
+            component={RouterLink}
+            to="/"
+            sx={{
+              display: "block",
+              width: "100%",
+              p: { md: 2, lg: 3 },
+              borderRadius: 3,
+              bgcolor: "#fff",
+              boxShadow: "0 24px 70px rgba(0,0,0,.2)",
+            }}
+          >
+            <Box
+              component="img"
+              src="/kalypsis-logo.png?v=2026-11-02"
+              alt="KALYPSIS"
+              sx={{ display: "block", width: "100%", height: "auto" }}
+            />
+          </Box>
+          <Typography sx={{ color: "#c5eaff", fontSize: 13, fontWeight: 800, letterSpacing: ".16em" }}>
+            SOFTWARE SOLUTIONS · PORTAL ΣΥΝΕΡΓΑΤΩΝ
           </Typography>
-          <Typography component="h1" sx={{ mt: 2, color: "#fff", fontSize: { md: 42, lg: 54 }, lineHeight: 1.08, fontWeight: 900, letterSpacing: "-.04em" }}>
-            Το έργο σας. Η πρόοδός του. Όλα σε ένα σημείο.
+          <Typography sx={{ color: "rgba(231,241,252,.78)", fontSize: 15, lineHeight: 1.75, maxWidth: 480 }}>
+            Η κάλυψη που εμπιστεύεστε — η πορεία του έργου σας, συγκεντρωμένη σε ένα ασφαλές σημείο.
           </Typography>
-          <Typography sx={{ mt: 2, color: "rgba(231,241,252,.75)", fontSize: 17, lineHeight: 1.8 }}>
-            Παρακολουθήστε φάσεις, παραδοτέα, κόστος και τιμολόγια με ασφαλή πρόσβαση αποκλειστικά στα δικά σας έργα.
-          </Typography>
-        </Box>
-        <Typography sx={{ color: "rgba(231,241,252,.55)", fontSize: 12 }}>© {new Date().getFullYear()} KALYPSIS SOFTWARE SOLUTIONS</Typography>
+        </Stack>
       </Box>
       <Box sx={{ display: "grid", placeItems: "center", p: { xs: 2.5, md: 5 } }}>
         <Card sx={{ width: "100%", maxWidth: 470, borderRadius: 4, boxShadow: "0 30px 90px rgba(11,37,69,.12)" }}>
