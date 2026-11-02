@@ -71,20 +71,58 @@ export function DownloadPage() {
           zIndex: 1
         }}>
           <PageEnter stagger={500}>
-            <Stack spacing={2.25} sx={{ maxWidth: 820 }}>
-              <Typography sx={{ color: ACCENT, fontSize: 12, fontWeight: 800, letterSpacing: "0.22em", textTransform: "uppercase" }}>
-                {t("landing.v2.desktop.downloadPage.eyebrow")}
-              </Typography>
-              <Typography component="h1" sx={{ color: NAVY, fontSize: { xs: 38, md: 60 }, fontWeight: 900, lineHeight: 1.04, letterSpacing: "-0.035em" }}>
-                {t("landing.v2.desktop.downloadPage.title")}
-              </Typography>
-              <Typography sx={{ color: NAVY_SOFT, maxWidth: 720, fontSize: { xs: 16, md: 18 }, lineHeight: 1.7 }}>
-                {t("landing.v2.desktop.downloadPage.lead")}
-              </Typography>
-              <Box sx={{ pt: 2 }}>
-                <DesktopDownloadButton />
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "1.05fr .95fr" },
+                alignItems: "center",
+                gap: { xs: 4, md: 6 },
+              }}
+            >
+              <Stack spacing={2.25} sx={{ maxWidth: 720 }}>
+                <Typography sx={{ color: ACCENT, fontSize: 12, fontWeight: 800, letterSpacing: "0.22em", textTransform: "uppercase" }}>
+                  {t("landing.v2.desktop.downloadPage.eyebrow")}
+                </Typography>
+                <Typography component="h1" sx={{ color: NAVY, fontSize: { xs: 38, md: 60 }, fontWeight: 900, lineHeight: 1.04, letterSpacing: "-0.035em" }}>
+                  {t("landing.v2.desktop.downloadPage.title")}
+                </Typography>
+                <Typography sx={{ color: NAVY_SOFT, maxWidth: 720, fontSize: { xs: 16, md: 18 }, lineHeight: 1.7 }}>
+                  {t("landing.v2.desktop.downloadPage.lead")}
+                </Typography>
+                <Box sx={{ pt: 2 }}>
+                  <DesktopDownloadButton />
+                </Box>
+              </Stack>
+              <Box
+                component="figure"
+                sx={{
+                  m: 0,
+                  minWidth: 0,
+                  p: { xs: 1, md: 1.5 },
+                  border: "1px solid rgba(148,191,230,0.5)",
+                  borderRadius: { xs: 2.5, md: 3.5 },
+                  bgcolor: "rgba(255,255,255,0.8)",
+                  boxShadow: "0 24px 70px -35px rgba(11,37,69,0.48)",
+                }}
+              >
+                <Box
+                  component="img"
+                  src="/images/download/desktop-backoffice-hero.jpg"
+                  alt={t("landing.v2.desktop.downloadPage.title")}
+                  loading="eager"
+                  decoding="async"
+                  sx={{
+                    display: "block",
+                    width: "100%",
+                    height: "auto",
+                    aspectRatio: "16 / 9",
+                    objectFit: "cover",
+                    objectPosition: "center",
+                    borderRadius: 2,
+                  }}
+                />
               </Box>
-            </Stack>
+            </Box>
           </PageEnter>
         </Container>
       </Box>
