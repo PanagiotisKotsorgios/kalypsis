@@ -7,6 +7,9 @@ import { PricingPage } from "./pages/PricingPage";
 import { ContactPage } from "./pages/ContactPage";
 import { FaqPage } from "./pages/FaqPage";
 import { CompanyComingSoonPage } from "./pages/CompanyComingSoonPage";
+import { DownloadPage } from "./pages/DownloadPage";
+import { DesktopReleasesPage } from "./pages/DesktopReleasesPage";
+import { DesktopReleaseGuidePage } from "./pages/DesktopReleaseGuidePage";
 import type { NavItem } from "./components/AppLayout";
 import type { Role } from "./auth/AuthContext";
 
@@ -32,6 +35,9 @@ export default function App() {
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/contact" element={<ContactPage />} />
       <Route path="/faq" element={<FaqPage />} />
+      <Route path="/download" element={<DownloadPage />} />
+      <Route path="/download/releases" element={<DesktopReleasesPage />} />
+      <Route path="/download/releases/guide/:assetId" element={<DesktopReleaseGuidePage />} />
       <Route path="/custom-software-solutions" element={<CustomSoftwarePage />} />
       <Route path="/company/*" element={<CompanyComingSoonPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
