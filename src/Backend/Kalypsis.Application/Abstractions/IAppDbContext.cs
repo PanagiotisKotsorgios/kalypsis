@@ -8,6 +8,10 @@ public interface IAppDbContext
     DbSet<Tenant> Tenants { get; }
     DbSet<User> Users { get; }
     DbSet<RefreshToken> RefreshTokens { get; }
+    DbSet<CustomSoftwarePortalAccount> CustomSoftwarePortalAccounts { get; }
+    DbSet<CustomSoftwareProject> CustomSoftwareProjects { get; }
+    DbSet<CustomSoftwareProjectAccess> CustomSoftwareProjectAccesses { get; }
+    DbSet<CustomSoftwareProjectRecord> CustomSoftwareProjectRecords { get; }
     DbSet<Customer> Customers { get; }
     DbSet<CustomerRelationship> CustomerRelationships { get; }
     DbSet<CustomerFamilyMember> CustomerFamilyMembers { get; }

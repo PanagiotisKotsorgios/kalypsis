@@ -15,7 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import {
   ERMES_SHOWCASE_DEFAULTS, type ErmesShowcaseContent,
-} from "./LandingPage";
+} from "./ermesShowcaseContent";
 
 // ──────────────────────────────────────────────────────────────────────────
 // SuperAdmin editor for the public landing page's editable sections. Right

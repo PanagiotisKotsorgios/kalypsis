@@ -22,6 +22,10 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<CustomSoftwarePortalAccount> CustomSoftwarePortalAccounts => Set<CustomSoftwarePortalAccount>();
+    public DbSet<CustomSoftwareProject> CustomSoftwareProjects => Set<CustomSoftwareProject>();
+    public DbSet<CustomSoftwareProjectAccess> CustomSoftwareProjectAccesses => Set<CustomSoftwareProjectAccess>();
+    public DbSet<CustomSoftwareProjectRecord> CustomSoftwareProjectRecords => Set<CustomSoftwareProjectRecord>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<CustomerRelationship> CustomerRelationships => Set<CustomerRelationship>();
     public DbSet<CustomerFamilyMember> CustomerFamilyMembers => Set<CustomerFamilyMember>();

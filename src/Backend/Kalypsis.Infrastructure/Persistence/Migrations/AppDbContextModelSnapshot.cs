@@ -4805,6 +4805,261 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.ToTable("CustomFieldValues");
                 });
 
+            modelBuilder.Entity("Kalypsis.Domain.Entities.CustomSoftwarePortalAccount", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("varchar(320)");
+
+                    b.Property<int>("FailedLoginAttempts")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<DateTime?>("LastLoginAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<DateTime?>("LockedUntil")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("MustChangePassword")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<string>("PreferencesJson")
+                        .IsRequired()
+                        .HasColumnType("json");
+
+                    b.Property<int>("SessionVersion")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.ToTable("custom_software_portal_accounts", (string)null);
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.CustomSoftwareProject", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("AdminNotes")
+                        .HasMaxLength(4000)
+                        .HasColumnType("varchar(4000)");
+
+                    b.Property<string>("ClientName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("varchar(3)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("ProjectDownloadUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<string>("RepositoryUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<DateOnly?>("StartedOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<string>("Summary")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<DateOnly?>("TargetDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal?>("TotalCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status", "CreatedAt");
+
+                    b.ToTable("custom_software_projects", (string)null);
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.CustomSoftwareProjectAccess", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("AccessLevel")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId");
+
+                    b.HasIndex("AccountId", "ProjectId")
+                        .IsUnique();
+
+                    b.ToTable("custom_software_project_access", (string)null);
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.CustomSoftwareProjectRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<decimal?>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ContentType")
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(4000)
+                        .HasColumnType("varchar(4000)");
+
+                    b.Property<string>("DetailsJson")
+                        .HasColumnType("json");
+
+                    b.Property<DateOnly?>("DueOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("FileName")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<DateOnly?>("IssuedOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<Guid?>("ParentRecordId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<long?>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<string>("StorageKey")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentRecordId");
+
+                    b.HasIndex("ProjectId", "Kind", "SortOrder");
+
+                    b.ToTable("custom_software_project_records", (string)null);
+                });
+
             modelBuilder.Entity("Kalypsis.Domain.Entities.Customer", b =>
                 {
                     b.Property<Guid>("Id")
@@ -17510,6 +17765,43 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Navigation("Field");
                 });
 
+            modelBuilder.Entity("Kalypsis.Domain.Entities.CustomSoftwareProjectAccess", b =>
+                {
+                    b.HasOne("Kalypsis.Domain.Entities.CustomSoftwarePortalAccount", "Account")
+                        .WithMany("ProjectAccesses")
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Kalypsis.Domain.Entities.CustomSoftwareProject", "Project")
+                        .WithMany("UserAccesses")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Account");
+
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.CustomSoftwareProjectRecord", b =>
+                {
+                    b.HasOne("Kalypsis.Domain.Entities.CustomSoftwareProjectRecord", "ParentRecord")
+                        .WithMany()
+                        .HasForeignKey("ParentRecordId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Kalypsis.Domain.Entities.CustomSoftwareProject", "Project")
+                        .WithMany("Records")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ParentRecord");
+
+                    b.Navigation("Project");
+                });
+
             modelBuilder.Entity("Kalypsis.Domain.Entities.Customer", b =>
                 {
                     b.HasOne("Kalypsis.Domain.Entities.User", "AssignedAdvisor")
@@ -19173,6 +19465,18 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Kalypsis.Domain.Entities.CrmGroup", b =>
                 {
                     b.Navigation("Members");
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.CustomSoftwarePortalAccount", b =>
+                {
+                    b.Navigation("ProjectAccesses");
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.CustomSoftwareProject", b =>
+                {
+                    b.Navigation("Records");
+
+                    b.Navigation("UserAccesses");
                 });
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.Customer", b =>

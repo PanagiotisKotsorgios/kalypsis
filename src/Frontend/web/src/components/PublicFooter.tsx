@@ -5,6 +5,7 @@ import GitHubIcon from "@mui/icons-material/GitHub";
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import PhoneOutlinedIcon from "@mui/icons-material/PhoneOutlined";
 import TerminalRoundedIcon from "@mui/icons-material/TerminalRounded";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 import { CLI_REPOSITORY, cliContributionUrl } from "./CliProjectLink";
@@ -53,7 +54,7 @@ const columnHeadingSx = {
 export function PublicFooter() {
   const { i18n } = useTranslation();
   const english = i18n.resolvedLanguage?.startsWith("en") ?? false;
-  const text = english
+  const copy = english
     ? {
         explore: "Explore Kalypsis",
         company: "Company & support",
@@ -67,18 +68,15 @@ export function PublicFooter() {
         hosting: "Cloud hosting",
         pricing: "Plans & pricing",
         faq: "Frequently asked questions",
-        partnerPortal: "Partner project portal",
+        portal: "Partner project portal",
         contact: "Contact us",
         login: "Sign in",
-        email: "Email",
-        phone: "Call",
         address: "Epar. Od. Messolongiou – Alykon Tourlidas, 302 00 Messolonghi, Aetolia-Acarnania",
         relocation: "Registered office relocation in progress",
         relocationNote: "Our registered office is currently in the process of being transferred.",
         closed: "Closed",
         cliTitle: "KALYPSIS CLI · Public project",
-        cliBody:
-          "Explore the Windows command-line tools, documentation and contribution guide.",
+        cliBody: "Explore the Windows command-line tools, documentation and contribution guide.",
         repository: "Explore on GitHub",
         contribute: "Contribute",
         legal: "Legal",
@@ -102,11 +100,9 @@ export function PublicFooter() {
         hosting: "Cloud φιλοξενία",
         pricing: "Πακέτα & τιμές",
         faq: "Συχνές ερωτήσεις",
-        partnerPortal: "Portal συνεργατών",
+        portal: "Portal συνεργατών",
         contact: "Επικοινωνία",
         login: "Σύνδεση",
-        email: "Email",
-        phone: "Τηλέφωνο",
         address: "Επαρ. Οδ. Μεσολογγίου – Αλυκών Τουρλίδας, 302 00 Μεσολόγγι, Αιτωλοακαρνανία",
         relocation: "Σε διαδικασία μεταφοράς έδρας",
         relocationNote: "Η έδρα της εταιρείας βρίσκεται σε διαδικασία μεταφοράς.",
@@ -165,25 +161,18 @@ export function PublicFooter() {
               </Box>
             </Stack>
             <Typography sx={{ maxWidth: 350, color: "rgba(231,241,252,.75)", fontSize: 13.5, lineHeight: 1.8 }}>
-              {text.description}
+              {copy.description}
             </Typography>
-            <Box
-              sx={{
-                mt: 0.5,
-                p: 2,
-                border: "1px solid rgba(164,202,235,.2)",
-                borderRadius: 2.5,
-                bgcolor: "rgba(255,255,255,.045)",
-              }}
-            >
+
+            <Box sx={{ p: 2, border: "1px solid rgba(164,202,235,.2)", borderRadius: 2.5, bgcolor: "rgba(255,255,255,.045)" }}>
               <Stack direction="row" spacing={1} alignItems="center">
                 <GitHubIcon sx={{ color: "#a6d9ff", fontSize: 19 }} />
                 <Typography sx={{ color: "#fff", fontSize: 13, fontWeight: 800 }}>
-                  {text.cliTitle}
+                  {copy.cliTitle}
                 </Typography>
               </Stack>
               <Typography sx={{ mt: 0.75, color: "rgba(231,241,252,.7)", fontSize: 12.5, lineHeight: 1.65 }}>
-                {text.cliBody}
+                {copy.cliBody}
               </Typography>
               <Stack direction="row" useFlexGap flexWrap="wrap" gap={1} sx={{ mt: 1.5 }}>
                 <Button
@@ -195,7 +184,7 @@ export function PublicFooter() {
                   startIcon={<TerminalRoundedIcon />}
                   sx={footerButtonSx}
                 >
-                  {text.repository}
+                  {copy.repository}
                 </Button>
                 <Button
                   component="a"
@@ -206,30 +195,30 @@ export function PublicFooter() {
                   startIcon={<CodeRoundedIcon />}
                   sx={footerButtonSx}
                 >
-                  {text.contribute}
+                  {copy.contribute}
                 </Button>
               </Stack>
             </Box>
           </Stack>
 
           <Box>
-            <Typography sx={columnHeadingSx}>{text.explore}</Typography>
+            <Typography sx={columnHeadingSx}>{copy.explore}</Typography>
             <Stack spacing={1.15} alignItems="flex-start">
-              <FooterLink to="/custom-software-solutions">{text.software}</FooterLink>
-              <FooterLink to="/download">{text.desktop}</FooterLink>
-              <FooterLink to="/download/releases">{text.releases}</FooterLink>
-              <FooterLink to="/hosting">{text.hosting}</FooterLink>
-              <FooterLink to="/pricing">{text.pricing}</FooterLink>
-              <FooterLink to="/faq">{text.faq}</FooterLink>
-              <FooterLink to="/custom-software-solutions/login">{text.partnerPortal}</FooterLink>
+              <FooterLink to="/custom-software-solutions">{copy.software}</FooterLink>
+              <FooterLink to="/download">{copy.desktop}</FooterLink>
+              <FooterLink to="/download/releases">{copy.releases}</FooterLink>
+              <FooterLink to="/hosting">{copy.hosting}</FooterLink>
+              <FooterLink to="/pricing">{copy.pricing}</FooterLink>
+              <FooterLink to="/faq">{copy.faq}</FooterLink>
+              <FooterLink to="/custom-software-solutions/login">{copy.portal}</FooterLink>
             </Stack>
           </Box>
 
           <Box>
-            <Typography sx={columnHeadingSx}>{text.company}</Typography>
+            <Typography sx={columnHeadingSx}>{copy.company}</Typography>
             <Stack spacing={1.5} alignItems="flex-start">
-              <FooterLink to="/contact">{text.contact}</FooterLink>
-              <FooterLink to="/login">{text.login}</FooterLink>
+              <FooterLink to="/contact">{copy.contact}</FooterLink>
+              <FooterLink to="/login">{copy.login}</FooterLink>
               <Box component="a" href="mailto:info@mykalypsis.gr" sx={linkSx}>
                 <EmailOutlinedIcon sx={{ fontSize: 17, color: "#8bd0ff" }} />
                 info@mykalypsis.gr
@@ -238,32 +227,26 @@ export function PublicFooter() {
                 <PhoneOutlinedIcon sx={{ fontSize: 17, color: "#8bd0ff" }} />
                 26310 28971
               </Box>
-              <Box
-                component="a"
-                href={MAP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                sx={{ ...linkSx, alignItems: "flex-start", maxWidth: 320 }}
-              >
+              <Box component="a" href={MAP_URL} target="_blank" rel="noopener noreferrer" sx={{ ...linkSx, alignItems: "flex-start", maxWidth: 320 }}>
                 <LocationOnOutlinedIcon sx={{ mt: 0.2, flexShrink: 0, fontSize: 18, color: "#8bd0ff" }} />
-                <Box component="span">{text.address}</Box>
+                <Box component="span">{copy.address}</Box>
               </Box>
               <Box sx={{ mt: 0.5, p: 1.5, border: "1px solid rgba(164,202,235,.2)", borderRadius: 2, bgcolor: "rgba(255,255,255,.045)" }}>
                 <Typography sx={{ color: "#fff", fontSize: 12.5, fontWeight: 800 }}>
-                  {text.relocation}
+                  {copy.relocation}
                 </Typography>
                 <Typography sx={{ mt: 0.5, color: "rgba(231,241,252,.68)", fontSize: 11.5, lineHeight: 1.6 }}>
-                  {text.relocationNote}
+                  {copy.relocationNote}
                 </Typography>
               </Box>
             </Stack>
           </Box>
 
           <Box>
-            <Typography sx={columnHeadingSx}>{text.hours}</Typography>
+            <Typography sx={columnHeadingSx}>{copy.hours}</Typography>
             <Box
               component="table"
-              aria-label={text.hours}
+              aria-label={copy.hours}
               sx={{
                 width: "100%",
                 borderCollapse: "collapse",
@@ -278,18 +261,18 @@ export function PublicFooter() {
                 {HOURS.map((row) => (
                   <Box component="tr" key={row.en}>
                     <Box component="td">{english ? row.en : row.el}</Box>
-                    <Box component="td">{row.hours ?? text.closed}</Box>
+                    <Box component="td">{row.hours ?? copy.closed}</Box>
                   </Box>
                 ))}
               </tbody>
             </Box>
             <Stack spacing={1.15} alignItems="flex-start" sx={{ mt: 2.5 }}>
-              <Typography sx={{ ...columnHeadingSx, mb: 0 }}>{text.legal}</Typography>
-              <FooterLink to="/terms">{text.terms}</FooterLink>
-              <FooterLink to="/privacy">{text.privacy}</FooterLink>
-              <FooterLink to="/cookies">{text.cookies}</FooterLink>
-              <FooterLink to="/acceptable-use">{text.acceptableUse}</FooterLink>
-              <FooterLink to="/accessibility">{text.accessibility}</FooterLink>
+              <Typography sx={{ ...columnHeadingSx, mb: 0 }}>{copy.legal}</Typography>
+              <FooterLink to="/terms">{copy.terms}</FooterLink>
+              <FooterLink to="/privacy">{copy.privacy}</FooterLink>
+              <FooterLink to="/cookies">{copy.cookies}</FooterLink>
+              <FooterLink to="/acceptable-use">{copy.acceptableUse}</FooterLink>
+              <FooterLink to="/accessibility">{copy.accessibility}</FooterLink>
             </Stack>
           </Box>
         </Box>
@@ -302,12 +285,12 @@ export function PublicFooter() {
           sx={{ py: 2.5, borderTop: "1px solid rgba(164,202,235,.18)" }}
         >
           <Typography sx={{ color: "rgba(231,241,252,.62)", fontSize: 12 }}>
-            © {new Date().getFullYear()} KALYPSIS SOFTWARE SOLUTIONS. {text.rights}
+            © {new Date().getFullYear()} KALYPSIS SOFTWARE SOLUTIONS. {copy.rights}
           </Typography>
           <Stack direction="row" spacing={2.5} useFlexGap flexWrap="wrap">
-            <FooterLink to="/contact">{text.contact}</FooterLink>
-            <FooterLink to="/terms">{text.terms}</FooterLink>
-            <FooterLink to="/privacy">{text.privacy}</FooterLink>
+            <FooterLink to="/contact">{copy.contact}</FooterLink>
+            <FooterLink to="/terms">{copy.terms}</FooterLink>
+            <FooterLink to="/privacy">{copy.privacy}</FooterLink>
           </Stack>
         </Stack>
       </Container>
@@ -315,7 +298,7 @@ export function PublicFooter() {
   );
 }
 
-function FooterLink({ to, children }: { to: string; children: React.ReactNode }) {
+function FooterLink({ to, children }: { to: string; children: ReactNode }) {
   return (
     <Box component={RouterLink} to={to} sx={linkSx}>
       {children}

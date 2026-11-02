@@ -774,10 +774,14 @@ export function LandingPage() {
    Big centered logo — the visual anchor of the page. No effects, no halo.
    ============================================================================ */
 function BigLogo() {
+  const { t } = useTranslation();
+
   return (
     <Box
       sx={{
         display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
         justifyContent: "center",
         pt: { xs: 2, md: 4 },
         pb: { xs: 2, md: 3 },
@@ -787,7 +791,7 @@ function BigLogo() {
         component="img"
         // ?v=… busts the CDN/browser cache when the underlying PNG changes.
         // Bump this whenever the logo file is replaced.
-        src="/kalypsis-logo.png?v=2026-07-01"
+        src="/kalypsis-logo.png?v=2026-11-02"
         alt="Kalypsis"
         sx={{
           width: "100%",
@@ -802,6 +806,19 @@ function BigLogo() {
           },
         }}
       />
+      <Typography
+        variant="caption"
+        sx={{
+          mt: { xs: 0.5, md: 1 },
+          color: NAVY_SOFT,
+          fontSize: { xs: 12, sm: 13 },
+          fontWeight: 600,
+          letterSpacing: "0.04em",
+          textAlign: "center",
+        }}
+      >
+        {t("app.tagline")}
+      </Typography>
     </Box>
   );
 }
@@ -823,8 +840,7 @@ function Hero() {
     <Box
       sx={{
         textAlign: "center",
-        // Wider cap so the Εγγραφή button label doesn't wrap to two lines.
-        maxWidth: 920,
+        maxWidth: 1140,
         mx: "auto",
         pb: { xs: 6, md: 10 },
         ...fadeUp,
@@ -861,102 +877,129 @@ function Hero() {
         {t("landing.v2.heroSub")}
       </Typography>
 
-      {/* CTA row. Matched pair — same height, same radius, uppercase bold
-          type with 0.02em tracking, right-pointing arrow after the label.
-          On mobile the stack goes vertical and each button fills the
-          container so the touch target stays generous. */}
-      <Stack
-        direction={{ xs: "column", sm: "row" }}
-        spacing={{ xs: 2, sm: 3 }}
-        justifyContent="center"
-        alignItems="stretch"
+      <Box
         sx={{
           width: "100%",
-          // Wider cap so both CTAs (including the long Εγγραφή label) stay
-          // on a single line at md+ without pinching.
-          maxWidth: { xs: "100%", sm: 760, md: 820 },
-          mx: "auto",
           animation:
             "kalypsisFadeUp 800ms cubic-bezier(0.16,1,0.3,1) 520ms both",
         }}
       >
-        {/* Primary — Σύνδεση. Deep navy → royal-blue vertical gradient with
-            a subtle top highlight; drops a soft blue shadow; hovers brighter
-            and rises 2px. */}
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={{ xs: 2, sm: 3 }}
+          justifyContent="center"
+          alignItems="stretch"
+          sx={{ width: "100%", maxWidth: 820, mx: "auto" }}
+        >
+          <Button
+            component={RouterLink}
+            to="/login"
+            variant="contained"
+            disableElevation
+            endIcon={<ArrowForwardIcon sx={{ fontSize: 24 }} />}
+            sx={{
+              flex: { xs: "1 1 auto", sm: "1 1 0" },
+              height: { xs: 58, md: 62 },
+              borderRadius: "14px",
+              px: { xs: 3, sm: 4, md: 5 },
+              fontSize: { xs: 15, sm: 16, md: 17 },
+              fontWeight: 800,
+              letterSpacing: "0.02em",
+              textTransform: "uppercase",
+              color: "#fff",
+              background:
+                "linear-gradient(180deg, #2f6bd6 0%, #17417f 55%, #0b2545 100%)",
+              boxShadow:
+                "0 10px 22px rgba(11,37,69,0.28), inset 0 1px 0 rgba(255,255,255,0.18)",
+              transition:
+                "transform 180ms ease, box-shadow 180ms ease, background 180ms ease",
+              "&:hover": {
+                background:
+                  "linear-gradient(180deg, #3d7be0 0%, #1c4f95 55%, #0e2b52 100%)",
+                boxShadow:
+                  "0 16px 30px rgba(11,37,69,0.34), inset 0 1px 0 rgba(255,255,255,0.22)",
+                transform: "translateY(-2px)",
+              },
+              "&:active": { transform: "translateY(0)" },
+            }}
+          >
+            {t("landing.v2.ctaLogin")}
+          </Button>
+
+          <Button
+            component={RouterLink}
+            to="/register"
+            variant="outlined"
+            endIcon={<ArrowForwardIcon sx={{ fontSize: 24 }} />}
+            sx={{
+              flex: { xs: "1 1 auto", sm: "1 1 0" },
+              height: { xs: 58, md: 62 },
+              borderRadius: "14px",
+              px: { xs: 3, sm: 4, md: 5 },
+              fontSize: { xs: 15, sm: 16, md: 17 },
+              fontWeight: 800,
+              letterSpacing: "0.02em",
+              textTransform: "uppercase",
+              color: "#17417f",
+              bgcolor: "#ffffff",
+              borderColor: "#2f6bd6",
+              borderWidth: "1.8px",
+              boxShadow: "0 8px 20px rgba(47,107,214,0.14)",
+              transition:
+                "transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease, border-color 180ms ease",
+              "&:hover": {
+                borderWidth: "1.8px",
+                borderColor: "#17417f",
+                bgcolor: "#eef4ff",
+                boxShadow: "0 12px 26px rgba(47,107,214,0.22)",
+                transform: "translateY(-2px)",
+              },
+              "&:active": { transform: "translateY(0)" },
+            }}
+          >
+            {t("landing.v2.ctaRegister")}
+          </Button>
+        </Stack>
         <Button
           component={RouterLink}
-          to="/login"
+          to="/custom-software-solutions"
+          aria-label={t("landing.v2.ctaCustomSoftware")}
           variant="contained"
           disableElevation
           endIcon={<ArrowForwardIcon sx={{ fontSize: 24 }} />}
           sx={{
-            flex: { xs: "1 1 auto", sm: "1 1 0" },
-            height: { xs: 58, md: 62 },
+            display: "flex",
+            width: "100%",
+            maxWidth: { xs: "100%", sm: 620 },
+            minHeight: { xs: 58, md: 62 },
+            mx: "auto",
+            mt: { xs: 2, sm: 3 },
             borderRadius: "14px",
-            px: { xs: 3, sm: 5, md: 6 },
-            fontSize: { xs: 15, sm: 16, md: 17 },
+            px: { xs: 1.5, sm: 3 },
+            fontSize: { xs: 12, sm: 14, md: 15 },
             fontWeight: 800,
             letterSpacing: "0.02em",
             textTransform: "uppercase",
             color: "#fff",
-            // Vertical gradient: royal-blue at top, deep navy at the base —
-            // matches the polished look in the mockup.
-            background:
-              "linear-gradient(180deg, #2f6bd6 0%, #17417f 55%, #0b2545 100%)",
-            boxShadow:
-              "0 10px 22px rgba(11,37,69,0.28), inset 0 1px 0 rgba(255,255,255,0.18)",
+            bgcolor: "#0b2545",
+            boxShadow: "0 5px 14px rgba(11,37,69,0.22)",
             transition:
-              "transform 180ms ease, box-shadow 180ms ease, background 180ms ease",
+              "transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease",
             "&:hover": {
-              background:
-                "linear-gradient(180deg, #3d7be0 0%, #1c4f95 55%, #0e2b52 100%)",
-              boxShadow:
-                "0 16px 30px rgba(11,37,69,0.34), inset 0 1px 0 rgba(255,255,255,0.22)",
-              transform: "translateY(-2px)",
+              bgcolor: "#163d68",
+              boxShadow: "0 8px 20px rgba(11,37,69,0.28)",
+              transform: "translateY(-1px)",
             },
             "&:active": { transform: "translateY(0)" },
-          }}
-        >
-          {t("landing.v2.ctaLogin")}
-        </Button>
-
-        {/* Secondary — Εγγραφή. White pill, ~1.8px royal-blue border, blue
-            bold uppercase text; lighter blue shadow. Hover brightens the
-            border and floods the fill with a very light blue tint. */}
-        <Button
-          component={RouterLink}
-          to="/register"
-          variant="outlined"
-          endIcon={<ArrowForwardIcon sx={{ fontSize: 24 }} />}
-          sx={{
-            flex: { xs: "1 1 auto", sm: "1 1 0" },
-            height: { xs: 58, md: 62 },
-            borderRadius: "14px",
-            px: { xs: 3, sm: 5, md: 6 },
-            fontSize: { xs: 15, sm: 16, md: 17 },
-            fontWeight: 800,
-            letterSpacing: "0.02em",
-            textTransform: "uppercase",
-            color: "#17417f",
-            bgcolor: "#ffffff",
-            borderColor: "#2f6bd6",
-            borderWidth: "1.8px",
-            boxShadow: "0 8px 20px rgba(47,107,214,0.14)",
-            transition:
-              "transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease, border-color 180ms ease",
-            "&:hover": {
-              borderWidth: "1.8px",
-              borderColor: "#17417f",
-              bgcolor: "#eef4ff",
-              boxShadow: "0 12px 26px rgba(47,107,214,0.22)",
-              transform: "translateY(-2px)",
+            "&:focus-visible": {
+              outline: "3px solid #0b2545",
+              outlineOffset: 5,
             },
-            "&:active": { transform: "translateY(0)" },
           }}
         >
-          {t("landing.v2.ctaRegister")}
+          {t("landing.v2.ctaCustomSoftware")}
         </Button>
-      </Stack>
+      </Box>
     </Box>
   );
 }
