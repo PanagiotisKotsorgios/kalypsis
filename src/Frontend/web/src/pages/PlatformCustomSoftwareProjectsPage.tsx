@@ -481,7 +481,8 @@ function RecordDialog({ open, record, phases, busy, onClose, onSubmit }: {
   const [issuedOn, setIssuedOn] = useState("");
   const [parentRecordId, setParentRecordId] = useState("");
   const [sortOrder, setSortOrder] = useState("0");
-  const [detailsJson, setDetailsJson] = useState("");
+  const [teamRole, setTeamRole] = useState("");
+  const [teamGoal, setTeamGoal] = useState("");
 
   const reset = () => {
     setKind((record?.kind as RecordKind) ?? "phase");
@@ -493,39 +494,127 @@ function RecordDialog({ open, record, phases, busy, onClose, onSubmit }: {
     setIssuedOn(record?.issuedOn ?? "");
     setParentRecordId(record?.parentRecordId ?? "");
     setSortOrder(record?.sortOrder?.toString() ?? "0");
-    setDetailsJson(record?.detailsJson ?? "");
+    let teamDetails: Record<string, unknown> = {};
+    try {
+      const parsed: unknown = JSON.parse(record?.detailsJson ?? "{}");
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        teamDetails = Object.fromEntries(Object.entries(parsed));
+      }
+    } catch {
+      teamDetails = {};
+    }
+    setTeamRole(typeof teamDetails.role === "string" ? teamDetails.role : "");
+    setTeamGoal(typeof teamDetails.goal === "string" ? teamDetails.goal : "");
   };
+  const changeKind = (nextKind: RecordKind) => {
+    setKind(nextKind);
+    setStatus(nextKind === "cost" ? "unpaid" : "planning");
+    setAmount("");
+    setDueOn("");
+    setIssuedOn("");
+    setParentRecordId("");
+    setSortOrder("0");
+    setTeamRole("");
+    setTeamGoal("");
+  };
+  const hasPhase = kind === "phase";
+  const hasParentPhase = ["milestone", "deliverable", "team"].includes(kind);
+  const hasStatus = ["phase", "milestone", "deliverable", "cost"].includes(kind);
+  const availableStatuses = kind === "cost"
+    ? recordStatuses.filter((item) => ["paid", "unpaid"].includes(item.value))
+    : recordStatuses.filter((item) => ["planning", "active", "done", "blocked"].includes(item.value));
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
     onSubmit({
       kind,
       title,
       description: description || null,
-      status: status || null,
-      amount: amount ? Number(amount) : null,
-      dueOn: dueOn || null,
-      issuedOn: issuedOn || null,
-      parentRecordId: parentRecordId || null,
-      sortOrder: Number(sortOrder) || 0,
-      detailsJson: detailsJson || null,
+      status: hasStatus ? status : null,
+      amount: kind === "cost" && amount ? Number(amount) : null,
+      dueOn: ["phase", "milestone", "deliverable", "cost"].includes(kind) ? dueOn || null : null,
+      issuedOn: ["deliverable", "cost", "note"].includes(kind) ? issuedOn || null : null,
+      parentRecordId: hasParentPhase ? parentRecordId || null : null,
+      sortOrder: ["phase", "milestone", "deliverable", "cost", "note"].includes(kind) ? Number(sortOrder) || 0 : 0,
+      detailsJson: kind === "team" && (teamRole.trim() || teamGoal.trim())
+        ? JSON.stringify({ role: teamRole.trim(), goal: teamGoal.trim() })
+        : null,
     });
   };
 
   return (
-    <Dialog open={open} onClose={onClose} onTransitionEnter={reset} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={onClose} onTransitionEnter={reset} fullWidth maxWidth="md">
       <form onSubmit={submit}>
         <DialogTitle sx={{ color: "#0b2545", fontWeight: 900 }}>{record ? "Επεξεργασία στοιχείου έργου" : "Νέο στοιχείο έργου"}</DialogTitle>
         <DialogContent><Stack spacing={2} sx={{ pt: 1 }}>
-          <FormControl fullWidth><InputLabel>Τύπος στοιχείου</InputLabel><Select label="Τύπος στοιχείου" value={kind} onChange={(e) => setKind(e.target.value as RecordKind)}>{recordKinds.map((item) => <MenuItem value={item.value} key={item.value}>{item.label}</MenuItem>)}</Select></FormControl>
-          <TextField label="Τίτλος" required value={title} onChange={(e) => setTitle(e.target.value)} />
-          <TextField label="Περιγραφή" value={description} onChange={(e) => setDescription(e.target.value)} multiline minRows={2} />
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-            <FormControl fullWidth><InputLabel>Κατάσταση</InputLabel><Select label="Κατάσταση" value={status} onChange={(e) => setStatus(e.target.value)}>{recordStatuses.map((item) => <MenuItem key={item.value} value={item.value}>{item.label}</MenuItem>)}</Select></FormControl>
-            <TextField label="Σειρά εμφάνισης" type="number" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} />
-          </Stack>
-          <FormControl fullWidth><InputLabel>Γονική φάση / αναφορά</InputLabel><Select label="Γονική φάση / αναφορά" value={parentRecordId} onChange={(e) => setParentRecordId(e.target.value)}><MenuItem value="">Χωρίς φάση</MenuItem>{phases.map((phase) => <MenuItem value={phase.id} key={phase.id}>{phase.title}</MenuItem>)}</Select></FormControl>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}><TextField label="Ποσό (€)" type="number" inputProps={{ min: 0, step: ".01" }} value={amount} onChange={(e) => setAmount(e.target.value)} /><TextField label="Ημερομηνία λήξης / ορόσημο" type="date" InputLabelProps={{ shrink: true }} value={dueOn} onChange={(e) => setDueOn(e.target.value)} /><TextField label="Ημερομηνία έκδοσης" type="date" InputLabelProps={{ shrink: true }} value={issuedOn} onChange={(e) => setIssuedOn(e.target.value)} /></Stack>
-          {kind === "team" && <TextField label='Ρόλος και στόχος σε JSON (π.χ. {"role":"Developer","goal":"API"})' value={detailsJson} onChange={(e) => setDetailsJson(e.target.value)} />}
+          <FormControl fullWidth>
+            <InputLabel>Τύπος στοιχείου</InputLabel>
+            <Select label="Τύπος στοιχείου" value={kind} onChange={(e) => changeKind(e.target.value as RecordKind)}>
+              {recordKinds.map((item) => <MenuItem value={item.value} key={item.value}>{item.label}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <Typography sx={{ color: "#526b83", fontSize: 13, fontWeight: 800 }}>
+            {recordKinds.find((item) => item.value === kind)?.label} · βασικά στοιχεία
+          </Typography>
+          <TextField
+            label={kind === "team" ? "Ονοματεπώνυμο μέλους" : kind === "cost" ? "Τίτλος χρέωσης" : kind === "note" ? "Τίτλος ενημέρωσης" : `Τίτλος ${kind === "phase" ? "φάσης" : kind === "milestone" ? "οροσήμου" : "παραδοτέου"}`}
+            required value={title} onChange={(e) => setTitle(e.target.value)}
+          />
+          <TextField
+            label={kind === "team" ? "Αρμοδιότητες" : kind === "cost" ? "Ανάλυση χρέωσης" : kind === "note" ? "Κείμενο ενημέρωσης" : "Περιγραφή"}
+            value={description} onChange={(e) => setDescription(e.target.value)} multiline minRows={kind === "note" ? 3 : 2}
+          />
+          {kind === "team" && (
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+              <TextField label="Ρόλος στην ομάδα" value={teamRole} onChange={(e) => setTeamRole(e.target.value)} fullWidth />
+              <TextField label="Στόχος / αντικείμενο" value={teamGoal} onChange={(e) => setTeamGoal(e.target.value)} fullWidth />
+            </Stack>
+          )}
+          {hasParentPhase && (
+            <FormControl fullWidth>
+              <InputLabel>{kind === "team" ? "Ανάθεση σε φάση (προαιρετικό)" : "Σύνδεση με φάση (προαιρετικό)"}</InputLabel>
+              <Select label={kind === "team" ? "Ανάθεση σε φάση (προαιρετικό)" : "Σύνδεση με φάση (προαιρετικό)"} value={parentRecordId} onChange={(e) => setParentRecordId(e.target.value)}>
+                <MenuItem value="">Χωρίς σύνδεση</MenuItem>
+                {phases.map((phase) => <MenuItem value={phase.id} key={phase.id}>{phase.title}</MenuItem>)}
+              </Select>
+            </FormControl>
+          )}
+          {hasStatus && (
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+              <FormControl fullWidth>
+                <InputLabel>{kind === "cost" ? "Κατάσταση πληρωμής" : "Κατάσταση"}</InputLabel>
+                <Select label={kind === "cost" ? "Κατάσταση πληρωμής" : "Κατάσταση"} value={status} onChange={(e) => setStatus(e.target.value)}>
+                  {availableStatuses.map((item) => <MenuItem key={item.value} value={item.value}>{item.label}</MenuItem>)}
+                </Select>
+              </FormControl>
+              {["milestone", "deliverable"].includes(kind) && (
+                <TextField label="Σειρά εμφάνισης" type="number" inputProps={{ min: 0 }} value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} fullWidth />
+              )}
+            </Stack>
+          )}
+          {hasPhase && (
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+              <TextField label="Προθεσμία ολοκλήρωσης" type="date" InputLabelProps={{ shrink: true }} value={dueOn} onChange={(e) => setDueOn(e.target.value)} fullWidth />
+              <TextField label="Σειρά εμφάνισης" type="number" inputProps={{ min: 0 }} value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} fullWidth />
+            </Stack>
+          )}
+          {kind === "milestone" && <TextField label="Ημερομηνία οροσήμου" type="date" InputLabelProps={{ shrink: true }} value={dueOn} onChange={(e) => setDueOn(e.target.value)} />}
+          {kind === "deliverable" && (
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+              <TextField label="Στόχος παράδοσης" type="date" InputLabelProps={{ shrink: true }} value={dueOn} onChange={(e) => setDueOn(e.target.value)} fullWidth />
+              <TextField label="Ημερομηνία παράδοσης" type="date" InputLabelProps={{ shrink: true }} value={issuedOn} onChange={(e) => setIssuedOn(e.target.value)} fullWidth />
+            </Stack>
+          )}
+          {kind === "cost" && (
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+              <TextField label="Ποσό (€)" type="number" inputProps={{ min: 0, step: ".01" }} value={amount} onChange={(e) => setAmount(e.target.value)} fullWidth />
+              <TextField label="Ημερομηνία χρέωσης" type="date" InputLabelProps={{ shrink: true }} value={issuedOn} onChange={(e) => setIssuedOn(e.target.value)} fullWidth />
+              <TextField label="Προθεσμία πληρωμής" type="date" InputLabelProps={{ shrink: true }} value={dueOn} onChange={(e) => setDueOn(e.target.value)} fullWidth />
+            </Stack>
+          )}
+          {kind === "note" && (
+            <TextField label="Ημερομηνία ενημέρωσης" type="date" InputLabelProps={{ shrink: true }} value={issuedOn} onChange={(e) => setIssuedOn(e.target.value)} />
+          )}
         </Stack></DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}><Button onClick={onClose}>Ακύρωση</Button><Button type="submit" variant="contained" disabled={busy}>Αποθήκευση</Button></DialogActions>
       </form>
