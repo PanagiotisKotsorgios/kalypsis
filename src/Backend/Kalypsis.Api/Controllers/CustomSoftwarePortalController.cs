@@ -50,7 +50,6 @@ public sealed class CustomSoftwarePortalController : ControllerBase
         string Email,
         string FirstName,
         string LastName,
-        bool MustChangePassword,
         string PreferencesJson);
     public sealed record ProjectRecordDto(
         Guid Id,
@@ -98,6 +97,7 @@ public sealed class CustomSoftwarePortalController : ControllerBase
         account.FailedLoginAttempts = 0;
         account.LockedUntil = null;
         account.LastLoginAt = DateTime.UtcNow;
+        account.MustChangePassword = false;
         await _db.SaveChangesAsync(ct);
 
         var expiresAt = DateTime.UtcNow.AddHours(4);
@@ -124,7 +124,6 @@ public sealed class CustomSoftwarePortalController : ControllerBase
             account.Email,
             account.FirstName,
             account.LastName,
-            account.MustChangePassword,
             account.PreferencesJson));
     }
 
@@ -140,7 +139,6 @@ public sealed class CustomSoftwarePortalController : ControllerBase
             account.FirstName,
             account.LastName,
             account.Phone,
-            account.MustChangePassword,
             account.PreferencesJson,
             Projects = await _db.CustomSoftwareProjectAccesses
                 .Where(x => x.AccountId == account.Id)
@@ -163,7 +161,7 @@ public sealed class CustomSoftwarePortalController : ControllerBase
     [Authorize(Policy = "CustomSoftwarePortal")]
     public async Task<ActionResult> Project(Guid projectId, CancellationToken ct)
     {
-        var account = await GetCurrentAccountAsync(ct, requirePasswordReady: true);
+        var account = await GetCurrentAccountAsync(ct);
         if (!await HasProjectAccessAsync(account.Id, projectId, ct)) return NotFound();
 
         var project = await _db.CustomSoftwareProjects
@@ -260,7 +258,7 @@ public sealed class CustomSoftwarePortalController : ControllerBase
     [Authorize(Policy = "CustomSoftwarePortal")]
     public async Task<IActionResult> Download(Guid recordId, CancellationToken ct)
     {
-        var account = await GetCurrentAccountAsync(ct, requirePasswordReady: true);
+        var account = await GetCurrentAccountAsync(ct);
         var record = await _db.CustomSoftwareProjectRecords
             .Where(x => x.Id == recordId && x.StorageKey != null)
             .Select(x => new { x.ProjectId, x.StorageKey, x.FileName, x.ContentType })
@@ -272,7 +270,7 @@ public sealed class CustomSoftwarePortalController : ControllerBase
         return File(stream, record.ContentType ?? "application/octet-stream", record.FileName ?? "project-file");
     }
 
-    private async Task<CustomSoftwarePortalAccount> GetCurrentAccountAsync(CancellationToken ct, bool requirePasswordReady = false)
+    private async Task<CustomSoftwarePortalAccount> GetCurrentAccountAsync(CancellationToken ct)
     {
         if (!Guid.TryParse(User.FindFirstValue(JwtRegisteredClaimNames.Sub), out var accountId)
             || !int.TryParse(User.FindFirstValue("portal_session_version"), out var sessionVersion))
@@ -282,8 +280,6 @@ public sealed class CustomSoftwarePortalController : ControllerBase
             .SingleOrDefaultAsync(x => x.Id == accountId && x.IsActive, ct);
         if (account is null || account.SessionVersion != sessionVersion)
             throw AppException.Unauthorized();
-        if (requirePasswordReady && account.MustChangePassword)
-            throw AppException.Forbidden("Αλλάξτε τον προσωρινό κωδικό σας πριν χρησιμοποιήσετε το portal.");
         return account;
     }
 
@@ -350,7 +346,6 @@ public sealed class PlatformCustomSoftwarePortalController : ControllerBase
                 x.LastName,
                 x.Phone,
                 x.IsActive,
-                x.MustChangePassword,
                 x.LastLoginAt,
                 ProjectIds = x.ProjectAccesses.Select(a => a.ProjectId).ToList()
             })
@@ -367,7 +362,7 @@ public sealed class PlatformCustomSoftwarePortalController : ControllerBase
         if (await _db.CustomSoftwarePortalAccounts.AnyAsync(x => x.Email == email, ct))
             return Conflict(new { message = "Υπάρχει ήδη portal λογαριασμός με αυτό το email." });
         if (body.InitialPassword is { Length: < 12 or > 200 })
-            return BadRequest(new { message = "Ο προσωρινός κωδικός πρέπει να έχει τουλάχιστον 12 χαρακτήρες." });
+            return BadRequest(new { message = "Ο κωδικός πρέπει να έχει από 12 έως 200 χαρακτήρες." });
 
         var projectIds = body.ProjectIds.Distinct().ToArray();
         var existingProjectIds = await _db.CustomSoftwareProjects
@@ -386,7 +381,7 @@ public sealed class PlatformCustomSoftwarePortalController : ControllerBase
             Phone = body.Phone?.Trim(),
             PasswordHash = _passwordHasher.Hash(initialPassword),
             IsActive = body.IsActive,
-            MustChangePassword = true,
+            MustChangePassword = false,
             PreferencesJson = "{}"
         };
         _db.CustomSoftwarePortalAccounts.Add(account);
@@ -401,7 +396,6 @@ public sealed class PlatformCustomSoftwarePortalController : ControllerBase
             account.FirstName,
             account.LastName,
             InitialPassword = initialPassword,
-            account.MustChangePassword,
             ProjectIds = projectIds
         });
     }
@@ -436,7 +430,7 @@ public sealed class PlatformCustomSoftwarePortalController : ControllerBase
         if (!string.IsNullOrWhiteSpace(body.InitialPassword))
         {
             account.PasswordHash = _passwordHasher.Hash(body.InitialPassword);
-            account.MustChangePassword = true;
+            account.MustChangePassword = false;
             account.SessionVersion++;
         }
         if (!account.IsActive) account.SessionVersion++;

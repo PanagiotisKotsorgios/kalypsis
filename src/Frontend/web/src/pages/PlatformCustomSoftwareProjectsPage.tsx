@@ -75,7 +75,6 @@ interface PortalAccount {
   lastName: string;
   phone: string | null;
   isActive: boolean;
-  mustChangePassword: boolean;
   lastLoginAt: string | null;
   projectIds: string[];
 }
@@ -147,7 +146,7 @@ export function PlatformCustomSoftwareProjectsPage() {
       {success && <Alert severity="success" onClose={() => setSuccess("")} sx={{ mb: 2 }}>{success}</Alert>}
       {issuedPasswordNotice && (
         <Alert severity="warning" onClose={() => setIssuedPasswordNotice("")} sx={{ mb: 2 }}>
-          Προσωρινός κωδικός συνεργάτη: <b>{issuedPasswordNotice}</b>. Αντιγράψτε τον και μοιραστείτε τον με ασφαλή τρόπο. Δεν θα εμφανιστεί ξανά.
+          Αρχικός κωδικός συνεργάτη: <b>{issuedPasswordNotice}</b>. Αντιγράψτε τον και μοιραστείτε τον με ασφαλή τρόπο. Δεν θα εμφανιστεί ξανά.
         </Alert>
       )}
       {(projectsQuery.isError || accountsQuery.isError) && (
@@ -342,7 +341,7 @@ function AccountTable({ accounts, projects, onEdit, onDelete }: {
             <Box>
               <Typography sx={{ color: "#0b2545", fontWeight: 850 }}>{account.firstName} {account.lastName} · {account.email}</Typography>
               <Typography sx={{ mt: .4, color: "#718096", fontSize: 12 }}>
-                {account.isActive ? "Ενεργός" : "Απενεργοποιημένος"} · {account.mustChangePassword ? "Απαιτεί αλλαγή κωδικού" : "Κωδικός ορισμένος"} · {account.projectIds.map((id) => projects.find((project) => project.id === id)?.name).filter(Boolean).join(", ") || "Χωρίς έργα"}
+                {account.isActive ? "Ενεργός" : "Απενεργοποιημένος"} · {account.projectIds.map((id) => projects.find((project) => project.id === id)?.name).filter(Boolean).join(", ") || "Χωρίς έργα"}
               </Typography>
             </Box>
             <Stack direction="row" spacing={0.5}>
@@ -451,7 +450,7 @@ function AccountDialog({ open, account, projects, busy, onClose, onSubmit }: {
       <form onSubmit={submit}>
         <DialogTitle sx={{ color: "#0b2545", fontWeight: 900 }}>{account ? "Λογαριασμός συνεργάτη" : "Δημιουργία portal λογαριασμού"}</DialogTitle>
         <DialogContent><Stack spacing={2} sx={{ pt: 1 }}>
-          <Alert severity="info">Δεν υπάρχει δημόσια εγγραφή. Ο συνεργάτης θα λάβει προσωρινό κωδικό και θα ορίσει τον δικό του στην πρώτη σύνδεση.</Alert>
+          <Alert severity="info">Δεν υπάρχει δημόσια εγγραφή. Μόνο λογαριασμοί που δημιουργούνται εδώ μπορούν να συνδεθούν. Ο συνεργάτης μπορεί να αλλάξει τον κωδικό του από τις ρυθμίσεις προφίλ.</Alert>
           <TextField label="Email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}><TextField label="Όνομα" required value={firstName} onChange={(e) => setFirstName(e.target.value)} fullWidth /><TextField label="Επώνυμο" required value={lastName} onChange={(e) => setLastName(e.target.value)} fullWidth /></Stack>
           <TextField label="Τηλέφωνο" value={phone} onChange={(e) => setPhone(e.target.value)} />
@@ -461,7 +460,7 @@ function AccountDialog({ open, account, projects, busy, onClose, onSubmit }: {
               {projects.map((project) => <MenuItem key={project.id} value={project.id}>{project.name} · {project.clientName}</MenuItem>)}
             </Select>
           </FormControl>
-          <TextField label={account ? "Νέος προσωρινός κωδικός (προαιρετικό)" : "Προσωρινός κωδικός"} type="text" helperText="Τουλάχιστον 12 χαρακτήρες· εμφανίζεται μόνο κατά τη δημιουργία ή επαναφορά." value={password} onChange={(e) => setPassword(e.target.value)} InputProps={{ endAdornment: <Button onClick={() => makePassword()} size="small">Δημιουργία</Button> }} />
+          <TextField label={account ? "Νέος κωδικός (προαιρετικό)" : "Αρχικός κωδικός"} type="text" helperText="Τουλάχιστον 12 χαρακτήρες· εμφανίζεται μόνο κατά τη δημιουργία ή επαναφορά." value={password} onChange={(e) => setPassword(e.target.value)} InputProps={{ endAdornment: <Button onClick={() => makePassword()} size="small">Δημιουργία</Button> }} />
           {account && <FormControl fullWidth><InputLabel>Κατάσταση λογαριασμού</InputLabel><Select label="Κατάσταση λογαριασμού" value={active ? "active" : "inactive"} onChange={(e) => setActive(e.target.value === "active")}><MenuItem value="active">Ενεργός</MenuItem><MenuItem value="inactive">Απενεργοποιημένος</MenuItem></Select></FormControl>}
         </Stack></DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}><Button onClick={onClose}>Κλείσιμο</Button><Button type="submit" variant="contained" disabled={busy || (password.length > 0 && password.length < 12)}>{account ? "Αποθήκευση" : "Δημιουργία λογαριασμού"}</Button></DialogActions>

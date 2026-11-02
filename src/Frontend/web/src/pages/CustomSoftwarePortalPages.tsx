@@ -31,7 +31,6 @@ import CloudDownloadOutlinedIcon from "@mui/icons-material/CloudDownloadOutlined
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import FolderOpenOutlinedIcon from "@mui/icons-material/FolderOpenOutlined";
 import GitHubIcon from "@mui/icons-material/GitHub";
-import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
@@ -66,7 +65,6 @@ interface PortalAccount {
   firstName: string;
   lastName: string;
   phone: string | null;
-  mustChangePassword: boolean;
   preferencesJson: string;
   projects: PortalProjectSummary[];
 }
@@ -258,7 +256,6 @@ export function CustomSoftwarePartnerPortalPage() {
   const { projectId } = useParams();
   const [tab, setTab] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [passwordDialog, setPasswordDialog] = useState(false);
   const accountQuery = useQuery({
     queryKey: ["custom-software-portal-me"],
     queryFn: async () => (await portalApi.get<PortalAccount>("/custom-software-portal/me")).data,
@@ -277,10 +274,6 @@ export function CustomSoftwarePartnerPortalPage() {
       navigate("/custom-software-solutions/login", { replace: true });
     }
   }, [accountQuery.isError, navigate]);
-
-  useEffect(() => {
-    if (accountQuery.data?.mustChangePassword) setPasswordDialog(true);
-  }, [accountQuery.data?.mustChangePassword]);
 
   const logout = async () => {
     try {
@@ -318,11 +311,6 @@ export function CustomSoftwarePartnerPortalPage() {
       </AppBar>
 
       <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 }, px: { xs: 2, md: 4 } }}>
-        {account.mustChangePassword && (
-          <Alert severity="warning" icon={<LockOutlinedIcon />} sx={{ mb: 3 }}>
-            Για την προστασία του λογαριασμού σας, ορίστε νέο προσωπικό κωδικό πριν συνεχίσετε.
-          </Alert>
-        )}
         {!projectId ? (
           <ProjectOverview account={account} onSelect={(id) => navigate(`/custom-software-solutions/portal/projects/${id}`)} />
         ) : !selectedProject ? (
@@ -345,11 +333,9 @@ export function CustomSoftwarePartnerPortalPage() {
           void accountQuery.refetch();
         }}
         onPasswordChanged={() => {
-          setPasswordDialog(false);
           sessionStorage.removeItem(PORTAL_TOKEN_KEY);
           navigate("/custom-software-solutions/login", { replace: true });
         }}
-        forcePassword={passwordDialog}
       />
     </Box>
   );
@@ -672,13 +658,12 @@ function RecordRow({ record }: { record: ProjectRecord }) {
   );
 }
 
-function ProfileDialog({ open, account, onClose, onSaved, onPasswordChanged, forcePassword }: {
+function ProfileDialog({ open, account, onClose, onSaved, onPasswordChanged }: {
   open: boolean;
   account: PortalAccount;
   onClose: () => void;
   onSaved: () => void;
   onPasswordChanged: () => void;
-  forcePassword: boolean;
 }) {
   const queryClient = useQueryClient();
   const [firstName, setFirstName] = useState(account.firstName);
@@ -714,43 +699,29 @@ function ProfileDialog({ open, account, onClose, onSaved, onPasswordChanged, for
   });
 
   return (
-    <Dialog open={open || forcePassword} onClose={forcePassword ? undefined : onClose} fullWidth maxWidth="sm">
-      <DialogTitle sx={{ color: "#0b2545", fontWeight: 900 }}>{forcePassword ? "Ορίστε τον προσωπικό σας κωδικό" : "Προφίλ & προτιμήσεις"}</DialogTitle>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle sx={{ color: "#0b2545", fontWeight: 900 }}>Προφίλ & προτιμήσεις</DialogTitle>
       <DialogContent>
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-        {forcePassword ? (
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            <Alert severity="info">Ο προσωρινός κωδικός πρέπει να αλλαχθεί πριν από την πρόσβαση στα στοιχεία του έργου.</Alert>
-            <TextField label="Τρέχων προσωρινός κωδικός" type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
-            <TextField label="Νέος κωδικός (τουλάχιστον 12 χαρακτήρες)" type="password" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+            <TextField label="Όνομα" value={firstName} onChange={(e) => setFirstName(e.target.value)} fullWidth />
+            <TextField label="Επώνυμο" value={lastName} onChange={(e) => setLastName(e.target.value)} fullWidth />
           </Stack>
-        ) : (
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-              <TextField label="Όνομα" value={firstName} onChange={(e) => setFirstName(e.target.value)} fullWidth />
-              <TextField label="Επώνυμο" value={lastName} onChange={(e) => setLastName(e.target.value)} fullWidth />
-            </Stack>
-            <TextField label="Email λογαριασμού" value={account.email} disabled helperText="Η αλλαγή email γίνεται από την ομάδα KALYPSIS για λόγους ασφαλείας." />
-            <TextField label="Τηλέφωνο" value={phone} onChange={(e) => setPhone(e.target.value)} />
-            <Divider />
-            <Typography sx={{ color: "#0b2545", fontWeight: 850 }}>Αλλαγή κωδικού</Typography>
-            <TextField label="Τρέχων κωδικός" type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
-            <TextField label="Νέος κωδικός (τουλάχιστον 12 χαρακτήρες)" type="password" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
-          </Stack>
-        )}
+          <TextField label="Email λογαριασμού" value={account.email} disabled helperText="Η αλλαγή email γίνεται από την ομάδα KALYPSIS για λόγους ασφαλείας." />
+          <TextField label="Τηλέφωνο" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <Divider />
+          <Typography sx={{ color: "#0b2545", fontWeight: 850 }}>Αλλαγή κωδικού</Typography>
+          <TextField label="Τρέχων κωδικός" type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
+          <TextField label="Νέος κωδικός (τουλάχιστον 12 χαρακτήρες)" type="password" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+        </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2.5, justifyContent: "space-between" }}>
-        {!forcePassword && <Button onClick={onClose} sx={{ textTransform: "none" }}>Κλείσιμο</Button>}
-        {forcePassword ? (
-          <Button variant="contained" disabled={changePassword.isPending || newPassword.length < 12} onClick={() => { setError(""); changePassword.mutate(); }} sx={{ bgcolor: "#0b2545", textTransform: "none", fontWeight: 800 }}>
-            {changePassword.isPending ? <CircularProgress size={18} color="inherit" /> : "Αποθήκευση νέου κωδικού"}
-          </Button>
-        ) : (
-          <Stack direction="row" gap={1}>
-            <Button disabled={changePassword.isPending || newPassword.length < 12 || !currentPassword} onClick={() => { setError(""); changePassword.mutate(); }} sx={{ textTransform: "none" }}>Αλλαγή κωδικού</Button>
-            <Button variant="contained" disabled={saveProfile.isPending} onClick={() => { setError(""); saveProfile.mutate(); }} sx={{ bgcolor: "#0b2545", textTransform: "none", fontWeight: 800 }}>Αποθήκευση προφίλ</Button>
-          </Stack>
-        )}
+        <Button onClick={onClose} sx={{ textTransform: "none" }}>Κλείσιμο</Button>
+        <Stack direction="row" gap={1}>
+          <Button disabled={changePassword.isPending || newPassword.length < 12 || !currentPassword} onClick={() => { setError(""); changePassword.mutate(); }} sx={{ textTransform: "none" }}>Αλλαγή κωδικού</Button>
+          <Button variant="contained" disabled={saveProfile.isPending} onClick={() => { setError(""); saveProfile.mutate(); }} sx={{ bgcolor: "#0b2545", textTransform: "none", fontWeight: 800 }}>Αποθήκευση προφίλ</Button>
+        </Stack>
       </DialogActions>
     </Dialog>
   );
