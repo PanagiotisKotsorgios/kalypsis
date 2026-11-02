@@ -8,6 +8,7 @@ import TerminalRoundedIcon from "@mui/icons-material/TerminalRounded";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
+import { useOptionalAuthUser } from "../auth/AuthContext";
 import { CLI_REPOSITORY, cliContributionUrl } from "./CliProjectLink";
 import { KalypsisLogo } from "./KalypsisLogo";
 
@@ -53,6 +54,7 @@ const columnHeadingSx = {
 
 export function PublicFooter() {
   const { i18n } = useTranslation();
+  const user = useOptionalAuthUser();
   const english = i18n.resolvedLanguage?.startsWith("en") ?? false;
   const copy = english
     ? {
@@ -69,6 +71,7 @@ export function PublicFooter() {
         pricing: "Plans & pricing",
         faq: "Frequently asked questions",
         portal: "Partner project portal",
+        projectAdmin: "Project portal administration",
         contact: "Contact us",
         login: "Sign in",
         address: "Epar. Od. Messolongiou – Alykon Tourlidas, 302 00 Messolonghi, Aetolia-Acarnania",
@@ -101,6 +104,7 @@ export function PublicFooter() {
         pricing: "Πακέτα & τιμές",
         faq: "Συχνές ερωτήσεις",
         portal: "Portal συνεργατών",
+        projectAdmin: "Διαχείριση έργων portal",
         contact: "Επικοινωνία",
         login: "Σύνδεση",
         address: "Επαρ. Οδ. Μεσολογγίου – Αλυκών Τουρλίδας, 302 00 Μεσολόγγι, Αιτωλοακαρνανία",
@@ -219,6 +223,9 @@ export function PublicFooter() {
             <Stack spacing={1.5} alignItems="flex-start">
               <FooterLink to="/contact">{copy.contact}</FooterLink>
               <FooterLink to="/login">{copy.login}</FooterLink>
+              {user?.role === "PlatformAdmin" && (
+                <FooterLink to="/platform/custom-software-projects">{copy.projectAdmin}</FooterLink>
+              )}
               <Box component="a" href="mailto:info@mykalypsis.gr" sx={linkSx}>
                 <EmailOutlinedIcon sx={{ fontSize: 17, color: "#8bd0ff" }} />
                 info@mykalypsis.gr
