@@ -10,6 +10,9 @@ import { CompanyComingSoonPage } from "./pages/CompanyComingSoonPage";
 import { DownloadPage } from "./pages/DownloadPage";
 import { DesktopReleasesPage } from "./pages/DesktopReleasesPage";
 import { DesktopReleaseGuidePage } from "./pages/DesktopReleaseGuidePage";
+import { TermsPage } from "./pages/TermsPage";
+import { PrivacyPage } from "./pages/PrivacyPage";
+import { CookiesPage } from "./pages/CookiesPage";
 import type { NavItem } from "./components/AppLayout";
 import type { Role } from "./auth/AuthContext";
 
@@ -38,6 +41,9 @@ export default function App() {
       <Route path="/download" element={<DownloadPage />} />
       <Route path="/download/releases" element={<DesktopReleasesPage />} />
       <Route path="/download/releases/guide/:assetId" element={<DesktopReleaseGuidePage />} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/cookies" element={<CookiesPage />} />
       <Route path="/custom-software-solutions" element={<CustomSoftwarePage />} />
       <Route path="/company/*" element={<CompanyComingSoonPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
