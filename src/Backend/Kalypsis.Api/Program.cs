@@ -165,6 +165,7 @@ builder.Services.AddAuthorization(opt =>
         nameof(Kalypsis.Domain.Enums.Role.PlatformEmployee)));
     opt.AddPolicy("Producer", p => p.RequireClaim("role", nameof(Kalypsis.Domain.Enums.Role.Producer)));
     opt.AddPolicy("InsureOnePartner", p => p.RequireClaim("role", nameof(Kalypsis.Domain.Enums.Role.Producer)));
+    opt.AddPolicy("CustomSoftwarePortal", p => p.RequireClaim("custom_software_portal", "true"));
     // Federation module policies — mirror the AgencyAdmin / AgencyStaff pair
     // so PlatformAdmin/Employee can operate federation surfaces while
     // impersonating (identical to the insurance-side policies).

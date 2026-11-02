@@ -13,6 +13,11 @@ import { DesktopReleaseGuidePage } from "./pages/DesktopReleaseGuidePage";
 import { TermsPage } from "./pages/TermsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { CookiesPage } from "./pages/CookiesPage";
+import {
+  CustomSoftwarePartnerPortalPage,
+  CustomSoftwarePortalLoginPage,
+} from "./pages/CustomSoftwarePortalPages";
+import { PlatformCustomSoftwareProjectsPage } from "./pages/PlatformCustomSoftwareProjectsPage";
 import type { NavItem } from "./components/AppLayout";
 import type { Role } from "./auth/AuthContext";
 
@@ -41,6 +46,10 @@ export default function App() {
       <Route path="/download" element={<DownloadPage />} />
       <Route path="/download/releases" element={<DesktopReleasesPage />} />
       <Route path="/download/releases/guide/:assetId" element={<DesktopReleaseGuidePage />} />
+      <Route path="/custom-software-solutions/login" element={<CustomSoftwarePortalLoginPage />} />
+      <Route path="/custom-software-solutions/portal" element={<CustomSoftwarePartnerPortalPage />} />
+      <Route path="/custom-software-solutions/portal/projects/:projectId" element={<CustomSoftwarePartnerPortalPage />} />
+      <Route path="/platform/custom-software-projects" element={<PlatformCustomSoftwareProjectsPage />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/cookies" element={<CookiesPage />} />
