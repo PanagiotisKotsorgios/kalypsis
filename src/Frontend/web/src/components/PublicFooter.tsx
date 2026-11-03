@@ -63,7 +63,7 @@ export function PublicFooter() {
         location: "Visit us",
         hours: "Business hours",
         description:
-          "Software for insurance offices, built around clear workflows, reliable information and practical support.",
+          "Kalypsis Software Solutions: Shaping the future of digital transformation with smart software solutions, reliable data, and continuous support right by every business's side.",
         software: "Custom software",
         desktop: "Kalypsis Desktop",
         releases: "Desktop releases",
