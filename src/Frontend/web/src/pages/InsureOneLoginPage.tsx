@@ -19,7 +19,9 @@ import {
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import HeadsetMicRoundedIcon from "@mui/icons-material/HeadsetMicRounded";
 import LockRoundedIcon from "@mui/icons-material/LockRounded";
+import PhoneRoundedIcon from "@mui/icons-material/PhoneRounded";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
+import PersonAddAlt1RoundedIcon from "@mui/icons-material/PersonAddAlt1Rounded";
 import VisibilityOffRoundedIcon from "@mui/icons-material/VisibilityOffRounded";
 import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 import { useNavigate, useParams } from "react-router-dom";
@@ -148,6 +150,54 @@ export function InsureOneLoginPage() {
     "& .MuiInputLabel-root.Mui-focused": { color: secondary, fontWeight: 800 },
     "& input::placeholder": { color: "#7188a8", opacity: 1 },
   };
+
+  if (slug.toLowerCase() === "atlas-union") {
+    const atlasBlue = "#075ec8";
+    const atlasNavy = "#08265a";
+    const supportEmail = b.supportEmail || "info@atlas-union.gr";
+    const supportPhone = b.supportPhone || "2631028971";
+    const atlasFieldSx = {
+      ...fieldSx,
+      "& .MuiOutlinedInput-root": {
+        minHeight: { xs: 58, sm: 62 },
+        borderRadius: "10px",
+        bgcolor: "#fff",
+        "& .MuiOutlinedInput-notchedOutline": { borderColor: atlasNavy, borderWidth: 1.5 },
+        "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: atlasBlue, borderWidth: 2 },
+        "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: atlasBlue, borderWidth: 2 },
+      },
+      "& .MuiInputLabel-root": { color: "#5c7092" },
+      "& .MuiInputLabel-root.Mui-focused": { color: atlasBlue },
+    };
+
+    return (
+      <Box sx={{ minHeight: "100vh", display: "grid", placeItems: "center", p: { xs: 1.5, sm: 3 }, bgcolor: "#0a4b86", backgroundImage: 'linear-gradient(105deg, rgba(0,56,116,.14), rgba(4,76,144,.08)), url("/assets/atlas-union-buildings.jpg")', backgroundSize: "cover", backgroundPosition: "center" }}>
+        <Paper component="main" elevation={0} sx={{ width: "100%", maxWidth: 590, borderRadius: { xs: 2.5, sm: 3 }, overflow: "hidden", border: "1px solid #dbe8f5", boxShadow: "0 20px 65px rgba(2, 28, 73, .25)", bgcolor: "rgba(255,255,255,.975)" }}>
+          <Box sx={{ px: { xs: 2.5, sm: 5.2 }, pt: { xs: 2.4, sm: 3.2 }, pb: { xs: 2.3, sm: 3 } }}>
+            <Box component="img" src="/assets/atlas-union-logo.png" alt="Atlas Union Ασφαλιστικό Δίκτυο" sx={{ display: "block", width: { xs: 260, sm: 370 }, maxWidth: "100%", height: "auto", mx: "auto", mb: { xs: 2.1, sm: 2.8 } }} />
+            <Typography component="h1" align="center" sx={{ color: atlasNavy, fontWeight: 850, fontSize: { xs: 30, sm: 39 }, letterSpacing: "-.035em", lineHeight: 1.15 }}>Πύλη Συνεργατών</Typography>
+            <Box sx={{ width: 34, height: 3, bgcolor: atlasBlue, borderRadius: 2, mx: "auto", my: 1.25 }} />
+            <Typography align="center" sx={{ color: "#5f7192", fontSize: { xs: 14, sm: 17 }, lineHeight: 1.45, maxWidth: 465, mx: "auto", mb: { xs: 2.1, sm: 2.8 } }}>Ασφαλής πρόσβαση στις εφαρμογές, τις υπηρεσίες και το δίκτυο συνεργασίας της Atlas Union.</Typography>
+
+            <Stack component="form" onSubmit={e => { e.preventDefault(); void submit(); }} spacing={1.3}>
+              {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
+              {challenge ? <TextField autoFocus fullWidth label={challenge.kind === "totp" ? "Κωδικός εφαρμογής" : "Κωδικός email"} value={code} onChange={e => setCode(e.target.value)} inputProps={{ inputMode: "numeric", maxLength: 8 }} sx={atlasFieldSx} /> : <>
+                <TextField autoFocus fullWidth label="Email ή Όνομα χρήστη" value={identifier} onChange={e => setIdentifier(e.target.value)} autoComplete="username" InputProps={{ startAdornment: <InputAdornment position="start"><PersonRoundedIcon sx={{ color: atlasNavy, fontSize: 25 }} /></InputAdornment> }} sx={atlasFieldSx} />
+                <TextField fullWidth label="Κωδικός πρόσβασης" type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" InputProps={{ startAdornment: <InputAdornment position="start"><LockRoundedIcon sx={{ color: atlasNavy, fontSize: 25 }} /></InputAdornment>, endAdornment: <InputAdornment position="end"><IconButton aria-label={showPassword ? "Απόκρυψη κωδικού" : "Εμφάνιση κωδικού"} onClick={() => setShowPassword(v => !v)} edge="end" sx={{ color: atlasNavy }}>{showPassword ? <VisibilityOffRoundedIcon /> : <VisibilityRoundedIcon />}</IconButton></InputAdornment> }} sx={atlasFieldSx} />
+                <Stack direction="row" justifyContent="space-between" alignItems="center" gap={1} flexWrap="wrap"><FormControlLabel control={<Checkbox checked={remember} onChange={e => setRemember(e.target.checked)} sx={{ color: atlasBlue, p: .5, "&.Mui-checked": { color: atlasBlue } }} />} label={<Typography sx={{ fontSize: 14, color: atlasNavy }}>Να με θυμάσαι</Typography>} /><Link href={`mailto:${supportEmail}?subject=${encodeURIComponent("Ανάκτηση πρόσβασης στην Πύλη Συνεργατών Atlas Union")}`} underline="always" sx={{ fontSize: 14, fontWeight: 700, color: atlasBlue }}>Ξέχασα τον κωδικό μου;</Link></Stack>
+              </>}
+              <Button type="submit" variant="contained" size="large" endIcon={<ArrowForwardRoundedIcon />} sx={{ minHeight: 60, borderRadius: "10px", bgcolor: atlasBlue, color: "#fff", textTransform: "none", fontSize: { xs: 16, sm: 18 }, fontWeight: 800, boxShadow: "none", "&:hover": { bgcolor: "#044caa", boxShadow: "0 6px 16px rgba(4,76,170,.22)" } }}>{challenge ? "Επιβεβαίωση σύνδεσης" : "Σύνδεση στην πύλη"}</Button>
+              {!challenge && <><Stack direction="row" alignItems="center" spacing={1.4} sx={{ py: .35 }}><Divider sx={{ flex: 1, borderColor: "#d2deeb" }} /><Typography sx={{ color: "#677b9c" }}>ή</Typography><Divider sx={{ flex: 1, borderColor: "#d2deeb" }} /></Stack><Button variant="outlined" startIcon={<PersonAddAlt1RoundedIcon />} href={`mailto:${supportEmail}?subject=${encodeURIComponent("Αίτημα εγγραφής συνεργάτη Atlas Union")}`} sx={{ minHeight: 55, borderRadius: "10px", border: `2px solid ${atlasBlue}`, color: atlasBlue, textTransform: "none", fontSize: { xs: 15, sm: 17 }, fontWeight: 800, "&:hover": { borderWidth: 2, borderColor: "#044caa", bgcolor: "#f0f7ff" } }}>Εγγραφή νέου συνεργάτη</Button></>}
+            </Stack>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", px: { xs: 2.5, sm: 5.2 }, py: { xs: 1.8, sm: 2.2 }, bgcolor: "#eef5fb", borderTop: "1px solid #dfeaf4" }}>
+            <Stack direction="row" spacing={1.2} alignItems="center"><HeadsetMicRoundedIcon sx={{ color: atlasNavy, fontSize: 27 }} /><Box><Typography sx={{ color: atlasNavy, fontWeight: 800, fontSize: 14 }}>Χρειάζεστε βοήθεια;</Typography><Link href={`mailto:${supportEmail}`} underline="hover" sx={{ color: "#677b9c", fontSize: 12.5 }}>Επικοινωνήστε με την υποστήριξη</Link></Box></Stack>
+            <Stack direction="row" spacing={1.1} alignItems="center"><PhoneRoundedIcon sx={{ color: atlasNavy, fontSize: 24 }} /><Box><Link href={`tel:${supportPhone.replace(/[^+\d]/g, "")}`} underline="hover" sx={{ color: atlasNavy, fontWeight: 800, fontSize: 14 }}>{supportPhone}</Link><Typography sx={{ color: "#677b9c", fontSize: 12.5 }}>09:00 – 17:00</Typography></Box></Stack>
+          </Box>
+        </Paper>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column", bgcolor: "#eaf5fd", backgroundImage: `url("${background}")`, backgroundSize: "cover", backgroundPosition: "center" }}>
