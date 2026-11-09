@@ -1270,6 +1270,8 @@ export default function App() {
                   <Route path="*" element={<Navigate to="/app" replace />} />
                 </Routes>
                 </RoutedErrorBoundary>
+                              {/* KALYPSIS NEWS POPUP */}
+                <NewsPopup ready={true} />
               </AppShell>
               )}
               </ErmesOnlyGate>
