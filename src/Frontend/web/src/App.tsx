@@ -290,6 +290,7 @@ const InsuranceWebsitePage = lazy(() => import("./pages/insurance/InsuranceWebsi
 import { CustomerPortalPage } from "./pages/CustomerPortalPage";
 import { AffiliateProgramPage } from "./pages/AffiliateProgramPage";
 import { PlatformTodoBoardPage } from "./pages/PlatformTodoBoardPage";
+import NewsPopup from "./components/NewsPopup";
 
 // BackOffice routes that were previously folded into hub pages remained
 // available as deep links, but disappeared from the office sidebars. Keep the
